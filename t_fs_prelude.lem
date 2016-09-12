@@ -1,0 +1,291 @@
+open import Bool Maybe Basic_classes Tuple Map Num List List_extra String_extra Set Set_extra String Map_extra 
+(* open import T_fs_init *)
+
+open import {ocaml} `Lem_support`
+open import {isabelle} `Lem_support`
+
+
+(******************************************************************************)
+(* Miscellaneous                                                              *)
+(******************************************************************************)
+
+val shallow_equality : forall 'a. 'a -> 'a -> bool
+declare hol      target_rep function shallow_equality = infix `=`
+declare ocaml    target_rep function shallow_equality = infix `==`
+declare isabelle target_rep function shallow_equality = infix `=`
+declare coq      target_rep function shallow_equality = `classical_boolean_equivalence`
+
+
+val removeDuplicatesByAux : forall 'a. ('a -> 'a -> bool) -> list 'a -> list 'a -> list 'a
+let rec removeDuplicatesByAux eq acc l = match l with
+  | [] -> List.reverse acc
+  | x :: xs -> let acc' = if (List.any (eq x) acc) then acc else x::acc in 
+               removeDuplicatesByAux eq acc' xs
+end
+declare termination_argument removeDuplicatesByAux = automatic
+
+
+val removeDuplicatesBy : forall 'a. ('a -> 'a -> bool) -> list 'a -> list 'a
+let removeDuplicatesBy eq l = removeDuplicatesByAux eq [] l
+lemma removeDuplicatesBy_properties: (
+   (forall eq l e. elem e (removeDuplicatesBy eq l) --> elem e l) &&
+   (forall eq l e. elem e l --> (exists e'. (eq e e' || (e = e')) && elem e' (removeDuplicatesBy eq l)))
+)
+
+
+val removeDuplicates : forall 'a. Eq 'a => list 'a -> list 'a
+let removeDuplicates l = removeDuplicatesBy (=) l
+
+lemma removeDuplicates_safe: (forall l e. elem e (removeDuplicates l) = elem e l)
+
+
+
+(******************************************************************************)
+(* finite sets                                                                *)
+(******************************************************************************)
+
+(* For our specification we need finite sets. Amoung other things, we use them
+   for states. Unluckily, we don't have an equality check on states. Therefore,
+   the sets are rather simply represented in Ocaml and can contain duplicates.
+
+   Warning: these sets have to be used carefully to avoid the build-up of
+   duplicate states which can easily result in severe preformance problems.
+*)
+
+module Finset = struct
+
+  (*-------------------------------*)
+  (* datatype definition           *)
+  (*-------------------------------*)
+
+  type finset 'a
+  declare hol      target_rep type finset = `finite_set`
+  declare isabelle target_rep type finset = `finset`
+  declare ocaml    target_rep type finset = `finset` 
+
+
+  (*-------------------------------*)
+  (* converting from and to lists  *)
+  (*-------------------------------*)
+
+  val finset_from_list : forall 'a. list 'a -> finset 'a
+  declare ocaml    target_rep function finset_from_list = `finset_from_list` 
+  declare hol      target_rep function finset_from_list = `list2fset`
+  declare isabelle target_rep function finset_from_list = `finset_from_list`   
+
+  val list_from_finset : forall 'a. finset 'a -> list 'a
+  declare ocaml    target_rep function list_from_finset = `list_from_finset` 
+  declare hol      target_rep function list_from_finset = `fset2list`
+  declare isabelle target_rep function list_from_finset = `list_from_finset`   
+
+
+  (*-------------------------------*)
+  (* converting from and to sets   *)
+  (*-------------------------------*)
+
+  val set_from_finset : forall 'a. SetType 'a => finset 'a -> set 'a
+  let set_from_finset s = Set.fromList (list_from_finset s)
+  declare isabelle target_rep function set_from_finset = `set_from_finset`   
+  declare hol      target_rep function set_from_finset = `fset2set`   
+
+  val finset_from_set : forall 'a. SetType 'a => set 'a -> finset 'a
+  let finset_from_set s =  finset_from_list (Set_extra.toList s)
+  declare isabelle target_rep function finset_from_set = `finset_from_set`   
+  declare hol      target_rep function finset_from_set = `set2fset`   
+
+
+  (*-------------------------------*)
+  (* equality of finsets           *)
+  (*-------------------------------*)
+
+  let finset_equal s1 s2 = setEqual (set_from_finset s1) (set_from_finset s2)
+  let inline {hol;isabelle} finset_equal = unsafe_structural_equality
+
+  instance forall 'a. SetType 'a => (Eq (finset 'a))
+    let (=) = finset_equal
+    let (<>) s1 s2 = not (finset_equal s1 s2)
+  end
+
+
+  (*-------------------------------------*)
+  (* operations that don't need equality *)
+  (*-------------------------------------*)
+
+  val finset_empty : forall 'a. unit -> finset 'a
+  let finset_empty () = finset_from_list []
+  lemma finset_empty_eq : finset_empty () = finset_from_set {}
+
+  val finset_is_empty : forall 'a. finset 'a -> bool
+  let finset_is_empty s = List.null (list_from_finset s)
+  lemma finset_is_empty_eq : forall fs. finset_is_empty fs = (set_from_finset fs = {})
+
+  val finset_insert : forall 'a. 'a -> finset 'a -> finset 'a
+  let finset_insert e s = finset_from_list (e :: (list_from_finset s))
+  lemma finset_insert_eq : forall x s. finset_insert x s = finset_from_set (insert x (set_from_finset s))
+
+  val finset_singleton : forall 'a. 'a -> finset 'a
+  let finset_singleton x = finset_from_list [x]
+  lemma finset_singleton_eq : forall x. finset_singleton x = finset_from_set {x}
+
+  val finset_union : forall 'a. finset 'a -> finset 'a -> finset 'a
+  let finset_union s1 s2 = finset_from_list (reverseAppend (list_from_finset s1) (list_from_finset s2))
+  lemma finset_union_eq : forall s1 s2. finset_union s1 s2 = finset_from_set ((set_from_finset s1) union (set_from_finset s2))
+
+  val finset_bigunion : forall 'a. finset (finset 'a) -> finset 'a
+  let finset_bigunion s = finset_from_list (List.foldl (fun l s -> reverseAppend (list_from_finset s) l) [] (list_from_finset s))
+
+  val finset_image : forall 'a 'b. ('a -> 'b) -> finset 'a -> finset 'b
+  let finset_image f s = finset_from_list (List.reverseMap f (list_from_finset s))
+  lemma finset_image_eq : forall f s.
+   finset_image f s = finset_from_set (Set.map f (set_from_finset s))
+
+  val finset_bigunion_image : forall 'a 'b. ('a -> finset 'b) -> finset 'a -> finset 'b
+  let finset_bigunion_image f s = finset_from_list (List.foldl (fun l x -> reverseAppend (list_from_finset (f x)) l) [] (list_from_finset s))
+  lemma finset_bigunion_image_eq : forall f S.
+    finset_bigunion_image f S = finset_from_set 
+       (bigunion (Set.map (fun s -> set_from_finset (f s)) (set_from_finset S)))
+
+  val finset_filter : forall 'a. ('a -> bool) -> finset 'a -> finset 'a
+  let finset_filter p s = finset_from_list (List.foldl (fun l x -> if p x then (x::l) else l) [] (list_from_finset s))
+  lemma finset_filter_eq : forall p s. finset_filter p s = finset_from_set (Set.filter p (set_from_finset s))
+  lemma finset_filter_empty : forall p. finset_filter p (finset_from_set {}) = (finset_from_set {})
+
+  val finset_partition : forall 'a. ('a -> bool) -> finset 'a -> finset 'a * finset 'a
+  let finset_partition p s = let (s1, s2) = List.partition p (list_from_finset s) in (finset_from_list s1, finset_from_list s2)
+
+  val finset_choose : forall 'a. finset 'a -> 'a
+  let finset_choose s = List_extra.head (list_from_finset s)
+
+  val finset_any : forall 'a. ('a -> bool) -> finset 'a -> bool
+  let finset_any p s = List.any p (list_from_finset s)
+
+  val finset_all : forall 'a. ('a -> bool) -> finset 'a -> bool
+  let finset_all p s = List.all p (list_from_finset s)
+  
+
+  (*-------------------------------------*)
+  (* operations that do need equality    *)
+  (*-------------------------------------*)
+
+  val distinct_list_from_finset_by : forall 'a. ('a -> 'a -> bool) -> finset 'a -> list 'a
+  let distinct_list_from_finset_by eq fs = removeDuplicatesBy eq (list_from_finset fs)
+
+  lemma distinct_list_from_finset_by_safe : (forall eq fs.
+    (forall e e'. eq e e' --> (e = e')) -->
+    (finset_from_list (distinct_list_from_finset_by eq fs) = fs)
+  )
+
+  val distinct_list_from_finset : forall 'a. Eq 'a => finset 'a -> list 'a
+  let distinct_list_from_finset fs = distinct_list_from_finset_by (=) fs
+
+  lemma distinct_list_from_finset_safe : (forall fs.
+    (finset_from_list (distinct_list_from_finset fs) = fs)
+  )
+
+  val finset_size_by : forall 'a. ('a -> 'a -> bool) -> finset 'a -> nat
+  let finset_size_by eq fs = List.length (distinct_list_from_finset_by eq fs)
+
+  val finset_size : forall 'a. Eq 'a => finset 'a -> nat
+  let finset_size fs = finset_size_by (=) fs
+
+  val finset_mem_by : forall 'a. ('a -> 'a -> bool) -> 'a -> finset 'a -> bool
+  let finset_memBy eq e s = elemBy eq e (list_from_finset s)
+
+  val finset_mem : forall 'a. Eq 'a => 'a -> finset 'a -> bool
+  let finset_mem e s = elem e (list_from_finset s)
+  lemma finset_mem_eq : forall e fs. finset_mem e fs = (e IN set_from_finset fs)
+
+
+  (* clean-up a finset by removing elements that are duplicates. This should ideally be a noop.
+     However, since we can't check for equality of some element types in OCaml, finsets in OCaml
+     are implemented as non-distinct lists. If given a function eq_heu that returns only true, if
+     the two arguments are equal, but might return false whenever it wants, this function logically
+     implements the identity operation. *)
+  val finset_cleanup : forall 'a. ('a -> 'a -> bool) -> finset 'a -> finset 'a
+  let finset_cleanup eq fs = finset_from_list (distinct_list_from_finset_by eq fs)
+
+  lemma finset_cleanup_save : (forall eq fs.
+     (forall e e'. eq e e' --> (e = e')) -->
+     (finset_cleanup eq fs = fs)
+  )
+
+  lemma finset_cleanup_eq_simp : (forall fs. finset_cleanup (=) fs = fs)
+end
+
+include Finset
+  
+
+(******************************************************************************)
+(* finite maps                                                                *)
+(******************************************************************************)
+
+module Fmap = struct
+    
+  (*-------------------------------*)
+  (* Datatype definition           *)
+  (*-------------------------------*)
+
+  type fmap 'dom 'zcod = Finmap of map 'dom 'zcod
+  declare {hol} rename type fmap = finmap (* fmap is used in HOL4 for the default finite maps already *)
+
+
+  (*-------------------------------*)
+  (* converting from and to maps   *)
+  (*-------------------------------*)
+
+  val fmap_from_map : forall 'dom 'cod. map 'dom 'cod -> fmap 'dom 'cod
+  let inline fmap_from_map m = Finmap m
+  declare {hol} rename function fmap_from_map = finmapFromMap 
+
+  val map_from_fmap : forall 'dom 'cod. fmap 'dom 'cod -> map 'dom 'cod
+  let map_from_fmap (Finmap m) = m
+  declare {hol} rename function map_from_fmap = mapFromFinmap 
+
+
+  (*-------------------------------*)
+  (* operations                    *)
+  (*-------------------------------*)
+
+  val fmap_empty : forall 'k 'v. MapKeyType 'k => unit -> fmap 'k 'v
+  let fmap_empty () = fmap_from_map (Map.empty)
+
+  val fmap_update : forall 'k 'v. MapKeyType 'k => fmap 'k 'v -> ('k * 'v) -> fmap 'k 'v
+  let fmap_update m (a,b) = fmap_from_map (Map.insert a b (map_from_fmap m))
+
+  val fmap_remove : forall 'k 'v. MapKeyType 'k => fmap 'k 'v -> 'k -> fmap 'k 'v
+  let fmap_remove m a = fmap_from_map (Map.delete a (map_from_fmap m))
+
+  val fmap_update_option : forall 'k 'v. MapKeyType 'k => fmap 'k 'v -> ('k * maybe 'v) -> fmap 'k 'v
+  let fmap_update_option m (k,vopt) = (match vopt with
+    | Nothing -> (fmap_remove m k)
+    | Just v -> (fmap_update m (k,v)) end)
+
+  val fmap_from_list : forall 'k 'v. MapKeyType 'k => list ('k * 'v) -> fmap 'k 'v
+  let fmap_from_list l = fmap_from_map (Map.fromList l)
+
+  val fmap_lookup : forall 'k 'v. MapKeyType 'k => fmap 'k 'v -> 'k -> maybe 'v
+  let fmap_lookup m a = Map.lookup a (map_from_fmap m)
+
+  val fmap_dom : forall 'k 'v. SetType 'k, MapKeyType 'k => fmap 'k 'v -> finset 'k
+  let fmap_dom m = finset_from_set (domain (map_from_fmap m))
+
+  val fmap_in_dom : forall 'k 'v. SetType 'k, Eq 'k, MapKeyType 'k => 'k -> fmap 'k 'v -> bool
+  let fmap_in_dom k m = Map.member k (map_from_fmap m)
+
+  val fmap_bindings : forall 'k 'v. MapKeyType 'k, SetType 'k, SetType 'v => fmap 'k 'v -> list ('k * 'v)
+  let fmap_bindings m = Set_extra.toList (Map.toSet (map_from_fmap m))
+
+  val fmap_fold : forall 'k 'v 'r. MapKeyType 'k, SetType 'k, SetType 'v => ('k -> 'v -> 'r -> 'r) -> fmap 'k 'v -> 'r -> 'r
+  let fmap_fold f m v = Map_extra.fold f (map_from_fmap m) v
+
+  val fmap_size : forall 'k 'v. MapKeyType 'k, SetType 'k => fmap 'k 'v -> nat
+  let fmap_size m = Map.size (map_from_fmap m)
+
+  val fmap_map : forall 'k 'v 'w. MapKeyType 'k => ('v -> 'w) -> fmap 'k 'v -> fmap 'k 'w
+  let fmap_map f m = fmap_from_map (Map.map f (map_from_fmap m))
+end
+  
+include Fmap  
+
+
+

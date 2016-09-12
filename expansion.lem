@@ -1,0 +1,107 @@
+
+open import Basic_classes Set
+open import T_fs_prelude
+
+(*
+Strings will be whatever lem uses for string
+??? What character set does lem use for strings? Does it matter?
+*)
+
+type fields = list string
+
+type quoting_mode =
+    Unquoted
+  | Quoted
+
+type format =
+    Normal
+  | Default of words
+  | NDefault of words
+  | Assign of words
+  | NAssign of words
+  | Error of words
+  | NError of words
+  | Alt of words
+  | NAlt of words
+  | Length
+  | ShortestPrefix of words
+  | LongestPrefix of words
+  | ShortestSuffix of words
+  | LongestSuffix of words
+
+and control =
+    Tilde
+  | TildeUser of string
+  | Param of string * format
+  | Backtick of words
+  | Arith of words
+  | Quote of words
+  | Nested of quoting_mode * expansion_state
+
+  (* Left is what has been parsed, right is unparsed *)
+and expansion_state = words * words
+
+and entry =
+    S of string
+  | K of control
+  | F
+
+and words = list entry
+
+(*-------------------------------*)
+(* Process ids                   *)
+(*-------------------------------*)
+
+type ty_pid = Pid of nat (*o with sexp o*) (* coverage:sexp *)
+let ty_pid_compare (Pid n0) (Pid n1) = compare n0 n1
+instance ( SetType ty_pid ) 
+  let setElemCompare = ty_pid_compare
+end
+
+instance (Eq ty_pid)
+  let (=) = unsafe_structural_equality
+  let (<>) = unsafe_structural_inequality
+end
+
+val dest_PID : ty_pid -> nat
+let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
+
+(* From t_fs_spec.lem_cppo line 1187 *)
+type ty_os_state = <|
+    pid_table: fmap ty_pid unit;
+    fs_state: unit
+  |>
+
+
+val expand_control :
+  ty_os_state ->
+  quoting_mode ->
+  control ->
+  finset (ty_os_state * expansion_state)
+let expand_control s0 q k =
+  match k with
+    | Quote w -> finset_singleton (s0, ([], [Nested Quoted w]))
+  end
+
+val expand_words :
+  ty_os_state ->
+  quoting_mode ->
+  expansion_state ->
+  finset (ty_os_state * expansion_state)
+let expand_words s0 q w =
+  match w with
+    | (seen, []) -> finset_singleton (s0, w)
+    | (seen, K(k)::w1) -> let next = expand_control s0 q k in
+      finset_image (fun st ->
+        match st with
+          | (s1,(l,[])) -> (s1,(seen++l,w1))
+          | (s1,w2) -> (s1,(seen,w2))
+        end) next
+(* TODO 
+
+fix syntax errors, get it to compile
+pull out finset stuff
+add support for parameters
+add support for other control codes (stubbing out what Backtick does)
+
+*)
