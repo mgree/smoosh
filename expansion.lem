@@ -1,5 +1,5 @@
 
-open import Basic_classes Set
+open import Basic_classes List Maybe Set Show Show_extra String String_extra Tuple
 open import T_fs_prelude
 
 (*
@@ -29,24 +29,30 @@ type format =
   | ShortestSuffix of words
   | LongestSuffix of words
 
+(* Treating parameters niavely led to a problem when evaluating
+ * ${x=${x=foo}bar${x=baz}} incorrectly when x was unset
+ *)
 and control =
     Tilde
   | TildeUser of string
   | Param of string * format
+  | LAssign of string * (maybe string) * words
   | Backtick of words
   | Arith of words
   | Quote of words
-  | Nested of quoting_mode * expansion_state
-
-  (* Left is what has been parsed, right is unparsed *)
-and expansion_state = words * words
+  (* Is this needed anymore? *)
+  (*| Nested of quoting_mode * words*)
 
 and entry =
     S of string
+  | DQ of string
   | K of control
   | F
 
 and words = list entry
+
+  (* Left is what has been parsed, right is unparsed *)
+and expansion_state = words * words
 
 (*-------------------------------*)
 (* Process ids                   *)
@@ -69,39 +75,144 @@ let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
 (* From t_fs_spec.lem_cppo line 1187 *)
 type ty_os_state = <|
     pid_table: fmap ty_pid unit;
-    fs_state: unit
+    fs_state: unit;
+    shell_env: fmap string string
   |>
 
+(* The result is nothing if the parameter is unset, and the empty string null. *)
+val lookup_param :
+  ty_os_state ->
+  string ->
+  maybe string
+let lookup_param s0 str = fmap_lookup s0.shell_env str
+
+(* TODO : Add prefix/suffix.
+ * TODO: Length can throw error when -u is set.
+ * TODO: Error properly
+ *)
+val expand_param :
+  ty_os_state ->
+  quoting_mode ->
+  string ->
+  format ->
+  words
 
 val expand_control :
   ty_os_state ->
   quoting_mode ->
   control ->
-  finset (ty_os_state * expansion_state)
-let expand_control s0 q k =
-  match k with
-    | Quote w -> finset_singleton (s0, ([], [Nested Quoted w]))
-  end
+  ty_os_state * words
 
 val expand_words :
   ty_os_state ->
   quoting_mode ->
-  expansion_state ->
-  finset (ty_os_state * expansion_state)
+  words ->
+  ty_os_state * words
+
+let expand_param s0 q str f =
+  (let value = lookup_param s0 str in
+  (match value with
+    | Nothing -> (match f with
+      | Default w  -> w
+      | NDefault w  -> w
+      | Assign w -> [K (LAssign str Nothing w)]
+      | NAssign w  -> [K (LAssign str Nothing w)]
+      | Error _    -> [S "error"] (* This should error *)
+      | NError _    -> [S "error"] (* This should error *)
+      | Length     -> [S ("0")]
+      | _          -> [S ("")] (* null *)
+      end)
+    | Just "" -> (match f with
+      | NDefault w -> w
+      | Alt w      -> w
+      | NError _    -> [S "error"] (* This should error *)
+      | Length     -> [S ("0")]
+      | _          -> [S ("")] (* null *)
+      end)
+    | Just v -> (match f with
+      | Alt w  -> w
+      | NAlt w -> w
+      | Length -> [S (show (stringLength str))]
+      | _      -> [S (v)]
+      end)
+  end))
+
+
+val fully_expanded :
+  words -> bool
+let fully_expanded w =
+  match w with
+    | [] -> true
+    | ((K _)::_) -> false
+    | ((_)::ws) -> fully_expanded ws
+  end
+
+(* TODO: use proper IFS separateor for F *) 	
+val expanded_tostring :
+  words -> maybe string
+let expanded_tostring w =
+  match w with
+    | [] -> Just ""
+    | (S(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
+    | (DQ(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
+    | (F::ws) -> Maybe.map (fun str -> stringAppend " " str) (expanded_tostring ws)
+    | (K(_)::_) -> Nothing
+  end
+
+val split_fields :
+  words -> words
+let split_fields w = w
+
+(* 
+ * TODO: TildeUser
+ * TODO: Backtick
+ * TODO: Evaluate Arith
+ * TODO: Nested
+ *)
+let expand_control s0 q k =
+  match k with
+    | Tilde -> (s0, expand_param s0 Unquoted "HOME" Normal)
+    | TildeUser usr -> (s0, [S "error"]) (* This should call system *)
+    | Param s f -> (s0, expand_param s0 q s f)
+    | LAssign s Nothing w -> let (s1, w1) = (expand_words s0 q w) in
+        if fully_expanded w1
+          then (s1, [K (LAssign s (expanded_tostring w1) w1)])
+          else (s1, [K (LAssign s Nothing w1)])
+    | LAssign s (Just str) w ->
+        let s1 = <| s0 with shell_env = fmap_update s0.shell_env (s,str) |> in
+            (s1, split_fields w)
+    | Backtick w -> (s0, [S "error"]) (* This should create a new bash env *)
+    | Arith w -> let (s1, w1) = (expand_words s0 q w) in
+        (s1, [K (Arith w1)])
+    (* At end, turn into DQ of string? *)
+    | Quote w -> let (s1, w1) = expand_words s0 q w in
+        (s1, [K (Quote (w1))])
+    (*| Nested (q, st) -> [K (Nested (q, expand_words *)
+  end
+
 let expand_words s0 q w =
   match w with
-    | (seen, []) -> finset_singleton (s0, w)
-    | (seen, K(k)::w1) -> let next = expand_control s0 q k in
-      finset_image (fun st ->
-        match st with
+    | [] -> (s0, w)
+    | (F::ws) -> let (s1, w1) = (expand_words s0 q ws) in 
+          (s1, F::w1)
+    | (S(s)::ws) -> let (s1, w1) = (expand_words s0 q ws) in 
+          (s1, S(s)::w1)
+    | (DQ(s)::ws) -> let (s1, w1) = (expand_words s0 q ws) in 
+          (s1, DQ(s)::w1)
+    | (K(k)::ws) -> let (s1, w1) = expand_control s0 q k in
+          (s1, w1 ++ ws)
+  end
+
+(*    let st = (fun st1 ->
+        match st1 with
           | (s1,(l,[])) -> (s1,(seen++l,w1))
-          | (s1,w2) -> (s1,(seen,w2))
-        end) next
-(* TODO 
+          | (s1,w2) -> (s1,(seen,w2))a
+        end) in 
+    st next*)
 
-fix syntax errors, get it to compile
-pull out finset stuff
-add support for parameters
-add support for other control codes (stubbing out what Backtick does)
+(*
+ * expansion_state would be one list
+ * expand_control: sys -> q -> K of x -> w
+ * entries should know if they are quoted, DQ of string (double quoted)
+ *)
 
-*)
