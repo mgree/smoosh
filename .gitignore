@@ -1,0 +1,5 @@
+*.cmi
+*.cmo
+t_fs_prelude.ml
+expansion.ml
+ocaml-lib
