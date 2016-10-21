@@ -43,6 +43,16 @@ and control =
   (* Is this needed anymore? *)
   (*| Nested of quoting_mode * words*)
 
+(* instance (Eq control)
+  let (=) x y = match (x,y) with
+    | (Tilde, Tilde) = true
+    | (TildeUser s1, TildeUser s2) = s1 = s2
+    | (Param (s1,f1), Param (s2,f2) = (s2,f2)
+    | (LAssign (s1,ms1,w1), LAssign (s2,ms2,w2)) = s1 = s2 && ms1 = ms2 && w1 = w2
+    | (L
+  let (<>) x y = not (list_arrayEq x y)
+end *)
+
 and entry =
     S of string
   | DQ of string
@@ -60,7 +70,7 @@ and expansion_state = words * words
 
 type ty_pid = Pid of nat (*o with sexp o*) (* coverage:sexp *)
 let ty_pid_compare (Pid n0) (Pid n1) = compare n0 n1
-instance ( SetType ty_pid ) 
+instance ( SetType ty_pid )
   let setElemCompare = ty_pid_compare
 end
 
@@ -85,6 +95,31 @@ val lookup_param :
   string ->
   maybe string
 let lookup_param s0 str = fmap_lookup s0.shell_env str
+
+val fully_expanded :
+  words -> bool
+let fully_expanded w =
+  match w with
+    | [] -> true
+    | ((K _)::_) -> false
+    | ((_)::ws) -> fully_expanded ws
+  end
+
+(* TODO: use proper IFS separateor for F *)
+val expanded_tostring :
+  words -> maybe string
+let expanded_tostring w =
+  match w with
+    | [] -> Just ""
+    | (S(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
+    | (DQ(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
+    | (F::ws) -> Maybe.map (fun str -> stringAppend " " str) (expanded_tostring ws)
+    | (K(_)::_) -> Nothing
+  end
+
+val split_fields :
+  words -> words
+let split_fields w = w
 
 (* TODO : Add prefix/suffix.
  * TODO: Length can throw error when -u is set.
@@ -138,32 +173,7 @@ let expand_param s0 q str f =
   end))
 
 
-val fully_expanded :
-  words -> bool
-let fully_expanded w =
-  match w with
-    | [] -> true
-    | ((K _)::_) -> false
-    | ((_)::ws) -> fully_expanded ws
-  end
-
-(* TODO: use proper IFS separateor for F *) 	
-val expanded_tostring :
-  words -> maybe string
-let expanded_tostring w =
-  match w with
-    | [] -> Just ""
-    | (S(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
-    | (DQ(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
-    | (F::ws) -> Maybe.map (fun str -> stringAppend " " str) (expanded_tostring ws)
-    | (K(_)::_) -> Nothing
-  end
-
-val split_fields :
-  words -> words
-let split_fields w = w
-
-(* 
+(*
  * TODO: TildeUser
  * TODO: Backtick
  * TODO: Evaluate Arith
@@ -185,7 +195,7 @@ let expand_control s0 q k =
     | Arith w -> let (s1, w1) = (expand_words s0 q w) in
         (s1, [K (Arith w1)])
     (* At end, turn into DQ of string? *)
-    | Quote w -> let (s1, w1) = expand_words s0 q w in
+    | Quote w -> let (s1, w1) = expand_words s0 Quoted w in
         (s1, [K (Quote (w1))])
     (*| Nested (q, st) -> [K (Nested (q, expand_words *)
   end
@@ -193,21 +203,32 @@ let expand_control s0 q k =
 let expand_words s0 q w =
   match w with
     | [] -> (s0, w)
-    | (F::ws) -> let (s1, w1) = (expand_words s0 q ws) in 
+    | (F::ws) -> let (s1, w1) = (expand_words s0 q ws) in
           (s1, F::w1)
-    | (S(s)::ws) -> let (s1, w1) = (expand_words s0 q ws) in 
+    | (S(s)::ws) -> let (s1, w1) = (expand_words s0 q ws) in
           (s1, S(s)::w1)
-    | (DQ(s)::ws) -> let (s1, w1) = (expand_words s0 q ws) in 
+    | (DQ(s)::ws) -> let (s1, w1) = (expand_words s0 q ws) in
           (s1, DQ(s)::w1)
     | (K(k)::ws) -> let (s1, w1) = expand_control s0 q k in
           (s1, w1 ++ ws)
   end
 
+val fully_expand_words :
+  ty_os_state ->
+  quoting_mode ->
+  words ->
+  ty_os_state * words
+let fully_expand_words s0 q w =
+  if fully_expanded w
+  then (s0, split_fields w)
+  else let (s1, w1) = expand_words s0 q w in
+       fully_expand_words s1 q w1
+
 (*    let st = (fun st1 ->
         match st1 with
           | (s1,(l,[])) -> (s1,(seen++l,w1))
           | (s1,w2) -> (s1,(seen,w2))a
-        end) in 
+        end) in
     st next*)
 
 (*
