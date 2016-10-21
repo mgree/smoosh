@@ -1,4 +1,3 @@
-
 open import Basic_classes List Maybe Set Show Show_extra String String_extra Tuple
 open import T_fs_prelude
 
@@ -96,9 +95,8 @@ val lookup_param :
   maybe string
 let lookup_param s0 str = fmap_lookup s0.shell_env str
 
-val fully_expanded :
-  words -> bool
-let fully_expanded w =
+val fully_expanded : words -> bool
+let rec fully_expanded w =
   match w with
     | [] -> true
     | ((K _)::_) -> false
@@ -106,45 +104,31 @@ let fully_expanded w =
   end
 
 (* TODO: use proper IFS separateor for F *)
-val expanded_tostring :
-  words -> maybe string
-let expanded_tostring w =
+val expanded_tostring : words -> maybe string
+
+val split_fields : words -> words
+
+(* TODO : Add prefix/suffix.
+ * TODO: Length can throw error when -u is set.
+ * TODO: Error properly
+ *)
+val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
+val expand_control : ty_os_state -> quoting_mode -> control -> ty_os_state * words
+val expand_words : ty_os_state -> quoting_mode -> words -> ty_os_state * words
+val fully_expand_words : ty_os_state -> quoting_mode -> words -> ty_os_state * words
+
+let split_fields w = w
+
+let rec expanded_tostring w =
   match w with
     | [] -> Just ""
     | (S(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
     | (DQ(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
     | (F::ws) -> Maybe.map (fun str -> stringAppend " " str) (expanded_tostring ws)
     | (K(_)::_) -> Nothing
-  end
+end
 
-val split_fields :
-  words -> words
-let split_fields w = w
-
-(* TODO : Add prefix/suffix.
- * TODO: Length can throw error when -u is set.
- * TODO: Error properly
- *)
-val expand_param :
-  ty_os_state ->
-  quoting_mode ->
-  string ->
-  format ->
-  words
-
-val expand_control :
-  ty_os_state ->
-  quoting_mode ->
-  control ->
-  ty_os_state * words
-
-val expand_words :
-  ty_os_state ->
-  quoting_mode ->
-  words ->
-  ty_os_state * words
-
-let expand_param s0 q str f =
+let rec expand_param s0 q str f =
   (let value = lookup_param s0 str in
   (match value with
     | Nothing -> (match f with
@@ -172,14 +156,13 @@ let expand_param s0 q str f =
       end)
   end))
 
-
+and expand_control s0 q k =
 (*
  * TODO: TildeUser
  * TODO: Backtick
  * TODO: Evaluate Arith
  * TODO: Nested
  *)
-let expand_control s0 q k =
   match k with
     | Tilde -> (s0, expand_param s0 Unquoted "HOME" Normal)
     | TildeUser usr -> (s0, [S "error"]) (* This should call system *)
@@ -200,7 +183,7 @@ let expand_control s0 q k =
     (*| Nested (q, st) -> [K (Nested (q, expand_words *)
   end
 
-let expand_words s0 q w =
+and expand_words s0 q w =
   match w with
     | [] -> (s0, w)
     | (F::ws) -> let (s1, w1) = (expand_words s0 q ws) in
@@ -213,12 +196,7 @@ let expand_words s0 q w =
           (s1, w1 ++ ws)
   end
 
-val fully_expand_words :
-  ty_os_state ->
-  quoting_mode ->
-  words ->
-  ty_os_state * words
-let fully_expand_words s0 q w =
+and fully_expand_words s0 q w =
   if fully_expanded w
   then (s0, split_fields w)
   else let (s1, w1) = expand_words s0 q w in
@@ -236,4 +214,3 @@ let fully_expand_words s0 q w =
  * expand_control: sys -> q -> K of x -> w
  * entries should know if they are quoted, DQ of string (double quoted)
  *)
-
