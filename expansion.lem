@@ -1,5 +1,4 @@
-open import Basic_classes List Maybe Set Show Show_extra String String_extra Tuple
-open import T_fs_prelude
+open import Pervasives_extra
 
 (*
 Strings will be whatever lem uses for string
@@ -83,9 +82,7 @@ let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
 
 (* From t_fs_spec.lem_cppo line 1187 *)
 type ty_os_state = <|
-    pid_table: fmap ty_pid unit;
-    fs_state: unit;
-    shell_env: fmap string string
+    shell_env: Map.map string string
   |>
 
 (* The result is nothing if the parameter is unset, and the empty string null. *)
@@ -93,7 +90,7 @@ val lookup_param :
   ty_os_state ->
   string ->
   maybe string
-let lookup_param s0 str = fmap_lookup s0.shell_env str
+let lookup_param s0 str = Map.lookup str s0.shell_env
 
 val fully_expanded : words -> bool
 let rec fully_expanded w =
@@ -172,7 +169,7 @@ and expand_control s0 q k =
           then (s1, [K (LAssign s (expanded_tostring w1) w1)])
           else (s1, [K (LAssign s Nothing w1)])
     | LAssign s (Just str) w ->
-        let s1 = <| s0 with shell_env = fmap_update s0.shell_env (s,str) |> in
+        let s1 = <| s0 with shell_env = Map.insert s str s0.shell_env |> in
             (s1, split_fields w)
     | Backtick w -> (s0, [S "error"]) (* This should create a new bash env *)
     | Arith w -> let (s1, w1) = (expand_words s0 q w) in

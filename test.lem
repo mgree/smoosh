@@ -1,6 +1,5 @@
 
-open import Basic_classes List Maybe Set Show Show_extra String String_extra Tuple
-open import T_fs_prelude
+open import Pervasives_extra
 open import Expansion
 
 type result = Ok | Rerr of string * words * words
@@ -15,13 +14,11 @@ let check_expansion (test_name, s0, w_in, w_expected) =
   else Rerr test_name w_expected w_out)
 
 let os_empty = <|
-    pid_table = fmap_empty ();
-    fs_state = ();
-    shell_env = fmap_empty ();
+    shell_env = Map.empty;
   |>
 
-let os_var_x_set = <| os_empty with shell_env = fmap_update os_empty.shell_env ("x", "bar") |>
-let os_var_x_null = <| os_empty with shell_env = fmap_update os_empty.shell_env ("x", "") |>
+let os_var_x_set = <| os_empty with shell_env = Map.insert "x" "bar" os_empty.shell_env |>
+let os_var_x_null = <| os_empty with shell_env = Map.insert "x" "" os_empty.shell_env |>
 
 (*<| s0 with shell_env = fmap_update s0.shell_env (s,str) |>o
  *    | Default w  -> w
@@ -40,7 +37,7 @@ val expansion_tests :
 let expansion_tests =
   [
     ("plain string foo", os_empty, [S "foo"], [S "foo"]);
-    ("expand tilde without username", <| os_empty with shell_env = fmap_update os_empty.shell_env ("HOME", "/home/testuser") |>, [K Tilde], [S "/home/testuser"]);
+    ("expand tilde without username", <| os_empty with shell_env = Map.insert "HOME" "/home/testuser" os_empty.shell_env |>, [K Tilde], [S "/home/testuser"]);
     ("normal paramater lookup of unset variable", os_empty, [K (Param "x" Normal)], [S ""]);
     ("paramter length of unset variable", os_empty, [K (Param "x" Length)], [S "0"]);
 
