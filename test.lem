@@ -1,8 +1,7 @@
-
 open import Pervasives_extra
 open import Expansion
 
-type result = Ok | Rerr of string * words * words
+type result = Ok | RErr of string * words * words
 
 val check_expansion :
   string * ty_os_state * words * words ->
@@ -11,7 +10,7 @@ let check_expansion (test_name, s0, w_in, w_expected) =
   (let (s1, w_out) = fully_expand_words s0 Unquoted w_in in
   if w_out = w_expected
   then Ok
-  else Rerr test_name w_expected w_out)
+  else RErr test_name w_expected w_out)
 
 let os_empty = <|
     shell_env = Map.empty;
@@ -48,7 +47,7 @@ let expansion_tests =
     ("parameter lookup on set variable returns the variable's value", os_var_x_set,[K (Param "x" (Default [S "foo"]))], [S "bar"]);
     ("alternate parameter lookup on set variable does not return the variable's value", os_var_x_set, [K (Param "x" (Alt [S "foo"]))], [S "foo"]);
 
-    (* ${x=${x=foo}bar${x=baz}} 
+    (* ${x=${x=foo}bar${x=baz}}
      * should return foobarfoo
      * x is set to foobarfoo at the end *)
     ("Nested assignment statements", os_empty,
@@ -67,4 +66,3 @@ let expansion_tests =
       [K (Param "x" (NDefault [S "foo"])); S "bar"; K (Param "x" (Default [S "baz"]))], [S "foo"; S "bar"; S ""]);
 
   ]
-
