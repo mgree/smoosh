@@ -1,9 +1,12 @@
 LEMFILES=expansion.lem test.lem
 
-MLFILES=$(LEMFILES:.lem=.ml)
+MLFILES=$(LEMFILES:.lem=.ml) runtest.ml
 
-compile : $(MLFILES)
-	ocamlc -I ocaml-lib -I ocaml-lib/dependencies/zarith -I . zarith.cma nums.cma extract.cma $^
+runtest : $(MLFILES)
+	ocamlc -I ocaml-lib -I ocaml-lib/dependencies/zarith -I . -o $@ zarith.cma nums.cma extract.cma $^
+
+test : runtest
+	./runtest
 
 %.ml : %.lem
 	lem -ocaml $<

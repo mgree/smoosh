@@ -4,3 +4,4 @@ t_fs_prelude.ml
 expansion.ml
 test.ml
 ocaml-lib
+runtest

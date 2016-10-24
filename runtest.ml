@@ -1,4 +1,3 @@
-
 open Expansion
 open Test
 open Printf
