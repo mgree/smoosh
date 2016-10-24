@@ -13,6 +13,6 @@ let main () =
                 name (Expansion.string_of_words expected) (Expansion.string_of_words got);
          incr failed)
     expansion_tests;
-  printf "=== ...ran %d tests with %d failures." (List.length expansion_tests) !failed
+  printf "=== ...ran %d tests with %d failures.\n" (List.length expansion_tests) !failed
 
 let _ = main ();;
