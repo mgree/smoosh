@@ -9,8 +9,10 @@ let main () =
       match check_expansion t with
       | Ok -> ()
       | RErr(name,expected,got) ->
-         printf "%s failed: expected %s got %s\n" name "TODO" "derp";
+         printf "%s failed: expected %s got %s\n"
+                name (Expansion.string_of_words expected) (Expansion.string_of_words got);
          incr failed)
-    expansion_tests
+    expansion_tests;
+  printf "=== ...ran %d tests with %d failures." (List.length expansion_tests) !failed
 
 let _ = main ();;

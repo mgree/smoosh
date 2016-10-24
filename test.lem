@@ -41,7 +41,7 @@ let expansion_tests =
     ("paramter length of unset variable", os_empty, [K (Param "x" Length)], [S "0"]);
 
     ("ndefault parameter lookup on variable set to null replaces word", os_var_x_null, [K (Param "x" (NDefault [S "foo"]))], [S "foo"]);
-    ("default parameter lookup on variable set to null is null", os_var_x_null, [K (Param "x" (NDefault [S "foo"]))], [S ""]);
+    ("default parameter lookup on variable set to null is null", os_var_x_null, [K (Param "x" (Default [S "foo"]))], [S ""]);
 
     ("paramter length of set variable is the length of the string", os_var_x_set,  [K (Param "x" Length)], [S "3"]);
     ("parameter lookup on set variable returns the variable's value", os_var_x_set,[K (Param "x" (Default [S "foo"]))], [S "bar"]);
