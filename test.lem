@@ -65,4 +65,11 @@ let expansion_tests =
     ("Default parameter lookups on a variable set to null", os_var_x_null,
       [K (Param "x" (NDefault [S "foo"])); S "bar"; K (Param "x" (Default [S "baz"]))], [S "foo"; S "bar"; S ""]);
 
+    (* Field separator tests *)
+    ("foo bar from paramter expansion is two fields", os_empty,
+      [K (Param "x" (Default [S "foo bar"]))], [S "foo"; F; S "bar"]);
+    ("foo bar without parameter expansion is two fields", os_empty,
+      [S "foo bar"], [S "foo"; F; S "bar"]);
+    ("foo bar is one field when quoted", os_empty,
+      [DQ "foo bar"], [DQ "foo bar"]);
   ]
