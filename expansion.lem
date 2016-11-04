@@ -5,6 +5,12 @@ Strings will be whatever lem uses for string
 ??? What character set does lem use for strings? Does it matter?
 *)
 
+type expanded_word =
+   ExpS of string
+ | ExpDQ of string
+
+type expanded_words = list expanded_word
+
 type fields = list string
 
 type quoting_mode =
@@ -34,22 +40,12 @@ and control =
     Tilde
   | TildeUser of string
   | Param of string * format
-  | LAssign of string * (maybe string) * words
+  | LAssign of string * expanded_words * words
   | Backtick of words
   | Arith of words
   | Quote of words
   (* Is this needed anymore? *)
   (*| Nested of quoting_mode * words*)
-
-(* instance (Eq control)
-  let (=) x y = match (x,y) with
-    | (Tilde, Tilde) = true
-    | (TildeUser s1, TildeUser s2) = s1 = s2
-    | (Param (s1,f1), Param (s2,f2) = (s2,f2)
-    | (LAssign (s1,ms1,w1), LAssign (s2,ms2,w2)) = s1 = s2 && ms1 = ms2 && w1 = w2
-    | (L
-  let (<>) x y = not (list_arrayEq x y)
-end *)
 
 and entry =
     S of string
@@ -97,71 +93,30 @@ type ty_os_state = <|
     shell_env: Map.map string string
   |>
 
-(* The result is nothing if the parameter is unset, and the empty string null. *)
-val lookup_param :
-  ty_os_state ->
-  string ->
-  maybe string
-let lookup_param s0 str = Map.lookup str s0.shell_env
-
-val fully_expanded : words -> bool
-let rec fully_expanded w =
-  match w with
-    | [] -> true
-    | ((K _)::_) -> false
-    | ((_)::ws) -> fully_expanded ws
-  end
-
-(* TODO: use proper IFS separateor for F *)
-val expanded_tostring : words -> maybe string
-
-val split_str : list char -> words * list char -> words * list char
-val split_list : list char -> words -> words
-val split_fields : ty_os_state -> words -> words
-
-(* TODO : Add prefix/suffix.
- * TODO: Length can throw error when -u is set.
+(*
+ * Stage 1 Expansion: Word expansion
+ *
+ * TODO : Add prefix/suffix.
  * TODO: Error properly
  *)
+
+val lookup_param : ty_os_state -> string -> maybe string
+val concat_expanded : expanded_words -> string
+
 val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
-val expand_control : ty_os_state -> quoting_mode -> control -> ty_os_state * words
-val expand_words : ty_os_state -> quoting_mode -> words -> ty_os_state * words
-val fully_expand_words : ty_os_state -> quoting_mode -> words -> ty_os_state * words
+val expand_control : ty_os_state -> quoting_mode -> control -> (ty_os_state * expanded_words * words)
+val expand_words : ty_os_state -> quoting_mode -> (expanded_words * words) -> (ty_os_state * expanded_words * words)
+val stage_one_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
 
-let rec split_str ifs p = match p with
-  | (parsed, []) -> (parsed, [])
-  | (S(s)::parsed, c::cs) -> if elem c ifs then split_str ifs (F::S(s)::parsed, cs) else split_str ifs (S(s ^ (toString [c]))::parsed, cs)
-  | (parsed, c::cs) -> split_str ifs (S(toString [c])::parsed, cs)
-  end
+(* The result is nothing if the parameter is unset, and the empty string null. *)
+let lookup_param s0 str = Map.lookup str s0.shell_env
 
-let rec split_list ifs w = match ifs with
-  | [] -> w
-  | _ -> match w with
-    | [] -> []
-    | (S(s)::ws) -> let (parsed,_) = split_str ifs ([],toCharList s) in
-                    (reverse parsed) ++ (split_list ifs ws)
-    | (DQ(s)::ws) -> DQ(s)::(split_list ifs ws)
-    | (F::ws) -> F::(split_list ifs ws)
-    | (K(k)::ws) -> K(k)::(split_list ifs ws) (* This case should never happen *)
-    end
-  end
-
-let split_fields s0 w =
-  let ifs = lookup_param s0 "IFS" in
-  match ifs with
-    | Nothing -> split_list (toCharList " \n\t") w
-    | Just "" -> w
-    | Just s -> split_list (toCharList s) w
-  end
-
-let rec expanded_tostring w =
+let rec concat_expanded w =
   match w with
-    | [] -> Just ""
-    | (S(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
-    | (DQ(s)::ws) -> Maybe.map (fun str -> stringAppend s str) (expanded_tostring ws)
-    | (F::ws) -> Maybe.map (fun str -> stringAppend " " str) (expanded_tostring ws)
-    | (K(_)::_) -> Nothing
-end
+  | [] -> ""
+  | (ExpS(s)::ws) -> s ^ concat_expanded ws
+  | (ExpDQ(s)::ws) -> s ^ concat_expanded ws
+  end
 
 let rec expand_param s0 q str f =
   (let value = lookup_param s0 str in
@@ -169,8 +124,8 @@ let rec expand_param s0 q str f =
     | Nothing -> (match f with
       | Default w  -> w
       | NDefault w  -> w
-      | Assign w -> [K (LAssign str Nothing w)]
-      | NAssign w  -> [K (LAssign str Nothing w)]
+      | Assign w -> [K (LAssign str [] w)]
+      | NAssign w  -> [K (LAssign str [] w)]
       | Error _    -> [S "error"] (* This should error *)
       | NError _    -> [S "error"] (* This should error *)
       | Length     -> [S ("0")]
@@ -199,53 +154,177 @@ and expand_control s0 q k =
  * TODO: Nested
  *)
   match k with
-    | Tilde -> (s0, expand_param s0 Unquoted "HOME" Normal)
-    | TildeUser usr -> (s0, [S "error"]) (* This should call system *)
-    | Param s f -> (s0, expand_param s0 q s f)
-    | LAssign s Nothing w -> let (s1, w1) = (expand_words s0 q w) in
-        if fully_expanded w1
-          then (s1, [K (LAssign s (expanded_tostring w1) w1)])
-          else (s1, [K (LAssign s Nothing w1)])
-    | LAssign s (Just str) w ->
-        let s1 = <| s0 with shell_env = Map.insert s str s0.shell_env |> in
-            (s1, split_fields s1 w)
-    | Backtick w -> (s0, [S "error"]) (* This should create a new bash env *)
-    | Arith w -> let (s1, w1) = (expand_words s0 q w) in
-        (s1, [K (Arith w1)])
-    (* At end, turn into DQ of string? *)
-    | Quote w -> let (s1, w1) = expand_words s0 Quoted w in
-        (s1, [K (Quote (w1))])
+    | Tilde -> (s0, [], expand_param s0 Unquoted "HOME" Normal)
+    | TildeUser usr -> (s0, [], [S "error"]) (* This should call system *)
+    | Param s f -> (s0, [], expand_param s0 q s f)
+    | LAssign s f [] ->
+        let s1 = <| s0 with shell_env = Map.insert s (concat_expanded f) s0.shell_env |> in
+        (s1, f, [])
+    | LAssign s f w ->
+        let (s1, f1, w1) = expand_words s0 q ([], w) in
+        (s1, [], [K (LAssign s (f ++ f1) w1)])
+    | Backtick w -> (s0, [], [S "error"]) (* This should create a new bash env *)
+    | Arith w -> let (s1, f1, w1) = expand_words s0 q ([],w) in
+        (s1, [], [K (Arith w1)])
+    | Quote w -> let (s1, f1, w1) = expand_words s0 Quoted ([],w) in
+        match w1 with
+        | [] -> (s1, f1, [])
+        | _ -> (s1, f1, [K (Quote (w1))])
+        end
     (*| Nested (q, st) -> [K (Nested (q, expand_words *)
   end
 
-and expand_words s0 q w =
+and expand_words s0 q (f,w) =
   match w with
-    | [] -> (s0, w)
-    | (F::ws) -> let (s1, w1) = (expand_words s0 q ws) in
-          (s1, F::w1)
-    | (S(s)::ws) -> let (s1, w1) = (expand_words s0 q ws) in
-          (s1, S(s)::w1)
-    | (DQ(s)::ws) -> let (s1, w1) = (expand_words s0 q ws) in
-          (s1, DQ(s)::w1)
-    | (K(k)::ws) -> let (s1, w1) = expand_control s0 q k in
-          (s1, w1 ++ ws)
+    | [] -> (s0, f, w)
+    | (F::ws) -> let (s1,f1,w1) = (expand_words s0 q ([],ws)) in
+        (s1, f ++ f1, w1)
+    | (S(s)::ws) -> if q = Quoted then (s0, f ++ [ExpDQ s], ws) else (s0, f ++ [ExpS s], ws)
+    | (DQ(s)::ws) -> (s0, f ++ [ExpDQ s], ws)
+    | (K(k)::ws) -> let (s1,f1,w1) = expand_control s0 q k in
+        (s1, f++f1, (w1 ++ ws))
   end
 
-and fully_expand_words s0 q w =
-  if fully_expanded w
-  then (s0, split_fields s0 w)
-  else let (s1, w1) = expand_words s0 q w in
-       fully_expand_words s1 q w1
-
-(*    let st = (fun st1 ->
-        match st1 with
-          | (s1,(l,[])) -> (s1,(seen++l,w1))
-          | (s1,w2) -> (s1,(seen,w2))a
-        end) in
-    st next*)
+and stage_one_expansion s0 q w =
+  let (s1, f1, w1) = expand_words s0 q ([],w) in
+  match w1 with
+  | [] -> (s1, f1)
+  | _ -> let (s2, f2) = stage_one_expansion s1 q w1 in
+                        (s2, (f1 ++ f2))
+  end
 
 (*
- * expansion_state would be one list
- * expand_control: sys -> q -> K of x -> w
- * entries should know if they are quoted, DQ of string (double quoted)
+ * Stage 2 Expansion: Field Splitting
  *)
+
+type tmp_field =
+    WFS
+  | FS
+  | Field of string
+  | QField of string
+
+type intermediate_fields = list tmp_field
+
+val is_whitespace : char -> bool
+val collect_non_ifs : list char -> list char -> (list char) * (list char)
+(*val collect_ifs_whitespace : list char -> list char -> list char*)
+val split_string : list char -> list char -> intermediate_fields
+val split_word : list char -> (intermediate_fields * expanded_words) -> (intermediate_fields * expanded_words)
+val split_fields : ty_os_state -> expanded_words -> intermediate_fields
+val clean_fields : intermediate_fields -> intermediate_fields
+val stage_two_expansion : ty_os_state -> expanded_words -> intermediate_fields
+
+let is_whitespace c = elem c (toCharList " \n\t")
+
+let rec collect_non_ifs ifs ls =
+  match ls with
+  | [] -> ([], [])
+  | (c::cs) ->
+      if elem c ifs
+      then ([], c::cs)
+      else let (f, remaining) = collect_non_ifs ifs cs in
+           (c::f, remaining)
+  end
+
+let rec split_string ifs clst =
+   match clst with
+   | [] -> []
+   | c::cs ->
+       if elem c ifs
+       then let fs = if is_whitespace c then WFS else FS in fs::split_string ifs cs
+       else let (cc, cs1) = (collect_non_ifs ifs cs) in (Field (toString (c::cc)))::(split_string ifs cs1)
+  end
+
+let rec split_word ifs p =
+  match p with
+  | (f, []) -> (f, [])
+  | (f, ExpS(s)::wrds) ->
+      let new_fields = split_string ifs (toCharList s) in
+      split_word ifs (f ++ new_fields, wrds)
+  | (f, ExpDQ(s)::wrds) -> split_word ifs (f ++ [QField s], wrds)
+  end
+
+let split_fields s0 exp_words =
+  let ifs = lookup_param s0 "IFS" in
+  let (f, _) = match ifs with
+    | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
+    | Just "" -> ([Field (concat_expanded exp_words)], [])
+    | Just s -> split_word (toCharList s) ([], exp_words)
+  end in f
+
+let rec combine_fields f =
+  match f with
+  | [] -> []
+  | [WFS] -> [] (* Remove trailing field separators *)
+  | [FS] -> []
+  | (WFS::WFS::rst) -> combine_fields (WFS::rst) (* Combine adjacent whitespace separators *)
+  | (WFS::FS::rst) -> combine_fields (FS::rst)
+  | (FS::WFS::rst) -> combine_fields (FS::rst)
+  | (Field(s1)::Field(s2)::rst) -> combine_fields (Field(s1 ^ s2)::rst)
+  | (WFS::rst) -> FS::(combine_fields rst)
+  | (f::rst) -> f::(combine_fields rst)
+  end
+
+let rec clean_fields f =
+  match f with
+  | (WFS::rst) -> clean_fields rst
+  | _ -> combine_fields f
+  end
+
+let stage_two_expansion s0 w = clean_fields (split_fields s0 w)
+
+(*
+ * Stage 3 Expansion: Pathname expansion
+ *)
+
+val pathname_expansion : ty_os_state -> string -> intermediate_fields
+val stage_three_expansion : ty_os_state -> intermediate_fields -> intermediate_fields
+
+let pathname_expansion s0 s = [Field s]
+
+(* Parameter expansion only happens on unquoted fields *)
+let rec stage_three_expansion s0 f =
+  match f with
+  | [] -> []
+  | (Field(s)::rst) -> (pathname_expansion s0 s) ++ (stage_three_expansion s0 rst)
+  | (f::rst) -> f::(stage_three_expansion s0 rst)
+  end
+
+(*
+ * Stage 4 Expansion: Quote Removal
+ *)
+
+val remove_quotes : intermediate_fields -> intermediate_fields
+val to_fields : intermediate_fields -> fields
+val finalize_fields : intermediate_fields -> fields
+val stage_four_expansion : ty_os_state -> intermediate_fields -> fields
+
+let rec remove_quotes f =
+  match f with
+  | [] -> []
+  | (QField(s)::rst) -> Field(s)::(remove_quotes rst)
+  | (f::rst) -> f::(remove_quotes rst)
+  end
+
+let rec to_fields f =
+  match f with
+  | [] -> []
+  | FS::FS::rst -> ""::(to_fields rst)
+  | Field(s)::rst -> s::(to_fields rst)
+  | FS::rst -> to_fields rst
+  end
+
+let rec finalize_fields f =
+  match f with
+  | (FS::rst) -> ""::(finalize_fields rst)
+  | _ -> to_fields f
+  end
+
+let stage_four_expansion s0 f =
+  let no_quotes = combine_fields (remove_quotes f) in
+  finalize_fields no_quotes
+
+
+
+
+
