@@ -68,7 +68,7 @@ val string_of_entry : entry -> string
 let rec string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
 and string_of_entry e =
   match e with
-  | S str -> str
+  | S str -> "S(" ^ str ^ ")"
   | DQ string -> "\"" ^ string ^ "\""
   | K _ -> "<<CTRL>>"
   | F -> "<<FS>>"
@@ -115,7 +115,9 @@ let rec fully_expanded w =
 (* TODO: use proper IFS separateor for F *)
 val expanded_tostring : words -> maybe string
 
-val split_fields : words -> words
+val split_str : list char -> words * list char -> words * list char
+val split_list : list char -> words -> words
+val split_fields : ty_os_state -> words -> words
 
 (* TODO : Add prefix/suffix.
  * TODO: Length can throw error when -u is set.
@@ -126,7 +128,31 @@ val expand_control : ty_os_state -> quoting_mode -> control -> ty_os_state * wor
 val expand_words : ty_os_state -> quoting_mode -> words -> ty_os_state * words
 val fully_expand_words : ty_os_state -> quoting_mode -> words -> ty_os_state * words
 
-let split_fields w = w
+let rec split_str ifs p = match p with
+  | (parsed, []) -> (parsed, [])
+  | (S(s)::parsed, c::cs) -> if elem c ifs then split_str ifs (F::S(s)::parsed, cs) else split_str ifs (S(s ^ (toString [c]))::parsed, cs)
+  | (parsed, c::cs) -> split_str ifs (S(toString [c])::parsed, cs)
+  end
+
+let rec split_list ifs w = match ifs with
+  | [] -> w
+  | _ -> match w with
+    | [] -> []
+    | (S(s)::ws) -> let (parsed,_) = split_str ifs ([],toCharList s) in
+                    (reverse parsed) ++ (split_list ifs ws)
+    | (DQ(s)::ws) -> DQ(s)::(split_list ifs ws)
+    | (F::ws) -> F::(split_list ifs ws)
+    | (K(k)::ws) -> K(k)::(split_list ifs ws) (* This case should never happen *)
+    end
+  end
+
+let split_fields s0 w =
+  let ifs = lookup_param s0 "IFS" in
+  match ifs with
+    | Nothing -> split_list (toCharList " \n\t") w
+    | Just "" -> w
+    | Just s -> split_list (toCharList s) w
+  end
 
 let rec expanded_tostring w =
   match w with
@@ -182,7 +208,7 @@ and expand_control s0 q k =
           else (s1, [K (LAssign s Nothing w1)])
     | LAssign s (Just str) w ->
         let s1 = <| s0 with shell_env = Map.insert s str s0.shell_env |> in
-            (s1, split_fields w)
+            (s1, split_fields s1 w)
     | Backtick w -> (s0, [S "error"]) (* This should create a new bash env *)
     | Arith w -> let (s1, w1) = (expand_words s0 q w) in
         (s1, [K (Arith w1)])
@@ -207,7 +233,7 @@ and expand_words s0 q w =
 
 and fully_expand_words s0 q w =
   if fully_expanded w
-  then (s0, split_fields w)
+  then (s0, split_fields s0 w)
   else let (s1, w1) = expand_words s0 q w in
        fully_expand_words s1 q w1
 
