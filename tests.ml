@@ -12,13 +12,10 @@ let rec fields_to_string = function
 type result = Ok | RErr of string * fields * fields
 
 let check_expansion (test_name, s0, w_in, f_expected):result=
-  (let (s1, f1_out) = (stage_one_expansion s0 Unquoted w_in) in
-  let f2_out = (stage_two_expansion s1 f1_out) in
-  let f3_out = stage_three_expansion s1 f2_out in
-  let f4_out = stage_four_expansion s1 f3_out in
-  if (listEqualBy (=) f4_out f_expected)
+  (let (s1, f_out) = (full_expansion s0 w_in) in
+  if (listEqualBy (=) f_out f_expected)
   then Ok
-  else RErr( test_name, f_expected, f4_out))
+  else RErr( test_name, f_expected, f_out))
 
 let os_empty:ty_os_state=  ({
     shell_env = (Pmap.empty compare);

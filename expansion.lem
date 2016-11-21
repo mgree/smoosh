@@ -324,7 +324,15 @@ let stage_four_expansion s0 f =
   let no_quotes = combine_fields (remove_quotes f) in
   finalize_fields no_quotes
 
+(*
+ * Run a full expansion on the given words
+ *)
 
-
-
+val full_expansion : ty_os_state -> words -> ty_os_state * fields
+let full_expansion s0 w_in =
+  let (s1, f1_out) = stage_one_expansion s0 Unquoted w_in in
+  let f2_out = (stage_two_expansion s1 f1_out) in
+  let f3_out = stage_three_expansion s1 f2_out in
+  let f4_out = stage_four_expansion s1 f3_out in
+  (s1, f4_out)
 
