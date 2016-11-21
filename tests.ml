@@ -25,7 +25,8 @@ let os_var_x_null:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "x" "" os
 let os_var_x_set:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "x" "bar" os_empty.shell_env) })
 let os_var_x_set_three:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "x" "\"this is three\"" os_empty.shell_env) })
 
-let os_ifs_set:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "IFS" " ," os_empty.shell_env) })
+let os_ifs_spaceandcomma:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "IFS" " ," os_empty.shell_env) })
+let os_ifs_comma:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "IFS" "," os_empty.shell_env) })
 
 (* TODO: tests for variable assignment (will have to check ending state as well) *)
 let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
@@ -70,18 +71,30 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("Field splitting parameter expansions, quoted", os_empty,
       [K (Param("x", (Default [DQ "a b c"])))], ["a b c"]);
 
-    ("Field splitting w/ IFS set to ' ,'; commas force field separation", os_ifs_set,
+    ("Field splitting w/ IFS set to ' ,'; commas force field separation", os_ifs_spaceandcomma,
       [K (Param("x", (Assign [S ",b,c"])))], [""; "b"; "c"]);
 
     (* This shows it is valid to represent the empty string with the empty list above *)
-    ("Field splitting w/ IFS set to ' ,'; commas force field separation after parameter expansion", os_ifs_set,
+    ("Field splitting w/ IFS set to ' ,'; commas force field separation after parameter expansion", os_ifs_spaceandcomma,
       [S "a"; K (Param("x", (Assign [S ",b,c"])))], ["a"; "b"; "c"]);
 
-    ("Field splitting w/ IFS set to ' ,'; spaces do not force field separation", os_ifs_set,
+    ("Field splitting w/ IFS set to ' ,'; spaces do not force field separation", os_ifs_spaceandcomma,
       [K (Param("x", (Assign [S " b,c"])))], ["b"; "c"]);
 
+    ("Field splitting when IFS is just ','", os_ifs_comma,
+      [S "a,b,c"], ["a,b,c"]);
+
+    ("Field splitting when IFS is just ','", os_ifs_comma,
+      [S "a b c"], ["a b c"]);
+
+    ("Field splitting when IFS is just ','", os_ifs_comma,
+      [S ",,foo,,"], [",,foo,,"]);
+
+    ("Field splitting when IFS is just ','", os_ifs_comma,
+      [K (Param("x", (Default [S ",,foo,,"])))], ["";"";"foo";""]);
+
     ("Field splitting ignores quote characters in expansion", os_empty,
-      [S "\"this is three\""], ["\"this"; "is"; "three\""]);
+      [S "\"this is three\""], ["\"this is three\""]);
 
     ("String inside control quote does not field split", os_empty,
       [K (Quote [S "a b c"])], ["a b c"]);
