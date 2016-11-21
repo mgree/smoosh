@@ -256,7 +256,6 @@ let rec combine_fields f =
   match f with
   | [] -> []
   | [WFS] -> [] (* Remove trailing field separators *)
-  | [FS] -> []
   | (WFS::WFS::rst) -> combine_fields (WFS::rst) (* Combine adjacent whitespace separators *)
   | (WFS::FS::rst) -> combine_fields (FS::rst)
   | (FS::WFS::rst) -> combine_fields (FS::rst)
