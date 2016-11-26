@@ -106,7 +106,7 @@ val concat_expanded : expanded_words -> string
 val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
 val expand_control : ty_os_state -> quoting_mode -> control -> (ty_os_state * expanded_words * words)
 val expand_words : ty_os_state -> quoting_mode -> (expanded_words * words) -> (ty_os_state * expanded_words * words)
-val stage_one_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
+val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
 
 (* The result is nothing if the parameter is unset, and the empty string null. *)
 let lookup_param s0 str = Map.lookup str s0.shell_env
@@ -185,11 +185,11 @@ and expand_words s0 q (f,w) =
         (s1, f++f1, (w1 ++ ws))
   end
 
-and stage_one_expansion s0 q w =
+and control_code_expansion s0 q w =
   let (s1, f1, w1) = expand_words s0 q ([],w) in
   match w1 with
   | [] -> (s1, f1)
-  | _ -> let (s2, f2) = stage_one_expansion s1 q w1 in
+  | _ -> let (s2, f2) = control_code_expansion s1 q w1 in
                         (s2, (f1 ++ f2))
   end
 
@@ -212,7 +212,7 @@ val split_string : list char -> list char -> intermediate_fields
 val split_word : list char -> (intermediate_fields * expanded_words) -> (intermediate_fields * expanded_words)
 val split_fields : ty_os_state -> expanded_words -> intermediate_fields
 val clean_fields : intermediate_fields -> intermediate_fields
-val stage_two_expansion : ty_os_state -> expanded_words -> intermediate_fields
+val field_splitting: ty_os_state -> expanded_words -> intermediate_fields
 
 let is_whitespace c = elem c (toCharList " \n\t")
 
@@ -270,23 +270,20 @@ let rec clean_fields f =
   | _ -> combine_fields f
   end
 
-let stage_two_expansion s0 w = clean_fields (split_fields s0 w)
+let field_splitting s0 w = clean_fields (split_fields s0 w)
 
 (*
  * Stage 3 Expansion: Pathname expansion
  *)
 
-val pathname_expansion : ty_os_state -> string -> intermediate_fields
-val stage_three_expansion : ty_os_state -> intermediate_fields -> intermediate_fields
-
-let pathname_expansion s0 s = [Field s]
+val pathname_expansion : ty_os_state -> intermediate_fields -> intermediate_fields
 
 (* Parameter expansion only happens on unquoted fields *)
-let rec stage_three_expansion s0 f =
+let rec pathname_expansion s0 f =
   match f with
   | [] -> []
-  | (Field(s)::rst) -> (pathname_expansion s0 s) ++ (stage_three_expansion s0 rst)
-  | (f::rst) -> f::(stage_three_expansion s0 rst)
+  | (Field(s)::rst) -> ([Field s]) ++ (pathname_expansion s0 rst)
+  | (f::rst) -> f::(pathname_expansion s0 rst)
   end
 
 (*
@@ -296,7 +293,7 @@ let rec stage_three_expansion s0 f =
 val remove_quotes : intermediate_fields -> intermediate_fields
 val to_fields : intermediate_fields -> fields
 val finalize_fields : intermediate_fields -> fields
-val stage_four_expansion : ty_os_state -> intermediate_fields -> fields
+val quote_removal : ty_os_state -> intermediate_fields -> fields
 
 let rec remove_quotes f =
   match f with
@@ -319,7 +316,7 @@ let rec finalize_fields f =
   | _ -> to_fields f
   end
 
-let stage_four_expansion s0 f =
+let quote_removal s0 f =
   let no_quotes = combine_fields (remove_quotes f) in
   finalize_fields no_quotes
 
@@ -329,9 +326,9 @@ let stage_four_expansion s0 f =
 
 val full_expansion : ty_os_state -> words -> ty_os_state * fields
 let full_expansion s0 w_in =
-  let (s1, f1_out) = stage_one_expansion s0 Unquoted w_in in
-  let f2_out = (stage_two_expansion s1 f1_out) in
-  let f3_out = stage_three_expansion s1 f2_out in
-  let f4_out = stage_four_expansion s1 f3_out in
+  let (s1, f1_out) = control_code_expansion s0 Unquoted w_in in
+  let f2_out = field_splitting s1 f1_out in
+  let f3_out = pathname_expansion s1 f2_out in
+  let f4_out = quote_removal s1 f3_out in
   (s1, f4_out)
 
