@@ -8,10 +8,16 @@ Strings will be whatever lem uses for string
 type expanded_word =
    ExpS of string
  | ExpDQ of string
+ | UsrS of string
+ | UsrDQ of string
 
 type expanded_words = list expanded_word
 
 type fields = list string
+
+type string_mode =
+    UserString
+  | GeneratedString
 
 type quoting_mode =
     Unquoted
@@ -105,7 +111,7 @@ val concat_expanded : expanded_words -> string
 
 val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
 val expand_control : ty_os_state -> quoting_mode -> control -> (ty_os_state * expanded_words * words)
-val expand_words : ty_os_state -> quoting_mode -> (expanded_words * words) -> (ty_os_state * expanded_words * words)
+val expand_words : ty_os_state -> quoting_mode -> string_mode -> (expanded_words * words) -> (ty_os_state * expanded_words * words)
 val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
 
 (* The result is nothing if the parameter is unset, and the empty string null. *)
@@ -156,17 +162,17 @@ and expand_control s0 q k =
   match k with
     | Tilde -> (s0, [], expand_param s0 Unquoted "HOME" Normal)
     | TildeUser usr -> (s0, [], [S "error"]) (* This should call system *)
-    | Param s f -> (s0, [], expand_param s0 q s f)
+    | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
         let s1 = <| s0 with shell_env = Map.insert s (concat_expanded f) s0.shell_env |> in
         (s1, f, [])
     | LAssign s f w ->
-        let (s1, f1, w1) = expand_words s0 q ([], w) in
+        let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
         (s1, [], [K (LAssign s (f ++ f1) w1)])
     | Backtick w -> (s0, [], [S "error"]) (* This should create a new bash env *)
-    | Arith w -> let (s1, f1, w1) = expand_words s0 q ([],w) in
+    | Arith w -> let (s1, f1, w1) = expand_words s0 q GeneratedString ([],w) in
         (s1, [], [K (Arith w1)])
-    | Quote w -> let (s1, f1, w1) = expand_words s0 Quoted ([],w) in
+    | Quote w -> let (s1, f1, w1) = expand_words s0 Quoted GeneratedString ([],w) in
         match w1 with
         | [] -> (s1, f1, [])
         | _ -> (s1, f1, [K (Quote (w1))])
@@ -174,19 +180,32 @@ and expand_control s0 q k =
     (*| Nested (q, st) -> [K (Nested (q, expand_words *)
   end
 
-and expand_words s0 q (f,w) =
+and expand_words s0 q sm (f,w) =
   match w with
     | [] -> (s0, f, w)
-    | (F::ws) -> let (s1,f1,w1) = (expand_words s0 q ([],ws)) in
+    | (F::ws) -> let (s1,f1,w1) = (expand_words s0 q sm ([],ws)) in
         (s1, f ++ f1, w1)
-    | (S(s)::ws) -> if q = Quoted then (s0, f ++ [ExpDQ s], ws) else (s0, f ++ [ExpS s], ws)
-    | (DQ(s)::ws) -> (s0, f ++ [ExpDQ s], ws)
+    | (S(s)::ws) ->
+        let f1 = match (q, sm) with
+        | (Quoted, UserString) -> [UsrDQ s]
+        | (Quoted, GenerateString) -> [ExpDQ s]
+        | (Unquoted, UserString) -> [UsrS s]
+        | (Unquoted, GenerateString) -> [ExpS s]
+        end in
+        (s0, f ++ f1, ws)
+
+    | (DQ(s)::ws) ->
+        let f1 = match sm with
+        | UserString -> [UsrDQ s]
+        | GenerateString -> [ExpDQ s]
+        end in
+        (s0, f ++ f1, ws)
     | (K(k)::ws) -> let (s1,f1,w1) = expand_control s0 q k in
         (s1, f++f1, (w1 ++ ws))
   end
 
 and control_code_expansion s0 q w =
-  let (s1, f1, w1) = expand_words s0 q ([],w) in
+  let (s1, f1, w1) = expand_words s0 q UserString ([],w) in
   match w1 with
   | [] -> (s1, f1)
   | _ -> let (s2, f2) = control_code_expansion s1 q w1 in
@@ -242,6 +261,8 @@ let rec split_word ifs p =
       let new_fields = split_string ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
   | (f, ExpDQ(s)::wrds) -> split_word ifs (f ++ [QField s], wrds)
+  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field s], wrds)
+  | (f, UsrDQ(s)::wrds) -> split_word ifs (f ++ [QField s], wrds)
   end
 
 let split_fields s0 exp_words =
