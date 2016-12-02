@@ -1,0 +1,87 @@
+(*
+ * Parse and evaluate a string representing the arithmetic operation
+ *)
+open import Pervasives_extra
+
+type arith_token =
+    TNum of integer
+  | TPlus | TMinus | TTimes | TDiv | TMod
+  | TBitNot | TBoolNot (* Is '!' actually allowed? *)
+  | TLShift | TRShift
+  | TLt | TLte
+  | TGt | TGte
+  | TEq | TNEq
+  | TBitAnd | TBitOr | TBitXOr
+  | TBoolAnd | TBoolOr
+  | TQuestion | TColon (* For 1 ? 17 : 18 *)
+  | TVarEq 
+  | TVarPlusEq | TVarMinusEq
+  | TVarTimesEq | TVarDivEq | TVarModEq
+  | TVarLShiftEq | TVarRShiftEq
+  | TVarBitAndEq | TVarBitOrEq | TVarBitXOrEq
+
+val lexer : (list char) -> list arith_token
+val span : (char -> bool) -> (list char) -> ((list char) * list char)
+
+let is_whitespace c = elem c (toCharList " \n\t")
+let is_digit c = elem c (toCharList "1234567890")
+
+let is_plus c =
+  match c with
+  | #'+' -> true
+  | _ -> false
+  end
+
+let rec span f l =
+  match l with
+  | [] -> ([],[])
+  | c::cs -> 
+      if f c
+      then let (s, rst) = span f cs
+           in (c::s, rst)
+      else ([], c::cs)
+  end
+
+(* TODO: ignore all whitespace *)
+let rec lexer str =
+  match str with
+  | [] -> []
+  | (#'^'::#'='::cs) -> TVarBitXOrEq::(lexer cs)
+  | (#'|'::#'='::cs) -> TVarBitOrEq::(lexer cs)
+  | (#'&'::#'='::cs) -> TVarBitAndEq::(lexer cs)
+  | (#'>'::#'>'::#'='::cs) -> TVarRShiftEq::(lexer cs)
+  | (#'<'::#'<'::#'='::cs) -> TVarLShiftEq::(lexer cs)
+  | (#'%'::#'='::cs) -> TVarModEq::(lexer cs)
+  | (#'/'::#'='::cs) -> TVarDivEq::(lexer cs)
+  | (#'*'::#'='::cs) -> TVarTimesEq::(lexer cs)
+  | (#'-'::#'='::cs) -> TVarMinusEq::(lexer cs)
+  | (#'+'::#'='::cs) -> TVarPlusEq::(lexer cs)
+  | (#'='::#'='::cs) -> TEq::(lexer cs)
+  | (#'!'::#'='::cs) -> TNEq::(lexer cs)
+  | (#'>'::#'>'::cs) -> TRShift::(lexer cs)
+  | (#'<'::#'<'::cs) -> TLShift::(lexer cs)
+  | (#'&'::#'&'::cs) -> TBoolAnd::(lexer cs)
+  | (#'|'::#'|'::cs) -> TBoolOr::(lexer cs)
+  | (#'='::cs) -> TVarEq::(lexer cs)
+  | (#':'::cs) -> TColon::(lexer cs)
+  | (#'?'::cs) -> TQuestion::(lexer cs)
+  | (#'^'::cs) -> TBitXOr::(lexer cs)
+  | (#'|'::cs) -> TBitOr::(lexer cs)
+  | (#'&'::cs) -> TBitAnd::(lexer cs)
+  | (#'>'::#'='::cs) -> TGte::(lexer cs)
+  | (#'<'::#'='::cs) -> TLte::(lexer cs)
+  | (#'>'::cs) -> TGt::(lexer cs)
+  | (#'<'::cs) -> TLt::(lexer cs)
+  | (#'!'::cs) -> TBoolNot::(lexer cs)
+  | (#'~'::cs) -> TBitNot::(lexer cs)
+  | (#'%'::cs) -> TMod::(lexer cs)
+  | (#'/'::cs) -> TDiv::(lexer cs)
+  | (#'*'::cs) -> TTimes::(lexer cs)
+  | (#'-'::cs) -> TMinus::(lexer cs)
+  | (#'+'::cs) -> TPlus::(lexer cs)
+  | d::cs ->
+      if is_digit d
+      then let (digit, rst) = span is_digit cs
+           in TNum (integerOfString (toString (d::digit)))::(lexer rst)
+      else lexer cs (* ignores allllllll characters. This is wrong *)
+  end

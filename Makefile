@@ -1,4 +1,4 @@
-LEMFILES=expansion.lem
+LEMFILES=arith.lem expansion.lem
 
 MLFILES=$(LEMFILES:.lem=.ml) tests.ml runtest.ml
 

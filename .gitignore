@@ -2,5 +2,7 @@
 *.cmo
 t_fs_prelude.ml
 expansion.ml
+arith.ml
 ocaml-lib
 runtest
+_build

@@ -1,4 +1,5 @@
 open import Pervasives_extra
+open import Arith
 
 (*
 Strings will be whatever lem uses for string
