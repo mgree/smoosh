@@ -5,7 +5,9 @@ open import Pervasives_extra
 
 type arith_token =
     TNum of integer
-  | TPlus | TMinus | TTimes | TDiv | TMod
+  | TVar of string
+  | TPlus | TMinus
+  | TTimes | TDiv | TMod
   | TBitNot | TBoolNot (* Is '!' actually allowed? *)
   | TLShift | TRShift
   | TLt | TLte
@@ -14,17 +16,44 @@ type arith_token =
   | TBitAnd | TBitOr | TBitXOr
   | TBoolAnd | TBoolOr
   | TQuestion | TColon (* For 1 ? 17 : 18 *)
-  | TVarEq 
+  | TVarEq
   | TVarPlusEq | TVarMinusEq
   | TVarTimesEq | TVarDivEq | TVarModEq
   | TVarLShiftEq | TVarRShiftEq
   | TVarBitAndEq | TVarBitOrEq | TVarBitXOrEq
+  | TLParen | TRParen
+
+type arith_exp =
+    Num of integer
+  | Plus of arith_exp * arith_exp
+  | Minus of arith_exp * arith_exp
+  | Times of arith_exp * arith_exp
+  | Div of arith_exp * arith_exp
+  | Mod of arith_exp * arith_exp
+  | Neg of arith_exp
+  | BitNot of arith_exp
+  | BoolNot of arith_exp
+  | LShift of arith_exp * arith_exp
+  | RShift of arith_exp * arith_exp
+  | Lt of arith_exp * arith_exp
+  | Lte of arith_exp * arith_exp
+  | Gt of arith_exp * arith_exp
+  | Gte of arith_exp * arith_exp
+  | Eq of arith_exp * arith_exp
+  | NEq of arith_exp * arith_exp
+  | BitAnd of arith_exp * arith_exp
+  | BitOr of arith_exp * arith_exp
+  | BitXOr of arith_exp * arith_exp
+  | BoolAnd of arith_exp * arith_exp
+  | BoolOr of arith_exp * arith_exp
+  | Conditional of arith_exp * arith_exp * arith_exp
 
 val lexer : (list char) -> list arith_token
 val span : (char -> bool) -> (list char) -> ((list char) * list char)
 
 let is_whitespace c = elem c (toCharList " \n\t")
 let is_digit c = elem c (toCharList "1234567890")
+let is_alpha c = elem c (toCharList "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 let is_plus c =
   match c with
@@ -35,14 +64,13 @@ let is_plus c =
 let rec span f l =
   match l with
   | [] -> ([],[])
-  | c::cs -> 
+  | c::cs ->
       if f c
       then let (s, rst) = span f cs
            in (c::s, rst)
       else ([], c::cs)
   end
 
-(* TODO: ignore all whitespace *)
 let rec lexer str =
   match str with
   | [] -> []
@@ -79,9 +107,278 @@ let rec lexer str =
   | (#'*'::cs) -> TTimes::(lexer cs)
   | (#'-'::cs) -> TMinus::(lexer cs)
   | (#'+'::cs) -> TPlus::(lexer cs)
-  | d::cs ->
-      if is_digit d
-      then let (digit, rst) = span is_digit cs
-           in TNum (integerOfString (toString (d::digit)))::(lexer rst)
-      else lexer cs (* ignores allllllll characters. This is wrong *)
+  | (#'('::cs) -> TLParen::(lexer cs)
+  | (#')'::cs) -> TRParen::(lexer cs)
+  | (c::cs) ->
+      match (is_digit c, is_alpha c) with
+      | (true, _) -> let (digit, rst) = span is_digit cs
+                     in TNum (integerOfString (toString (c::digit)))::(lexer rst)
+      | (_, true) -> let (var, rst) = span is_alpha cs
+                     in TVar (toString (c::var))::(lexer rst)
+      | (false, false) -> if is_whitespace c then lexer cs else lexer cs (* ignores all unrecognized characters. TODO: else branch should error *)
+      end
   end
+
+val parse_assignment : (list arith_token) -> either string (arith_exp * list arith_token)
+
+val parse_bit_shift : (list arith_token) -> either string (arith_exp * list arith_token)
+val shift_term : arith_exp -> (list arith_token) -> either string (arith_exp * list arith_token)
+val collect_shift : (arith_exp -> arith_exp) -> (list arith_token) -> either string (arith_exp * list arith_token)
+
+val parse_additive : (list arith_token) -> either string (arith_exp * list arith_token)
+val additive_term : arith_exp -> (list arith_token) -> either string (arith_exp * list arith_token)
+val collect_additive : (arith_exp -> arith_exp) -> (list arith_token) -> either string (arith_exp * list arith_token)
+
+val parse_multiplicative : (list arith_token) -> either string (arith_exp * list arith_token)
+val multiplicative_term : arith_exp -> (list arith_token) -> either string (arith_exp * list arith_token)
+val collect_multiplicative : (arith_exp -> arith_exp) -> (list arith_token) -> either string (arith_exp * list arith_token)
+
+let rec parse_assignment tkns = parse_conditional tkns
+
+and parse_conditional tkns =
+  match parse_bool_or tkns with
+  | Right (term, rst) -> first_conditional_term term rst
+  | Left e -> Left e
+  end
+
+and first_conditional_term boolean tkns =
+  match tkns with
+  | (TQuestion::rst1) ->
+    match parse_conditional rst1 with
+    | Right (lhs, rst2) ->
+        match second_conditional_term rst2 with
+        | Right (rhs, rst3) -> Right (Conditional boolean lhs rhs, rst3)
+        | Left e -> Left e
+        end
+    | Left e -> Left e
+    end
+  | _ -> Right (boolean, tkns)
+  end
+
+and second_conditional_term tkns =
+  match tkns with
+  | (TColon::rst1) -> parse_conditional rst1
+  | ts -> Left "Expected ':'"
+  end
+
+and parse_bool_or tkns =
+  match parse_bool_and tkns with
+  | Right (term, rst) -> bool_or_term term rst
+  | Left e -> Left e
+  end
+
+and bool_or_term lhs tkns =
+  match tkns with
+  | (TBoolOr::rst1) ->
+    match parse_bool_and rst1 with
+    | Right (rhs, rst2) -> bool_or_term (BoolOr lhs rhs) rst2
+    | Left e -> Left e
+    end
+  | _ -> Right (lhs, tkns)
+  end
+
+and parse_bool_and tkns =
+  match parse_bit_or tkns with
+  | Right (term, rst) -> bool_and_term term rst
+  | Left e -> Left e
+  end
+
+and bool_and_term lhs tkns =
+  match tkns with
+  | (TBoolAnd::rst1) ->
+    match parse_bit_or rst1 with
+    | Right (rhs, rst2) -> bool_and_term (BoolAnd lhs rhs) rst2
+    | Left e -> Left e
+    end
+  | _ -> Right (lhs, tkns)
+  end
+
+and parse_bit_or tkns =
+  match parse_bit_xor tkns with
+  | Right (term, rst) -> bit_or_term term rst
+  | Left e -> Left e
+  end
+
+and bit_or_term lhs tkns =
+  match tkns with
+  | (TBitOr::rst1) ->
+    match parse_bit_xor rst1 with
+    | Right (rhs, rst2) -> bit_or_term (BitOr lhs rhs) rst2
+    | Left e -> Left e
+    end
+  | _ -> Right (lhs, tkns)
+  end
+
+and parse_bit_xor tkns =
+  match parse_bit_and tkns with
+  | Right (term, rst) -> bit_xor_term term rst
+  | Left e -> Left e
+  end
+
+and bit_xor_term lhs tkns =
+  match tkns with
+  | (TBitXOr::rst1) ->
+    match parse_bit_and rst1 with
+    | Right (rhs, rst2) -> bit_xor_term (BitXOr lhs rhs) rst2
+    | Left e -> Left e
+    end
+  | _ -> Right (lhs, tkns)
+  end
+
+and parse_bit_and tkns =
+  match parse_equality tkns with
+  | Right (term, rst) -> bit_and_term term rst
+  | Left e -> Left e
+  end
+
+and bit_and_term lhs tkns =
+  match tkns with
+  | (TBitAnd::rst1) ->
+    match parse_equality rst1 with
+    | Right (rhs, rst2) -> bit_and_term (BitAnd lhs rhs) rst2
+    | Left e -> Left e
+    end
+  | _ -> Right (lhs, tkns)
+  end
+
+and collect_bit_and mk tkns =
+  match parse_equality tkns with
+  | Right (term, rst) -> bit_and_term (mk term) rst
+  | Left e -> Left e
+  end
+
+and parse_equality tkns =
+  match parse_relational tkns with
+  | Right (term, rst) -> equality_term term rst
+  | Left e -> Left e
+  end
+
+and equality_term lhs tkns =
+  match tkns with
+  | (TEq::rst) -> collect_equality (Eq lhs) rst
+  | (TNEq::rst) -> collect_equality (NEq lhs) rst
+  | _ -> Right (lhs, tkns)
+  end
+
+and collect_equality mk tkns =
+  match parse_relational tkns with
+  | Right (term, rst) -> equality_term (mk term) rst
+  | Left e -> Left e
+  end
+
+and parse_relational tkns =
+  match parse_bit_shift tkns with
+  | Right (term, rst) -> relational_term term rst
+  | Left e -> Left e
+  end
+
+and relational_term lhs tkns =
+  match tkns with
+  | (TLt::rst) -> collect_relational (Lt lhs) rst
+  | (TLte::rst) -> collect_relational (Lte lhs) rst
+  | (TGt::rst) -> collect_relational (Gt lhs) rst
+  | (TGte::rst) -> collect_relational (Gte lhs) rst
+  | _ -> Right (lhs, tkns)
+  end
+
+and collect_relational mk tkns =
+  match parse_bit_shift tkns with
+  | Right (term, rst) -> relational_term (mk term) rst
+  | Left e -> Left e
+  end
+
+and parse_bit_shift tkns =
+  match parse_additive tkns with
+  | Right (term, rst) -> shift_term term rst
+  | Left e -> Left e
+  end
+
+and shift_term lhs tkns =
+  match tkns with
+  | (TLShift::rst) -> collect_shift (LShift lhs) rst
+  | (TRShift::rst) -> collect_shift (RShift lhs) rst
+  | _ -> Right (lhs, tkns)
+  end
+
+and collect_shift mk tkns =
+  match parse_additive tkns with
+  | Right (term, rst) -> shift_term (mk term) rst
+  | Left e -> Left e
+  end
+
+and parse_additive tkns =
+  match parse_multiplicative tkns with
+  | Right (term, rst) -> additive_term term rst
+  | Left e -> Left e
+  end
+
+and additive_term lhs tkns =
+  match tkns with
+  | (TPlus::rst) -> collect_additive (Plus lhs) rst
+  | (TMinus::rst) -> collect_additive (Minus lhs) rst
+  | _ -> Right (lhs, tkns)
+  end
+
+and collect_additive mk tkns =
+  match parse_multiplicative tkns with
+  | Right (term, rst) -> additive_term (mk term) rst
+  | Left e -> Left e
+  end
+
+and parse_multiplicative tkns =
+  match unary_term tkns with
+  | Right (term, rst) -> multiplicative_term term rst
+  | Left e -> Left e
+  end
+
+and multiplicative_term lhs tkns =
+  match tkns with
+  | (TTimes::rst) -> collect_multiplicative (Times lhs) rst
+  | (TDiv::rst) -> collect_multiplicative (Div lhs) rst
+  | (TMod::rst) -> collect_multiplicative (Mod lhs) rst
+  | _ -> Right (lhs, tkns)
+  end
+
+and collect_multiplicative mk tkns =
+  match unary_term tkns with
+  | Right (term, rst) -> multiplicative_term (mk term) rst
+  | Left e -> Left e
+  end
+
+(* TODO: Add boolean not if it's allowed *)
+and unary_term tkns =
+  match tkns with
+  | (TPlus::ts) -> unary_term ts
+  | (TMinus::ts) ->
+      match unary_term ts with
+      | Right (term, rst) -> Right (Neg(term), rst)
+      | Left e -> Left e
+      end
+  | (TBitNot::ts) ->
+      match unary_term ts with
+      | Right (term, rst) -> Right (BitNot(term), rst)
+      | Left e -> Left e
+      end
+  | _ -> number_term tkns
+  end
+
+and number_term tkns =
+  match tkns with
+  | ((TNum n)::ts) -> Right (Num n, ts)
+  | (TLParen::ts) ->
+      match parse_assignment ts with
+      | Right(term, TRParen::ts1) -> Right (term, ts1)
+      | Right(term, _) -> Left "Expected right paren found "
+      | Left e -> Left e
+      end
+  | ts -> Left "Expected number or (expr) found"
+  end
+
+val parse_arith_exp : list arith_token -> either string arith_exp
+let parse_arith_exp tkns =
+  match parse_assignment tkns with
+  | Right (expr, []) -> Right expr
+  | Right (_, ts) -> Left "Expected EOF but found tokens"
+  | Left e -> Left e
+  end
+
