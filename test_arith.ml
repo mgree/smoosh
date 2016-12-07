@@ -60,7 +60,60 @@ let check_lexer (test_name, s_in, t_expected):lex_res=
 
 let lexer_tests:(string*string*(arith_token)list)list=
  ([
-   ("Lexer on number 5", "5", [TNum (Nat_big_num.of_int 5)]);
+   ("number 5", "5", [TNum (Nat_big_num.of_int 5)]);
+   ("number 1234567890", "1234567890", [TNum (Nat_big_num.of_int 1234567890)]);
+
+   ("var x", "x", [TVar "x"]);
+   ("var LongVarWithCaps", "LongVarWithCaps", [TVar "LongVarWithCaps"]);
+
+   (* Arithmetic ops *)
+   ("Plus operator", "+", [TPlus]);
+   ("Minus operator", "-", [TMinus]);
+   ("Times operator", "*", [TTimes]);
+   ("Div operator", "/", [TDiv]);
+   ("Mod operator", "%", [TMod]);
+
+   ("Bitwise negation operator", "~", [TBitNot]);
+   ("Logical not operator", "!", [TBoolNot]);
+
+   ("Bitwise left shift operator", "<<", [TLShift]);
+   ("Bitwise right shift operator", ">>", [TRShift]);
+
+   (* Comparison ops *)
+   ("Less than comparison operator", "<", [TLt]);
+   ("Less than or equal comparison operator", "<=", [TLte]);
+   ("Greater than comparison operator", ">", [TGt]);
+   ("Greater than or equal comparison operator", ">=", [TGte]);
+   ("Equal to comparison operator", "==", [TEq]);
+   ("Not equal to comparison operator", "!=", [TNEq]);
+   
+   ("Bitwise and operator", "&", [TBitAnd]);
+   ("Bitwise or operator", "|", [TBitOr]);
+   ("Bitwise xor operator", "^", [TBitXOr]);
+
+   ("Logical and operator", "&&", [TBoolAnd]);
+   ("Logical or operator", "||", [TBoolOr]);
+
+   ("", "? :", [TQuestion; TColon]);
+
+   (* Assignment operators *)
+   ("Assignment var equals operator", "=", [TVarEq]);
+   ("Assignment var plus equals operator", "+=", [TVarPlusEq]);
+   ("Assignment var minus equals operator", "-=", [TVarMinusEq]);
+   ("Assignment var times equals operator", "*=", [TVarTimesEq]);
+   ("Assignment var div equals operator", "/=", [TVarDivEq]);
+   ("Assignment var mod equals operator", "%=", [TVarModEq]);
+
+   ("Assignment var lshift equals operator", "<<=", [TVarLShiftEq]);
+   ("Assignment var rshift equals operator", ">>=", [TVarRShiftEq]);
+
+   ("Assignment var bitwise and equals operator", "&=", [TVarBitAndEq]);
+   ("Assignment var bitwise or equals operator", "|=", [TVarBitOrEq]);
+   ("Assignment var bitwise xor equals operator", "^=", [TVarBitXOrEq]);
+
+   ("Left parenthesis", "(", [TLParen]);
+   ("Right parenthesis", ")", [TRParen]);
+
   ])
 
 let run_tests () =
