@@ -1,5 +1,6 @@
 open Lem_pervasives_extra
 open Expansion
+open Printf
 
 let rec fields_to_string = function
 [] -> ""
@@ -109,9 +110,28 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
       [S "foo"; K (Quote [S " "; K (Param("x", Normal)); S " "]); S "bar"], ["foo \"this is three\" bar"]);
 
     ("Quoted field is a separate field when ifs separators are outside the quoted section", os_var_x_set_three,
-      [S "foo "; K (Quote [K (Param("x", Normal))]); S " bar"], ["foo"; "\"this is three\""; "bar"]);
+      [S "foo"; F; K (Quote [K (Param("x", Normal))]); F; S "bar"], ["foo"; "\"this is three\""; "bar"]);
 
     ("Quoted field is a separate field when ifs separators are outside the quoted section", os_var_x_set_three,
       [K (Param("y", Default [S "foo "])); K (Quote [K (Param("x", Normal))]); K (Param("y", Default [S " bar"]))], ["foo"; "\"this is three\""; "bar"]);
 
   ])
+
+let rec list_to_string = function		
+[] -> ""		
+| [f] -> f		
+| f::l -> f ^ "<<FS>>" ^ (list_to_string l)
+
+let run_tests () =
+  let failed = ref 0 in
+  print_endline "\n=== Running word expansion tests...";
+  List.iter
+    (fun t ->
+      match check_expansion t with
+      | Ok -> ()
+      | RErr(name,expected,got) ->
+         printf "%s failed: expected '%s' got '%s'\n"
+                name (list_to_string expected) (list_to_string got);
+         incr failed)
+    expansion_tests;
+  printf "=== ...ran %d word expansion tests with %d failures.\n\n" (List.length expansion_tests) !failed
