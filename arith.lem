@@ -345,7 +345,6 @@ and collect_multiplicative mk tkns =
   | Left e -> Left e
   end
 
-(* TODO: Add boolean not if it's allowed *)
 and unary_term tkns =
   match tkns with
   | (TPlus::ts) -> unary_term ts
@@ -357,6 +356,11 @@ and unary_term tkns =
   | (TBitNot::ts) ->
       match unary_term ts with
       | Right (term, rst) -> Right (BitNot(term), rst)
+      | Left e -> Left e
+      end
+  | (TBoolNot::ts) ->
+      match unary_term ts with
+      | Right (term, rst) -> Right (BoolNot(term), rst)
       | Left e -> Left e
       end
   | _ -> number_term tkns
