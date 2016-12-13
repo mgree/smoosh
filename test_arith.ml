@@ -42,8 +42,8 @@ let string_of_token tkn : string =
   | TLParen -> "LP"
   | TRParen -> "RP"
 
-let rec token_list_to_string = function		
-  [] -> ""		
+let rec token_list_to_string = function
+  [] -> ""
   | [t] -> string_of_token t
   | t::ts -> (string_of_token t) ^ " " ^ (token_list_to_string ts)
 
@@ -52,18 +52,21 @@ let rec string_of_aexp aexp : string = "Aexp"
 (* test_name expected got *)
 type 'a result = Ok | Err of { msg : string;  expected : 'a; got : 'a }
 
-let check_lexer (test_name, s_in, t_expected) : ((Nat_big_num.num arith_token) list) result=
-  (let t_out = lexer instance_Arith_Read_Num_integer_dict (Xstring.explode s_in) in
-  if (listEqualBy (=) t_out t_expected)
+let checker test_fn equal (test_name, input, expected_out) =
+  let out = test_fn input in
+  if equal out expected_out
   then Ok
-  else Err {msg = test_name; expected = t_expected; got = t_out})
+  else Err {msg = test_name; expected = expected_out; got = out}
 
-let check_parser (test_name, token_list_in, aexp_expected) : ((string, Nat_big_num.num arith_exp) Either.either) result =
-  (let aexp_out = parse_arith_exp token_list_in in
-  if (aexp_out = aexp_expected)
-  then Ok
-  else Err {msg = test_name; expected = aexp_expected; got = aexp_out})
+let check_lexer (name, input, expected_out) =
+  checker (lexer instance_Arith_Read_Num_integer_dict) (listEqualBy (=)) (name, Xstring.explode input, expected_out)
 
+let check_parser = checker (parse_arith_exp) (=)
+
+(*
+ * arith_big_num runs the entire process (lexer -> parser -> evaluator)
+ * on a string using Nat_big_num.num
+ *)
 let arith_big_num = arith instance_Arith_Read_Num_integer_dict
                           instance_Num_NumAdd_Num_natural_dict
                           instance_Num_NumMinus_Num_natural_dict
@@ -71,12 +74,8 @@ let arith_big_num = arith instance_Arith_Read_Num_integer_dict
                           instance_Num_NumIntegerDivision_Num_natural_dict
                           instance_Num_NumRemainder_Num_natural_dict
 
-let check_eval (test_name, s_in, num_expected) : ((string, Nat_big_num.num) Either.either) result =
-  let chars = Xstring.explode s_in in
-  let num_out = arith_big_num chars in
-  if (num_out = num_expected)
-  then Ok
-  else Err {msg = test_name; expected = num_expected; got = num_out}
+let check_eval (name, input, expected_out) =
+  checker arith_big_num (=) (name, Xstring.explode input, expected_out)
 
 let lexer_tests:(string*string*(Nat_big_num.num arith_token)list)list=
  ([
@@ -106,7 +105,7 @@ let lexer_tests:(string*string*(Nat_big_num.num arith_token)list)list=
    ("Greater than or equal comparison operator", ">=", [TGte]);
    ("Equal to comparison operator", "==", [TEq]);
    ("Not equal to comparison operator", "!=", [TNEq]);
-   
+
    ("Bitwise and operator", "&", [TBitAnd]);
    ("Bitwise or operator", "|", [TBitOr]);
    ("Bitwise xor operator", "^", [TBitXOr]);
@@ -195,28 +194,29 @@ let eval_tests:(string * string * (string, Nat_big_num.num)Either.either)list=
     ("modulo three numbers parens right", "12 % (3 % 2)", Right (big_num 0));
   ]
 
-let test_part name checker stringOfExpected tests failed =
+let test_part name checker stringOfExpected tests count failed =
   List.iter
     (fun t ->
       match checker t with
-      | Ok -> ()
+      | Ok -> incr count
       | Err e ->
          printf "%s test: %s failed: expected '%s' got '%s'\n"
                 name e.msg (stringOfExpected e.expected) (stringOfExpected e.got);
-         incr failed)
+         incr count; incr failed)
     tests
 
 let run_tests () =
   let failed = ref 0 in
+  let test_count = ref 0 in
   print_endline "\n=== Running arithmetic tests...";
   (* Lexer tests *)
-  test_part "Lexer" check_lexer token_list_to_string lexer_tests failed;
+  test_part "Lexer" check_lexer token_list_to_string lexer_tests test_count failed;
 
   (* Parser tests *)
-  test_part "Parser" check_parser (Either.either_case id string_of_aexp) parser_tests failed;
+  test_part "Parser" check_parser (Either.either_case id string_of_aexp) parser_tests test_count failed;
 
   (* Eval tests *)
-  test_part "Eval" check_eval (Either.either_case id Nat_big_num.to_string) eval_tests failed;
+  test_part "Eval" check_eval (Either.either_case id Nat_big_num.to_string) eval_tests test_count failed;
 
-  printf "=== ...ran %d arithmetic tests with %d failures.\n\n" ((List.length lexer_tests)+(List.length parser_tests)+(List.length eval_tests)) !failed
+  printf "=== ...ran %d arithmetic tests with %d failures.\n\n" !test_count !failed
 
