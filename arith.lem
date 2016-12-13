@@ -3,8 +3,8 @@
  *)
 open import Pervasives_extra
 
-type arith_token =
-    TNum of integer
+type arith_token 'a =
+    TNum of 'a
   | TVar of string
   | TPlus | TMinus
   | TTimes | TDiv | TMod
@@ -23,32 +23,43 @@ type arith_token =
   | TVarBitAndEq | TVarBitOrEq | TVarBitXOrEq
   | TLParen | TRParen
 
-type arith_exp =
-    Num of integer
-  | Plus of arith_exp * arith_exp
-  | Minus of arith_exp * arith_exp
-  | Times of arith_exp * arith_exp
-  | Div of arith_exp * arith_exp
-  | Mod of arith_exp * arith_exp
-  | Neg of arith_exp
-  | BitNot of arith_exp
-  | BoolNot of arith_exp
-  | LShift of arith_exp * arith_exp
-  | RShift of arith_exp * arith_exp
-  | Lt of arith_exp * arith_exp
-  | Lte of arith_exp * arith_exp
-  | Gt of arith_exp * arith_exp
-  | Gte of arith_exp * arith_exp
-  | Eq of arith_exp * arith_exp
-  | NEq of arith_exp * arith_exp
-  | BitAnd of arith_exp * arith_exp
-  | BitOr of arith_exp * arith_exp
-  | BitXOr of arith_exp * arith_exp
-  | BoolAnd of arith_exp * arith_exp
-  | BoolOr of arith_exp * arith_exp
-  | Conditional of arith_exp * arith_exp * arith_exp
+type BinaryOperator =
+    Plus
+  | Minus
+  | Times
+  | Div
+  | Mod
+  | LShift
+  | RShift
+  | Lt
+  | Lte
+  | Gt
+  | Gte
+  | Eq
+  | NEq
+  | BitAnd
+  | BitOr
+  | BitXOr
+  | BoolAnd
+  | BoolOr
 
-val lexer : (list char) -> list arith_token
+type arith_exp 'a =
+    Num of 'a
+  | Neg of arith_exp 'a
+  | BitNot of arith_exp 'a
+  | BoolNot of arith_exp 'a
+  | Conditional of arith_exp 'a * arith_exp 'a * arith_exp 'a
+  | BinOp of BinaryOperator * arith_exp 'a * arith_exp 'a
+
+class ( Read 'a )
+  val read : list char -> maybe 'a
+end
+
+instance ( Read integer )
+  let read cs = Just (integerOfString (toString cs))
+end
+
+val lexer : forall 'a. Read 'a => (list char) -> list (arith_token 'a)
 val span : (char -> bool) -> (list char) -> ((list char) * list char)
 
 let is_whitespace c = elem c (toCharList " \n\t")
@@ -112,26 +123,29 @@ let rec lexer str =
   | (c::cs) ->
       match (is_digit c, is_alpha c) with
       | (true, _) -> let (digit, rst) = span is_digit cs
-                     in TNum (integerOfString (toString (c::digit)))::(lexer rst)
+                     in match read (c::digit) with
+                     | Just n -> TNum n::(lexer rst)
+                     | Nothing -> lexer rst (* TODO should error *)
+                     end
       | (_, true) -> let (var, rst) = span is_alpha cs
                      in TVar (toString (c::var))::(lexer rst)
       | (false, false) -> if is_whitespace c then lexer cs else lexer cs (* ignores all unrecognized characters. TODO: else branch should error *)
       end
   end
 
-val parse_assignment : (list arith_token) -> either string (arith_exp * list arith_token)
+val parse_assignment : forall 'a. (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
 
-val parse_bit_shift : (list arith_token) -> either string (arith_exp * list arith_token)
-val shift_term : arith_exp -> (list arith_token) -> either string (arith_exp * list arith_token)
-val collect_shift : (arith_exp -> arith_exp) -> (list arith_token) -> either string (arith_exp * list arith_token)
+val parse_bit_shift : forall 'a. (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
+val shift_term : forall 'a. (arith_exp 'a) -> (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
+val collect_shift : forall 'a. ((arith_exp 'a) -> (arith_exp 'a)) -> (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
 
-val parse_additive : (list arith_token) -> either string (arith_exp * list arith_token)
-val additive_term : arith_exp -> (list arith_token) -> either string (arith_exp * list arith_token)
-val collect_additive : (arith_exp -> arith_exp) -> (list arith_token) -> either string (arith_exp * list arith_token)
+val parse_additive : forall 'a. (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
+val additive_term : forall 'a. (arith_exp 'a) -> (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
+val collect_additive : forall 'a. ((arith_exp 'a) -> (arith_exp 'a)) -> (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
 
-val parse_multiplicative : (list arith_token) -> either string (arith_exp * list arith_token)
-val multiplicative_term : arith_exp -> (list arith_token) -> either string (arith_exp * list arith_token)
-val collect_multiplicative : (arith_exp -> arith_exp) -> (list arith_token) -> either string (arith_exp * list arith_token)
+val parse_multiplicative : forall 'a. (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
+val multiplicative_term : forall 'a. (arith_exp 'a) -> (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
+val collect_multiplicative : forall 'a. ((arith_exp 'a) -> (arith_exp 'a)) -> (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
 
 let rec parse_assignment tkns = parse_conditional tkns
 
@@ -171,7 +185,7 @@ and bool_or_term lhs tkns =
   match tkns with
   | (TBoolOr::rst1) ->
     match parse_bool_and rst1 with
-    | Right (rhs, rst2) -> bool_or_term (BoolOr lhs rhs) rst2
+    | Right (rhs, rst2) -> bool_or_term (BinOp BoolOr lhs rhs) rst2
     | Left e -> Left e
     end
   | _ -> Right (lhs, tkns)
@@ -187,7 +201,7 @@ and bool_and_term lhs tkns =
   match tkns with
   | (TBoolAnd::rst1) ->
     match parse_bit_or rst1 with
-    | Right (rhs, rst2) -> bool_and_term (BoolAnd lhs rhs) rst2
+    | Right (rhs, rst2) -> bool_and_term (BinOp BoolAnd lhs rhs) rst2
     | Left e -> Left e
     end
   | _ -> Right (lhs, tkns)
@@ -203,7 +217,7 @@ and bit_or_term lhs tkns =
   match tkns with
   | (TBitOr::rst1) ->
     match parse_bit_xor rst1 with
-    | Right (rhs, rst2) -> bit_or_term (BitOr lhs rhs) rst2
+    | Right (rhs, rst2) -> bit_or_term (BinOp BitOr lhs rhs) rst2
     | Left e -> Left e
     end
   | _ -> Right (lhs, tkns)
@@ -219,7 +233,7 @@ and bit_xor_term lhs tkns =
   match tkns with
   | (TBitXOr::rst1) ->
     match parse_bit_and rst1 with
-    | Right (rhs, rst2) -> bit_xor_term (BitXOr lhs rhs) rst2
+    | Right (rhs, rst2) -> bit_xor_term (BinOp BitXOr lhs rhs) rst2
     | Left e -> Left e
     end
   | _ -> Right (lhs, tkns)
@@ -235,7 +249,7 @@ and bit_and_term lhs tkns =
   match tkns with
   | (TBitAnd::rst1) ->
     match parse_equality rst1 with
-    | Right (rhs, rst2) -> bit_and_term (BitAnd lhs rhs) rst2
+    | Right (rhs, rst2) -> bit_and_term (BinOp BitAnd lhs rhs) rst2
     | Left e -> Left e
     end
   | _ -> Right (lhs, tkns)
@@ -255,8 +269,8 @@ and parse_equality tkns =
 
 and equality_term lhs tkns =
   match tkns with
-  | (TEq::rst) -> collect_equality (Eq lhs) rst
-  | (TNEq::rst) -> collect_equality (NEq lhs) rst
+  | (TEq::rst) -> collect_equality (BinOp Eq lhs) rst
+  | (TNEq::rst) -> collect_equality (BinOp NEq lhs) rst
   | _ -> Right (lhs, tkns)
   end
 
@@ -274,10 +288,10 @@ and parse_relational tkns =
 
 and relational_term lhs tkns =
   match tkns with
-  | (TLt::rst) -> collect_relational (Lt lhs) rst
-  | (TLte::rst) -> collect_relational (Lte lhs) rst
-  | (TGt::rst) -> collect_relational (Gt lhs) rst
-  | (TGte::rst) -> collect_relational (Gte lhs) rst
+  | (TLt::rst) -> collect_relational (BinOp Lt lhs) rst
+  | (TLte::rst) -> collect_relational (BinOp Lte lhs) rst
+  | (TGt::rst) -> collect_relational (BinOp Gt lhs) rst
+  | (TGte::rst) -> collect_relational (BinOp Gte lhs) rst
   | _ -> Right (lhs, tkns)
   end
 
@@ -295,8 +309,8 @@ and parse_bit_shift tkns =
 
 and shift_term lhs tkns =
   match tkns with
-  | (TLShift::rst) -> collect_shift (LShift lhs) rst
-  | (TRShift::rst) -> collect_shift (RShift lhs) rst
+  | (TLShift::rst) -> collect_shift (BinOp LShift lhs) rst
+  | (TRShift::rst) -> collect_shift (BinOp RShift lhs) rst
   | _ -> Right (lhs, tkns)
   end
 
@@ -314,8 +328,8 @@ and parse_additive tkns =
 
 and additive_term lhs tkns =
   match tkns with
-  | (TPlus::rst) -> collect_additive (Plus lhs) rst
-  | (TMinus::rst) -> collect_additive (Minus lhs) rst
+  | (TPlus::rst) -> collect_additive (BinOp Plus lhs) rst
+  | (TMinus::rst) -> collect_additive (BinOp Minus lhs) rst
   | _ -> Right (lhs, tkns)
   end
 
@@ -333,9 +347,9 @@ and parse_multiplicative tkns =
 
 and multiplicative_term lhs tkns =
   match tkns with
-  | (TTimes::rst) -> collect_multiplicative (Times lhs) rst
-  | (TDiv::rst) -> collect_multiplicative (Div lhs) rst
-  | (TMod::rst) -> collect_multiplicative (Mod lhs) rst
+  | (TTimes::rst) -> collect_multiplicative (BinOp Times lhs) rst
+  | (TDiv::rst) -> collect_multiplicative (BinOp Div lhs) rst
+  | (TMod::rst) -> collect_multiplicative (BinOp Mod lhs) rst
   | _ -> Right (lhs, tkns)
   end
 
@@ -378,11 +392,39 @@ and number_term tkns =
   | ts -> Left "Expected number or (expr) found"
   end
 
-val parse_arith_exp : list arith_token -> either string arith_exp
+val parse_arith_exp : forall 'a. list (arith_token 'a) -> either string (arith_exp 'a)
 let parse_arith_exp tkns =
   match parse_assignment tkns with
   | Right (expr, []) -> Right expr
   | Right (_, ts) -> Left "Expected EOF but found tokens"
+  | Left e -> Left e
+  end
+
+val eval_arith : forall 'a. NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a  => arith_exp 'a -> either string 'a
+let rec eval_arith e =
+  match e with
+  | (Num n) -> Right n
+  | (BinOp op e1 e2) ->
+      match (eval_arith e1, eval_arith e2) with
+      | (Right n1, Right n2) ->
+          match op with
+          | Plus -> Right (n1 + n2)
+          | Minus -> Right (n1 - n2)
+          | Times -> Right (n1 * n2)
+          | Div -> Right (n1 div n2)
+          | Mod -> Right (n1 mod n2)
+          | _ -> Left "unimplemented"
+          end
+      | (Left e, _) -> Left e
+      | (_, Left e) -> Left e
+      end
+  | _ -> Left "unimplemented"
+  end
+
+val arith : forall 'a. Read 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a => (list char) -> either string 'a
+let arith str =
+  match parse_arith_exp (lexer str) with
+  | Right aexp -> eval_arith aexp
   | Left e -> Left e
   end
 
