@@ -51,8 +51,6 @@ and control =
   | Backtick of words
   | Arith of words
   | Quote of words
-  (* Is this needed anymore? *)
-  (*| Nested of quoting_mode * words*)
 
 and entry =
     S of string
@@ -102,9 +100,6 @@ type ty_os_state = <|
 
 (*
  * Stage 1 Expansion: Word expansion
- *
- * TODO : Add prefix/suffix.
- * TODO: Error properly
  *)
 
 val lookup_param : ty_os_state -> string -> maybe string
@@ -154,12 +149,6 @@ let rec expand_param s0 q str f =
   end))
 
 and expand_control s0 q k =
-(*
- * TODO: TildeUser
- * TODO: Backtick
- * TODO: Evaluate Arith
- * TODO: Nested
- *)
   match k with
     | Tilde -> (s0, [], expand_param s0 Unquoted "HOME" Normal)
     | TildeUser usr -> (s0, [], [S "error"]) (* This should call system *)

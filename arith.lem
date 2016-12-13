@@ -59,6 +59,28 @@ instance ( Read integer )
   let read cs = Just (integerOfString (toString cs))
 end
 
+val readInt64 : int64 -> (list char) -> int64
+let rec readInt64 acc chars =
+  match chars with
+  | [] -> acc
+  | (c::cs) -> readInt64 ((10 * acc) + (int64FromNat ((ord c) - 48))) cs
+  end
+
+instance ( Read int64 )
+  let read cs = Just (readInt64 (int64FromNat 0) cs)
+end
+
+val readInt32 : int32 -> (list char) -> int32
+let rec readInt32 acc chars =
+  match chars with
+  | [] -> acc
+  | (c::cs) -> readInt32 (10 * acc + int32FromNat ((ord c) - 48)) cs
+  end
+
+instance ( Read int32 )
+  let read cs = Just (readInt32 (int32FromNat 0) cs)
+end
+
 val lexer : forall 'a. Read 'a => (list char) -> list (arith_token 'a)
 val span : (char -> bool) -> (list char) -> ((list char) * list char)
 
@@ -427,4 +449,13 @@ let arith str =
   | Right aexp -> eval_arith aexp
   | Left e -> Left e
   end
+
+val arith_big_num : (list char) -> either string integer
+let arith_big_num = arith
+
+val arith32 : (list char) -> either string int32
+let arith32 = arith
+
+val arith64 : (list char) -> either string int64
+let arith64 = arith
 

@@ -63,19 +63,13 @@ let check_lexer (name, input, expected_out) =
 
 let check_parser = checker (parse_arith_exp) (=)
 
-(*
- * arith_big_num runs the entire process (lexer -> parser -> evaluator)
- * on a string using Nat_big_num.num
- *)
-let arith_big_num = arith instance_Arith_Read_Num_integer_dict
-                          instance_Num_NumAdd_Num_natural_dict
-                          instance_Num_NumMinus_Num_natural_dict
-                          instance_Num_NumMult_Num_natural_dict
-                          instance_Num_NumIntegerDivision_Num_natural_dict
-                          instance_Num_NumRemainder_Num_natural_dict
-
-let check_eval (name, input, expected_out) =
+let check_eval_big_num (name, input, expected_out) =
   checker arith_big_num (=) (name, Xstring.explode input, expected_out)
+
+let check_eval_int32 (name, input, expected_out) =
+  checker arith32 (=) (name, Xstring.explode input, expected_out)
+let check_eval_int64 (name, input, expected_out) =
+  checker arith64 (=) (name, Xstring.explode input, expected_out)
 
 let lexer_tests:(string*string*(Nat_big_num.num arith_token)list)list=
  ([
@@ -162,36 +156,36 @@ let parser_tests:(string*(Nat_big_num.num arith_token)list*(string, Nat_big_num.
    ("Bitwise shift precedence", lex_string "3*2 << 2 + 4", Right((BinOp (LShift, BinOp (Times, num 3, num 2), BinOp (Plus, num 2, num 4)))));
  ])
 
-let big_num = Nat_big_num.of_int
+(* let big_num = Int64.of_int Nat_big_num.of_int *)
 
-let eval_tests:(string * string * (string, Nat_big_num.num)Either.either)list=
+let eval_tests ofNumLiteral : (string * string * (string, 'a )Either.either)list=
   [
-    ("bare number", "47", Right (big_num 47));
+    ("bare number", "47", Right (ofNumLiteral 47));
 
-    ("addition two numbers", "23 + 24", Right (big_num 47));
-    ("addition three numbers", "15 + 15 + 17", Right (big_num 47));
-    ("addition three numbers parens left", "(15 + 15) + 17", Right (big_num 47));
-    ("addition three numbers parens right", "15 + (15 + 17)", Right (big_num 47));
+    ("addition two numbers", "23 + 24", Right (ofNumLiteral 47));
+    ("addition three numbers", "15 + 15 + 17", Right (ofNumLiteral 47));
+    ("addition three numbers parens left", "(15 + 15) + 17", Right (ofNumLiteral 47));
+    ("addition three numbers parens right", "15 + (15 + 17)", Right (ofNumLiteral 47));
 
-    ("subtraction two numbers", "53 - 6", Right (big_num 47));
-    ("subtraction three numbers", "47 - 15 - 17", Right (big_num 15));
-    ("subtraction three numbers parens left", "(47 - 15) - 17", Right (big_num 15));
-    ("subtraction three numbers parens right", "47 - (15 - 17)", Right (big_num 49));
+    ("subtraction two numbers", "53 - 6", Right (ofNumLiteral 47));
+    ("subtraction three numbers", "47 - 15 - 17", Right (ofNumLiteral 15));
+    ("subtraction three numbers parens left", "(47 - 15) - 17", Right (ofNumLiteral 15));
+    ("subtraction three numbers parens right", "47 - (15 - 17)", Right (ofNumLiteral 49));
 
-    ("multiplication two numbers", "3 * 7", Right (big_num 21));
-    ("multiplication three numbers", "2 * 3 * 4", Right (big_num 24));
-    ("multiplication three numbers parens left", "(2 * 3) * 4", Right (big_num 24));
-    ("multiplication three numbers parens right", "2 * (3 * 4)", Right (big_num 24));
+    ("multiplication two numbers", "3 * 7", Right (ofNumLiteral 21));
+    ("multiplication three numbers", "2 * 3 * 4", Right (ofNumLiteral 24));
+    ("multiplication three numbers parens left", "(2 * 3) * 4", Right (ofNumLiteral 24));
+    ("multiplication three numbers parens right", "2 * (3 * 4)", Right (ofNumLiteral 24));
 
-    ("division two numbers", "10 / 2", Right (big_num 5));
-    ("division three numbers", "12 / 3 / 2", Right (big_num 2));
-    ("division three numbers parens left", "(12 / 3) / 2", Right (big_num 2));
-    ("division three numbers parens right", "12 / (3 / 2)", Right (big_num 12));
+    ("division two numbers", "10 / 2", Right (ofNumLiteral 5));
+    ("division three numbers", "12 / 3 / 2", Right (ofNumLiteral 2));
+    ("division three numbers parens left", "(12 / 3) / 2", Right (ofNumLiteral 2));
+    ("division three numbers parens right", "12 / (3 / 2)", Right (ofNumLiteral 12));
 
-    ("modulo two numbers", "10 % 2", Right (big_num 0));
-    ("modulo three numbers", "12 % 3 % 2", Right (big_num 0));
-    ("modulo three numbers parens left", "(12 % 3) % 2", Right (big_num 0));
-    ("modulo three numbers parens right", "12 % (3 % 2)", Right (big_num 0));
+    ("modulo two numbers", "10 % 2", Right (ofNumLiteral 0));
+    ("modulo three numbers", "12 % 3 % 2", Right (ofNumLiteral 0));
+    ("modulo three numbers parens left", "(12 % 3) % 2", Right (ofNumLiteral 0));
+    ("modulo three numbers parens right", "12 % (3 % 2)", Right (ofNumLiteral 0));
   ]
 
 let test_part name checker stringOfExpected tests count failed =
@@ -216,7 +210,9 @@ let run_tests () =
   test_part "Parser" check_parser (Either.either_case id string_of_aexp) parser_tests test_count failed;
 
   (* Eval tests *)
-  test_part "Eval" check_eval (Either.either_case id Nat_big_num.to_string) eval_tests test_count failed;
+  test_part "Eval Nat_big_num" check_eval_big_num (Either.either_case id Nat_big_num.to_string) (eval_tests Nat_big_num.of_int) test_count failed;
+  test_part "Eval int32" check_eval_int32 (Either.either_case id Int32.to_string) (eval_tests Int32.of_int) test_count failed;
+  test_part "Eval int64" check_eval_int64 (Either.either_case id Int64.to_string) (eval_tests Int64.of_int) test_count failed;
 
   printf "=== ...ran %d arithmetic tests with %d failures.\n\n" !test_count !failed
 

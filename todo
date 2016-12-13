@@ -1,0 +1,18 @@
+### Arith
+
+Define read for int64 and int32
+  - test appropriate "clamping"
+
+Other num types (hex, oct)
+Better errors (div 0, etc)
+Add assignment
+
+### Expansion.ml
+
+field separator issue
+Add prefix/suffix (patterns)
+TildeUser
+Backtick
+Evaluate Arith
+Error handling (parse errors, error expansion mode, variable lookup)
+
