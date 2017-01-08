@@ -51,42 +51,160 @@ type arith_exp 'a =
   | Conditional of arith_exp 'a * arith_exp 'a * arith_exp 'a
   | BinOp of BinaryOperator * arith_exp 'a * arith_exp 'a
 
-class ( Read 'a )
-  val read : list char -> maybe 'a
-end
-
-instance ( Read integer )
-  let read cs = Just (integerOfString (toString cs))
-end
-
-val readInt64 : int64 -> (list char) -> int64
-let rec readInt64 acc chars =
-  match chars with
-  | [] -> acc
-  | (c::cs) -> readInt64 ((10 * acc) + (int64FromNat ((ord c) - 48))) cs
-  end
-
-instance ( Read int64 )
-  let read cs = Just (readInt64 (int64FromNat 0) cs)
-end
-
-val readInt32 : int32 -> (list char) -> int32
-let rec readInt32 acc chars =
-  match chars with
-  | [] -> acc
-  | (c::cs) -> readInt32 (10 * acc + int32FromNat ((ord c) - 48)) cs
-  end
-
-instance ( Read int32 )
-  let read cs = Just (readInt32 (int32FromNat 0) cs)
-end
-
-val lexer : forall 'a. Read 'a => (list char) -> list (arith_token 'a)
-val span : (char -> bool) -> (list char) -> ((list char) * list char)
-
 let is_whitespace c = elem c (toCharList " \n\t")
 let is_digit c = elem c (toCharList "1234567890")
+let is_num_const_char c = elem c (toCharList "1234567890xabcdefABCDEF")
 let is_alpha c = elem c (toCharList "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+(* Convert uppercase A-F to lowercase and then convert
+ * lowercase hexdigit to integer 10 to 15. *)
+val hexalpha_to_num : char -> nat
+let hexalpha_to_num c =
+  let num = ord c in
+  let lowercase = if num >= 65 && num <= 70
+    then num + 32
+    else num in
+  9 + (lowercase - 96)
+
+class ( Read 'a )
+  (* Read can fail with an error message by using Left.
+   * Do not use any methods that may throw errors. *)
+  val read : list char -> either string 'a
+end
+
+let readConstant dec hex oct acc chars =
+  match chars with
+  | #'0'::#'x'::cs -> hex acc cs
+  | #'0'::cs -> oct acc cs
+  | _ -> dec acc chars
+  end
+
+val readIntegerDec : integer -> (list char) -> either string integer
+let rec readIntegerDec acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num >= 0 && num < 10
+      then readIntegerDec ((10 * acc) + (integerFromNat ((ord c) - 48))) cs
+      else Left ((toString [c]) ^ " is not a valid decimal digit")
+  end
+
+val readInt64Dec : int64 -> (list char) -> either string int64
+let rec readInt64Dec acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num >= 0 && num < 10
+      then readInt64Dec ((10 * acc) + (int64FromNat ((ord c) - 48))) cs
+      else Left ((toString [c]) ^ " is not a valid decimal digit")
+  end
+
+val readInt32Dec : int32 -> (list char) -> either string int32
+let rec readInt32Dec acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num >= 0 && num < 10
+      then readInt32Dec ((10 * acc) + (int32FromNat ((ord c) - 48))) cs
+      else Left ((toString [c]) ^ " is not a valid decimal digit")
+  end
+
+val readIntegerHex : integer -> (list char) -> either string integer
+let rec readIntegerHex acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = if is_digit c
+        then (ord c) - 48
+        else hexalpha_to_num c in
+      if num >= 0 && num < 16
+      then readIntegerHex ((16 * acc) + (integerFromNat num)) cs
+      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
+  end
+
+val readInt64Hex : int64 -> (list char) -> either string int64
+let rec readInt64Hex acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = if is_digit c
+        then (ord c) - 48
+        else hexalpha_to_num c in
+      if num >= 0 && num < 16
+      then readInt64Hex ((16 * acc) + (int64FromNat num)) cs
+      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
+  end
+
+val readInt32Hex : int32 -> (list char) -> either string int32
+let rec readInt32Hex acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = if is_digit c
+        then (ord c) - 48
+        else hexalpha_to_num c in
+      if num >= 0 && num < 16
+      then readInt32Hex ((16 * acc) + (int32FromNat num)) cs
+      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
+  end
+
+val readIntegerOct : integer -> (list char) -> either string integer
+let rec readIntegerOct acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num > 7 || num < 0
+      then Left ((toString [c]) ^ " is not a valid octal digit")
+      else readIntegerOct ((8 * acc) + (integerFromNat ((ord c) - 48)))cs
+  end
+
+val readInt64Oct : int64 -> (list char) -> either string int64
+let rec readInt64Oct acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num > 7 || num < 0
+      then Left ((toString [c]) ^ " is not a valid octal digit")
+      else readInt64Oct ((8 * acc) + (int64FromNat ((ord c) - 48))) cs
+  end
+
+val readInt32Oct : int32 -> (list char) -> either string int32
+let rec readInt32Oct acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num > 7 || num < 0
+      then Left ((toString [c]) ^ " is not a valid octal digit")
+      else readInt32Oct ((8 * acc) + (int32FromNat ((ord c) - 48))) cs
+  end
+
+
+instance ( Read integer )
+  let read cs = readConstant readIntegerDec readIntegerHex readIntegerOct 0 cs
+end
+
+instance ( Read int64 )
+  let read cs = readConstant readInt64Dec readInt64Hex readInt64Oct (int64FromNat 0) cs
+end
+
+instance ( Read int32 )
+  let read cs = readConstant readInt32Dec readInt32Hex readInt32Oct (int32FromNat 0) cs
+end
+
+val lexer : forall 'a. Read 'a => (list char) -> either string (list (arith_token 'a))
+val span : (char -> bool) -> (list char) -> ((list char) * list char)
+
+val either_fmap : forall 'a 'b. ('a -> 'b) -> either string 'a -> either string 'b
+let either_fmap fn a = Either.either (fun e -> Left e) (fun b -> Right (fn b)) a
+
+val either_monad : forall 'a 'b. ('a -> either string 'b) -> either string 'a -> either string 'b
+let either_monad fn a = Either.either (fun e -> Left e) fn a
 
 let is_plus c =
   match c with
@@ -106,52 +224,55 @@ let rec span f l =
 
 let rec lexer str =
   match str with
-  | [] -> []
-  | (#'^'::#'='::cs) -> TVarBitXOrEq::(lexer cs)
-  | (#'|'::#'='::cs) -> TVarBitOrEq::(lexer cs)
-  | (#'&'::#'='::cs) -> TVarBitAndEq::(lexer cs)
-  | (#'>'::#'>'::#'='::cs) -> TVarRShiftEq::(lexer cs)
-  | (#'<'::#'<'::#'='::cs) -> TVarLShiftEq::(lexer cs)
-  | (#'%'::#'='::cs) -> TVarModEq::(lexer cs)
-  | (#'/'::#'='::cs) -> TVarDivEq::(lexer cs)
-  | (#'*'::#'='::cs) -> TVarTimesEq::(lexer cs)
-  | (#'-'::#'='::cs) -> TVarMinusEq::(lexer cs)
-  | (#'+'::#'='::cs) -> TVarPlusEq::(lexer cs)
-  | (#'='::#'='::cs) -> TEq::(lexer cs)
-  | (#'!'::#'='::cs) -> TNEq::(lexer cs)
-  | (#'>'::#'>'::cs) -> TRShift::(lexer cs)
-  | (#'<'::#'<'::cs) -> TLShift::(lexer cs)
-  | (#'&'::#'&'::cs) -> TBoolAnd::(lexer cs)
-  | (#'|'::#'|'::cs) -> TBoolOr::(lexer cs)
-  | (#'='::cs) -> TVarEq::(lexer cs)
-  | (#':'::cs) -> TColon::(lexer cs)
-  | (#'?'::cs) -> TQuestion::(lexer cs)
-  | (#'^'::cs) -> TBitXOr::(lexer cs)
-  | (#'|'::cs) -> TBitOr::(lexer cs)
-  | (#'&'::cs) -> TBitAnd::(lexer cs)
-  | (#'>'::#'='::cs) -> TGte::(lexer cs)
-  | (#'<'::#'='::cs) -> TLte::(lexer cs)
-  | (#'>'::cs) -> TGt::(lexer cs)
-  | (#'<'::cs) -> TLt::(lexer cs)
-  | (#'!'::cs) -> TBoolNot::(lexer cs)
-  | (#'~'::cs) -> TBitNot::(lexer cs)
-  | (#'%'::cs) -> TMod::(lexer cs)
-  | (#'/'::cs) -> TDiv::(lexer cs)
-  | (#'*'::cs) -> TTimes::(lexer cs)
-  | (#'-'::cs) -> TMinus::(lexer cs)
-  | (#'+'::cs) -> TPlus::(lexer cs)
-  | (#'('::cs) -> TLParen::(lexer cs)
-  | (#')'::cs) -> TRParen::(lexer cs)
+  | [] -> Right []
+  | (#'^'::#'='::cs) -> either_fmap (fun lst -> TVarBitXOrEq::lst) (lexer cs)
+  | (#'|'::#'='::cs) -> either_fmap (fun lst -> TVarBitOrEq::lst) (lexer cs)
+  | (#'&'::#'='::cs) -> either_fmap (fun lst -> TVarBitAndEq::lst) (lexer cs)
+  | (#'>'::#'>'::#'='::cs) -> either_fmap (fun lst -> TVarRShiftEq::lst) (lexer cs)
+  | (#'<'::#'<'::#'='::cs) -> either_fmap (fun lst -> TVarLShiftEq::lst) (lexer cs)
+  | (#'%'::#'='::cs) -> either_fmap (fun lst -> TVarModEq::lst) (lexer cs)
+  | (#'/'::#'='::cs) -> either_fmap (fun lst -> TVarDivEq::lst) (lexer cs)
+  | (#'*'::#'='::cs) -> either_fmap (fun lst -> TVarTimesEq::lst) (lexer cs)
+  | (#'-'::#'='::cs) -> either_fmap (fun lst -> TVarMinusEq::lst) (lexer cs)
+  | (#'+'::#'='::cs) -> either_fmap (fun lst -> TVarPlusEq::lst) (lexer cs)
+  | (#'='::#'='::cs) -> either_fmap (fun lst -> TEq::lst) (lexer cs)
+  | (#'!'::#'='::cs) -> either_fmap (fun lst -> TNEq::lst) (lexer cs)
+  | (#'>'::#'>'::cs) -> either_fmap (fun lst -> TRShift::lst) (lexer cs)
+  | (#'<'::#'<'::cs) -> either_fmap (fun lst -> TLShift::lst) (lexer cs)
+  | (#'&'::#'&'::cs) -> either_fmap (fun lst -> TBoolAnd::lst) (lexer cs)
+  | (#'|'::#'|'::cs) -> either_fmap (fun lst -> TBoolOr::lst) (lexer cs)
+  | (#'='::cs) -> either_fmap (fun lst -> TVarEq::lst) (lexer cs)
+  | (#':'::cs) -> either_fmap (fun lst -> TColon::lst) (lexer cs)
+  | (#'?'::cs) -> either_fmap (fun lst -> TQuestion::lst) (lexer cs)
+  | (#'^'::cs) -> either_fmap (fun lst -> TBitXOr::lst) (lexer cs)
+  | (#'|'::cs) -> either_fmap (fun lst -> TBitOr::lst) (lexer cs)
+  | (#'&'::cs) -> either_fmap (fun lst -> TBitAnd::lst) (lexer cs)
+  | (#'>'::#'='::cs) -> either_fmap (fun lst -> TGte::lst) (lexer cs)
+  | (#'<'::#'='::cs) -> either_fmap (fun lst -> TLte::lst) (lexer cs)
+  | (#'>'::cs) -> either_fmap (fun lst -> TGt::lst) (lexer cs)
+  | (#'<'::cs) -> either_fmap (fun lst -> TLt::lst) (lexer cs)
+  | (#'!'::cs) -> either_fmap (fun lst -> TBoolNot::lst) (lexer cs)
+  | (#'~'::cs) -> either_fmap (fun lst -> TBitNot::lst) (lexer cs)
+  | (#'%'::cs) -> either_fmap (fun lst -> TMod::lst) (lexer cs)
+  | (#'/'::cs) -> either_fmap (fun lst -> TDiv::lst) (lexer cs)
+  | (#'*'::cs) -> either_fmap (fun lst -> TTimes::lst) (lexer cs)
+  | (#'-'::cs) -> either_fmap (fun lst -> TMinus::lst) (lexer cs)
+  | (#'+'::cs) -> either_fmap (fun lst -> TPlus::lst) (lexer cs)
+  | (#'('::cs) -> either_fmap (fun lst -> TLParen::lst) (lexer cs)
+  | (#')'::cs) -> either_fmap (fun lst -> TRParen::lst) (lexer cs)
   | (c::cs) ->
       match (is_digit c, is_alpha c) with
-      | (true, _) -> let (digit, rst) = span is_digit cs
-                     in match read (c::digit) with
-                     | Just n -> TNum n::(lexer rst)
-                     | Nothing -> lexer rst (* TODO should error *)
+      | (true, _) -> let (digits, rst) = span is_num_const_char cs in
+                     match read (c::digits) with
+                     | Right n -> either_fmap (fun lst -> (TNum n)::lst) (lexer rst)
+                     | Left e -> Left e
                      end
       | (_, true) -> let (var, rst) = span is_alpha cs
-                     in TVar (toString (c::var))::(lexer rst)
-      | (false, false) -> if is_whitespace c then lexer cs else lexer cs (* ignores all unrecognized characters. TODO: else branch should error *)
+                     in either_fmap (fun lst -> (TVar (toString (c::var)))::lst) (lexer rst)
+      | (false, false) ->
+          if is_whitespace c
+          then lexer cs
+          else Left ((toString [c]) ^ " is an unrecognized character")
       end
   end
 
@@ -445,7 +566,7 @@ let rec eval_arith e =
 
 val arith : forall 'a. Read 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a => (list char) -> either string 'a
 let arith str =
-  match parse_arith_exp (lexer str) with
+  match (either_monad parse_arith_exp (lexer str)) with
   | Right aexp -> eval_arith aexp
   | Left e -> Left e
   end

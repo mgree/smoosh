@@ -59,9 +59,9 @@ let checker test_fn equal (test_name, input, expected_out) =
   else Err {msg = test_name; expected = expected_out; got = out}
 
 let check_lexer (name, input, expected_out) =
-  checker (lexer instance_Arith_Read_Num_integer_dict) (listEqualBy (=)) (name, Xstring.explode input, expected_out)
+  checker (lexer instance_Arith_Read_Num_integer_dict) (=) (name, Xstring.explode input, expected_out)
 
-let check_parser = checker (parse_arith_exp) (=)
+let check_parser = checker (either_monad parse_arith_exp) (=)
 
 let check_eval_big_num (name, input, expected_out) =
   checker arith_big_num (=) (name, Xstring.explode input, expected_out)
@@ -71,68 +71,70 @@ let check_eval_int32 (name, input, expected_out) =
 let check_eval_int64 (name, input, expected_out) =
   checker arith64 (=) (name, Xstring.explode input, expected_out)
 
-let lexer_tests:(string*string*(Nat_big_num.num arith_token)list)list=
+let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either.either)list=
  ([
-   ("number 5", "5", [TNum (Nat_big_num.of_int 5)]);
-   ("number 1234567890", "1234567890", [TNum (Nat_big_num.of_int 1234567890)]);
+   ("number 5", "5", Right [TNum (Nat_big_num.of_int 5)]);
+   ("number 1234567890", "1234567890", Right [TNum (Nat_big_num.of_int 1234567890)]);
+   ("octal 0755", "0755", Right [TNum (Nat_big_num.of_int 493)]);
+   ("hex 0xFf", "0xFf", Right [TNum (Nat_big_num.of_int 255)]);
 
-   ("var x", "x", [TVar "x"]);
-   ("var LongVarWithCaps", "LongVarWithCaps", [TVar "LongVarWithCaps"]);
+   ("var x", "x", Right [TVar "x"]);
+   ("var LongVarWithCaps", "LongVarWithCaps", Right [TVar "LongVarWithCaps"]);
 
    (* Arithmetic ops *)
-   ("Plus operator", "+", [TPlus]);
-   ("Minus operator", "-", [TMinus]);
-   ("Times operator", "*", [TTimes]);
-   ("Div operator", "/", [TDiv]);
-   ("Mod operator", "%", [TMod]);
+   ("Plus operator", "+", Right [TPlus]);
+   ("Minus operator", "-", Right [TMinus]);
+   ("Times operator", "*", Right [TTimes]);
+   ("Div operator", "/", Right [TDiv]);
+   ("Mod operator", "%", Right [TMod]);
 
-   ("Bitwise negation operator", "~", [TBitNot]);
-   ("Logical not operator", "!", [TBoolNot]);
+   ("Bitwise negation operator", "~", Right [TBitNot]);
+   ("Logical not operator", "!", Right [TBoolNot]);
 
-   ("Bitwise left shift operator", "<<", [TLShift]);
-   ("Bitwise right shift operator", ">>", [TRShift]);
+   ("Bitwise left shift operator", "<<", Right [TLShift]);
+   ("Bitwise right shift operator", ">>", Right [TRShift]);
 
    (* Comparison ops *)
-   ("Less than comparison operator", "<", [TLt]);
-   ("Less than or equal comparison operator", "<=", [TLte]);
-   ("Greater than comparison operator", ">", [TGt]);
-   ("Greater than or equal comparison operator", ">=", [TGte]);
-   ("Equal to comparison operator", "==", [TEq]);
-   ("Not equal to comparison operator", "!=", [TNEq]);
+   ("Less than comparison operator", "<", Right [TLt]);
+   ("Less than or equal comparison operator", "<=", Right [TLte]);
+   ("Greater than comparison operator", ">", Right [TGt]);
+   ("Greater than or equal comparison operator", ">=", Right [TGte]);
+   ("Equal to comparison operator", "==", Right [TEq]);
+   ("Not equal to comparison operator", "!=", Right [TNEq]);
 
-   ("Bitwise and operator", "&", [TBitAnd]);
-   ("Bitwise or operator", "|", [TBitOr]);
-   ("Bitwise xor operator", "^", [TBitXOr]);
+   ("Bitwise and operator", "&", Right [TBitAnd]);
+   ("Bitwise or operator", "|", Right [TBitOr]);
+   ("Bitwise xor operator", "^", Right [TBitXOr]);
 
-   ("Logical and operator", "&&", [TBoolAnd]);
-   ("Logical or operator", "||", [TBoolOr]);
+   ("Logical and operator", "&&", Right [TBoolAnd]);
+   ("Logical or operator", "||", Right [TBoolOr]);
 
-   ("", "? :", [TQuestion; TColon]);
+   ("", "? :", Right [TQuestion; TColon]);
 
    (* Assignment operators *)
-   ("Assignment var equals operator", "=", [TVarEq]);
-   ("Assignment var plus equals operator", "+=", [TVarPlusEq]);
-   ("Assignment var minus equals operator", "-=", [TVarMinusEq]);
-   ("Assignment var times equals operator", "*=", [TVarTimesEq]);
-   ("Assignment var div equals operator", "/=", [TVarDivEq]);
-   ("Assignment var mod equals operator", "%=", [TVarModEq]);
+   ("Assignment var equals operator", "=", Right [TVarEq]);
+   ("Assignment var plus equals operator", "+=", Right [TVarPlusEq]);
+   ("Assignment var minus equals operator", "-=", Right [TVarMinusEq]);
+   ("Assignment var times equals operator", "*=", Right [TVarTimesEq]);
+   ("Assignment var div equals operator", "/=", Right [TVarDivEq]);
+   ("Assignment var mod equals operator", "%=", Right [TVarModEq]);
 
-   ("Assignment var lshift equals operator", "<<=", [TVarLShiftEq]);
-   ("Assignment var rshift equals operator", ">>=", [TVarRShiftEq]);
+   ("Assignment var lshift equals operator", "<<=", Right [TVarLShiftEq]);
+   ("Assignment var rshift equals operator", ">>=", Right [TVarRShiftEq]);
 
-   ("Assignment var bitwise and equals operator", "&=", [TVarBitAndEq]);
-   ("Assignment var bitwise or equals operator", "|=", [TVarBitOrEq]);
-   ("Assignment var bitwise xor equals operator", "^=", [TVarBitXOrEq]);
+   ("Assignment var bitwise and equals operator", "&=", Right [TVarBitAndEq]);
+   ("Assignment var bitwise or equals operator", "|=", Right [TVarBitOrEq]);
+   ("Assignment var bitwise xor equals operator", "^=", Right [TVarBitXOrEq]);
 
-   ("Left parenthesis", "(", [TLParen]);
-   ("Right parenthesis", ")", [TRParen]);
+   ("Left parenthesis", "(", Right [TLParen]);
+   ("Right parenthesis", ")", Right [TRParen]);
 
   ])
 
 let lex_string str = lexer instance_Arith_Read_Num_integer_dict (Xstring.explode str)
 let num n = Num (Nat_big_num.of_int n)
 
-let parser_tests:(string*(Nat_big_num.num arith_token)list*(string, Nat_big_num.num arith_exp)Either.either)list=
+let parser_tests:(string*(string,(Nat_big_num.num arith_token)list)Either.either*(string, Nat_big_num.num arith_exp)Either.either)list=
  ([
    ("single number", lex_string "13", Right(Num (Nat_big_num. of_int 13)));
    ("two number additon 2 + 3", lex_string "2 + 3", Right(BinOp (Plus, num 2, num 3)));
@@ -204,7 +206,7 @@ let run_tests () =
   let test_count = ref 0 in
   print_endline "\n=== Running arithmetic tests...";
   (* Lexer tests *)
-  test_part "Lexer" check_lexer token_list_to_string lexer_tests test_count failed;
+  test_part "Lexer" check_lexer (Either.either_case id token_list_to_string) lexer_tests test_count failed;
 
   (* Parser tests *)
   test_part "Parser" check_parser (Either.either_case id string_of_aexp) parser_tests test_count failed;
