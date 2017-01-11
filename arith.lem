@@ -90,6 +90,12 @@ let rec readIntegerDec acc chars =
       else Left ((toString [c]) ^ " is not a valid decimal digit")
   end
 
+let int64Max = ((int64FromNat 2) ** 63) - 1
+let int64Min = ~((int64FromNat 2) ** 63)
+
+let int32Max = ((int32FromNat 2) ** 31) - 1
+let int32Min = ~((int32FromNat 2) ** 31)
+
 val readInt64Dec : int64 -> (list char) -> either string int64
 let rec readInt64Dec acc chars =
   match chars with
@@ -97,7 +103,10 @@ let rec readInt64Dec acc chars =
   | (c::cs) ->
       let num = (ord c) - 48 in
       if num >= 0 && num < 10
-      then readInt64Dec ((10 * acc) + (int64FromNat ((ord c) - 48))) cs
+      then let acc1 = ((10 * acc) + (int64FromNat ((ord c) - 48))) in
+           if acc1 < 0
+           then Right int64Max
+           else readInt64Dec acc1 cs
       else Left ((toString [c]) ^ " is not a valid decimal digit")
   end
 
@@ -108,7 +117,10 @@ let rec readInt32Dec acc chars =
   | (c::cs) ->
       let num = (ord c) - 48 in
       if num >= 0 && num < 10
-      then readInt32Dec ((10 * acc) + (int32FromNat ((ord c) - 48))) cs
+      then let acc1 = ((10 * acc) + (int32FromNat ((ord c) - 48))) in
+           if acc1 < 0
+           then Right int32Max
+           else readInt32Dec acc1 cs
       else Left ((toString [c]) ^ " is not a valid decimal digit")
   end
 
@@ -134,7 +146,10 @@ let rec readInt64Hex acc chars =
         then (ord c) - 48
         else hexalpha_to_num c in
       if num >= 0 && num < 16
-      then readInt64Hex ((16 * acc) + (int64FromNat num)) cs
+      then let acc1 = (16 * acc) + (int64FromNat num) in
+           if acc1 < 0
+           then Right int64Max
+           else readInt64Hex acc1 cs
       else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
   end
 
@@ -147,7 +162,10 @@ let rec readInt32Hex acc chars =
         then (ord c) - 48
         else hexalpha_to_num c in
       if num >= 0 && num < 16
-      then readInt32Hex ((16 * acc) + (int32FromNat num)) cs
+      then let acc1 = (16 * acc) + (int32FromNat num) in
+           if acc1 < 0
+           then Right int32Max
+           else readInt32Hex acc1 cs
       else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
   end
 
@@ -170,7 +188,10 @@ let rec readInt64Oct acc chars =
       let num = (ord c) - 48 in
       if num > 7 || num < 0
       then Left ((toString [c]) ^ " is not a valid octal digit")
-      else readInt64Oct ((8 * acc) + (int64FromNat ((ord c) - 48))) cs
+      else let acc1 = (8 * acc) + (int64FromNat num) in
+           if acc1 < 0
+           then Right int64Max
+           else readInt64Oct acc1 cs
   end
 
 val readInt32Oct : int32 -> (list char) -> either string int32
@@ -181,7 +202,10 @@ let rec readInt32Oct acc chars =
       let num = (ord c) - 48 in
       if num > 7 || num < 0
       then Left ((toString [c]) ^ " is not a valid octal digit")
-      else readInt32Oct ((8 * acc) + (int32FromNat ((ord c) - 48))) cs
+      else let acc1 = (8 * acc) + (int32FromNat num) in
+           if acc1 < 0
+           then Right int32Max
+           else readInt32Oct acc1 cs
   end
 
 
@@ -554,7 +578,9 @@ let rec eval_arith e =
           | Plus -> Right (n1 + n2)
           | Minus -> Right (n1 - n2)
           | Times -> Right (n1 * n2)
-          | Div -> Right (n1 div n2)
+          | Div -> if num == 0
+                   then Left "Divide by zero error"
+                   else Right (n1 div n2)
           | Mod -> Right (n1 mod n2)
           | _ -> Left "unimplemented"
           end

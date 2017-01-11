@@ -78,6 +78,8 @@ let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either
    ("octal 0755", "0755", Right [TNum (Nat_big_num.of_int 493)]);
    ("hex 0xFf", "0xFf", Right [TNum (Nat_big_num.of_int 255)]);
 
+   ("large number 9223372036854775808", "9223372036854775808", Right [TNum (Nat_big_num.pow_int (Nat_big_num.of_int 2) 63)]);
+
    ("var x", "x", Right [TVar "x"]);
    ("var LongVarWithCaps", "LongVarWithCaps", Right [TVar "LongVarWithCaps"]);
 
@@ -160,7 +162,7 @@ let parser_tests:(string*(string,(Nat_big_num.num arith_token)list)Either.either
 
 (* let big_num = Int64.of_int Nat_big_num.of_int *)
 
-let eval_tests ofNumLiteral : (string * string * (string, 'a )Either.either)list=
+let eval_tests ofNumLiteral mul : (string * string * (string, 'a )Either.either)list=
   [
     ("bare number", "47", Right (ofNumLiteral 47));
 
@@ -190,6 +192,28 @@ let eval_tests ofNumLiteral : (string * string * (string, 'a )Either.either)list
     ("modulo three numbers parens right", "12 % (3 % 2)", Right (ofNumLiteral 0));
   ]
 
+let eval_bignum_tests ofNumLiteral mul : (string * string * (string, Nat_big_num.num)Either.either)list =
+  [
+    ("large number 9223372036854775808", "9223372036854775808", Right (mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
+    ("large hex number 0x8000000000000000", "0x8000000000000000", Right (mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
+    ("large oct number 01000000000000000000000", "01000000000000000000000", Right (mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
+  ]
+
+let eval_int64_tests ofNumLiteral mul : (string * string * (string, Int64.t)Either.either)list =
+  [
+    ("large number 9223372036854775808", "9223372036854775808", Right int64Max);
+    ("large hex number 0x8000000000000000", "0x8000000000000000", Right int64Max);
+    ("large oct number 01000000000000000000000", "01000000000000000000000", Right int64Max);
+  ]
+
+let eval_int32_tests ofNumLiteral mul : (string * string * (string, Int32.t)Either.either)list =
+  [
+    ("large number 9223372036854775808", "9223372036854775808", Right int32Max);
+    ("large hex number 0x8000000000000000", "0x8000000000000000", Right int32Max);
+    ("large oct number 020000000000", "020000000000", Right int32Max);
+    ("large oct number 01000000000000000000000", "01000000000000000000000", Right int32Max);
+  ]
+
 let test_part name checker stringOfExpected tests count failed =
   List.iter
     (fun t ->
@@ -211,10 +235,15 @@ let run_tests () =
   (* Parser tests *)
   test_part "Parser" check_parser (Either.either_case id string_of_aexp) parser_tests test_count failed;
 
-  (* Eval tests *)
-  test_part "Eval Nat_big_num" check_eval_big_num (Either.either_case id Nat_big_num.to_string) (eval_tests Nat_big_num.of_int) test_count failed;
-  test_part "Eval int32" check_eval_int32 (Either.either_case id Int32.to_string) (eval_tests Int32.of_int) test_count failed;
-  test_part "Eval int64" check_eval_int64 (Either.either_case id Int64.to_string) (eval_tests Int64.of_int) test_count failed;
+  (* General eval tests *)
+  test_part "General eval Nat_big_num" check_eval_big_num (Either.either_case id Nat_big_num.to_string) (eval_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
+  test_part "General eval int32" check_eval_int32 (Either.either_case id Int32.to_string) (eval_tests Int32.of_int Int32.mul) test_count failed;
+  test_part "General eval int64" check_eval_int64 (Either.either_case id Int64.to_string) (eval_tests Int64.of_int Int64.mul) test_count failed;
+
+  (* Type specific eval tests *)
+  test_part "Eval Nat_big_num" check_eval_big_num (Either.either_case id Nat_big_num.to_string) (eval_bignum_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
+  test_part "Eval int32" check_eval_int32 (Either.either_case id Int32.to_string) (eval_int32_tests Int32.of_int Int32.mul) test_count failed;
+  test_part "Eval int64" check_eval_int64 (Either.either_case id Int64.to_string) (eval_int64_tests Int64.of_int Int64.mul) test_count failed;
 
   printf "=== ...ran %d arithmetic tests with %d failures.\n\n" !test_count !failed
 
