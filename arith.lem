@@ -567,19 +567,19 @@ let parse_arith_exp tkns =
   | Left e -> Left e
   end
 
-val eval_arith : forall 'a. NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a  => arith_exp 'a -> either string 'a
-let rec eval_arith e =
+val eval_arith : forall 'a. Eq 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a => (nat -> 'a) -> arith_exp 'a -> either string 'a
+let rec eval_arith fromLit e =
   match e with
   | (Num n) -> Right n
   | (BinOp op e1 e2) ->
-      match (eval_arith e1, eval_arith e2) with
+      match (eval_arith fromLit e1, eval_arith fromLit e2) with
       | (Right n1, Right n2) ->
           match op with
           | Plus -> Right (n1 + n2)
           | Minus -> Right (n1 - n2)
           | Times -> Right (n1 * n2)
-          | Div -> if num == 0
-                   then Left "Divide by zero error"
+          | Div -> if n2 = fromLit 0
+                   then Left "Divide by zero"
                    else Right (n1 div n2)
           | Mod -> Right (n1 mod n2)
           | _ -> Left "unimplemented"
@@ -590,19 +590,19 @@ let rec eval_arith e =
   | _ -> Left "unimplemented"
   end
 
-val arith : forall 'a. Read 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a => (list char) -> either string 'a
-let arith str =
+val arith : forall 'a. Eq 'a, Read 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a => (nat -> 'a) -> (list char) -> either string 'a
+let arith fromLit str =
   match (either_monad parse_arith_exp (lexer str)) with
-  | Right aexp -> eval_arith aexp
+  | Right aexp -> eval_arith fromLit aexp
   | Left e -> Left e
   end
 
 val arith_big_num : (list char) -> either string integer
-let arith_big_num = arith
+let arith_big_num = arith integerFromNat
 
 val arith32 : (list char) -> either string int32
-let arith32 = arith
+let arith32 = arith int32FromNat
 
 val arith64 : (list char) -> either string int64
-let arith64 = arith
+let arith64 = arith int64FromNat
 
