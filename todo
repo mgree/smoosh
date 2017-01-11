@@ -1,6 +1,8 @@
 ### Arith
 
 Finish eval
+Does right shift use arithmetic or logical right shift?
+  - Max size of nat could create LShift and RShift errors (pow : 'a -> nat -> 'a)
 Add assignment
 
 ##### Issues
