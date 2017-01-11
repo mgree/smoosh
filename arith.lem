@@ -573,12 +573,12 @@ let bool_to_num fromLit b =
   then fromLit 1
   else fromLit 0
 
-val eval_arith : forall 'a. Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, WordLsl 'a, WordLsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => (nat -> 'a) -> ('a -> nat) -> arith_exp 'a -> either string 'a
-let rec eval_arith fromLit toLit e =
+val eval_arith : forall 'a. Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> (nat -> 'a) -> ('a -> nat) -> arith_exp 'a -> either string 'a
+let rec eval_arith bits fromLit toLit e =
   match e with
   | (Num n) -> Right n
   | (BinOp op e1 e2) ->
-      match (eval_arith fromLit toLit e1, eval_arith fromLit toLit e2) with
+      match (eval_arith bits fromLit toLit e1, eval_arith bits fromLit toLit e2) with
       | (Right n1, Right n2) ->
           match op with
           | Plus -> Right (n1 + n2)
@@ -586,8 +586,14 @@ let rec eval_arith fromLit toLit e =
           | Times -> Right (n1 * n2)
           | Div -> if n2 = (fromLit 0) then Left "Divide by zero" else Right (n1 div n2)
           | Mod -> Right (n1 mod n2)
-          | LShift -> Right (n1 lsl (toLit n2))
-          | RShift -> Right (n1 lsr (toLit n2)) (* TODO: logical or arithmetic? *)
+          | LShift ->
+              if bits = ~(fromLit 1)
+              then Right (n1 lsl (toLit n2))
+              else Right (n1 lsl (toLit (n2 mod bits)))
+          | RShift ->
+              if bits = ~(fromLit 1)
+              then Right (n1 asr (toLit n2))
+              else Right (n1 asr (toLit (n2 mod bits)))
           | Lt -> Right (bool_to_num fromLit (n1 < n2))
           | Lte -> Right (bool_to_num fromLit (n1 <= n2))
           | Gt -> Right (bool_to_num fromLit (n1 > n2))
@@ -603,22 +609,27 @@ let rec eval_arith fromLit toLit e =
       | (Left e, _) -> Left e
       | (_, Left e) -> Left e
       end
-  | _ -> Left "unimplemented"
+  | Neg exp ->
+      match eval_arith bits fromLit toLit exp with
+      | Right n -> Right (~n)
+      | Left e -> Left e
+      end
+  | _ -> Left "Arith exp unimplemented."
   end
 
-val arith : forall 'a. Read 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, WordLsl 'a, WordLsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => (nat -> 'a) -> ('a -> nat) -> (list char) -> either string 'a
-let arith fromLit toLit str =
+val arith : forall 'a. Read 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> (nat -> 'a) -> ('a -> nat) -> (list char) -> either string 'a
+let arith bits fromLit toLit str =
   match (either_monad parse_arith_exp (lexer str)) with
-  | Right aexp -> eval_arith fromLit toLit aexp
+  | Right aexp -> eval_arith bits fromLit toLit aexp
   | Left e -> Left e
   end
 
 val arith_big_num : (list char) -> either string integer
-let arith_big_num = arith integerFromNat natFromInteger
+let arith_big_num = arith (~(integerFromNat 1)) integerFromNat natFromInteger
 
 val arith32 : (list char) -> either string int32
-let arith32 = arith int32FromNat natFromInt32
+let arith32 = arith (int32FromNat 32) int32FromNat natFromInt32
 
 val arith64 : (list char) -> either string int64
-let arith64 = arith int64FromNat natFromInt64
+let arith64 = arith (int64FromNat 64) int64FromNat natFromInt64
 

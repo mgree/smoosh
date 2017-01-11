@@ -190,6 +190,33 @@ let eval_tests ofNumLiteral mul : (string * string * (string, 'a )Either.either)
     ("modulo three numbers", "12 % 3 % 2", Right (ofNumLiteral 0));
     ("modulo three numbers parens left", "(12 % 3) % 2", Right (ofNumLiteral 0));
     ("modulo three numbers parens right", "12 % (3 % 2)", Right (ofNumLiteral 0));
+
+    ("left shift two numbers", "10 << 2", Right (ofNumLiteral 40));
+    ("left shift three numbers", "12 << 3 << 2", Right (ofNumLiteral 384));
+    ("left shift three numbers parens left", "(12 << 3) << 2", Right (ofNumLiteral 384));
+    ("left shift three numbers parens right", "12 << (3 << 2)", Right (ofNumLiteral 49152));
+
+    ("right shift two numbers", "10 >> 2", Right (ofNumLiteral 2));
+    ("right shift three numbers", "200 >> 3 >> 2", Right (ofNumLiteral 6));
+    ("right shift three numbers parens left", "(200 >> 3) >> 2", Right (ofNumLiteral 6));
+    ("right shift three numbers parens right", "12 >> (3 >> 2)", Right (ofNumLiteral 12));
+
+    ("bitwise and two numbers", "10 & 7", Right (ofNumLiteral 2));
+    ("bitwise or two numbers", "10 | 7", Right (ofNumLiteral 15));
+
+    ("bitwise and/or three numbers", "23 & 7 | 8", Right (ofNumLiteral 15));
+    ("bitwise and/or three numbers parens left", "(23 & 7) | 8", Right (ofNumLiteral 15));
+    ("bitwise and/or three numbers parens right", "23 & (7 | 8)", Right (ofNumLiteral 7));
+
+    ("bitwise or/and three numbers", "4 | 19 & 11", Right (ofNumLiteral 7));
+    ("bitwise or/and three numbers parens left", "(4 | 19) & 11", Right (ofNumLiteral 3));
+    ("bitwise or/and three numbers parens right", "4 | (19 & 11)", Right (ofNumLiteral 7));
+
+    ("bitwise xor two numbers", "10 ^ 7", Right (ofNumLiteral 13));
+    ("bitwise xor three numbers", "12 ^ 9 ^ 8", Right (ofNumLiteral 13));
+    ("bitwise xor three numbers parens left", "(12 ^ 9) ^ 8", Right (ofNumLiteral 13));
+    ("bitwise xor three numbers parens right", "12 ^ (9 ^ 8)", Right (ofNumLiteral 13));
+
   ]
 
 let eval_bignum_tests ofNumLiteral mul : (string * string * (string, Nat_big_num.num)Either.either)list =
@@ -204,6 +231,12 @@ let eval_int64_tests ofNumLiteral mul : (string * string * (string, Int64.t)Eith
     ("large number 9223372036854775808", "9223372036854775808", Right int64Max);
     ("large hex number 0x8000000000000000", "0x8000000000000000", Right int64Max);
     ("large oct number 01000000000000000000000", "01000000000000000000000", Right int64Max);
+
+    ("left shift by negative", "15 << -63", Right (ofNumLiteral 30));
+    ("right shift by negative", "15 >> -63", Right (ofNumLiteral 7));
+
+    ("right shift uses arithmetic shift", "(15 << -1) >> 1", Right (Int64.div int64Min (ofNumLiteral 2)));
+
   ]
 
 let eval_int32_tests ofNumLiteral mul : (string * string * (string, Int32.t)Either.either)list =
@@ -212,6 +245,11 @@ let eval_int32_tests ofNumLiteral mul : (string * string * (string, Int32.t)Eith
     ("large hex number 0x8000000000000000", "0x8000000000000000", Right int32Max);
     ("large oct number 020000000000", "020000000000", Right int32Max);
     ("large oct number 01000000000000000000000", "01000000000000000000000", Right int32Max);
+
+    ("left shift by negative", "15 << -31", Right (ofNumLiteral 30));
+    ("right shift by negative", "15 >> -31", Right (ofNumLiteral 7));
+
+    ("right shift uses arithmetic shift", "(15 << -1) >> 1", Right (Int32.div int32Min (ofNumLiteral 2)));
   ]
 
 let test_part name checker stringOfExpected tests count failed =
