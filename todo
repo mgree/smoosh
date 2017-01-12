@@ -2,7 +2,8 @@
 
 Finish eval
 Does right shift use arithmetic or logical right shift?
-  - Max size of nat could create LShift and RShift errors (pow : 'a -> nat -> 'a)
+  - Max size of nat could create LShift and RShift errors because number
+    must be converted to a nat (shift operators have type : 'a -> nat -> 'a)
 Add assignment
 
 ##### Issues

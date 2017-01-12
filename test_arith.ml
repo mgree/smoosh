@@ -217,6 +217,7 @@ let eval_tests ofNumLiteral mul : (string * string * (string, 'a )Either.either)
     ("bitwise xor three numbers parens left", "(12 ^ 9) ^ 8", Right (ofNumLiteral 13));
     ("bitwise xor three numbers parens right", "12 ^ (9 ^ 8)", Right (ofNumLiteral 13));
 
+    ("divide by zero ", "47 / 0", Left "Divide by zero");
   ]
 
 let eval_bignum_tests ofNumLiteral mul : (string * string * (string, Nat_big_num.num)Either.either)list =
@@ -232,6 +233,8 @@ let eval_int64_tests ofNumLiteral mul : (string * string * (string, Int64.t)Eith
     ("large hex number 0x8000000000000000", "0x8000000000000000", Right int64Max);
     ("large oct number 01000000000000000000000", "01000000000000000000000", Right int64Max);
 
+    ("arithmetic overflow", "1073741824 * 1073741824 * 8", Right int64Min);
+
     ("left shift by negative", "15 << -63", Right (ofNumLiteral 30));
     ("right shift by negative", "15 >> -63", Right (ofNumLiteral 7));
 
@@ -245,6 +248,8 @@ let eval_int32_tests ofNumLiteral mul : (string * string * (string, Int32.t)Eith
     ("large hex number 0x8000000000000000", "0x8000000000000000", Right int32Max);
     ("large oct number 020000000000", "020000000000", Right int32Max);
     ("large oct number 01000000000000000000000", "01000000000000000000000", Right int32Max);
+
+    ("arithmetic overflow", "2147483647 + 1", Right int32Min);
 
     ("left shift by negative", "15 << -31", Right (ofNumLiteral 30));
     ("right shift by negative", "15 >> -31", Right (ofNumLiteral 7));
