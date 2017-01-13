@@ -50,6 +50,7 @@ type arith_exp 'a =
   | BoolNot of arith_exp 'a
   | Conditional of arith_exp 'a * arith_exp 'a * arith_exp 'a
   | BinOp of BinaryOperator * arith_exp 'a * arith_exp 'a
+  | Assign of string * (maybe BinaryOperator) * arith_exp 'a
 
 let is_whitespace c = elem c (toCharList " \n\t")
 let is_digit c = elem c (toCharList "1234567890")
@@ -314,7 +315,27 @@ val parse_multiplicative : forall 'a. (list (arith_token 'a)) -> either string (
 val multiplicative_term : forall 'a. (arith_exp 'a) -> (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
 val collect_multiplicative : forall 'a. ((arith_exp 'a) -> (arith_exp 'a)) -> (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
 
-let rec parse_assignment tkns = parse_conditional tkns
+let rec parse_assignment tkns =
+  match tkns with
+  | ((TVar s)::TVarEq::rst) -> collect_assignment (Assign s Nothing) rst
+  | ((TVar s)::TVarPlusEq::rst) -> collect_assignment (Assign s (Just Plus)) rst
+  | ((TVar s)::TVarMinusEq::rst) -> collect_assignment (Assign s (Just Minus)) rst
+  | ((TVar s)::TVarTimesEq::rst) -> collect_assignment (Assign s (Just Times)) rst
+  | ((TVar s)::TVarDivEq::rst) -> collect_assignment (Assign s (Just Div)) rst
+  | ((TVar s)::TVarModEq::rst) -> collect_assignment (Assign s (Just Mod)) rst
+  | ((TVar s)::TVarLShiftEq::rst) -> collect_assignment (Assign s (Just LShift)) rst
+  | ((TVar s)::TVarRShiftEq::rst) -> collect_assignment (Assign s (Just RShift)) rst
+  | ((TVar s)::TVarBitAndEq::rst) -> collect_assignment (Assign s (Just BitAnd)) rst
+  | ((TVar s)::TVarBitOrEq::rst) -> collect_assignment (Assign s (Just BitOr)) rst
+  | ((TVar s)::TVarBitXOrEq::rst) -> collect_assignment (Assign s (Just BitXOr)) rst
+  | _ -> parse_conditional tkns
+  end
+
+and collect_assignment mk tkns =
+  match parse_conditional tkns with
+  | Right (term, rst) -> Right (mk term, rst)
+  | Left e -> Left e
+  end
 
 and parse_conditional tkns =
   match parse_bool_or tkns with
@@ -614,7 +635,33 @@ let rec eval_arith bits fromLit toLit e =
       | Right n -> Right (~n)
       | Left e -> Left e
       end
-  | _ -> Left "Arith exp unimplemented."
+  | BitNot exp ->
+      match eval_arith bits fromLit toLit exp with
+      | Right n -> Right (lnot n)
+      | Left e -> Left e
+      end
+  | BoolNot exp ->
+      match eval_arith bits fromLit toLit exp with
+      | Right n -> Right
+          (if n <> fromLit 0
+          then fromLit 0
+          else fromLit 1)
+      | Left e -> Left e
+      end
+  | Conditional a1 a2 a3 ->
+      match (eval_arith bits fromLit toLit a1) with
+      | Right n ->
+          if n <> fromLit 0
+          then eval_arith bits fromLit toLit a2
+          else eval_arith bits fromLit toLit a3
+      | Left e -> Left e
+      end
+  | Assign s op exp ->
+      let new_val = match op with
+      | Just o -> Left "ops unimplemented"(* attempt lookup of value, read, eval_arith bits fromLit toLit (BinOp o read_val exp *)
+      | Nothing -> eval_arith bits fromLit toLit exp
+      end in
+      new_val (* assign val to s *)
   end
 
 val arith : forall 'a. Read 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> (nat -> 'a) -> ('a -> nat) -> (list char) -> either string 'a

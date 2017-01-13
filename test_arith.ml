@@ -218,6 +218,13 @@ let eval_tests ofNumLiteral mul : (string * string * (string, 'a )Either.either)
     ("bitwise xor three numbers parens right", "12 ^ (9 ^ 8)", Right (ofNumLiteral 13));
 
     ("divide by zero ", "47 / 0", Left "Divide by zero");
+
+    ("Conditional true", "18 ? 47 : 42", Right (ofNumLiteral 47));
+    ("Conditional false", "0 ? 47 : 42", Right (ofNumLiteral 42));
+
+    ("Bitwise negation", "~(-48)", Right (ofNumLiteral 47));
+    ("Boolean not", "!47", Right (ofNumLiteral 0));
+    ("Boolean not", "!0", Right (ofNumLiteral 1));
   ]
 
 let eval_bignum_tests ofNumLiteral mul : (string * string * (string, Nat_big_num.num)Either.either)list =
