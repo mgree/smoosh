@@ -2,6 +2,7 @@
  * Parse and evaluate a string representing the arithmetic operation
  *)
 open import Pervasives_extra
+open import Fsh_prelude
 
 type arith_token 'a =
     TNum of 'a
@@ -50,177 +51,7 @@ type arith_exp 'a =
   | BoolNot of arith_exp 'a
   | Conditional of arith_exp 'a * arith_exp 'a * arith_exp 'a
   | BinOp of BinaryOperator * arith_exp 'a * arith_exp 'a
-  | Assign of string * (maybe BinaryOperator) * arith_exp 'a
-
-let is_whitespace c = elem c (toCharList " \n\t")
-let is_digit c = elem c (toCharList "1234567890")
-let is_num_const_char c = elem c (toCharList "1234567890xabcdefABCDEF")
-let is_alpha c = elem c (toCharList "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-(* Convert uppercase A-F to lowercase and then convert
- * lowercase hexdigit to integer 10 to 15. *)
-val hexalpha_to_num : char -> nat
-let hexalpha_to_num c =
-  let num = ord c in
-  let lowercase = if num >= 65 && num <= 70
-    then num + 32
-    else num in
-  9 + (lowercase - 96)
-
-class ( Read 'a )
-  (* Read can fail with an error message by using Left.
-   * Do not use any methods that may throw errors. *)
-  val read : list char -> either string 'a
-end
-
-let readConstant dec hex oct acc chars =
-  match chars with
-  | #'0'::#'x'::cs -> hex acc cs
-  | #'0'::cs -> oct acc cs
-  | _ -> dec acc chars
-  end
-
-val readIntegerDec : integer -> (list char) -> either string integer
-let rec readIntegerDec acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num >= 0 && num < 10
-      then readIntegerDec ((10 * acc) + (integerFromNat ((ord c) - 48))) cs
-      else Left ((toString [c]) ^ " is not a valid decimal digit")
-  end
-
-let int64Max = ((int64FromNat 2) ** 63) - 1
-let int64Min = ~((int64FromNat 2) ** 63)
-
-let int32Max = ((int32FromNat 2) ** 31) - 1
-let int32Min = ~((int32FromNat 2) ** 31)
-
-val readInt64Dec : int64 -> (list char) -> either string int64
-let rec readInt64Dec acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num >= 0 && num < 10
-      then let acc1 = ((10 * acc) + (int64FromNat ((ord c) - 48))) in
-           if acc1 < 0
-           then Right int64Max
-           else readInt64Dec acc1 cs
-      else Left ((toString [c]) ^ " is not a valid decimal digit")
-  end
-
-val readInt32Dec : int32 -> (list char) -> either string int32
-let rec readInt32Dec acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num >= 0 && num < 10
-      then let acc1 = ((10 * acc) + (int32FromNat ((ord c) - 48))) in
-           if acc1 < 0
-           then Right int32Max
-           else readInt32Dec acc1 cs
-      else Left ((toString [c]) ^ " is not a valid decimal digit")
-  end
-
-val readIntegerHex : integer -> (list char) -> either string integer
-let rec readIntegerHex acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = if is_digit c
-        then (ord c) - 48
-        else hexalpha_to_num c in
-      if num >= 0 && num < 16
-      then readIntegerHex ((16 * acc) + (integerFromNat num)) cs
-      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
-  end
-
-val readInt64Hex : int64 -> (list char) -> either string int64
-let rec readInt64Hex acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = if is_digit c
-        then (ord c) - 48
-        else hexalpha_to_num c in
-      if num >= 0 && num < 16
-      then let acc1 = (16 * acc) + (int64FromNat num) in
-           if acc1 < 0
-           then Right int64Max
-           else readInt64Hex acc1 cs
-      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
-  end
-
-val readInt32Hex : int32 -> (list char) -> either string int32
-let rec readInt32Hex acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = if is_digit c
-        then (ord c) - 48
-        else hexalpha_to_num c in
-      if num >= 0 && num < 16
-      then let acc1 = (16 * acc) + (int32FromNat num) in
-           if acc1 < 0
-           then Right int32Max
-           else readInt32Hex acc1 cs
-      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
-  end
-
-val readIntegerOct : integer -> (list char) -> either string integer
-let rec readIntegerOct acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num > 7 || num < 0
-      then Left ((toString [c]) ^ " is not a valid octal digit")
-      else readIntegerOct ((8 * acc) + (integerFromNat ((ord c) - 48)))cs
-  end
-
-val readInt64Oct : int64 -> (list char) -> either string int64
-let rec readInt64Oct acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num > 7 || num < 0
-      then Left ((toString [c]) ^ " is not a valid octal digit")
-      else let acc1 = (8 * acc) + (int64FromNat num) in
-           if acc1 < 0
-           then Right int64Max
-           else readInt64Oct acc1 cs
-  end
-
-val readInt32Oct : int32 -> (list char) -> either string int32
-let rec readInt32Oct acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num > 7 || num < 0
-      then Left ((toString [c]) ^ " is not a valid octal digit")
-      else let acc1 = (8 * acc) + (int32FromNat num) in
-           if acc1 < 0
-           then Right int32Max
-           else readInt32Oct acc1 cs
-  end
-
-
-instance ( Read integer )
-  let read cs = readConstant readIntegerDec readIntegerHex readIntegerOct 0 cs
-end
-
-instance ( Read int64 )
-  let read cs = readConstant readInt64Dec readInt64Hex readInt64Oct (int64FromNat 0) cs
-end
-
-instance ( Read int32 )
-  let read cs = readConstant readInt32Dec readInt32Hex readInt32Oct (int32FromNat 0) cs
-end
+  | AssignVar of string * (maybe BinaryOperator) * arith_exp 'a
 
 val lexer : forall 'a. Read 'a => (list char) -> either string (list (arith_token 'a))
 val span : (char -> bool) -> (list char) -> ((list char) * list char)
@@ -317,17 +148,17 @@ val collect_multiplicative : forall 'a. ((arith_exp 'a) -> (arith_exp 'a)) -> (l
 
 let rec parse_assignment tkns =
   match tkns with
-  | ((TVar s)::TVarEq::rst) -> collect_assignment (Assign s Nothing) rst
-  | ((TVar s)::TVarPlusEq::rst) -> collect_assignment (Assign s (Just Plus)) rst
-  | ((TVar s)::TVarMinusEq::rst) -> collect_assignment (Assign s (Just Minus)) rst
-  | ((TVar s)::TVarTimesEq::rst) -> collect_assignment (Assign s (Just Times)) rst
-  | ((TVar s)::TVarDivEq::rst) -> collect_assignment (Assign s (Just Div)) rst
-  | ((TVar s)::TVarModEq::rst) -> collect_assignment (Assign s (Just Mod)) rst
-  | ((TVar s)::TVarLShiftEq::rst) -> collect_assignment (Assign s (Just LShift)) rst
-  | ((TVar s)::TVarRShiftEq::rst) -> collect_assignment (Assign s (Just RShift)) rst
-  | ((TVar s)::TVarBitAndEq::rst) -> collect_assignment (Assign s (Just BitAnd)) rst
-  | ((TVar s)::TVarBitOrEq::rst) -> collect_assignment (Assign s (Just BitOr)) rst
-  | ((TVar s)::TVarBitXOrEq::rst) -> collect_assignment (Assign s (Just BitXOr)) rst
+  | ((TVar s)::TVarEq::rst) -> collect_assignment (AssignVar s Nothing) rst
+  | ((TVar s)::TVarPlusEq::rst) -> collect_assignment (AssignVar s (Just Plus)) rst
+  | ((TVar s)::TVarMinusEq::rst) -> collect_assignment (AssignVar s (Just Minus)) rst
+  | ((TVar s)::TVarTimesEq::rst) -> collect_assignment (AssignVar s (Just Times)) rst
+  | ((TVar s)::TVarDivEq::rst) -> collect_assignment (AssignVar s (Just Div)) rst
+  | ((TVar s)::TVarModEq::rst) -> collect_assignment (AssignVar s (Just Mod)) rst
+  | ((TVar s)::TVarLShiftEq::rst) -> collect_assignment (AssignVar s (Just LShift)) rst
+  | ((TVar s)::TVarRShiftEq::rst) -> collect_assignment (AssignVar s (Just RShift)) rst
+  | ((TVar s)::TVarBitAndEq::rst) -> collect_assignment (AssignVar s (Just BitAnd)) rst
+  | ((TVar s)::TVarBitOrEq::rst) -> collect_assignment (AssignVar s (Just BitOr)) rst
+  | ((TVar s)::TVarBitXOrEq::rst) -> collect_assignment (AssignVar s (Just BitXOr)) rst
   | _ -> parse_conditional tkns
   end
 
@@ -594,89 +425,106 @@ let bool_to_num fromLit b =
   then fromLit 1
   else fromLit 0
 
-val eval_arith : forall 'a. Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> (nat -> 'a) -> ('a -> nat) -> arith_exp 'a -> either string 'a
-let rec eval_arith bits fromLit toLit e =
+val eval_arith : forall 'a. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> (nat -> 'a) -> ('a -> nat) -> ty_os_state -> arith_exp 'a -> either string (ty_os_state * 'a)
+let rec eval_arith bits fromLit toLit s0 e =
   match e with
-  | (Num n) -> Right n
+  | (Num n) -> Right (s0, n)
   | (BinOp op e1 e2) ->
-      match (eval_arith bits fromLit toLit e1, eval_arith bits fromLit toLit e2) with
-      | (Right n1, Right n2) ->
-          match op with
-          | Plus -> Right (n1 + n2)
-          | Minus -> Right (n1 - n2)
-          | Times -> Right (n1 * n2)
-          | Div -> if n2 = (fromLit 0) then Left "Divide by zero" else Right (n1 div n2)
-          | Mod -> Right (n1 mod n2)
+      match eval_arith bits fromLit toLit s0 e1 with
+      | Right (s1, n1) ->
+        match eval_arith bits fromLit toLit s1 e2 with
+          Right (s2, n2) -> match op with
+          | Plus -> Right (s2, n1 + n2)
+          | Minus -> Right (s2, n1 - n2)
+          | Times -> Right (s2, n1 * n2)
+          | Div -> if n2 = (fromLit 0) then Left "Divide by zero" else Right (s2, n1 div n2)
+          | Mod -> Right (s2, n1 mod n2)
           | LShift ->
               if bits = ~(fromLit 1)
-              then Right (n1 lsl (toLit n2))
-              else Right (n1 lsl (toLit (n2 mod bits)))
+              then Right (s2, n1 lsl (toLit n2))
+              else Right (s2, n1 lsl (toLit (n2 mod bits)))
           | RShift ->
               if bits = ~(fromLit 1)
-              then Right (n1 asr (toLit n2))
-              else Right (n1 asr (toLit (n2 mod bits)))
-          | Lt -> Right (bool_to_num fromLit (n1 < n2))
-          | Lte -> Right (bool_to_num fromLit (n1 <= n2))
-          | Gt -> Right (bool_to_num fromLit (n1 > n2))
-          | Gte -> Right (bool_to_num fromLit (n1 <= n2))
-          | Eq -> Right (bool_to_num fromLit (n1 = n2))
-          | NEq -> Right (bool_to_num fromLit (n1 <> n2))
-          | BitAnd -> Right (n1 land n2)
-          | BitOr -> Right (n1 lor n2)
-          | BitXOr -> Right (n1 lxor n2)
-          | BoolAnd -> Right (bool_to_num fromLit (n1 <> fromLit 0 && n2 <> fromLit 0))
-          | BoolOr -> Right (bool_to_num fromLit (n1 <> fromLit 0 || n2 <> fromLit 0))
+              then Right (s2, n1 asr (toLit n2))
+              else Right (s2, n1 asr (toLit (n2 mod bits)))
+          | Lt -> Right (s2, bool_to_num fromLit (n1 < n2))
+          | Lte -> Right (s2, bool_to_num fromLit (n1 <= n2))
+          | Gt -> Right (s2, bool_to_num fromLit (n1 > n2))
+          | Gte -> Right (s2, bool_to_num fromLit (n1 <= n2))
+          | Eq -> Right (s2, bool_to_num fromLit (n1 = n2))
+          | NEq -> Right (s2, bool_to_num fromLit (n1 <> n2))
+          | BitAnd -> Right (s2, n1 land n2)
+          | BitOr -> Right (s2, n1 lor n2)
+          | BitXOr -> Right (s2, n1 lxor n2)
+          | BoolAnd -> Right (s2, bool_to_num fromLit (n1 <> fromLit 0 && n2 <> fromLit 0))
+          | BoolOr -> Right (s2, bool_to_num fromLit (n1 <> fromLit 0 || n2 <> fromLit 0))
           end
-      | (Left e, _) -> Left e
-      | (_, Left e) -> Left e
+        | Left e -> Left e
+        end
+      | Left e -> Left e
       end
   | Neg exp ->
-      match eval_arith bits fromLit toLit exp with
-      | Right n -> Right (~n)
+      match eval_arith bits fromLit toLit s0 exp with
+      | Right (s1, n) -> Right (s1, ~n)
       | Left e -> Left e
       end
   | BitNot exp ->
-      match eval_arith bits fromLit toLit exp with
-      | Right n -> Right (lnot n)
+      match eval_arith bits fromLit toLit s0 exp with
+      | Right (s1, n) -> Right (s1, lnot n)
       | Left e -> Left e
       end
   | BoolNot exp ->
-      match eval_arith bits fromLit toLit exp with
-      | Right n -> Right
+      match eval_arith bits fromLit toLit s0 exp with
+      | Right (s1, n) -> Right (s1,
           (if n <> fromLit 0
           then fromLit 0
-          else fromLit 1)
+          else fromLit 1))
       | Left e -> Left e
       end
   | Conditional a1 a2 a3 ->
-      match (eval_arith bits fromLit toLit a1) with
-      | Right n ->
+      match (eval_arith bits fromLit toLit s0 a1) with
+      | Right (s1, n) ->
           if n <> fromLit 0
-          then eval_arith bits fromLit toLit a2
-          else eval_arith bits fromLit toLit a3
+          then eval_arith bits fromLit toLit s1 a2
+          else eval_arith bits fromLit toLit s1 a3
       | Left e -> Left e
       end
-  | Assign s op exp ->
-      let new_val = match op with
-      | Just o -> Left "ops unimplemented"(* attempt lookup of value, read, eval_arith bits fromLit toLit (BinOp o read_val exp *)
-      | Nothing -> eval_arith bits fromLit toLit exp
-      end in
-      new_val (* assign val to s *)
+  | AssignVar s op exp ->
+      match op with
+      | Just o ->
+          match lookup_param s0 s with
+          | Just str ->
+              match read (toCharList str) with
+              | Right n ->
+                  match eval_arith bits fromLit toLit s0 (BinOp o (Num n) exp) with
+                  | Right (s1, n2) -> Right (<| s1 with shell_env = Map.insert s (write n2) s1.shell_env |>, n2)
+                  | Left e -> Left e
+                  end
+              | Left e -> Left e
+              end
+          | Nothing -> Left ("Unbound variable: " ^ s) (* bash follows the spec and allows this, defaulting to 0 *)
+          end
+      | Nothing ->
+          match eval_arith bits fromLit toLit s0 exp with
+          | Right (s1, n) -> Right (<| s1 with shell_env = Map.insert s (write n) s1.shell_env |>, n)
+          | Left e -> Left e
+          end
+      end
   end
 
-val arith : forall 'a. Read 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> (nat -> 'a) -> ('a -> nat) -> (list char) -> either string 'a
-let arith bits fromLit toLit str =
+val arith : forall 'a. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> (nat -> 'a) -> ('a -> nat) -> ty_os_state -> (list char) -> either string (ty_os_state * 'a)
+let arith bits fromLit toLit s0 str =
   match (either_monad parse_arith_exp (lexer str)) with
-  | Right aexp -> eval_arith bits fromLit toLit aexp
+  | Right aexp -> eval_arith bits fromLit toLit s0 aexp
   | Left e -> Left e
   end
 
-val arith_big_num : (list char) -> either string integer
+val arith_big_num : ty_os_state -> (list char) -> either string (ty_os_state * integer)
 let arith_big_num = arith (~(integerFromNat 1)) integerFromNat natFromInteger
 
-val arith32 : (list char) -> either string int32
+val arith32 : ty_os_state -> (list char) -> either string (ty_os_state * int32)
 let arith32 = arith (int32FromNat 32) int32FromNat natFromInt32
 
-val arith64 : (list char) -> either string int64
+val arith64 : ty_os_state -> (list char) -> either string (ty_os_state * int64)
 let arith64 = arith (int64FromNat 64) int64FromNat natFromInt64
 

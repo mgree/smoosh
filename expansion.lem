@@ -1,4 +1,5 @@
 open import Pervasives_extra
+open import Fsh_prelude
 open import Arith
 
 (*
@@ -75,43 +76,16 @@ and string_of_entry e =
   | F -> "<<FS>>"
   end
 
-(*-------------------------------*)
-(* Process ids                   *)
-(*-------------------------------*)
-
-type ty_pid = Pid of nat (*o with sexp o*) (* coverage:sexp *)
-let ty_pid_compare (Pid n0) (Pid n1) = compare n0 n1
-instance ( SetType ty_pid )
-  let setElemCompare = ty_pid_compare
-end
-
-instance (Eq ty_pid)
-  let (=) = unsafe_structural_equality
-  let (<>) = unsafe_structural_inequality
-end
-
-val dest_PID : ty_pid -> nat
-let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
-
-(* From t_fs_spec.lem_cppo line 1187 *)
-type ty_os_state = <|
-    shell_env: Map.map string string
-  |>
-
 (*
  * Stage 1 Expansion: Word expansion
  *)
 
-val lookup_param : ty_os_state -> string -> maybe string
 val concat_expanded : expanded_words -> string
 
 val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
 val expand_control : ty_os_state -> quoting_mode -> control -> (ty_os_state * expanded_words * words)
 val expand_words : ty_os_state -> quoting_mode -> string_mode -> (expanded_words * words) -> (ty_os_state * expanded_words * words)
 val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
-
-(* The result is nothing if the parameter is unset, and the empty string null. *)
-let lookup_param s0 str = Map.lookup str s0.shell_env
 
 let rec concat_expanded w =
   match w with

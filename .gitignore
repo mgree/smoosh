@@ -1,6 +1,7 @@
 *.cmi
 *.cmo
 t_fs_prelude.ml
+fsh_prelude.ml
 expansion.ml
 arith.ml
 ocaml-lib

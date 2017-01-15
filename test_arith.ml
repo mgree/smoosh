@@ -1,4 +1,6 @@
 open Lem_pervasives_extra
+open Test_prelude
+open Fsh_prelude
 open Arith
 open Printf
 
@@ -59,17 +61,23 @@ let checker test_fn equal (test_name, input, expected_out) =
   else Err {msg = test_name; expected = expected_out; got = out}
 
 let check_lexer (name, input, expected_out) =
-  checker (lexer instance_Arith_Read_Num_integer_dict) (=) (name, Xstring.explode input, expected_out)
+  checker (lexer instance_Fsh_prelude_Read_Num_integer_dict) (=) (name, Xstring.explode input, expected_out)
 
 let check_parser = checker (either_monad parse_arith_exp) (=)
 
-let check_eval_big_num (name, input, expected_out) =
-  checker arith_big_num (=) (name, Xstring.explode input, expected_out)
+let eval_equals out expected =
+  match (out, expected) with
+  | (Either.Right (s1, n1), Either.Right (s2, n2)) -> n1 = n2 && (Pmap.equal (=) s1.shell_env s2.shell_env)
+  | (Either.Left e1, Either.Left e2) -> e1 = e2
+  | _ -> false
 
-let check_eval_int32 (name, input, expected_out) =
-  checker arith32 (=) (name, Xstring.explode input, expected_out)
-let check_eval_int64 (name, input, expected_out) =
-  checker arith64 (=) (name, Xstring.explode input, expected_out)
+let check_eval_big_num (name, state, input, expected_out) =
+  checker (arith_big_num state) eval_equals (name, Xstring.explode input, expected_out)
+
+let check_eval_int32 (name, state, input, expected_out) =
+  checker (arith32 state) eval_equals (name, Xstring.explode input, expected_out)
+let check_eval_int64 (name, state, input, expected_out) =
+  checker (arith64 state) eval_equals (name, Xstring.explode input, expected_out)
 
 let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either.either)list=
  ([
@@ -133,7 +141,7 @@ let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either
 
   ])
 
-let lex_string str = lexer instance_Arith_Read_Num_integer_dict (Xstring.explode str)
+let lex_string str = lexer instance_Fsh_prelude_Read_Num_integer_dict (Xstring.explode str)
 let num n = Num (Nat_big_num.of_int n)
 
 let parser_tests:(string*(string,(Nat_big_num.num arith_token)list)Either.either*(string, Nat_big_num.num arith_exp)Either.either)list=
@@ -162,106 +170,122 @@ let parser_tests:(string*(string,(Nat_big_num.num arith_token)list)Either.either
 
 (* let big_num = Int64.of_int Nat_big_num.of_int *)
 
-let eval_tests ofNumLiteral mul : (string * string * (string, 'a )Either.either)list=
+let eval_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_os_state * 'a )Either.either)list=
   [
-    ("bare number", "47", Right (ofNumLiteral 47));
+    ("bare number", os_empty, "47", Right (os_empty, ofNumLiteral 47));
 
-    ("addition two numbers", "23 + 24", Right (ofNumLiteral 47));
-    ("addition three numbers", "15 + 15 + 17", Right (ofNumLiteral 47));
-    ("addition three numbers parens left", "(15 + 15) + 17", Right (ofNumLiteral 47));
-    ("addition three numbers parens right", "15 + (15 + 17)", Right (ofNumLiteral 47));
+    ("addition two numbers", os_empty, "23 + 24", Right (os_empty, ofNumLiteral 47));
+    ("addition three numbers", os_empty, "15 + 15 + 17", Right (os_empty, ofNumLiteral 47));
+    ("addition three numbers parens left", os_empty, "(15 + 15) + 17", Right (os_empty, ofNumLiteral 47));
+    ("addition three numbers parens right", os_empty, "15 + (15 + 17)", Right (os_empty, ofNumLiteral 47));
 
-    ("subtraction two numbers", "53 - 6", Right (ofNumLiteral 47));
-    ("subtraction three numbers", "47 - 15 - 17", Right (ofNumLiteral 15));
-    ("subtraction three numbers parens left", "(47 - 15) - 17", Right (ofNumLiteral 15));
-    ("subtraction three numbers parens right", "47 - (15 - 17)", Right (ofNumLiteral 49));
+    ("subtraction two numbers", os_empty, "53 - 6", Right (os_empty, ofNumLiteral 47));
+    ("subtraction three numbers", os_empty, "47 - 15 - 17", Right (os_empty, ofNumLiteral 15));
+    ("subtraction three numbers parens left", os_empty, "(47 - 15) - 17", Right (os_empty, ofNumLiteral 15));
+    ("subtraction three numbers parens right", os_empty, "47 - (15 - 17)", Right (os_empty, ofNumLiteral 49));
 
-    ("multiplication two numbers", "3 * 7", Right (ofNumLiteral 21));
-    ("multiplication three numbers", "2 * 3 * 4", Right (ofNumLiteral 24));
-    ("multiplication three numbers parens left", "(2 * 3) * 4", Right (ofNumLiteral 24));
-    ("multiplication three numbers parens right", "2 * (3 * 4)", Right (ofNumLiteral 24));
+    ("multiplication two numbers", os_empty, "3 * 7", Right (os_empty, ofNumLiteral 21));
+    ("multiplication three numbers", os_empty, "2 * 3 * 4", Right (os_empty, ofNumLiteral 24));
+    ("multiplication three numbers parens left", os_empty, "(2 * 3) * 4", Right (os_empty, ofNumLiteral 24));
+    ("multiplication three numbers parens right", os_empty, "2 * (3 * 4)", Right (os_empty, ofNumLiteral 24));
 
-    ("division two numbers", "10 / 2", Right (ofNumLiteral 5));
-    ("division three numbers", "12 / 3 / 2", Right (ofNumLiteral 2));
-    ("division three numbers parens left", "(12 / 3) / 2", Right (ofNumLiteral 2));
-    ("division three numbers parens right", "12 / (3 / 2)", Right (ofNumLiteral 12));
+    ("division two numbers", os_empty, "10 / 2", Right (os_empty, ofNumLiteral 5));
+    ("division three numbers", os_empty, "12 / 3 / 2", Right (os_empty, ofNumLiteral 2));
+    ("division three numbers parens left", os_empty, "(12 / 3) / 2", Right (os_empty, ofNumLiteral 2));
+    ("division three numbers parens right", os_empty, "12 / (3 / 2)", Right (os_empty, ofNumLiteral 12));
 
-    ("modulo two numbers", "10 % 2", Right (ofNumLiteral 0));
-    ("modulo three numbers", "12 % 3 % 2", Right (ofNumLiteral 0));
-    ("modulo three numbers parens left", "(12 % 3) % 2", Right (ofNumLiteral 0));
-    ("modulo three numbers parens right", "12 % (3 % 2)", Right (ofNumLiteral 0));
+    ("modulo two numbers", os_empty, "10 % 2", Right (os_empty, ofNumLiteral 0));
+    ("modulo three numbers", os_empty, "12 % 3 % 2", Right (os_empty, ofNumLiteral 0));
+    ("modulo three numbers parens left", os_empty, "(12 % 3) % 2", Right (os_empty, ofNumLiteral 0));
+    ("modulo three numbers parens right", os_empty, "12 % (3 % 2)", Right (os_empty, ofNumLiteral 0));
 
-    ("left shift two numbers", "10 << 2", Right (ofNumLiteral 40));
-    ("left shift three numbers", "12 << 3 << 2", Right (ofNumLiteral 384));
-    ("left shift three numbers parens left", "(12 << 3) << 2", Right (ofNumLiteral 384));
-    ("left shift three numbers parens right", "12 << (3 << 2)", Right (ofNumLiteral 49152));
+    ("left shift two numbers", os_empty, "10 << 2", Right (os_empty, ofNumLiteral 40));
+    ("left shift three numbers", os_empty, "12 << 3 << 2", Right (os_empty, ofNumLiteral 384));
+    ("left shift three numbers parens left", os_empty, "(12 << 3) << 2", Right (os_empty, ofNumLiteral 384));
+    ("left shift three numbers parens right", os_empty, "12 << (3 << 2)", Right (os_empty, ofNumLiteral 49152));
 
-    ("right shift two numbers", "10 >> 2", Right (ofNumLiteral 2));
-    ("right shift three numbers", "200 >> 3 >> 2", Right (ofNumLiteral 6));
-    ("right shift three numbers parens left", "(200 >> 3) >> 2", Right (ofNumLiteral 6));
-    ("right shift three numbers parens right", "12 >> (3 >> 2)", Right (ofNumLiteral 12));
+    ("right shift two numbers", os_empty, "10 >> 2", Right (os_empty, ofNumLiteral 2));
+    ("right shift three numbers", os_empty, "200 >> 3 >> 2", Right (os_empty, ofNumLiteral 6));
+    ("right shift three numbers parens left", os_empty, "(200 >> 3) >> 2", Right (os_empty, ofNumLiteral 6));
+    ("right shift three numbers parens right", os_empty, "12 >> (3 >> 2)", Right (os_empty, ofNumLiteral 12));
 
-    ("bitwise and two numbers", "10 & 7", Right (ofNumLiteral 2));
-    ("bitwise or two numbers", "10 | 7", Right (ofNumLiteral 15));
+    ("bitwise and two numbers", os_empty, "10 & 7", Right (os_empty, ofNumLiteral 2));
+    ("bitwise or two numbers", os_empty, "10 | 7", Right (os_empty, ofNumLiteral 15));
 
-    ("bitwise and/or three numbers", "23 & 7 | 8", Right (ofNumLiteral 15));
-    ("bitwise and/or three numbers parens left", "(23 & 7) | 8", Right (ofNumLiteral 15));
-    ("bitwise and/or three numbers parens right", "23 & (7 | 8)", Right (ofNumLiteral 7));
+    ("bitwise and/or three numbers", os_empty, "23 & 7 | 8", Right (os_empty, ofNumLiteral 15));
+    ("bitwise and/or three numbers parens left", os_empty, "(23 & 7) | 8", Right (os_empty, ofNumLiteral 15));
+    ("bitwise and/or three numbers parens right", os_empty, "23 & (7 | 8)", Right (os_empty, ofNumLiteral 7));
 
-    ("bitwise or/and three numbers", "4 | 19 & 11", Right (ofNumLiteral 7));
-    ("bitwise or/and three numbers parens left", "(4 | 19) & 11", Right (ofNumLiteral 3));
-    ("bitwise or/and three numbers parens right", "4 | (19 & 11)", Right (ofNumLiteral 7));
+    ("bitwise or/and three numbers", os_empty, "4 | 19 & 11", Right (os_empty, ofNumLiteral 7));
+    ("bitwise or/and three numbers parens left", os_empty, "(4 | 19) & 11", Right (os_empty, ofNumLiteral 3));
+    ("bitwise or/and three numbers parens right", os_empty, "4 | (19 & 11)", Right (os_empty, ofNumLiteral 7));
 
-    ("bitwise xor two numbers", "10 ^ 7", Right (ofNumLiteral 13));
-    ("bitwise xor three numbers", "12 ^ 9 ^ 8", Right (ofNumLiteral 13));
-    ("bitwise xor three numbers parens left", "(12 ^ 9) ^ 8", Right (ofNumLiteral 13));
-    ("bitwise xor three numbers parens right", "12 ^ (9 ^ 8)", Right (ofNumLiteral 13));
+    ("bitwise xor two numbers", os_empty, "10 ^ 7", Right (os_empty, ofNumLiteral 13));
+    ("bitwise xor three numbers", os_empty, "12 ^ 9 ^ 8", Right (os_empty, ofNumLiteral 13));
+    ("bitwise xor three numbers parens left", os_empty, "(12 ^ 9) ^ 8", Right (os_empty, ofNumLiteral 13));
+    ("bitwise xor three numbers parens right", os_empty, "12 ^ (9 ^ 8)", Right (os_empty, ofNumLiteral 13));
 
-    ("divide by zero ", "47 / 0", Left "Divide by zero");
+    ("divide by zero ", os_empty, "47 / 0", Left "Divide by zero");
 
-    ("Conditional true", "18 ? 47 : 42", Right (ofNumLiteral 47));
-    ("Conditional false", "0 ? 47 : 42", Right (ofNumLiteral 42));
+    ("conditional true", os_empty, "18 ? 47 : 42", Right (os_empty, ofNumLiteral 47));
+    ("conditional false", os_empty, "0 ? 47 : 42", Right (os_empty, ofNumLiteral 42));
 
-    ("Bitwise negation", "~(-48)", Right (ofNumLiteral 47));
-    ("Boolean not", "!47", Right (ofNumLiteral 0));
-    ("Boolean not", "!0", Right (ofNumLiteral 1));
-  ]
+    ("bitwise negation", os_empty, "~(-48)", Right (os_empty, ofNumLiteral 47));
+    ("boolean not", os_empty, "!47", Right (os_empty, ofNumLiteral 0));
+    ("boolean not", os_empty, "!0", Right (os_empty, ofNumLiteral 1));
 
-let eval_bignum_tests ofNumLiteral mul : (string * string * (string, Nat_big_num.num)Either.either)list =
-  [
-    ("large number 9223372036854775808", "9223372036854775808", Right (mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
-    ("large hex number 0x8000000000000000", "0x8000000000000000", Right (mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
-    ("large oct number 01000000000000000000000", "01000000000000000000000", Right (mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
-  ]
+    ("assign x to 5", os_empty, "x=5", Right (os_var_x_five, ofNumLiteral 5));
 
-let eval_int64_tests ofNumLiteral mul : (string * string * (string, Int64.t)Either.either)list =
-  [
-    ("large number 9223372036854775808", "9223372036854775808", Right int64Max);
-    ("large hex number 0x8000000000000000", "0x8000000000000000", Right int64Max);
-    ("large oct number 01000000000000000000000", "01000000000000000000000", Right int64Max);
+    ("x plus equals 2, x is set to 5", os_var_x_five, "x+=2", Right (shell_env_insert os_empty "x" "7", ofNumLiteral 7));
+    ("x minus equals 2, x is set to 5", os_var_x_five, "x-=2", Right (shell_env_insert os_empty "x" "3", ofNumLiteral 3));
+    ("x times equals 2, x is set to 5", os_var_x_five, "x*=2", Right (shell_env_insert os_empty "x" "10", ofNumLiteral 10));
+    ("x div equals 2, x is set to 5", os_var_x_five, "x/=2", Right (shell_env_insert os_empty "x" "2", ofNumLiteral 2));
+    ("x mod equals 2, x is set to 5", os_var_x_five, "x%=2", Right (shell_env_insert os_empty "x" "1", ofNumLiteral 1));
 
-    ("arithmetic overflow", "1073741824 * 1073741824 * 8", Right int64Min);
-
-    ("left shift by negative", "15 << -63", Right (ofNumLiteral 30));
-    ("right shift by negative", "15 >> -63", Right (ofNumLiteral 7));
-
-    ("right shift uses arithmetic shift", "(15 << -1) >> 1", Right (Int64.div int64Min (ofNumLiteral 2)));
+    ("x lshift equals 2, x is set to 5", os_var_x_five, "x<<=2", Right (shell_env_insert os_empty "x" "20", ofNumLiteral 20));
+    ("x rshift equals 2, x is set to 5", os_var_x_five, "x>>=2", Right (shell_env_insert os_empty "x" "1", ofNumLiteral 1));
+    ("x & equals 2, x is set to 5", os_var_x_five, "x&=2", Right (shell_env_insert os_empty "x" "0", ofNumLiteral 0));
+    ("x | equals 2, x is set to 5", os_var_x_five, "x|=2", Right (shell_env_insert os_empty "x" "7", ofNumLiteral 7));
+    ("x ^ equals 2, x is set to 5", os_var_x_five, "x^=2", Right (shell_env_insert os_empty "x" "7", ofNumLiteral 7));
 
   ]
 
-let eval_int32_tests ofNumLiteral mul : (string * string * (string, Int32.t)Either.either)list =
+let eval_bignum_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_os_state * Nat_big_num.num)Either.either)list =
   [
-    ("large number 9223372036854775808", "9223372036854775808", Right int32Max);
-    ("large hex number 0x8000000000000000", "0x8000000000000000", Right int32Max);
-    ("large oct number 020000000000", "020000000000", Right int32Max);
-    ("large oct number 01000000000000000000000", "01000000000000000000000", Right int32Max);
+    ("large number 9223372036854775808", os_empty, "9223372036854775808", Right (os_empty, mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
+    ("large hex number 0x8000000000000000", os_empty, "0x8000000000000000", Right (os_empty, mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
+    ("large oct number 01000000000000000000000", os_empty, "01000000000000000000000", Right (os_empty, mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
+  ]
 
-    ("arithmetic overflow", "2147483647 + 1", Right int32Min);
+let eval_int64_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_os_state * Int64.t)Either.either)list =
+  [
+    ("large number 9223372036854775808", os_empty, "9223372036854775808", Right (os_empty, int64Max));
+    ("large hex number 0x8000000000000000", os_empty, "0x8000000000000000", Right (os_empty, int64Max));
+    ("large oct number 01000000000000000000000", os_empty, "01000000000000000000000", Right (os_empty, int64Max));
 
-    ("left shift by negative", "15 << -31", Right (ofNumLiteral 30));
-    ("right shift by negative", "15 >> -31", Right (ofNumLiteral 7));
+    ("arithmetic overflow", os_empty, "1073741824 * 1073741824 * 8", Right (os_empty, int64Min));
 
-    ("right shift uses arithmetic shift", "(15 << -1) >> 1", Right (Int32.div int32Min (ofNumLiteral 2)));
+    ("left shift by negative", os_empty, "15 << -63", Right (os_empty, ofNumLiteral 30));
+    ("right shift by negative", os_empty, "15 >> -63", Right (os_empty, ofNumLiteral 7));
+
+    ("right shift uses arithmetic shift", os_empty, "(15 << -1) >> 1", Right (os_empty, Int64.div int64Min (ofNumLiteral 2)));
+
+    ("x minus equals 7 return -2 when x is set to 5", os_var_x_five, "x-=7", Right (shell_env_insert os_empty "x" "-2", Int64.neg (ofNumLiteral 2)));
+  ]
+
+let eval_int32_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_os_state * Int32.t)Either.either)list =
+  [
+    ("large number 9223372036854775808", os_empty, "9223372036854775808", Right (os_empty, int32Max));
+    ("large hex number 0x8000000000000000", os_empty, "0x8000000000000000", Right (os_empty, int32Max));
+    ("large oct number 020000000000", os_empty, "020000000000", Right (os_empty, int32Max));
+    ("large oct number 01000000000000000000000", os_empty, "01000000000000000000000", Right (os_empty, int32Max));
+
+    ("arithmetic overflow", os_empty, "2147483647 + 1", Right (os_empty, int32Min));
+
+    ("left shift by negative", os_empty, "15 << -31", Right (os_empty, ofNumLiteral 30));
+    ("right shift by negative", os_empty, "15 >> -31", Right (os_empty, ofNumLiteral 7));
+
+    ("right shift uses arithmetic shift", os_empty, "(15 << -1) >> 1", Right (os_empty, Int32.div int32Min (ofNumLiteral 2)));
   ]
 
 let test_part name checker stringOfExpected tests count failed =
@@ -278,6 +302,7 @@ let test_part name checker stringOfExpected tests count failed =
 let run_tests () =
   let failed = ref 0 in
   let test_count = ref 0 in
+  let prnt = fun p (s, n) -> ("<| " ^ (print_shell_env s) ^ "; " ^ (p n) ^ " |>") in
   print_endline "\n=== Running arithmetic tests...";
   (* Lexer tests *)
   test_part "Lexer" check_lexer (Either.either_case id token_list_to_string) lexer_tests test_count failed;
@@ -286,14 +311,14 @@ let run_tests () =
   test_part "Parser" check_parser (Either.either_case id string_of_aexp) parser_tests test_count failed;
 
   (* General eval tests *)
-  test_part "General eval Nat_big_num" check_eval_big_num (Either.either_case id Nat_big_num.to_string) (eval_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
-  test_part "General eval int32" check_eval_int32 (Either.either_case id Int32.to_string) (eval_tests Int32.of_int Int32.mul) test_count failed;
-  test_part "General eval int64" check_eval_int64 (Either.either_case id Int64.to_string) (eval_tests Int64.of_int Int64.mul) test_count failed;
+  test_part "General eval Nat_big_num" check_eval_big_num (Either.either_case id (prnt Nat_big_num.to_string)) (eval_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
+  test_part "General eval int32" check_eval_int32 (Either.either_case id (prnt Int32.to_string)) (eval_tests Int32.of_int Int32.mul) test_count failed;
+  test_part "General eval int64" check_eval_int64 (Either.either_case id (prnt Int64.to_string)) (eval_tests Int64.of_int Int64.mul) test_count failed;
 
   (* Type specific eval tests *)
-  test_part "Eval Nat_big_num" check_eval_big_num (Either.either_case id Nat_big_num.to_string) (eval_bignum_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
-  test_part "Eval int32" check_eval_int32 (Either.either_case id Int32.to_string) (eval_int32_tests Int32.of_int Int32.mul) test_count failed;
-  test_part "Eval int64" check_eval_int64 (Either.either_case id Int64.to_string) (eval_int64_tests Int64.of_int Int64.mul) test_count failed;
+  test_part "Eval Nat_big_num" check_eval_big_num (Either.either_case id (prnt Nat_big_num.to_string)) (eval_bignum_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
+  test_part "Eval int32" check_eval_int32 (Either.either_case id (prnt Int32.to_string)) (eval_int32_tests Int32.of_int Int32.mul) test_count failed;
+  test_part "Eval int64" check_eval_int64 (Either.either_case id (prnt Int64.to_string)) (eval_int64_tests Int64.of_int Int64.mul) test_count failed;
 
   printf "=== ...ran %d arithmetic tests with %d failures.\n\n" !test_count !failed
 

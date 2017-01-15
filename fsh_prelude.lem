@@ -1,0 +1,251 @@
+open import Pervasives_extra
+
+(*-------------------------------*)
+(* sibylfs types                 *)
+(*-------------------------------*)
+
+type ty_pid = Pid of nat (*o with sexp o*) (* coverage:sexp *)
+let ty_pid_compare (Pid n0) (Pid n1) = compare n0 n1
+instance ( SetType ty_pid )
+  let setElemCompare = ty_pid_compare
+end
+
+instance (Eq ty_pid)
+  let (=) = unsafe_structural_equality
+  let (<>) = unsafe_structural_inequality
+end
+
+val dest_PID : ty_pid -> nat
+let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
+
+(* From t_fs_spec.lem_cppo line 1187 *)
+type ty_os_state = <|
+    shell_env: Map.map string string
+  |>
+
+val print_shell_env : ty_os_state -> string
+let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ v ^ ", " ^ s) st.shell_env ""
+
+(* The result is nothing if the parameter is unset, and the empty string null. *)
+val lookup_param : ty_os_state -> string -> maybe string
+let lookup_param s0 str = Map.lookup str s0.shell_env
+
+(*--------------------------------*)
+(* Nat class                      *)
+(*--------------------------------*)
+class ( Nat 'a )
+  val fromNat : nat -> 'a
+  val toNat : 'a -> nat
+end
+
+instance (Nat integer)
+  let fromNat = integerFromNat
+  let toNat = natFromInteger
+end
+
+instance (Nat int32)
+  let fromNat = int32FromNat
+  let toNat = natFromInt32
+end
+
+instance (Nat int64)
+  let fromNat = int64FromNat
+  let toNat = natFromInt64
+end
+
+(*--------------------------------*)
+(* Read class                     *)
+(*--------------------------------*)
+
+let is_whitespace c = elem c (toCharList " \n\t")
+let is_digit c = elem c (toCharList "1234567890")
+let is_num_const_char c = elem c (toCharList "1234567890xabcdefABCDEF")
+let is_alpha c = elem c (toCharList "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+(* Convert uppercase A-F to lowercase and then convert
+ * lowercase hexdigit to integer 10 to 15. *)
+val hexalpha_to_num : char -> nat
+let hexalpha_to_num c =
+  let num = ord c in
+  let lowercase = if num >= 65 && num <= 70
+    then num + 32
+    else num in
+  9 + (lowercase - 96)
+
+class ( Read 'a )
+  (* Read can fail with an error message by using Left.
+   * Do not use any methods that may throw errors. *)
+  val read : list char -> either string 'a
+end
+
+let readConstant dec hex oct acc chars =
+  match chars with
+  | #'0'::#'x'::cs -> hex acc cs
+  | #'0'::cs -> oct acc cs
+  | _ -> dec acc chars
+  end
+
+val readIntegerDec : integer -> (list char) -> either string integer
+let rec readIntegerDec acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num >= 0 && num < 10
+      then readIntegerDec ((10 * acc) + (integerFromNat ((ord c) - 48))) cs
+      else Left ((toString [c]) ^ " is not a valid decimal digit")
+  end
+
+let int64Max = ((int64FromNat 2) ** 63) - 1
+let int64Min = ~((int64FromNat 2) ** 63)
+
+let int32Max = ((int32FromNat 2) ** 31) - 1
+let int32Min = ~((int32FromNat 2) ** 31)
+
+val readInt64Dec : int64 -> (list char) -> either string int64
+let rec readInt64Dec acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num >= 0 && num < 10
+      then let acc1 = ((10 * acc) + (int64FromNat ((ord c) - 48))) in
+           if acc1 < 0
+           then Right int64Max
+           else readInt64Dec acc1 cs
+      else Left ((toString [c]) ^ " is not a valid decimal digit")
+  end
+
+val readInt32Dec : int32 -> (list char) -> either string int32
+let rec readInt32Dec acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num >= 0 && num < 10
+      then let acc1 = ((10 * acc) + (int32FromNat ((ord c) - 48))) in
+           if acc1 < 0
+           then Right int32Max
+           else readInt32Dec acc1 cs
+      else Left ((toString [c]) ^ " is not a valid decimal digit")
+  end
+
+val readIntegerHex : integer -> (list char) -> either string integer
+let rec readIntegerHex acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = if is_digit c
+        then (ord c) - 48
+        else hexalpha_to_num c in
+      if num >= 0 && num < 16
+      then readIntegerHex ((16 * acc) + (integerFromNat num)) cs
+      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
+  end
+
+val readInt64Hex : int64 -> (list char) -> either string int64
+let rec readInt64Hex acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = if is_digit c
+        then (ord c) - 48
+        else hexalpha_to_num c in
+      if num >= 0 && num < 16
+      then let acc1 = (16 * acc) + (int64FromNat num) in
+           if acc1 < 0
+           then Right int64Max
+           else readInt64Hex acc1 cs
+      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
+  end
+
+val readInt32Hex : int32 -> (list char) -> either string int32
+let rec readInt32Hex acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = if is_digit c
+        then (ord c) - 48
+        else hexalpha_to_num c in
+      if num >= 0 && num < 16
+      then let acc1 = (16 * acc) + (int32FromNat num) in
+           if acc1 < 0
+           then Right int32Max
+           else readInt32Hex acc1 cs
+      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
+  end
+
+val readIntegerOct : integer -> (list char) -> either string integer
+let rec readIntegerOct acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num > 7 || num < 0
+      then Left ((toString [c]) ^ " is not a valid octal digit")
+      else readIntegerOct ((8 * acc) + (integerFromNat ((ord c) - 48)))cs
+  end
+
+val readInt64Oct : int64 -> (list char) -> either string int64
+let rec readInt64Oct acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num > 7 || num < 0
+      then Left ((toString [c]) ^ " is not a valid octal digit")
+      else let acc1 = (8 * acc) + (int64FromNat num) in
+           if acc1 < 0
+           then Right int64Max
+           else readInt64Oct acc1 cs
+  end
+
+val readInt32Oct : int32 -> (list char) -> either string int32
+let rec readInt32Oct acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+      let num = (ord c) - 48 in
+      if num > 7 || num < 0
+      then Left ((toString [c]) ^ " is not a valid octal digit")
+      else let acc1 = (8 * acc) + (int32FromNat num) in
+           if acc1 < 0
+           then Right int32Max
+           else readInt32Oct acc1 cs
+  end
+
+
+instance ( Read integer )
+  let read cs = readConstant readIntegerDec readIntegerHex readIntegerOct 0 cs
+end
+
+instance ( Read int64 )
+  let read cs = readConstant readInt64Dec readInt64Hex readInt64Oct (int64FromNat 0) cs
+end
+
+instance ( Read int32 )
+  let read cs = readConstant readInt32Dec readInt32Hex readInt32Oct (int32FromNat 0) cs
+end
+
+
+(*--------------------------------*)
+(* Write "class"                  *)
+(*--------------------------------*)
+
+val write_helper : forall 'a. Eq 'a, Nat 'a, NumIntegerDivision 'a, NumRemainder 'a => string -> 'a -> string
+let rec write_helper str n =
+  if n = fromNat 0
+  then str
+  else let ten = fromNat 10 in
+    let next_digit = n mod ten in
+    write_helper ((stringFromNat (toNat next_digit)) ^ str) (n div ten)
+
+val write : forall 'a. Eq 'a, Ord 'a, Nat 'a, NumNegate 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a -> string
+let write n =
+  if n < fromNat 0
+  then "-" ^ (write_helper "" (~n))
+  else 
+    if n = fromNat 0
+    then "0"
+    else write_helper "" n
+

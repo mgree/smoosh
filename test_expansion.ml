@@ -1,4 +1,6 @@
 open Lem_pervasives_extra
+open Test_prelude
+open Fsh_prelude
 open Expansion
 open Printf
 
@@ -17,17 +19,6 @@ let check_expansion (test_name, s0, w_in, f_expected):result=
   if (listEqualBy (=) f_out f_expected)
   then Ok
   else RErr( test_name, f_expected, f_out))
-
-let os_empty:ty_os_state=  ({
-    shell_env = (Pmap.empty compare);
-  })
-
-let os_var_x_null:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "x" "" os_empty.shell_env) })
-let os_var_x_set:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "x" "bar" os_empty.shell_env) })
-let os_var_x_set_three:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "x" "\"this is three\"" os_empty.shell_env) })
-
-let os_ifs_spaceandcomma:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "IFS" " ," os_empty.shell_env) })
-let os_ifs_comma:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "IFS" "," os_empty.shell_env) })
 
 (* TODO: tests for variable assignment (will have to check ending state as well) *)
 let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
