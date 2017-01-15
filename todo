@@ -1,10 +1,3 @@
-### Arith
-
-Finish eval
-Does right shift use arithmetic or logical right shift?
-  - Max size of nat could create LShift and RShift errors because number
-    must be converted to a nat (shift operators have type : 'a -> nat -> 'a)
-Add assignment
 
 ##### Issues
 01000000000000000000000 was parsing as 0 for int32
