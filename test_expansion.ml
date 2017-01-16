@@ -106,6 +106,9 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("Quoted field is a separate field when ifs separators are outside the quoted section", os_var_x_set_three,
       [K (Param("y", Default [S "foo "])); K (Quote [K (Param("x", Normal))]); K (Param("y", Default [S " bar"]))], ["foo"; "\"this is three\""; "bar"]);
 
+    ("Simple arith test", os_empty,
+      [K (Arith ([], [S "5 + 5"]))], ["10"]);
+
   ])
 
 let rec list_to_string = function		

@@ -8,7 +8,7 @@ Strings will be whatever lem uses for string
 *)
 
 type expanded_word =
-   ExpF
+   UsrF
  | ExpS of string
  | ExpDQ of string
  | UsrS of string
@@ -51,7 +51,7 @@ and control =
   | Param of string * format
   | LAssign of string * expanded_words * words
   | Backtick of words
-  | Arith of words
+  | Arith of expanded_words * words
   | Quote of words
 
 and entry =
@@ -91,7 +91,7 @@ val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_stat
 let rec concat_expanded w =
   match w with
   | [] -> ""
-  | (ExpF::ws) -> " " ^ concat_expanded ws
+  | (UsrF::ws) -> " " ^ concat_expanded ws
   | (ExpS(s)::ws) -> s ^ concat_expanded ws
   | (ExpDQ(s)::ws) -> s ^ concat_expanded ws
   end
@@ -136,8 +136,13 @@ and expand_control s0 q k =
         let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
         (s1, [], [K (LAssign s (f ++ f1) w1)])
     | Backtick w -> (s0, [], [S "error"]) (* This should create a new bash env *)
-    | Arith w -> let (s1, f1, w1) = expand_words s0 q GeneratedString ([],w) in
-        (s1, [], [K (Arith w1)])
+    | Arith f [] ->
+        match arith64 s0 (toCharList (concat_expanded f)) with
+        | Right (s1, result) -> (s1, [ExpS (write result)], [])
+        | Left e -> (s0, [ExpS e], [])
+        end
+    | Arith f w -> let (s1, f1, w1) = expand_words s0 q GeneratedString ([],w) in
+        (s1, [], [K (Arith (f ++ f1) w1)])
     | Quote w -> let (s1, f1, w1) = expand_words s0 Quoted GeneratedString ([],w) in
         match w1 with
         | [] -> (s1, f1, [])
@@ -149,20 +154,19 @@ and expand_control s0 q k =
 and expand_words s0 q sm (f,w) =
   match w with
     | [] -> (s0, f, w)
-    | (F::ws) -> (s0, f ++ [ExpF], ws)
+    | (F::ws) -> (s0, f ++ [UsrF], ws)
     | (S(s)::ws) ->
         let f1 = match (q, sm) with
         | (Quoted, UserString) -> [UsrDQ s]
-        | (Quoted, GenerateString) -> [ExpDQ s]
+        | (Quoted, GeneratedString) -> [ExpDQ s]
         | (Unquoted, UserString) -> [UsrS s]
-        | (Unquoted, GenerateString) -> [ExpS s]
+        | (Unquoted, GeneratedString) -> [ExpS s]
         end in
         (s0, f ++ f1, ws)
-
     | (DQ(s)::ws) ->
         let f1 = match sm with
         | UserString -> [UsrDQ s]
-        | GenerateString -> [ExpDQ s]
+        | GeneratedString -> [ExpDQ s]
         end in
         (s0, f ++ f1, ws)
     | (K(k)::ws) -> let (s1,f1,w1) = expand_control s0 q k in
@@ -222,7 +226,7 @@ let rec split_string ifs clst =
 let rec split_word ifs p =
   match p with
   | (f, []) -> (f, [])
-  | (f, ExpF::wrds) -> split_word ifs (f ++ [FS], wrds)
+  | (f, UsrF::wrds) -> split_word ifs (f ++ [FS], wrds)
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_string ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
