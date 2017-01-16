@@ -8,7 +8,8 @@ Strings will be whatever lem uses for string
 *)
 
 type expanded_word =
-   ExpS of string
+   ExpF
+ | ExpS of string
  | ExpDQ of string
  | UsrS of string
  | UsrDQ of string
@@ -90,6 +91,7 @@ val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_stat
 let rec concat_expanded w =
   match w with
   | [] -> ""
+  | (ExpF::ws) -> " " ^ concat_expanded ws
   | (ExpS(s)::ws) -> s ^ concat_expanded ws
   | (ExpDQ(s)::ws) -> s ^ concat_expanded ws
   end
@@ -147,8 +149,7 @@ and expand_control s0 q k =
 and expand_words s0 q sm (f,w) =
   match w with
     | [] -> (s0, f, w)
-    | (F::ws) -> let (s1,f1,w1) = (expand_words s0 q sm ([],ws)) in
-        (s1, f ++ f1, w1)
+    | (F::ws) -> (s0, f ++ [ExpF], ws)
     | (S(s)::ws) ->
         let f1 = match (q, sm) with
         | (Quoted, UserString) -> [UsrDQ s]
@@ -221,6 +222,7 @@ let rec split_string ifs clst =
 let rec split_word ifs p =
   match p with
   | (f, []) -> (f, [])
+  | (f, ExpF::wrds) -> split_word ifs (f ++ [FS], wrds)
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_string ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
