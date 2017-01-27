@@ -67,10 +67,12 @@ let is_alpha c = elem c (toCharList "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQR
 val hexalpha_to_num : char -> nat
 let hexalpha_to_num c =
   let num = ord c in
-  let lowercase = if num >= 65 && num <= 70
-    then num + 32
-    else num in
-  9 + (lowercase - 96)
+  if 48 <= num && num <= 57
+  then num - 48
+  else let lowercase = if num >= 65 && num <= 70
+                       then num + 32
+                       else num in
+       9 + (lowercase - 96)
 
 class ( Read 'a )
   (* Read can fail with an error message by using Left.
@@ -85,146 +87,62 @@ let readConstant dec hex oct acc chars =
   | _ -> dec acc chars
   end
 
-val readIntegerDec : integer -> (list char) -> either string integer
-let rec readIntegerDec acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num >= 0 && num < 10
-      then readIntegerDec ((10 * acc) + (integerFromNat ((ord c) - 48))) cs
-      else Left ((toString [c]) ^ " is not a valid decimal digit")
-  end
-
 let int64Max = ((int64FromNat 2) ** 63) - 1
 let int64Min = ~((int64FromNat 2) ** 63)
 
 let int32Max = ((int32FromNat 2) ** 31) - 1
 let int32Min = ~((int32FromNat 2) ** 31)
 
-val readInt64Dec : int64 -> (list char) -> either string int64
-let rec readInt64Dec acc chars =
+val readInteger : nat -> integer -> (list char) -> either string integer
+let rec readInteger base acc chars =
   match chars with
   | [] -> Right acc
   | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num >= 0 && num < 10
-      then let acc1 = ((10 * acc) + (int64FromNat ((ord c) - 48))) in
+     let num = hexalpha_to_num c in
+      if num > base - 1 || num < 0
+      then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
+      else readInteger base (((integerFromNat base) * acc) + (integerFromNat num)) cs
+  end
+
+val readInt64 : nat -> int64 -> (list char) -> either string int64
+let rec readInt64 base acc chars =
+  match chars with
+  | [] -> Right acc
+  | (c::cs) ->
+     let num = hexalpha_to_num c in
+      if num > base - 1 || num < 0
+      then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
+      else let acc1 = ((int64FromNat base) * acc) + (int64FromNat num) in
            if acc1 < 0
            then Right int64Max
-           else readInt64Dec acc1 cs
-      else Left ((toString [c]) ^ " is not a valid decimal digit")
+           else readInt64 base acc1 cs
   end
 
-val readInt32Dec : int32 -> (list char) -> either string int32
-let rec readInt32Dec acc chars =
+val readInt32 : nat -> int32 -> (list char) -> either string int32
+let rec readInt32 base acc chars =
   match chars with
   | [] -> Right acc
   | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num >= 0 && num < 10
-      then let acc1 = ((10 * acc) + (int32FromNat ((ord c) - 48))) in
+     let num = hexalpha_to_num c in
+      if num > base - 1 || num < 0
+      then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
+      else let acc1 = ((int32FromNat base) * acc) + (int32FromNat num) in
            if acc1 < 0
            then Right int32Max
-           else readInt32Dec acc1 cs
-      else Left ((toString [c]) ^ " is not a valid decimal digit")
-  end
-
-val readIntegerHex : integer -> (list char) -> either string integer
-let rec readIntegerHex acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = if is_digit c
-        then (ord c) - 48
-        else hexalpha_to_num c in
-      if num >= 0 && num < 16
-      then readIntegerHex ((16 * acc) + (integerFromNat num)) cs
-      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
-  end
-
-val readInt64Hex : int64 -> (list char) -> either string int64
-let rec readInt64Hex acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = if is_digit c
-        then (ord c) - 48
-        else hexalpha_to_num c in
-      if num >= 0 && num < 16
-      then let acc1 = (16 * acc) + (int64FromNat num) in
-           if acc1 < 0
-           then Right int64Max
-           else readInt64Hex acc1 cs
-      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
-  end
-
-val readInt32Hex : int32 -> (list char) -> either string int32
-let rec readInt32Hex acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = if is_digit c
-        then (ord c) - 48
-        else hexalpha_to_num c in
-      if num >= 0 && num < 16
-      then let acc1 = (16 * acc) + (int32FromNat num) in
-           if acc1 < 0
-           then Right int32Max
-           else readInt32Hex acc1 cs
-      else Left ((toString [c]) ^ " is not a valid hexadecimal digit")
-  end
-
-val readIntegerOct : integer -> (list char) -> either string integer
-let rec readIntegerOct acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num > 7 || num < 0
-      then Left ((toString [c]) ^ " is not a valid octal digit")
-      else readIntegerOct ((8 * acc) + (integerFromNat ((ord c) - 48)))cs
-  end
-
-val readInt64Oct : int64 -> (list char) -> either string int64
-let rec readInt64Oct acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num > 7 || num < 0
-      then Left ((toString [c]) ^ " is not a valid octal digit")
-      else let acc1 = (8 * acc) + (int64FromNat num) in
-           if acc1 < 0
-           then Right int64Max
-           else readInt64Oct acc1 cs
-  end
-
-val readInt32Oct : int32 -> (list char) -> either string int32
-let rec readInt32Oct acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-      let num = (ord c) - 48 in
-      if num > 7 || num < 0
-      then Left ((toString [c]) ^ " is not a valid octal digit")
-      else let acc1 = (8 * acc) + (int32FromNat num) in
-           if acc1 < 0
-           then Right int32Max
-           else readInt32Oct acc1 cs
+           else readInt32 base acc1 cs
   end
 
 
 instance ( Read integer )
-  let read cs = readConstant readIntegerDec readIntegerHex readIntegerOct 0 cs
+  let read cs = readConstant (readInteger 10) (readInteger 16) (readInteger 8) 0 cs
 end
 
 instance ( Read int64 )
-  let read cs = readConstant readInt64Dec readInt64Hex readInt64Oct (int64FromNat 0) cs
+  let read cs = readConstant (readInt64 10) (readInt64 16) (readInt64 8) (int64FromNat 0) cs
 end
 
 instance ( Read int32 )
-  let read cs = readConstant readInt32Dec readInt32Hex readInt32Oct (int32FromNat 0) cs
+  let read cs = readConstant (readInt32 10) (readInt32 16) (readInt32 8) (int32FromNat 0) cs
 end
 
 
