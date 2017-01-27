@@ -279,7 +279,7 @@ let eval_int32_tests ofNumLiteral mul : (string * ty_os_state * string * (string
     ("large number 9223372036854775808", os_empty, "9223372036854775808", Right (os_empty, int32Max));
     ("large hex number 0x8000000000000000", os_empty, "0x8000000000000000", Right (os_empty, int32Max));
     ("large oct number 020000000000", os_empty, "020000000000", Right (os_empty, int32Max));
-    ("large oct number 01000000000000000000000", os_empty, "01000000000000000000000", Right (os_empty, int32Max));
+    ("large oct number 07777777777777777777777", os_empty, "07777777777777777777777", Right (os_empty, int32Max));
 
     ("arithmetic overflow", os_empty, "2147483647 + 1", Right (os_empty, int32Min));
 
