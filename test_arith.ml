@@ -52,7 +52,8 @@ let rec token_list_to_string = function
 let rec string_of_aexp aexp : string = "Aexp"
 
 (* test_name expected got *)
-type 'a result = Ok | Err of { msg : string;  expected : 'a; got : 'a }
+type 'a result = Ok | Err of 'a err
+  and 'a err = { msg : string;  expected : 'a; got : 'a }
 
 let checker test_fn equal (test_name, input, expected_out) =
   let out = test_fn input in
