@@ -26,9 +26,13 @@ type quoting_mode =
     Unquoted
   | Quoted
 
-type matching_mode =
+type substring_mode =
   Shortest
 | Longest
+
+type substring_side =
+  Prefix
+| Suffix  
 
 type format =
     Normal
@@ -41,9 +45,8 @@ type format =
   | Alt of words
   | NAlt of words
   | Length
-  | Prefix of matching_mode * words
-  | Suffix of matching_mode * words
-
+  | Substring of substring_side * substring_mode * words
+                                
 (* Treating parameters niavely led to a problem when evaluating
  * ${x=${x=foo}bar${x=baz}} incorrectly when x was unset
  *)
@@ -52,6 +55,7 @@ and control =
   | TildeUser of string
   | Param of string * format
   | LAssign of string * expanded_words * words
+  | LMatch of string * substring_side * substring_mode * expanded_words * words
   | Backtick of words
   | Arith of expanded_words * words
   | Quote of words
@@ -67,6 +71,10 @@ and words = list entry
   (* Left is what has been parsed, right is unparsed *)
 and expansion_state = words * words
 
+let rev s = toString (reverse (toCharList s))
+                                
+let rec match_prefix (m:substring_mode) pat s = "TODO: implement match_prefix"
+                                
 val string_of_words : words -> string
 val string_of_entry : entry -> string
 
@@ -104,46 +112,43 @@ let rec expand_param s0 _q str f =
   (let value = lookup_param s0 str in
   (match value with
     | Nothing -> (match f with
-      | Default w  -> w
-      | NDefault w -> w
-      | Assign w   -> [K (LAssign str [] w)]
-      | NAssign w  -> [K (LAssign str [] w)]
-      | Error _    -> [S "TODO: error"] (* This should error *)
-      | NError _   -> [S "TODO: error"] (* This should error *)
-      | Length     -> [S "0"]
-      | Normal     -> [S ""] (* null *)
-      | Alt _      -> [S ""]
-      | NAlt _     -> [S ""]
-      | Prefix _ _ -> [S ""]
-      | Suffix _ _ -> [S ""]
+      | Default w       -> w
+      | NDefault w      -> w
+      | Assign w        -> [K (LAssign str [] w)]
+      | NAssign w       -> [K (LAssign str [] w)]
+      | Error _         -> [S "TODO: error"] (* This should error *)
+      | NError _        -> [S "TODO: error"] (* This should error *)
+      | Length          -> [S "0"]
+      | Normal          -> [S ""] (* null *)
+      | Alt _           -> [S ""]
+      | NAlt _          -> [S ""]
+      | Substring _ _ _ -> [S ""]
       end)
     | Just "" -> (match f with
-      | NDefault w  -> w
-      | Alt w       -> w
-      | NError _    -> [S "TODO: error"] (* This should error *)
-      | Length      -> [S "0"]
-      | Normal      -> [S ""] (* null *)
-      | Assign _    -> [S ""]
-      | NAssign _   -> [S ""]
-      | Default _   -> [S ""]
-      | Error _     -> [S ""]
-      | NAlt _      -> [S ""]
-      | Prefix _ _  -> [S ""]
-      | Suffix _ _  -> [S ""]
+      | NDefault w      -> w
+      | Alt w           -> w
+      | NError _        -> [S "TODO: error"] (* This should error *)
+      | Length          -> [S "0"]
+      | Normal          -> [S ""] (* null *)
+      | Assign _        -> [S ""]
+      | NAssign _       -> [S ""]
+      | Default _       -> [S ""]
+      | Error _         -> [S ""]
+      | NAlt _          -> [S ""]
+      | Substring _ _ _ -> [S ""] (* TODO: this feels like an optimization... is it correct? *)
       end)
     | Just v -> (match f with
-      | Alt w      -> w
-      | NAlt w     -> w
-      | Length     -> [S (show (stringLength v))]
-      | Normal     -> [S v]
-      | Default _  -> [S v]
-      | NDefault _ -> [S v]
-      | Assign _   -> [S v]
-      | NAssign _  -> [S v]
-      | Error _    -> [S v]
-      | NError _   -> [S v]
-      | Prefix _m _w -> [S "TODO: implement prefix matching"]
-      | Suffix _m _w -> [S "TODO: implement suffix matching"]
+      | Alt w           -> w
+      | NAlt w          -> w
+      | Length          -> [S (show (stringLength v))]
+      | Normal          -> [S v]
+      | Default _       -> [S v]
+      | NDefault _      -> [S v]
+      | Assign _        -> [S v]
+      | NAssign _       -> [S v]
+      | Error _         -> [S v]
+      | NError _        -> [S v]
+      | Substring s m w -> [K (LMatch v s m [] w)]
       end)
   end))
 
@@ -158,6 +163,11 @@ and expand_control s0 q k =
     | LAssign s f w ->
         let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
         (s1, [], [K (LAssign s (f ++ f1) w1)])
+    | LMatch str Prefix mode f [] -> (s0, [], [S (match_prefix mode f str)])
+    | LMatch str Suffix mode f [] -> (s0, [], [S (rev (match_prefix mode (rev (concat_expanded f)) (rev str)))])
+    | LMatch s side mode f w ->
+        let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
+        (s1, [], [K (LMatch s side mode (f ++ f1) w1)])
     | Backtick _w -> (s0, [], [S "TODO: implement Backtick"]) (* This should create a new bash env *)
     | Arith f [] ->
         match arith64 s0 (toCharList (concat_expanded f)) with
