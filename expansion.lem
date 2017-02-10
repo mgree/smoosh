@@ -26,6 +26,10 @@ type quoting_mode =
     Unquoted
   | Quoted
 
+type matching_mode =
+  Shortest
+| Longest
+
 type format =
     Normal
   | Default of words
@@ -37,10 +41,8 @@ type format =
   | Alt of words
   | NAlt of words
   | Length
-  | ShortestPrefix of words
-  | LongestPrefix of words
-  | ShortestSuffix of words
-  | LongestSuffix of words
+  | Prefix of matching_mode * words
+  | Suffix of matching_mode * words
 
 (* Treating parameters niavely led to a problem when evaluating
  * ${x=${x=foo}bar${x=baz}} incorrectly when x was unset
@@ -91,43 +93,64 @@ val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_stat
 let rec concat_expanded w =
   match w with
   | [] -> ""
-  | (UsrF::ws) -> " " ^ concat_expanded ws
-  | (ExpS(s)::ws) -> s ^ concat_expanded ws
-  | (ExpDQ(s)::ws) -> s ^ concat_expanded ws
+  | UsrF::ws -> " " ^ concat_expanded ws
+  | ExpS s::ws -> s ^ concat_expanded ws
+  | ExpDQ s::ws -> s ^ concat_expanded ws
+  | UsrS _::_ -> "TODO: broken invariant"
+  | UsrDQ _::_ -> "TODO: broken invariant"
   end
 
-let rec expand_param s0 q str f =
+let rec expand_param s0 _q str f =
   (let value = lookup_param s0 str in
   (match value with
     | Nothing -> (match f with
       | Default w  -> w
-      | NDefault w  -> w
-      | Assign w -> [K (LAssign str [] w)]
+      | NDefault w -> w
+      | Assign w   -> [K (LAssign str [] w)]
       | NAssign w  -> [K (LAssign str [] w)]
-      | Error _    -> [S "error"] (* This should error *)
-      | NError _    -> [S "error"] (* This should error *)
-      | Length     -> [S ("0")]
-      | _          -> [S ("")] (* null *)
+      | Error _    -> [S "TODO: error"] (* This should error *)
+      | NError _   -> [S "TODO: error"] (* This should error *)
+      | Length     -> [S "0"]
+      | Normal     -> [S ""] (* null *)
+      | Alt _      -> [S ""]
+      | NAlt _     -> [S ""]
+      | Prefix _ _ -> [S ""]
+      | Suffix _ _ -> [S ""]
       end)
     | Just "" -> (match f with
-      | NDefault w -> w
-      | Alt w      -> w
-      | NError _    -> [S "error"] (* This should error *)
-      | Length     -> [S ("0")]
-      | _          -> [S ("")] (* null *)
+      | NDefault w  -> w
+      | Alt w       -> w
+      | NError _    -> [S "TODO: error"] (* This should error *)
+      | Length      -> [S "0"]
+      | Normal      -> [S ""] (* null *)
+      | Assign _    -> [S ""]
+      | NAssign _   -> [S ""]
+      | Default _   -> [S ""]
+      | Error _     -> [S ""]
+      | NAlt _      -> [S ""]
+      | Prefix _ _  -> [S ""]
+      | Suffix _ _  -> [S ""]
       end)
     | Just v -> (match f with
-      | Alt w  -> w
-      | NAlt w -> w
-      | Length -> [S (show (stringLength v))]
-      | _      -> [S (v)]
+      | Alt w      -> w
+      | NAlt w     -> w
+      | Length     -> [S (show (stringLength v))]
+      | Normal     -> [S v]
+      | Default _  -> [S v]
+      | NDefault _ -> [S v]
+      | Assign _   -> [S v]
+      | NAssign _  -> [S v]
+      | Error _    -> [S v]
+      | NError _   -> [S v]
+      | Prefix _m _w -> [S "TODO: implement prefix matching"]
+      | Suffix _m _w -> [S "TODO: implement suffix matching"]
       end)
   end))
 
 and expand_control s0 q k =
   match k with
     | Tilde -> (s0, [], expand_param s0 Unquoted "HOME" Normal)
-    | TildeUser usr -> (s0, [], [S "error"]) (* This should call system *)
+    | TildeUser _usr -> (s0, [], [S "TODO: implement TildeUser"]) (* This should call system *)
     | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
         let s1 = <| s0 with shell_env = Map.insert s (concat_expanded f) s0.shell_env |> in
@@ -135,7 +158,7 @@ and expand_control s0 q k =
     | LAssign s f w ->
         let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
         (s1, [], [K (LAssign s (f ++ f1) w1)])
-    | Backtick w -> (s0, [], [S "error"]) (* This should create a new bash env *)
+    | Backtick _w -> (s0, [], [S "TODO: implement Backtick"]) (* This should create a new bash env *)
     | Arith f [] ->
         match arith64 s0 (toCharList (concat_expanded f)) with
         | Right (s1, result) -> (s1, [ExpS (write result)], [])
@@ -193,7 +216,7 @@ type tmp_field =
 
 type intermediate_fields = list tmp_field
 
-val is_whitespace : char -> bool
+val is_ws : char -> bool
 val collect_non_ifs : list char -> list char -> (list char) * (list char)
 (*val collect_ifs_whitespace : list char -> list char -> list char*)
 val split_string : list char -> list char -> intermediate_fields
@@ -202,7 +225,7 @@ val split_fields : ty_os_state -> expanded_words -> intermediate_fields
 val clean_fields : intermediate_fields -> intermediate_fields
 val field_splitting: ty_os_state -> expanded_words -> intermediate_fields
 
-let is_whitespace c = elem c (toCharList " \n\t")
+let is_ws c = elem c (toCharList " \n\t")
 
 let rec collect_non_ifs ifs ls =
   match ls with
@@ -219,7 +242,7 @@ let rec split_string ifs clst =
    | [] -> []
    | c::cs ->
        if elem c ifs
-       then let fs = if is_whitespace c then WFS else FS in fs::split_string ifs cs
+       then let fs = if is_ws c then WFS else FS in fs::split_string ifs cs
        else let (cc, cs1) = (collect_non_ifs ifs cs) in (Field (toString (c::cc)))::(split_string ifs cs1)
   end
 
@@ -295,10 +318,12 @@ let rec remove_quotes f =
 
 let rec to_fields f =
   match f with
-  | [] -> []
-  | FS::FS::rst -> ""::(to_fields rst)
-  | Field(s)::rst -> s::(to_fields rst)
-  | FS::rst -> to_fields rst
+  | []           -> []
+  | FS::FS::rst  -> ""::(to_fields rst)
+  | Field s::rst -> s::(to_fields rst)
+  | FS::rst      -> to_fields rst
+  | WFS::_       -> ["TODO: broken invariant"]
+  | QField _::_  -> ["TODO: broken invariant"]
   end
 
 let rec finalize_fields f =
@@ -307,7 +332,7 @@ let rec finalize_fields f =
   | _ -> to_fields f
   end
 
-let quote_removal s0 f =
+let quote_removal _s0 f =
   let no_quotes = combine_fields (remove_quotes f) in
   finalize_fields no_quotes
 
