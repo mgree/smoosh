@@ -1,9 +1,11 @@
 LEMFILES=fsh_prelude.lem arith.lem expansion.lem
 
+OCAMLOPTS=-w -a+3+10+14+21+24+29+31+46+47+48
+
 MLFILES=$(LEMFILES:.lem=.ml) test_prelude.ml test_arith.ml test_expansion.ml runtest.ml
 
 runtest : $(MLFILES)
-	ocamlc -I ocaml-lib -I ocaml-lib/dependencies/zarith -I . -o $@ zarith.cma nums.cma extract.cma $^ 2>/dev/null
+	ocamlc $(OCAMLOPTS) -I ocaml-lib -I ocaml-lib/dependencies/zarith -I . -o $@ zarith.cma nums.cma extract.cma $^ 
 
 test : runtest
 	./runtest

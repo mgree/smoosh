@@ -20,6 +20,8 @@ let check_expansion (test_name, s0, w_in, f_expected):result=
   then Ok
   else RErr( test_name, f_expected, f_out))
 
+let os_var_x_foofoobarbar:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "x" "foofoobarbar" os_empty.shell_env) })
+
 (* TODO: tests for variable assignment (will have to check ending state as well) *)
 let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
  ([
@@ -108,6 +110,18 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
 
     ("Simple arith test", os_empty,
       [K (Arith ([], [S "5 + 5"]))], ["10"]);
+    
+    ("Shortest prefix", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "foo"])))], ["foobarbar"]);
+
+    ("Shortest prefix, empty *", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "*foo"])))], ["foobarbar"]);
+
+    ("Longest prefix", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Longest, [S "foo"])))], ["foobarbar"]);
+
+    ("Longest prefix, empty *", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Longest, [S "*foo"])))], ["barbar"]);
 
   ])
 
