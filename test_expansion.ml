@@ -117,11 +117,17 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("Shortest prefix, empty *", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Prefix, Shortest, [S "*foo"])))], ["foobarbar"]);
 
+    ("Shortest prefix, empty all-consuming *", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "foo*"])))], ["foobarbar"]);
+
     ("Longest prefix", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Prefix, Longest, [S "foo"])))], ["foobarbar"]);
 
-    ("Longest prefix, empty *", os_var_x_foofoobarbar,
+    ("Longest prefix, *", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Prefix, Longest, [S "*foo"])))], ["barbar"]);
+
+    ("Longest prefix, all-consuming *", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Longest, [S "foo*"])))], [""]);
 
     ("Shortest suffix", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Suffix, Shortest, [S "bar"])))], ["foofoobar"]);
@@ -129,11 +135,17 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("Shortest suffix, empty *", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Suffix, Shortest, [S "bar*"])))], ["foofoobar"]);
 
+    ("Shortest suffix, empty all-consuming *", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Suffix, Shortest, [S "*bar"])))], ["foofoobar"]);
+
     ("Longest suffix", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Suffix, Longest, [S "bar"])))], ["foofoobar"]);
 
-    ("Longest suffix, empty *", os_var_x_foofoobarbar,
+    ("Longest suffix, *", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Suffix, Longest, [S "bar*"])))], ["foofoo"]);
+
+    ("Longest suffix, all-consuming *", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Suffix, Longest, [S "*bar"])))], [""]);
 
   ])
 
