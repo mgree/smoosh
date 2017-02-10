@@ -71,10 +71,12 @@ and words = list entry
   (* Left is what has been parsed, right is unparsed *)
 and expansion_state = words * words
 
-let rev s = toString (reverse (toCharList s))
-                                
-let rec match_prefix (m:substring_mode) pat s = "TODO: implement match_prefix"
-                                
+let rec match_prefix (m:substring_mode) (pat:list char) (s:list char) : list char =
+  match (pat,s) with
+  | _ -> toCharList "TODO: implement match_prefix"
+  end
+
+                               
 val string_of_words : words -> string
 val string_of_entry : entry -> string
 
@@ -107,6 +109,15 @@ let rec concat_expanded w =
   | UsrS _::_ -> "TODO: broken invariant"
   | UsrDQ _::_ -> "TODO: broken invariant"
   end
+
+let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:string) : string =
+  let pat = toCharList (concat_expanded pat) in
+  let str = toCharList str in
+  match side with
+  | Prefix -> toString (match_prefix mode pat str)
+  | Suffix -> toString (reverse (match_prefix mode (reverse pat) (reverse str)))
+  end
+
 
 let rec expand_param s0 _q str f =
   (let value = lookup_param s0 str in
@@ -163,8 +174,7 @@ and expand_control s0 q k =
     | LAssign s f w ->
         let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
         (s1, [], [K (LAssign s (f ++ f1) w1)])
-    | LMatch str Prefix mode f [] -> (s0, [], [S (match_prefix mode f str)])
-    | LMatch str Suffix mode f [] -> (s0, [], [S (rev (match_prefix mode (rev (concat_expanded f)) (rev str)))])
+    | LMatch str side mode f [] -> (s0, [], [S (match_substring side mode f str)])
     | LMatch s side mode f w ->
         let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
         (s1, [], [K (LMatch s side mode (f ++ f1) w1)])
