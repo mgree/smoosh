@@ -123,6 +123,18 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("Longest prefix, empty *", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Prefix, Longest, [S "*foo"])))], ["barbar"]);
 
+    ("Shortest suffix", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Suffix, Shortest, [S "bar"])))], ["foofoobar"]);
+
+    ("Shortest suffix, empty *", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Suffix, Shortest, [S "bar*"])))], ["foofoobar"]);
+
+    ("Longest suffix", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Suffix, Longest, [S "bar"])))], ["foofoobar"]);
+
+    ("Longest suffix, empty *", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Suffix, Longest, [S "bar*"])))], ["foofoo"]);
+
   ])
 
 let rec list_to_string = function		
