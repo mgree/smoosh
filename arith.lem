@@ -191,7 +191,7 @@ and first_conditional_term boolean tkns =
 and second_conditional_term tkns =
   match tkns with
   | (TColon::rst1) -> parse_conditional rst1
-  | ts -> Left "Expected ':'"
+  | _ts -> Left "Expected ':'"
   end
 
 and parse_bool_or tkns =
@@ -405,17 +405,17 @@ and number_term tkns =
   | (TLParen::ts) ->
       match parse_assignment ts with
       | Right(term, TRParen::ts1) -> Right (term, ts1)
-      | Right(term, _) -> Left "Expected right paren found "
+      | Right(_term, _ts) -> Left "Expected right paren found "
       | Left e -> Left e
       end
-  | ts -> Left "Expected number or (expr) found"
+  | _ts -> Left "Expected number or (expr) found"
   end
 
 val parse_arith_exp : forall 'a. list (arith_token 'a) -> either string (arith_exp 'a)
 let parse_arith_exp tkns =
   match parse_assignment tkns with
   | Right (expr, []) -> Right expr
-  | Right (_, ts) -> Left "Expected EOF but found tokens"
+  | Right (_, _ts) -> Left "Expected EOF but found tokens"
   | Left e -> Left e
   end
 

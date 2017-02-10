@@ -1,0 +1,55 @@
+open import Pervasives_extra
+open import Fsh_prelude
+open import Arith
+
+type substring_mode =
+  Shortest
+| Longest
+
+type substring_side =
+  Prefix
+| Suffix  
+
+let rec match_prefix (m:substring_mode) (pat:list char) (s:list char) : maybe (list char) =
+  match (pat,s) with
+
+  (* empty pattern *)
+  | ([]       ,       s) -> Just s
+
+  (* question-mark expressions *)
+  | (#'?'::_   ,     []) -> Nothing
+  | (#'?'::pat', _ ::s') -> match_prefix m pat' s'
+
+  (* star expressions *)
+  | (#'*'::pat',     []) -> match_prefix m pat' []
+  | (#'*'::pat', c ::s') ->
+     match m with
+     | Longest -> 
+        match match_prefix m (#'*'::pat') s' with  (* try skipping a character first *)
+        | Nothing -> match_prefix m pat' (c::s')   (*   ...no dice; try to stop here *)
+        | Just s' -> Just s'                       (*   ...success; we have our answer *)
+        end
+     | Shortest ->
+        match (match_prefix m pat' (c::s')) with    (* try matching empty first *)
+        | Nothing -> match_prefix m (#'*'::pat') s' (*   ...no dice; skip a character and go on *)
+        | Just s' -> Just s'                        (*   ...success; we have our answer *)
+        end
+    end
+
+  (* bracket expressions *)
+  | (#'['::_   ,     []) -> Nothing
+  | (#'['::_pat',_c::_s') -> Just (toCharList "TODO: implement bracket expressions in match_prefix")
+
+  (* plain characters *)                                  
+  | (   _::_,        []) -> Nothing
+  | (  c1::pat', c2::s') ->
+     if c1 = c2
+     then match_prefix m pat' s'
+     else Nothing
+  end
+
+let try_match_prefix (m:substring_mode) (pat:list char) (s:list char) : list char =
+  match match_prefix m pat s with
+  | Nothing -> s
+  | Just s' -> s'
+  end
