@@ -10,6 +10,41 @@ type substring_side =
   Prefix
 | Suffix  
 
+type bracket_char =
+  Char of char
+| Collating of string
+| Equiv of string
+
+type bracket_entry =
+  BC of bracket_char
+| Range of bracket_char * bracket_char
+
+
+type bracket = 
+  Matching of list bracket_entry
+| Nonmatching of list bracket_entry
+
+(* http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_03_05 *)
+(* parsing brackets *)
+let rec parse_bracket (_neg:char) (_pat:list char) : bracket = Matching []
+
+let match_entry (c : char) (be : bracket_entry) : bool = 
+  match be with
+  | BC (Char c')      -> c' = c
+  | BC (Collating _s) -> false (* TODO *)
+  | BC (Equiv _s)     -> false (* TODO *)
+  | Range _lo _hi     -> false (* TODO *)
+  end
+
+(* returns nothing if no match, rest of string if so *)
+(* is this quite right, to account for collations? *)
+let match_bracket (b : bracket) (c : list char) : maybe (list char) = 
+  match (b, c) with
+  | (_, [])                  -> Nothing
+  | (Matching cs,    c :: s) -> if any (match_entry c) cs then Just s else Nothing
+  | (Nonmatching cs, c :: s) -> if any (match_entry c) cs then Nothing else Just s
+  end
+
 let rec match_prefix (m:substring_mode) (pat:list char) (s:list char) : maybe (list char) =
   match (pat,s) with
 
@@ -37,7 +72,7 @@ let rec match_prefix (m:substring_mode) (pat:list char) (s:list char) : maybe (l
     end
 
   (* bracket expressions *)
-  | (#'['::_   ,     []) -> Nothing
+  | (#'['::_   ,     []) -> Nothing (* is this an optimization? *)
   | (#'['::_pat',_c::_s') -> Just (toCharList "TODO: implement bracket expressions in match_prefix")
 
   (* plain characters *)                                  
