@@ -19,14 +19,13 @@ type bracket_entry =
   BC of bracket_char
 | Range of bracket_char * bracket_char
 
-
 type bracket = 
   Matching of list bracket_entry
 | Nonmatching of list bracket_entry
 
 (* http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_03_05 *)
 (* parsing brackets *)
-let rec parse_bracket (_neg:char) (_pat:list char) : bracket = Matching []
+let rec parse_bracket (_neg:char) (_pat:list char) : maybe (bracket * list char) = Nothing (* TODO implement *)
 
 let match_entry (c : char) (be : bracket_entry) : bool = 
   match be with
@@ -73,8 +72,20 @@ let rec match_prefix (m:substring_mode) (pat:list char) (s:list char) : maybe (l
 
   (* bracket expressions *)
   | (#'['::_   ,     []) -> Nothing (* is this an optimization? *)
-  | (#'['::_pat',_c::_s') -> Just (toCharList "TODO: implement bracket expressions in match_prefix")
-
+  | (#'['::pat',c::s') ->
+     match parse_bracket #'!' pat' with
+     | Nothing -> 
+        (* we couldn't parse a bracket expression, so treat it as literals *)
+        if c = #'[' 
+        then match_prefix m pat' s'
+        else Nothing
+     | Just (b,pat'') -> 
+        (* got a bracket expression (and some leftover pattern), match the whole string against it *)
+        match match_bracket b (c::s') with
+        | Nothing -> Nothing                    (* couldn't match the bracket, we're done *)
+        | Just s'' -> match_prefix m pat'' s''  (* got it, keep going with what's left *)
+        end
+     end
   (* plain characters *)                                  
   | (   _::_,        []) -> Nothing
   | (  c1::pat', c2::s') ->
