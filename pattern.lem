@@ -25,7 +25,31 @@ type bracket =
 
 (* http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_03_05 *)
 (* parsing brackets *)
-let rec parse_bracket (_neg:char) (_pat:list char) : maybe (bracket * list char) = Nothing (* TODO implement *)
+let rec parse_bracket_entries (pat:list char) : maybe (list bracket_entry * list char) = 
+  (* TODO write parse_bracket_char (which might read a char, collating, or equiv class); then build range checking on top *)
+  match pat with
+  | lo::#'-'::hi::pat' -> 
+     match parse_bracket_entries pat' with
+     | Nothing -> Nothing
+     | Just (es, pat'') -> Just (Range (Char lo) (Char hi)::es,pat'')
+     end
+  | _ -> Nothing (* TODO implement *)
+  end
+
+let rec parse_bracket (neg:char) (pat:list char) : maybe (bracket * list char) = 
+  match pat with
+  | [] -> Nothing
+  | c::pat' ->
+     if c = neg
+     then match parse_bracket_entries pat' with
+          | Nothing -> Nothing
+          | Just (es,pat'') -> Just (Nonmatching es, pat'')
+          end
+     else match parse_bracket_entries (c::pat') with
+          | Nothing -> Nothing
+          | Just (es, pat'') -> Just (Matching es, pat'')
+          end
+  end
 
 let match_entry (c : char) (be : bracket_entry) : bool = 
   match be with
