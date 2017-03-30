@@ -14,6 +14,7 @@ type bracket_char =
   Char of char
 | Collating of string
 | Equiv of string
+| Class of string
 
 type bracket_entry =
   BC of bracket_char
@@ -25,15 +26,40 @@ type bracket =
 
 (* http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_03_05 *)
 (* parsing brackets *)
-let rec parse_bracket_entries (pat:list char) : maybe (list bracket_entry * list char) = 
-  (* TODO write parse_bracket_char (which might read a char, collating, or equiv class); then build range checking on top *)
+let rec parse_bracket_char (pat:list char) : maybe (bracket_char * list char) =
   match pat with
-  | lo::#'-'::hi::pat' -> 
-     match parse_bracket_entries pat' with
-     | Nothing -> Nothing
-     | Just (es, pat'') -> Just (Range (Char lo) (Char hi)::es,pat'')
-     end
-  | _ -> Nothing (* TODO implement *)
+  | [] -> Nothing
+  | #'['::#'.'::_pat' -> Nothing (* TODO collating char, scan for .] *)
+  | #'['::#'='::_pat' -> Nothing (* TODO equivalence class, scan for =] *)
+  | #'['::#':'::_pat' -> Nothing (* TODO character class, scan for :] *)
+  | c::pat' -> Just (Char c,pat')
+  end
+                      
+let rec parse_bracket_entries (pat:list char) : maybe (list bracket_entry * list char) = 
+  match pat with
+  | [] -> Nothing
+  | #']'::pat' -> Just ([],pat')
+  | _ -> match parse_bracket_char pat with
+         | Nothing -> Nothing
+         | Just (bc,#'-'::pat') -> 
+            match parse_bracket_char pat' with
+            | Nothing -> 
+               match parse_bracket_entries (#'-'::pat') with
+               | Nothing -> Nothing
+               | Just (es,pat'') -> Just (BC bc::es,pat'')
+               end
+            | Just (bc',pat'') -> 
+               match parse_bracket_entries pat'' with
+               | Nothing -> Nothing
+               | Just (es,pat''') -> Just (Range bc bc'::es,pat''')
+               end
+            end
+         | Just (bc,pat') ->
+            match parse_bracket_entries pat' with
+            | Nothing -> Nothing
+            | Just (es,pat'') -> Just (BC bc::es,pat'')
+            end
+         end
   end
 
 let rec parse_bracket (neg:char) (pat:list char) : maybe (bracket * list char) = 
@@ -56,6 +82,7 @@ let match_entry (c : char) (be : bracket_entry) : bool =
   | BC (Char c')      -> c' = c
   | BC (Collating _s) -> false (* TODO *)
   | BC (Equiv _s)     -> false (* TODO *)
+  | BC (Class _s)     -> false (* TODO *)
   | Range _lo _hi     -> false (* TODO *)
   end
 
