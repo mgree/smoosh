@@ -1,5 +1,3 @@
-open Printf
-
 let main () =
   Test_arith.run_tests ();
   Test_expansion.run_tests ()
