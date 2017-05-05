@@ -1,4 +1,4 @@
-LEMFILES=fsh_prelude.lem arith.lem pattern.lem expansion.lem
+LEMFILES=fsh_prelude.lem arith.lem locale.lem pattern.lem expansion.lem
 
 OCAMLOPTS=-w -a+3+10+14+21+24+29+31+46+47+48
 

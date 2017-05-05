@@ -102,8 +102,8 @@ let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_wo
   let pat = toCharList (concat_expanded pat) in
   let str = toCharList str in
   match side with
-  | Prefix -> toString (try_match_prefix mode pat str)
-  | Suffix -> toString (reverse (try_match_prefix mode (reverse pat) (reverse str)))
+  | Prefix -> toString (try_match_prefix Locale.lc_ambient mode pat str) (* TODO way to select/update locale *)
+  | Suffix -> toString (reverse (try_match_prefix Locale.lc_ambient mode (reverse pat) (reverse str))) (* TODO same *)
   end
 
 

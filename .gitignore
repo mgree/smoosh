@@ -8,3 +8,4 @@ ocaml-lib
 runtest
 _build
 pattern.ml
+locale.ml

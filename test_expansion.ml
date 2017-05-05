@@ -147,6 +147,27 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("Longest suffix, all-consuming *", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Suffix, Longest, [S "*bar"])))], [""]);
 
+    ("Shortest prefix bracket [fgh]", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "[fgh]"])))], ["oofoobarbar"]);
+
+    ("Shortest prefix bracket [a-z][a-z][a-z]", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "[a-z][a-z][a-z]"])))], ["foobarbar"]);
+
+    ("Shortest prefix bracket [:alpha:]", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "[[:alpha:]]"])))], ["oofoobarbar"]);
+
+    ("Shortest prefix bracket [.f.]", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "[[.f.]]"])))], ["oofoobarbar"]);
+
+    ("Shortest prefix bracket [.g.]", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "[[.g.]]"])))], ["foofoobarbar"]);
+
+    ("Shortest prefix bracket [=f=]", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "[[=f=]]"])))], ["oofoobarbar"]);
+
+    ("Shortest prefix bracket [[.a.]-[.z.]]", os_var_x_foofoobarbar,
+     [K (Param("x", Substring (Prefix, Shortest, [S "[[.a.]-[.z.]]"])))], ["oofoobarbar"]);
+
   ])
 
 let rec list_to_string = function		

@@ -2,6 +2,8 @@ open import Pervasives_extra
 open import Fsh_prelude
 open import Arith
 
+open import Locale
+
 type substring_mode =
   Shortest
 | Longest
@@ -18,21 +20,75 @@ type bracket_char =
 
 type bracket_entry =
   BC of bracket_char
-| Range of bracket_char * bracket_char
+| Range of range_char * range_char (* should only be char or collating *)
 
 type bracket = 
   Matching of list bracket_entry
 | Nonmatching of list bracket_entry
 
+let rec parse_bracket_terminator (pat:list char) (term:char) : maybe (list char * list char) =
+  match pat with
+  | [] -> Nothing
+  | c::#']'::pat' -> 
+      if c = term
+      then Just ([], pat')
+      else Nothing (* valid symbolic names are alpha . (alphanum|-)* (it seems per http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap06.html#tagtcjh_4)
+                      so there's no way for us to have a valid x] for any x!=term *)
+  | c::pat' -> match parse_bracket_terminator pat' term with
+               | Nothing -> Nothing
+               | Just (cs,pat'') -> Just (c::cs, pat'')
+               end
+  end
+
+let parse_bracket_class (pat:list char) (term:char) : maybe (string * list char) =
+  match parse_bracket_terminator pat term with
+  | Nothing -> Nothing
+  | Just (cls,pat') -> Just (toString cls, pat')
+  end
+                      
 (* http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_03_05 *)
 (* parsing brackets *)
 let rec parse_bracket_char (pat:list char) : maybe (bracket_char * list char) =
   match pat with
   | [] -> Nothing
-  | #'['::#'.'::_pat' -> Nothing (* TODO collating char, scan for .] *)
-  | #'['::#'='::_pat' -> Nothing (* TODO equivalence class, scan for =] *)
-  | #'['::#':'::_pat' -> Nothing (* TODO character class, scan for :] *)
+  | #'['::#'.'::pat' ->
+     match parse_bracket_class pat' #'.' with
+     | Nothing -> Nothing
+     | Just (cls, pat'') -> Just (Collating cls, pat'')
+     end
+  | #'['::#'='::pat' ->
+     match parse_bracket_class pat' #'=' with
+     | Nothing -> Nothing
+     | Just (cls, pat'') -> Just (Equiv cls, pat'')
+     end
+  | #'['::#':'::pat' ->
+     match parse_bracket_class pat' #':' with
+     | Nothing -> Nothing
+     | Just (cls, pat'') -> Just (Class cls, pat'')
+     end
   | c::pat' -> Just (Char c,pat')
+  end
+
+(* The starting range point and the ending range point shall be a
+   collating element or collating symbol. An equivalence class
+   expression used as a starting or ending point of a range expression
+   produces unspecified results. An equivalence class can be used
+   portably within a bracket expression, but only outside the
+   range. If the represented set of collating elements is empty, it is
+   unspecified whether the expression matches nothing, or is treated
+   as invalid.
+
+   per http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_03_05
+
+   so we're just going to not parse the bracket... which means we'll treat it as raw characters.
+*)
+
+let range_bc (bc : bracket_char) : maybe range_char =
+  match bc with
+  | Char c -> Just (RChar c)
+  | Collating cls -> Just (RCollating cls)
+  | Equiv _c -> Nothing
+  | Class _c -> Nothing
   end
                       
 let rec parse_bracket_entries (pat:list char) : maybe (list bracket_entry * list char) = 
@@ -49,9 +105,9 @@ let rec parse_bracket_entries (pat:list char) : maybe (list bracket_entry * list
                | Just (es,pat'') -> Just (BC bc::es,pat'')
                end
             | Just (bc',pat'') -> 
-               match parse_bracket_entries pat'' with
-               | Nothing -> Nothing
-               | Just (es,pat''') -> Just (Range bc bc'::es,pat''')
+               match (range_bc bc, range_bc bc', parse_bracket_entries pat'') with
+               | (Just lo, Just hi, Just (es,pat''')) -> Just (Range lo hi::es,pat''')
+               | _ -> Nothing
                end
             end
          | Just (bc,pat') ->
@@ -61,6 +117,22 @@ let rec parse_bracket_entries (pat:list char) : maybe (list bracket_entry * list
             end
          end
   end
+
+(* If a bracket expression contains at least three list elements,
+   where the first and last list elements are the same
+   single-character element of <period>, <equals-sign>, or <colon>,
+   then it is unspecified whether the bracket expression will be
+   treated as a collating symbol, equivalence class, or character
+   class, respectively; treated as a matching list expression; or
+   rejected as an error. -- http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_03_05
+
+   i.e., if we just have [.a.], we can treat it as matching:
+      . and a
+      collating symbols matching a
+      an error
+
+   we'll treat them as a range, like dash
+ *)
 
 let rec parse_bracket (neg:char) (pat:list char) : maybe (bracket * list char) = 
   match pat with
@@ -77,25 +149,25 @@ let rec parse_bracket (neg:char) (pat:list char) : maybe (bracket * list char) =
           end
   end
 
-let match_entry (c : char) (be : bracket_entry) : bool = 
+let match_entry (lc:locale) (c : char) (be : bracket_entry) : bool = 
   match be with
-  | BC (Char c')      -> c' = c
-  | BC (Collating _s) -> false (* TODO *)
-  | BC (Equiv _s)     -> false (* TODO *)
-  | BC (Class _s)     -> false (* TODO *)
-  | Range _lo _hi     -> false (* TODO *)
+  | BC (Char c')       -> c' = c
+  | BC (Collating cls) -> lc.collates c cls
+  | BC (Equiv cls)     -> lc.equiv c cls
+  | BC (Class cls)     -> lc.charclass c cls
+  | Range lo hi        -> lc.range c lo hi
   end
 
 (* returns nothing if no match, rest of string if so *)
 (* is this quite right, to account for collations? *)
-let match_bracket (b : bracket) (c : list char) : maybe (list char) = 
+let match_bracket (lc:locale) (b : bracket) (c : list char) : maybe (list char) = 
   match (b, c) with
   | (_, [])                  -> Nothing
-  | (Matching cs,    c :: s) -> if any (match_entry c) cs then Just s else Nothing
-  | (Nonmatching cs, c :: s) -> if any (match_entry c) cs then Nothing else Just s
+  | (Matching cs,    c :: s) -> if any (match_entry lc c) cs then Just s else Nothing
+  | (Nonmatching cs, c :: s) -> if any (match_entry lc c) cs then Nothing else Just s
   end
 
-let rec match_prefix (m:substring_mode) (pat:list char) (s:list char) : maybe (list char) =
+let rec match_prefix (lc:locale) (m:substring_mode) (pat:list char) (s:list char) : maybe (list char) =
   match (pat,s) with
 
   (* empty pattern *)
@@ -103,20 +175,20 @@ let rec match_prefix (m:substring_mode) (pat:list char) (s:list char) : maybe (l
 
   (* question-mark expressions *)
   | (#'?'::_   ,     []) -> Nothing
-  | (#'?'::pat', _ ::s') -> match_prefix m pat' s'
+  | (#'?'::pat', _ ::s') -> match_prefix lc m pat' s'
 
   (* star expressions *)
-  | (#'*'::pat',     []) -> match_prefix m pat' []
+  | (#'*'::pat',     []) -> match_prefix lc m pat' []
   | (#'*'::pat', c ::s') ->
      match m with
      | Longest -> 
-        match match_prefix m (#'*'::pat') s' with  (* try skipping a character first *)
-        | Nothing -> match_prefix m pat' (c::s')   (*   ...no dice; try to stop here *)
+        match match_prefix lc m (#'*'::pat') s' with  (* try skipping a character first *)
+        | Nothing -> match_prefix lc m pat' (c::s')   (*   ...no dice; try to stop here *)
         | Just s' -> Just s'                       (*   ...success; we have our answer *)
         end
      | Shortest ->
-        match (match_prefix m pat' (c::s')) with    (* try matching empty first *)
-        | Nothing -> match_prefix m (#'*'::pat') s' (*   ...no dice; skip a character and go on *)
+        match (match_prefix lc m pat' (c::s')) with    (* try matching empty first *)
+        | Nothing -> match_prefix lc m (#'*'::pat') s' (*   ...no dice; skip a character and go on *)
         | Just s' -> Just s'                        (*   ...success; we have our answer *)
         end
     end
@@ -128,25 +200,25 @@ let rec match_prefix (m:substring_mode) (pat:list char) (s:list char) : maybe (l
      | Nothing -> 
         (* we couldn't parse a bracket expression, so treat it as literals *)
         if c = #'[' 
-        then match_prefix m pat' s'
+        then match_prefix lc m pat' s'
         else Nothing
      | Just (b,pat'') -> 
         (* got a bracket expression (and some leftover pattern), match the whole string against it *)
-        match match_bracket b (c::s') with
+        match match_bracket lc b (c::s') with
         | Nothing -> Nothing                    (* couldn't match the bracket, we're done *)
-        | Just s'' -> match_prefix m pat'' s''  (* got it, keep going with what's left *)
+        | Just s'' -> match_prefix lc m pat'' s''  (* got it, keep going with what's left *)
         end
      end
   (* plain characters *)                                  
   | (   _::_,        []) -> Nothing
   | (  c1::pat', c2::s') ->
      if c1 = c2
-     then match_prefix m pat' s'
+     then match_prefix lc m pat' s'
      else Nothing
   end
 
-let try_match_prefix (m:substring_mode) (pat:list char) (s:list char) : list char =
-  match match_prefix m pat s with
+let try_match_prefix (lc:locale) (m:substring_mode) (pat:list char) (s:list char) : list char =
+  match match_prefix lc m pat s with
   | Nothing -> s
   | Just s' -> s'
   end
