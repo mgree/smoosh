@@ -30,7 +30,6 @@ let parse_entry (s:string) =
     in
     initial_os_state := set_param name escaped !initial_os_state
   with Not_found -> eprintf "Environment parse error: couldn't find an '=' in %s" s
-                         
 
 let parse_env (env:string list) = List.iter parse_entry env
                                 
