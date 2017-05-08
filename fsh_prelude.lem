@@ -34,6 +34,9 @@ let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ v ^ ", " ^ s)
 val lookup_param : ty_os_state -> string -> maybe string
 let lookup_param s0 str = Map.lookup str s0.shell_env
 
+val set_param : string -> string -> ty_os_state -> ty_os_state
+let set_param x v os = <| os with shell_env = Map.insert x v (os.shell_env) |>
+
 (*--------------------------------*)
 (* Nat class                      *)
 (*--------------------------------*)

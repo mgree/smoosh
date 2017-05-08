@@ -13,15 +13,44 @@ let version = "0.1"
 let verbose = ref false
 let input_src : string option ref = ref None
 let initial_os_state : ty_os_state ref = ref os_empty
-                                        
+                                             
 let set_input_src () =
   match !input_src with
   | None -> Dash.setinputtostdin ()
   | Some f -> Dash.setinputfile f
 
+let parse_entry (s:string) =
+  try
+    let eq = String.index s '=' in
+    let name = String.sub s 0 eq in
+    let value = String.sub s (eq+1) (String.length s - eq - 1) in
+    let escaped =
+      try Scanf.unescaped value
+      with Scanf.Scan_failure _ -> eprintf "Environment parse error: couldn't handle escapes in %s, leaving as-is" s; value
+    in
+    initial_os_state := set_param name escaped !initial_os_state
+  with Not_found -> eprintf "Environment parse error: couldn't find an '=' in %s" s
+                         
+
+let parse_env (env:string list) = List.iter parse_entry env
+                                
+let load_env (f:string) =
+  let rec go (ic:in_channel) =
+    try
+      parse_entry (input_line ic);
+      go ic
+    with End_of_file -> close_in ic
+  in
+  go (open_in f)
+
+let ambient_env () = parse_env (Array.to_list (Unix.environment ()))
+                                 
 let parse_args () =
   Arg.parse
-    ["-v",Arg.Set verbose,"verbose mode"]
+    ["-v",Arg.Set verbose,"verbose mode";
+     "-env-file",Arg.String load_env,"file containing environment (one var=value per line; no need for quotes)";
+     "-env-ambient",Arg.Unit ambient_env,"use the ambient environment";
+    ]
     (function | "-" -> input_src := None | f -> input_src := Some f)
     "Final argument should be either a filename or - (for STDIN); only the last such argument is used"
 
