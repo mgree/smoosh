@@ -1,5 +1,8 @@
+*.cmx
+*.o
 *.cmi
 *.cmo
+expand
 t_fs_prelude.ml
 fsh_prelude.ml
 expansion.ml

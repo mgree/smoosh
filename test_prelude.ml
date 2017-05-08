@@ -1,10 +1,6 @@
 open Lem_pervasives_extra
 open Fsh_prelude
 
-let os_empty:ty_os_state=  ({
-    shell_env = (Pmap.empty compare);
-  })
-
 let shell_env_insert s0 k v : ty_os_state =
   ({ s0 with shell_env = (Pmap.add k v s0.shell_env) })
 

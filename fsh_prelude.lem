@@ -23,6 +23,10 @@ type ty_os_state = <|
     shell_env: Map.map string string
   |>
 
+let os_empty : ty_os_state = <|
+    shell_env = Map.empty
+ |>
+    
 val print_shell_env : ty_os_state -> string
 let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ v ^ ", " ^ s) st.shell_env ""
 
