@@ -56,7 +56,7 @@ and control =
 
 and entry =
     S of string
-  | DQ of string
+  | DQ of string (* why is this here? can't we just use Quote in control? *)
   | K of control
   | F
 
