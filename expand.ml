@@ -1,6 +1,6 @@
-open Lem_pervasives_extra
 open Test_prelude
-open Fsh_prelude
+open Fsh
+open Ast
 open Expansion
 open Printf
 
@@ -112,7 +112,7 @@ and entry_of_arg_char (ac : Ast.arg_char) : entry =
   | V (ty,nul,x,a) ->
      let w = words_of_arg a in
      let fmt = match ty,nul with
-       | (Normal,_) -> Normal
+       | (Normal,_) -> Fsh.Normal
        | (Minus,false) -> Default w
        | (Minus,true) -> NDefault w
        | (Plus,false) -> Assign w
@@ -121,7 +121,7 @@ and entry_of_arg_char (ac : Ast.arg_char) : entry =
        | (Question,true) -> NError w
        | (Assign,false) -> Assign w
        | (Assign,true) -> NAssign w
-       | (Length,_) -> Length
+       | (Length,_) -> Fsh.Length
        | (TrimR,_) -> Substring (Prefix,Shortest,w)
        | (TrimRMax,_) -> Substring (Prefix,Longest,w)
        | (TrimL,_) -> Substring (Suffix,Shortest,w)

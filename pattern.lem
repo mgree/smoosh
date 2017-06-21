@@ -1,16 +1,7 @@
-open import Pervasives_extra
-open import Fsh_prelude
+open import Fsh
+
 open import Arith
-
 open import Locale
-
-type substring_mode =
-  Shortest
-| Longest
-
-type substring_side =
-  Prefix
-| Suffix  
 
 type bracket_char =
   Char of char

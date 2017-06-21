@@ -12,3 +12,4 @@ runtest
 _build
 pattern.ml
 locale.ml
+fsh.ml

@@ -1,5 +1,4 @@
-open Lem_pervasives_extra
-open Fsh_prelude
+open Fsh
 
 let shell_env_insert s0 k v : ty_os_state =
   ({ s0 with shell_env = (Pmap.add k v s0.shell_env) })

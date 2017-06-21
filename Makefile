@@ -1,4 +1,4 @@
-LEMFILES=fsh_prelude.lem arith.lem locale.lem pattern.lem expansion.lem
+LEMFILES=fsh_prelude.lem fsh.lem arith.lem locale.lem pattern.lem expansion.lem
 
 OCAMLOPTS=-w -a+3+10+14+21+24+29+31+46+47+48
 OCAMLLIB=$(shell opam config var lib)
@@ -22,4 +22,4 @@ test : runtest
 
 clean :
 	-rm -f $(LEMFILES:.lem=.ml)
-	-rm *.{cmi,cmo} *~
+	-rm *.{cmi,cmo,cmx,o} *~

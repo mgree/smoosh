@@ -1,8 +1,7 @@
 (*
  * Parse and evaluate a string representing the arithmetic operation
  *)
-open import Pervasives_extra
-open import Fsh_prelude
+open import Fsh
 
 type arith_token 'a =
     TNum of 'a

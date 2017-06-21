@@ -1,6 +1,5 @@
-open Lem_pervasives_extra
 open Test_prelude
-open Fsh_prelude
+open Fsh
 open Expansion
 open Printf
 

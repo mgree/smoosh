@@ -1,22 +1,7 @@
-open import Pervasives_extra
-open import Fsh_prelude
+open import Fsh
+
 open import Arith
-
 open import Pattern
-
-(*
-Strings will be whatever lem uses for string
-??? What character set does lem use for strings? Does it matter?
-*)
-
-type expanded_word =
-   UsrF
- | ExpS of string
- | ExpDQ of string
- | UsrS of string
- | UsrDQ of string
-
-type expanded_words = list expanded_word
 
 type fields = list string
 
@@ -28,54 +13,8 @@ type quoting_mode =
     Unquoted
   | Quoted
 
-type format =
-    Normal
-  | Default of words
-  | NDefault of words
-  | Assign of words
-  | NAssign of words
-  | Error of words
-  | NError of words
-  | Alt of words
-  | NAlt of words
-  | Length
-  | Substring of substring_side * substring_mode * words
-                                
-(* Treating parameters niavely led to a problem when evaluating
- * ${x=${x=foo}bar${x=baz}} incorrectly when x was unset
- *)
-and control =
-    Tilde
-  | TildeUser of string
-  | Param of string * format
-  | LAssign of string * expanded_words * words
-  | LMatch of string * substring_side * substring_mode * expanded_words * words
-  | Backtick of words
-  | Arith of expanded_words * words
-  | Quote of words
-
-and entry =
-    S of string
-  | DQ of string (* why is this here? can't we just use Quote in control? *)
-  | K of control
-  | F
-
-and words = list entry
-
   (* Left is what has been parsed, right is unparsed *)
-and expansion_state = words * words
-
-val string_of_words : words -> string
-val string_of_entry : entry -> string
-
-let rec string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
-and string_of_entry e =
-  match e with
-  | S str -> "S(" ^ str ^ ")"
-  | DQ string -> "\"" ^ string ^ "\""
-  | K _ -> "<<CTRL>>"
-  | F -> "<<FS>>"
-  end
+type expansion_state = words * words
 
 (*
  * Stage 1 Expansion: Word expansion

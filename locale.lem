@@ -1,5 +1,4 @@
-open import Pervasives_extra
-open import Fsh_prelude
+open import Fsh
 open import Arith
 
 (* look at LC_ environment variables, decide what to do *)
