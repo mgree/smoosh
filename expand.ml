@@ -104,7 +104,8 @@ and words_of_arg (a : Ast.arg) : words =
   List.map entry_of_arg_char a (* TODO string joining *)
 and entry_of_arg_char (ac : Ast.arg_char) : entry =
   match ac with
-  | C '~' -> K Tilde (* TODO TildeUser *)
+  | T None -> K Tilde
+  | T (Some user) -> K (TildeUser user)
   | C c -> S (String.make 1 c)
   | E c -> S (String.make 1 c)
   | A a -> K (Arith ([],words_of_arg a))
@@ -156,7 +157,7 @@ let rec expand_all (os : ty_os_state) (ws : words list) : ty_os_state * fields =
      let (os',fs) = full_expansion os w in
      let (os'', fs') = expand_all os' ws' in
      (os'', fs @ fs')
-    
+       
 let main () =
   Dash.initialize ();
   parse_args ();
