@@ -53,7 +53,7 @@ and control =
   | Param of string * format
   | LAssign of string * expanded_words * words
   | LMatch of string * substring_side * substring_mode * expanded_words * words
-  | Backtick of words
+  | Backtick of words (* TODO should be a command *)
   | Arith of expanded_words * words
   | Quote of words
 

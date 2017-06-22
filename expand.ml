@@ -157,7 +157,115 @@ let rec expand_all (os : ty_os_state) (ws : words list) : ty_os_state * fields =
      let (os',fs) = full_expansion os w in
      let (os'', fs') = expand_all os' ws' in
      (os'', fs @ fs')
+
+type state = ty_os_state * [`Start of words | `Expand of expanded_words * words | `Split of expanded_words | `Done of fields]
+
+let rec step_expansion ((os0,s0) : state) : state =
+  match s0 with
+  | `Start w0 -> 
+     let (os1, f1, w1) = expand_words os0 Unquoted UserString ([],w0) in
+     (os1, `Expand (f1,w1))
+  | `Expand (f0,w0) ->
+     let (os1, f1, w1) = expand_words os0 Unquoted UserString (f0,w0) in
+     begin 
+       match w1 with
+       | [] -> (os1, `Split f1)
+       | _ ->  (os1, `Expand (f1,w1))
+     end
+  | `Split f0 ->
+     (os0, `Done (quote_removal os0 (pathname_expansion os0 (field_splitting os0 f0))))
+  | `Done f -> (os0,s0)
        
+let trace_expansion (init : state) : state list =
+  let rec loop (st0 : state) (acc : state list) : state list =
+    match st0 with
+      | (_, `Done _) -> List.rev acc
+      | _ -> let st1 = step_expansion st0 in
+             loop st1 (st0::acc)
+  in loop init []
+
+(* we don't need anything else, I think---just a tiny bit of JSON *)
+type json = String of string
+          | List of json list 
+          | Assoc of (string * json) list 
+
+let rec write_json (buf : Buffer.t) = 
+  let rec intercalate op sep = function
+    | [] -> ()
+    | [x] -> op x
+    | x::xs -> op x; sep (); intercalate op sep xs in
+  let comma () = Buffer.add_char buf ',' in
+  function
+  | String s -> 
+     Buffer.add_char buf '"';
+     Buffer.add_string buf (String.escaped s);
+     Buffer.add_char buf '"'
+  | List l ->
+     Buffer.add_char buf '[';
+     intercalate (write_json buf) comma l;
+     Buffer.add_char buf ']'
+  | Assoc m ->
+     Buffer.add_char buf '{';
+     let pair (k,v) = write_json buf (String k); Buffer.add_char buf ':'; write_json buf v in
+     intercalate pair comma m;
+     Buffer.add_char buf '}'
+
+let tag name = ("tag", String name)
+
+let obj name = Assoc [tag name]
+let obj_v name v = Assoc [tag name; ("v", String v)]
+
+let rec json_of_words w = List (List.map json_of_entry w)
+and json_of_entry = function
+  | S s -> obj_v "S" s
+  | DQ s -> obj_v "DQ" s
+  | K k -> Assoc [tag "K"; ("v", json_of_control k)]
+  | F -> obj "F"
+and json_of_control = function
+  | Tilde -> obj "Tilde"
+  | TildeUser user -> Assoc [tag "TildeUser"; ("user", String user)]
+  | Param (x,fmt) -> Assoc [tag "Param"; ("var", String x); ("fmt", json_of_format fmt)]
+  | LAssign (x,f,w) -> Assoc [tag "LAssign"; ("var", String x);
+                              ("f", json_of_expanded_words f); ("w", json_of_words w)]
+  | LMatch (x,side,mode,f,w) -> Assoc [tag "LMatch"; ("var", String x);
+                                       ("side", json_of_substring_side side);
+                                       ("mode", json_of_substring_mode mode);
+                                       ("f", json_of_expanded_words f); ("w", json_of_words w)]
+  | Backtick w -> obj_w "Backtick" w
+  | Arith (f,w) ->  obj_fw "Arith" f w
+  | Quote w -> obj_w "Quote" w
+and json_of_format = function
+  | Normal -> obj "Normal"
+  | Length -> obj "Length"
+  | Default w -> obj_w "Default" w
+  | NDefault w -> obj_w "NDefault" w
+  | Assign w -> obj_w "Assign" w
+  | NAssign w -> obj_w "NAssign" w
+  | Error w -> obj_w "Error" w
+  | NError w -> obj_w "NError" w
+  | Alt w -> obj_w "Alt" w
+  | NAlt w -> obj_w "NAlt" w
+  | Substring (side,mode,w) -> Assoc [tag "Substring";
+                                      ("side", json_of_substring_side side);
+                                      ("mode", json_of_substring_mode mode);
+                                      ("w", json_of_words w)]
+and json_of_substring_mode = function
+  | Shortest -> String "Shortest"
+  | Longest -> String "Longest"
+and json_of_substring_side = function
+  | Prefix -> String "Prefix"
+  | Suffix -> String "Suffix"
+and json_of_expanded_words f = List (List.map json_of_expanded_word f)
+and json_of_expanded_word = function
+  | UsrF -> obj "UsrF"
+  | ExpS s -> obj_v "ExpS" s
+  | ExpDQ s -> obj_v "ExpDQ" s
+  | UsrS s -> obj_v "UsrS" s
+  | UsrDQ s -> obj_v "UsrDQ" s
+
+and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
+and obj_fw name f w = Assoc [tag name; ("f", json_of_expanded_words f); ("w", json_of_words w)]
+
 let main () =
   Dash.initialize ();
   parse_args ();
