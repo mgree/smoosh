@@ -150,7 +150,7 @@ and entry_of_arg_char (ac : Ast.arg_char) : entry =
        | (TrimLMax,_) -> Substring (Suffix,Longest,w) in
      K (Param (x,fmt))
   | Q a -> K (Quote (words_of_arg a))
-  | B e -> K (Backtick (words_of_ast e))
+  | B e -> K (Backtick (failwith "need a real AST here"))
 
 and words_of_redirs (rs : Ast.redirection list) : words =
   List.concat (List.map words_of_redir rs)
@@ -241,7 +241,8 @@ let tag name = ("tag", String name)
 let obj name = Assoc [tag name]
 let obj_v name v = Assoc [tag name; ("v", String v)]
 
-let rec json_of_words w = List (List.map json_of_entry w)
+let rec json_of_stmt _c = String "TODO"
+and json_of_words w = List (List.map json_of_entry w)
 and json_of_entry = function
   | S s -> obj_v "S" s
   | DQ s -> obj_v "DQ" s
@@ -257,7 +258,7 @@ and json_of_control = function
                                        ("side", json_of_substring_side side);
                                        ("mode", json_of_substring_mode mode);
                                        ("f", json_of_expanded_words f); ("w", json_of_words w)]
-  | Backtick w -> obj_w "Backtick" w
+  | Backtick c -> Assoc [tag "Backtick"; ("stmt", json_of_stmt c)]
   | Arith (f,w) ->  obj_fw "Arith" f w
   | Quote w -> obj_w "Quote" w
 and json_of_format = function

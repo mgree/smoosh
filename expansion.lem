@@ -3,8 +3,6 @@ open import Fsh
 open import Arith
 open import Pattern
 
-type fields = list string
-
 type string_mode =
     UserString
   | GeneratedString
@@ -44,7 +42,6 @@ let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_wo
   | Prefix -> toString (try_match_prefix Locale.lc_ambient mode pat str) (* TODO way to select/update locale *)
   | Suffix -> toString (reverse (try_match_prefix Locale.lc_ambient mode (reverse pat) (reverse str))) (* TODO same *)
   end
-
 
 let rec expand_param s0 _q str f =
   (let value = lookup_param s0 str in
@@ -109,7 +106,7 @@ and expand_control s0 q k =
     | LMatch s side mode f w ->
         let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
         (s1, [], [K (LMatch s side mode (f ++ f1) w1)])
-    | Backtick _w -> (s0, [], [S "TODO: implement Backtick"]) (* This should create a new bash env *)
+    | Backtick c -> (s0, [], [S ("result of " ^ string_of_stmt c)]) (* This should create a new bash env *)
     | Arith f [] ->
         match arith64 s0 (toCharList (concat_expanded f)) with
         | Right (s1, result) -> (s1, [ExpS (write result)], [])

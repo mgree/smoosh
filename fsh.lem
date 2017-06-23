@@ -31,6 +31,21 @@ type expanded_word =
 
 type expanded_words = list expanded_word
 
+(* final expansion output *)
+type fields = list string
+
+(**********************************************************************)
+(* Commands ***********************************************************)
+(**********************************************************************)
+
+type redir_type = To | Clobber | From | FromTo | Append
+type dup_type = ToFD | FromFD
+type heredoc_type = Here | XHere (* for when in a quote... not sure when this comes up *)
+
+(**********************************************************************)
+(* AST ****************************************************************)
+(**********************************************************************)
+
 type format =
     Normal
   | Default of words
@@ -53,7 +68,7 @@ and control =
   | Param of string * format
   | LAssign of string * expanded_words * words
   | LMatch of string * substring_side * substring_mode * expanded_words * words
-  | Backtick of words (* TODO should be a command *)
+  | Backtick of stmt
   | Arith of expanded_words * words
   | Quote of words
 
@@ -64,6 +79,31 @@ and entry =
   | F
 
 and words = list entry
+
+and stmt = 
+    Command of list (string * words) * words * list redir
+  | Pipe of bool (* bg? *) * list stmt
+  | Redir of stmt * list redir
+  | Background of stmt * list redir
+  | Subshell of stmt * list redir
+  | And of stmt * stmt
+  | Or of stmt * stmt
+  | Not of stmt
+  | Semi of stmt * stmt
+  | If of stmt * stmt * stmt
+  | While of stmt * stmt
+  | For of string * words * stmt
+  | Case of words * list (words * stmt)
+  | Defun of string * stmt
+
+and redir = 
+   | File of redir_type * int * words
+   | Dup of dup_type * int * int
+   | Heredoc of heredoc_type * int * words
+
+(**********************************************************************)
+(* Pretty printing ****************************************************)
+(**********************************************************************)
 
 val string_of_words : words -> string
 val string_of_entry : entry -> string
@@ -76,3 +116,4 @@ and string_of_entry e =
   | K _ -> "<<CTRL>>"
   | F -> "<<FS>>"
   end
+and string_of_stmt _c = "some command, eh? TODO FIXME"
