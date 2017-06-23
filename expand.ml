@@ -158,7 +158,11 @@ let rec expand_all (os : ty_os_state) (ws : words list) : ty_os_state * fields =
      let (os'', fs') = expand_all os' ws' in
      (os'', fs @ fs')
 
-type state = ty_os_state * [`Start of words | `Expand of expanded_words * words | `Split of expanded_words | `Done of fields]
+type state = ty_os_state * 
+             [ `Start of words 
+             | `Expand of expanded_words * words 
+             | `Split of expanded_words 
+             | `Done of fields]
 
 let rec step_expansion ((os0,s0) : state) : state =
   match s0 with
@@ -262,9 +266,23 @@ and json_of_expanded_word = function
   | ExpDQ s -> obj_v "ExpDQ" s
   | UsrS s -> obj_v "UsrS" s
   | UsrDQ s -> obj_v "UsrDQ" s
+and json_of_fields ss = List (List.map (fun s -> String s) ss)
 
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
+and obj_f name f = Assoc [tag name; ("f", json_of_expanded_word f)]
 and obj_fw name f w = Assoc [tag name; ("f", json_of_expanded_words f); ("w", json_of_words w)]
+
+let json_of_state_term = function
+  | `Start w -> obj_w "Start" w
+  | `Expand (f,w) -> obj_fw "Expand" f w
+  | `Split f -> obj_f "Split" f
+  | `Done fs -> Assoc [tag "Done"; ("fields", json_of_fields fs)]
+
+let json_of_env (env:(string, string) Pmap.map) : json =
+  Assoc (List.map (fun (k,v) -> (k, String v)) (Pmap.bindings_list env))
+
+let json_of_state (os,tm) =
+  Assoc [("env", json_of_env os.shell_env); ("term", json_of_state_term tm)]
 
 let main () =
   Dash.initialize ();
