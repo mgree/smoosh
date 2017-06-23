@@ -64,12 +64,12 @@ let rec expand_param s0 _q str f =
       end)
     | Just "" -> (match f with
       | NDefault w      -> w
-      | Alt w           -> w
+      | NAssign w       -> [K (LAssign str [] w)]
       | NError _        -> [S "TODO: error"] (* This should error *)
+      | Alt w           -> w
       | Length          -> [S "0"]
       | Normal          -> [S ""] (* null *)
       | Assign _        -> [S ""]
-      | NAssign _       -> [S ""]
       | Default _       -> [S ""]
       | Error _         -> [S ""]
       | NAlt _          -> [S ""]

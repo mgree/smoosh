@@ -2,11 +2,6 @@
 
 ### CLI
 
-load text from a file/stdin
-parse it
-convert to local ASTs
-output each word (separate lines? quoted? JSON data structure?)
-
 should we write a custom parser, too?
   need it for js_of_ocaml
   also need to drop/ignore zarith dep in lem somehow

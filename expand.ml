@@ -123,7 +123,7 @@ and entry_of_arg_char (ac : Ast.arg_char) : entry =
        | (Question,true) -> NError w
        | (Assign,false) -> Assign w
        | (Assign,true) -> NAssign w
-       | (Length,_) -> Fsh.Length
+       | (Length,_) -> Length
        | (TrimR,_) -> Substring (Prefix,Shortest,w)
        | (TrimRMax,_) -> Substring (Prefix,Longest,w)
        | (TrimL,_) -> Substring (Suffix,Shortest,w)
