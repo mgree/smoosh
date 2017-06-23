@@ -183,7 +183,7 @@ let rec step_expansion ((os0,s0) : state) : state =
 let trace_expansion (init : state) : state list =
   let rec loop (st0 : state) (acc : state list) : state list =
     match st0 with
-      | (_, `Done _) -> List.rev acc
+      | (_, `Done _) -> List.rev (st0::acc)
       | _ -> let st1 = step_expansion st0 in
              loop st1 (st0::acc)
   in loop init []
@@ -269,7 +269,7 @@ and json_of_expanded_word = function
 and json_of_fields ss = List (List.map (fun s -> String s) ss)
 
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
-and obj_f name f = Assoc [tag name; ("f", json_of_expanded_word f)]
+and obj_f name f = Assoc [tag name; ("f", json_of_expanded_words f)]
 and obj_fw name f w = Assoc [tag name; ("f", json_of_expanded_words f); ("w", json_of_words w)]
 
 let json_of_state_term = function
@@ -281,7 +281,7 @@ let json_of_state_term = function
 let json_of_env (env:(string, string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, String v)) (Pmap.bindings_list env))
 
-let json_of_state (os,tm) =
+let json_of_state ((os,tm):state) : json =
   Assoc [("env", json_of_env os.shell_env); ("term", json_of_state_term tm)]
 
 let main () =
@@ -291,8 +291,14 @@ let main () =
   let ns = Dash.parse_all () in
   let cs = List.map Ast.of_node ns in
   let ws = List.map words_of_ast cs in (* TODO restrict to only simple commands? *)
-  let (os,fs) = expand_all !initial_os_state ws in
-  List.iter (fun f -> print_endline f) fs;;
+  let trace = trace_expansion (!initial_os_state, `Start (join ws)) in
+  let tracej = List.map json_of_state trace in
+  let out = Buffer.create (List.length tracej * 100) in
+  begin
+    write_json out (List tracej);
+    Buffer.output_buffer stdout out
+  end;;
+  
 
 main ()
 
