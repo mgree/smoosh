@@ -19,11 +19,15 @@ let set_input_src () =
   | None -> Dash.setinputtostdin ()
   | Some f -> Dash.setinputfile f
 
+let parse_keqv s = 
+  let eq = String.index s '=' in
+  let k = String.sub s 0 eq in
+  let v = String.sub s (eq+1) (String.length s - eq - 1) in
+  (k,v)
+
 let parse_entry (s:string) =
+  let (name,value) = parse_keqv s in
   try
-    let eq = String.index s '=' in
-    let name = String.sub s 0 eq in
-    let value = String.sub s (eq+1) (String.length s - eq - 1) in
     let escaped =
       try Scanf.unescaped value
       with Scanf.Scan_failure _ -> eprintf "Environment parse error: couldn't handle escapes in %s, leaving as-is" s; value
@@ -43,12 +47,28 @@ let load_env (f:string) =
   go (open_in f)
 
 let ambient_env () = parse_env (Array.to_list (Unix.environment ()))
-                                 
+
+let parse_user (s:string) =
+  try
+    let (name,value) = parse_keqv s in
+    initial_os_state := set_pwdir name value !initial_os_state
+  with Not_found -> eprintf "Environment parse error: couldn't find an '=' in %s" s
+
+let load_dirs (f:string) = 
+  let rec go (ic:in_channel) =
+    try
+      parse_user (input_line ic);
+      go ic
+    with End_of_file -> close_in ic
+  in
+  go (open_in f)
+
 let parse_args () =
   Arg.parse
     ["-v",Arg.Set verbose,"verbose mode";
      "-env-file",Arg.String load_env,"file containing environment (one var=value per line; no need for quotes)";
      "-env-ambient",Arg.Unit ambient_env,"use the ambient environment";
+     "-user-file",Arg.String load_dirs,"file containing username/directory pairings for tilde expansion (one username=dir per line)"
     ]
     (function | "-" -> input_src := None | f -> input_src := Some f)
     "Final argument should be either a filename or - (for STDIN); only the last such argument is used"

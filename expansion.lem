@@ -93,7 +93,11 @@ let rec expand_param s0 _q str f =
 and expand_control s0 q k =
   match k with
     | Tilde -> (s0, [], expand_param s0 Unquoted "HOME" Normal)
-    | TildeUser _usr -> (s0, [], [S "TODO: implement TildeUser"]) (* This should call system *)
+    | TildeUser usr -> 
+       match get_pwdir s0 usr with
+       | Nothing -> (s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
+       | Just path -> (s0, [], [S path])
+       end
     | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
         let s1 = <| s0 with shell_env = Map.insert s (concat_expanded f) s0.shell_env |> in

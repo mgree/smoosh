@@ -20,11 +20,13 @@ let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
 
 (* From t_fs_spec.lem_cppo line 1187 *)
 type ty_os_state = <|
-    shell_env: Map.map string string
+    shell_env: Map.map string string;
+    passwd: Map.map string string (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
   |>
 
 let os_empty : ty_os_state = <|
-    shell_env = Map.empty
+    shell_env = Map.empty;
+    passwd = Map.empty
  |>
     
 val print_shell_env : ty_os_state -> string
@@ -36,6 +38,12 @@ let lookup_param s0 str = Map.lookup str s0.shell_env
 
 val set_param : string -> string -> ty_os_state -> ty_os_state
 let set_param x v os = <| os with shell_env = Map.insert x v (os.shell_env) |>
+
+val get_pwdir : ty_os_state -> string -> maybe string
+let get_pwdir os u = Map.lookup u os.passwd
+
+val set_pwdir : string -> string -> ty_os_state -> ty_os_state
+let set_pwdir u d os = <| os with passwd = Map.insert u d (os.passwd) |>
 
 (*--------------------------------*)
 (* Nat class                      *)

@@ -10,8 +10,6 @@ should we write a custom parser, too?
 
 Monads for parsing etc.
 clean up to make null more explicit (simplify matches?)
-TildeUser
 Backtick
-Evaluate Arith
 Error handling (parse errors, error expansion mode, variable lookup)
 
