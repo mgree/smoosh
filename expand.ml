@@ -66,12 +66,14 @@ let rec join (ws:words list) : words =
   match ws with
   | [] -> []
   | [w] -> w
+  | []::ws -> join ws
   | w1::w2::ws -> w1 @ [F] @ join (w2::ws)
 
 let rec join_with (sep:words) (ws:words list) : words =
   match ws with
   | [] -> []
   | [w] -> w
+  | []::ws -> join ws
   | w1::w2::ws -> w1 @ sep @ [F] @ join (w2::ws)
                                   
 let join_map (f : 'a -> words) (l : 'a list) : words =
