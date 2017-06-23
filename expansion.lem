@@ -106,7 +106,7 @@ and expand_control s0 q k =
     | LMatch s side mode f w ->
         let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
         (s1, [], [K (LMatch s side mode (f ++ f1) w1)])
-    | Backtick c -> (s0, [], [S ("result of " ^ string_of_stmt c)]) (* This should create a new bash env *)
+    | Backtick c -> (s0, [], [S ("<<result of " ^ string_of_stmt c ^ ">>")]) (* This should create a new bash env *)
     | Arith f [] ->
         match arith64 s0 (toCharList (concat_expanded f)) with
         | Right (s1, result) -> (s1, [ExpS (write result)], [])

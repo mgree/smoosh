@@ -97,18 +97,113 @@ and stmt =
   | Defun of string * stmt
 
 and redir = 
-   | File of redir_type * int * words
-   | Dup of dup_type * int * int
-   | Heredoc of heredoc_type * int * words
+   | File of redir_type * nat * words
+   | Dup of dup_type * nat * nat
+   | Heredoc of heredoc_type * nat * words
 
 (**********************************************************************)
 (* Pretty printing ****************************************************)
 (**********************************************************************)
 
+val string_of_stmt : stmt -> string
 val string_of_words : words -> string
 val string_of_entry : entry -> string
 
-let rec string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
+let parens s = "( " ^ s ^ " )"
+  
+let braces s = "{ " ^ s ^ " ; }"
+
+(* we translate 
+           cmds... &
+   to
+           { cmds & }
+   this avoids issues with parsing; in particular,
+     cmd1 & ; cmd2 & ; cmd3
+   doesn't parse; it must be:
+     cmd1 & cmd2 & cmd3
+   it's a little too annoying to track "was the last thing
+   backgrounded?" so the braces resolve the issue. testing
+   indicates that they're semantically equivalent.
+*)
+let background s = "{ " ^ s ^ " & }"
+
+let show_unless expected actual =
+  if expected = actual
+  then ""
+  else stringFromNat actual
+                               
+let rec string_of_stmt c = 
+  match c with
+  | Command assigns cmds redirs ->
+     concat " " (List.map string_of_assign assigns) ^
+     (if List.length assigns = 0 || List.length cmds = 0 then "" else " ") ^
+     string_of_words cmds ^
+     string_of_redirs redirs
+  | Pipe bg cmds ->
+     let p = concat " | " (List.map string_of_stmt cmds) in
+     if bg then background p else p
+  | Redir cmd redirs ->
+     string_of_stmt cmd ^ string_of_redirs redirs
+  | Background cmd redirs -> 
+     background (string_of_stmt cmd ^ string_of_redirs redirs)
+  | Subshell cmd redirs ->
+     parens (string_of_stmt cmd ^ string_of_redirs redirs)
+  | And cmd1 cmd2 ->
+     string_of_stmt cmd1 ^ " && " ^ string_of_stmt cmd2
+  | Or cmd1 cmd2 ->
+     string_of_stmt cmd1 ^ " || " ^ string_of_stmt cmd2
+  | Semi cmd1 cmd2 ->
+     string_of_stmt cmd1 ^ " ; " ^ string_of_stmt cmd2
+  | Not cmd ->
+     "! " ^ string_of_stmt cmd
+  | If c1 c2 c3 ->
+     string_of_if c1 c2 c3
+  | While (Not c1) c2 ->
+     "until " ^ string_of_stmt c1 ^ "; do " ^ string_of_stmt c2 ^ "; done "
+  | While c1 c2 ->
+     "while " ^ string_of_stmt c1 ^ "; do " ^ string_of_stmt c2 ^ "; done "
+  | For x w c ->
+     "for " ^ x ^ " in " ^ string_of_words w ^ "; do " ^ string_of_stmt c ^ "; done"
+  | Case w cs ->
+     "case " ^ string_of_words w ^ " in " ^ concat " " (List.map string_of_case cs) ^ " esac"
+  | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
+  end
+
+and string_of_assign (v,a) = v ^ "=" ^ string_of_words a
+
+and string_of_if c t e =
+  "if " ^ string_of_stmt c ^
+  "; then " ^ string_of_stmt t ^
+  (match e with
+   | Command [] [] [] -> "; fi" (* one-armed if *)
+   | If c t e -> "; el" ^ string_of_if c t e
+   | _ -> "; else " ^ string_of_stmt e ^ "; fi"
+   end)
+
+and string_of_case (w,c) =
+  string_of_words w ^ ") " ^ string_of_stmt c ^ ";;"
+
+and string_of_redir r = 
+  match r with
+  | File To fd a      -> show_unless 1 fd ^ ">" ^ string_of_words a
+  | File Clobber fd a -> show_unless 1 fd ^ ">|" ^ string_of_words a
+  | File From fd a    -> show_unless 0 fd ^ "<" ^ string_of_words a
+  | File FromTo fd a  -> show_unless 0 fd ^ "<>" ^ string_of_words a
+  | File Append fd a  -> show_unless 1 fd ^ ">>" ^ string_of_words a
+  | Dup ToFD fd tgt   -> show_unless 1 fd ^ ">&" ^ stringFromNat tgt
+  | Dup FromFD fd tgt -> show_unless 0 fd ^ "<&" ^ stringFromNat tgt
+  | Heredoc t fd a ->
+     let heredoc = string_of_words a in
+     let marker = "EOF" in
+     show_unless 0 fd ^ "<<" ^
+     (if t = XHere then marker else "'" ^ marker ^ "'") ^ "\n" ^ heredoc ^ marker ^ "\n"
+  end 
+
+and string_of_redirs rs =
+  let ss = List.map string_of_redir rs in
+  (if List.length ss > 0 then " " else "") ^ concat " " ss
+
+and string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
 and string_of_entry e =
   match e with
   | S str -> "S(" ^ str ^ ")"
@@ -116,4 +211,4 @@ and string_of_entry e =
   | K _ -> "<<CTRL>>"
   | F -> "<<FS>>"
   end
-and string_of_stmt _c = "some command, eh? TODO FIXME"
+

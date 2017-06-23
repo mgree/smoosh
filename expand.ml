@@ -1,6 +1,6 @@
 open Test_prelude
+open Shim
 open Fsh
-open Ast
 open Expansion
 open Printf
 
@@ -74,111 +74,8 @@ let parse_args () =
     "Final argument should be either a filename or - (for STDIN); only the last such argument is used"
 
 (**********************************************************************)
-(* AST munging ********************************************************)       
+(* TRACING ************************************************************)
 (**********************************************************************)
-
-let show_unless expected actual =
-  if expected = actual
-  then ""
-  else string_of_int actual
-    
-let rec join (ws:words list) : words =
-  match ws with
-  | [] -> []
-  | [w] -> w
-  | []::ws -> join ws
-  | w1::w2::ws -> w1 @ [F] @ join (w2::ws)
-
-let rec join_with (sep:words) (ws:words list) : words =
-  match ws with
-  | [] -> []
-  | [w] -> w
-  | []::ws -> join ws
-  | w1::w2::ws -> w1 @ sep @ [F] @ join (w2::ws)
-                                  
-let join_map (f : 'a -> words) (l : 'a list) : words =
-  join (List.map f l)
-
-let join_map_with (sep:words) (f : 'a -> words) (l : 'a list) : words =
-  join_with sep (List.map f l)
-
-let rec words_of_ast (e : Ast.t) : words =
-  match e with
-  | Command (_,assigns,cmds,redirs) ->
-     join
-       [join_map (fun (x,v) -> [S x;S "=";] @ words_of_arg v) assigns;
-        join_map words_of_arg cmds;
-        words_of_redirs redirs]
-  | Pipe (_,es) -> join_map_with [S "|"]  words_of_ast es
-  | Redir (_,e,redirs) -> join [words_of_ast e; words_of_redirs redirs]
-  | Background (_,e,redirs) -> join [words_of_ast e; words_of_redirs redirs; [S "&"]]
-  | Subshell (_,e,redirs) -> join [[S "("]; words_of_ast e; words_of_redirs redirs; [S ")"]]
-  | And (e1,e2) -> join [words_of_ast e1; [S "&&"]; words_of_ast e2]
-  | Or (e1,e2) -> join [words_of_ast e1; [S "||"]; words_of_ast e2]
-  | Not e -> join [[S "!"]; words_of_ast e]
-  | Semi (e1,e2) -> join [words_of_ast e1; [S ";"]; words_of_ast e2]
-  | If (e1,e2,e3) -> join [[S "if"]; words_of_ast e1; [S "; then"]; words_of_ast e2; [S "; else"]; words_of_ast e3; [S "; fi"]]
-  | While (e1,e2) -> join [[S "while"]; words_of_ast e1; [S "; do"]; words_of_ast e2; [S "; done"]]
-  | For (_,arg,e,x) -> join [[S "for"]; [S x]; [S "in"]; words_of_arg arg; [S "; do"]; words_of_ast e; [S "; done"]]
-  | Case (_,arg,cases) -> join [[S "case"]; words_of_arg arg; [S "in"]; words_of_cases cases]
-  | Defun (_,f,e) -> join [[S (f ^ "()")]; words_of_ast e]
-and words_of_arg (a : Ast.arg) : words =
-  List.map entry_of_arg_char a (* TODO string joining *)
-and entry_of_arg_char (ac : Ast.arg_char) : entry =
-  match ac with
-  | T None -> K Tilde
-  | T (Some user) -> K (TildeUser user)
-  | C c -> S (String.make 1 c)
-  | E c -> S (String.make 1 c)
-  | A a -> K (Arith ([],words_of_arg a))
-  | V (ty,nul,x,a) ->
-     let w = words_of_arg a in
-     let fmt = match ty,nul with
-       | (Normal,_) -> Fsh.Normal
-       | (Minus,false) -> Default w
-       | (Minus,true) -> NDefault w
-       | (Plus,false) -> Assign w
-       | (Plus,true) -> NAssign w
-       | (Question,false) -> Error w
-       | (Question,true) -> NError w
-       | (Assign,false) -> Assign w
-       | (Assign,true) -> NAssign w
-       | (Length,_) -> Length
-       | (TrimR,_) -> Substring (Prefix,Shortest,w)
-       | (TrimRMax,_) -> Substring (Prefix,Longest,w)
-       | (TrimL,_) -> Substring (Suffix,Shortest,w)
-       | (TrimLMax,_) -> Substring (Suffix,Longest,w) in
-     K (Param (x,fmt))
-  | Q a -> K (Quote (words_of_arg a))
-  | B e -> K (Backtick (failwith "need a real AST here"))
-
-and words_of_redirs (rs : Ast.redirection list) : words =
-  List.concat (List.map words_of_redir rs)
-              
-and words_of_redir = function
-  | File (To,fd,a)      -> S (show_unless 1 fd ^ ">") :: words_of_arg a
-  | File (Clobber,fd,a) -> S (show_unless 1 fd ^ ">|") :: words_of_arg a
-  | File (From,fd,a)    -> S (show_unless 0 fd ^ "<") :: words_of_arg a
-  | File (FromTo,fd,a)  -> S (show_unless 0 fd ^ "<>") :: words_of_arg a
-  | File (Append,fd,a)  -> S (show_unless 1 fd ^ ">>") :: words_of_arg a
-  | Dup (ToFD,fd,tgt)   -> [S (show_unless 1 fd ^ ">&" ^ string_of_int tgt)]
-  | Dup (FromFD,fd,tgt) -> [S (show_unless 0 fd ^ "<&" ^ string_of_int tgt)]
-  | Heredoc (t,fd,a) ->
-     (* compute an EOF marker *)
-     let heredoc = Ast.string_of_arg a in
-     let marker = Dash.fresh_marker (Dash.lines heredoc) "EOF" in
-     [S (show_unless 0 fd ^ "<<" ^ (if t = XHere then marker else "'" ^ marker ^ "'"))] @ words_of_arg a @ [S (marker ^ "\n")]
-and words_of_cases (cs : Ast.case list) : words =
-  List.concat
-    (List.map (fun c -> words_of_arg c.Ast.cpattern @ [S ")"] @ words_of_ast c.Ast.cbody @ [S ";;"]) cs)
-                
-let rec expand_all (os : ty_os_state) (ws : words list) : ty_os_state * fields =
-  match ws with
-  | [] -> (os,[])
-  | w::ws' ->
-     let (os',fs) = full_expansion os w in
-     let (os'', fs') = expand_all os' ws' in
-     (os'', fs @ fs')
 
 type state = ty_os_state * 
              [ `Start of words 
@@ -210,90 +107,13 @@ let trace_expansion (init : state) : state list =
              loop st1 (st0::acc)
   in loop init []
 
-(* we don't need anything else, I think---just a tiny bit of JSON *)
-type json = String of string
-          | List of json list 
-          | Assoc of (string * json) list 
+let trace_command os = function
+  | Command ([],ws,[]) -> trace_expansion (os, `Start ws)
+  | _ -> failwith "unsupported command type (don't use keywords, etc.)"
 
-let rec write_json (buf : Buffer.t) = 
-  let rec intercalate op sep = function
-    | [] -> ()
-    | [x] -> op x
-    | x::xs -> op x; sep (); intercalate op sep xs in
-  let comma () = Buffer.add_char buf ',' in
-  function
-  | String s -> 
-     Buffer.add_char buf '"';
-     Buffer.add_string buf (String.escaped s);
-     Buffer.add_char buf '"'
-  | List l ->
-     Buffer.add_char buf '[';
-     intercalate (write_json buf) comma l;
-     Buffer.add_char buf ']'
-  | Assoc m ->
-     Buffer.add_char buf '{';
-     let pair (k,v) = write_json buf (String k); Buffer.add_char buf ':'; write_json buf v in
-     intercalate pair comma m;
-     Buffer.add_char buf '}'
-
-let tag name = ("tag", String name)
-
-let obj name = Assoc [tag name]
-let obj_v name v = Assoc [tag name; ("v", String v)]
-
-let rec json_of_stmt _c = String "TODO"
-and json_of_words w = List (List.map json_of_entry w)
-and json_of_entry = function
-  | S s -> obj_v "S" s
-  | DQ s -> obj_v "DQ" s
-  | K k -> Assoc [tag "K"; ("v", json_of_control k)]
-  | F -> obj "F"
-and json_of_control = function
-  | Tilde -> obj "Tilde"
-  | TildeUser user -> Assoc [tag "TildeUser"; ("user", String user)]
-  | Param (x,fmt) -> Assoc [tag "Param"; ("var", String x); ("fmt", json_of_format fmt)]
-  | LAssign (x,f,w) -> Assoc [tag "LAssign"; ("var", String x);
-                              ("f", json_of_expanded_words f); ("w", json_of_words w)]
-  | LMatch (x,side,mode,f,w) -> Assoc [tag "LMatch"; ("var", String x);
-                                       ("side", json_of_substring_side side);
-                                       ("mode", json_of_substring_mode mode);
-                                       ("f", json_of_expanded_words f); ("w", json_of_words w)]
-  | Backtick c -> Assoc [tag "Backtick"; ("stmt", json_of_stmt c)]
-  | Arith (f,w) ->  obj_fw "Arith" f w
-  | Quote w -> obj_w "Quote" w
-and json_of_format = function
-  | Normal -> obj "Normal"
-  | Length -> obj "Length"
-  | Default w -> obj_w "Default" w
-  | NDefault w -> obj_w "NDefault" w
-  | Assign w -> obj_w "Assign" w
-  | NAssign w -> obj_w "NAssign" w
-  | Error w -> obj_w "Error" w
-  | NError w -> obj_w "NError" w
-  | Alt w -> obj_w "Alt" w
-  | NAlt w -> obj_w "NAlt" w
-  | Substring (side,mode,w) -> Assoc [tag "Substring";
-                                      ("side", json_of_substring_side side);
-                                      ("mode", json_of_substring_mode mode);
-                                      ("w", json_of_words w)]
-and json_of_substring_mode = function
-  | Shortest -> String "Shortest"
-  | Longest -> String "Longest"
-and json_of_substring_side = function
-  | Prefix -> String "Prefix"
-  | Suffix -> String "Suffix"
-and json_of_expanded_words f = List (List.map json_of_expanded_word f)
-and json_of_expanded_word = function
-  | UsrF -> obj "UsrF"
-  | ExpS s -> obj_v "ExpS" s
-  | ExpDQ s -> obj_v "ExpDQ" s
-  | UsrS s -> obj_v "UsrS" s
-  | UsrDQ s -> obj_v "UsrDQ" s
-and json_of_fields ss = List (List.map (fun s -> String s) ss)
-
-and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
-and obj_f name f = Assoc [tag name; ("f", json_of_expanded_words f)]
-and obj_fw name f w = Assoc [tag name; ("f", json_of_expanded_words f); ("w", json_of_words w)]
+(**********************************************************************)
+(* OUTPUT *************************************************************)
+(**********************************************************************)
 
 let json_of_state_term = function
   | `Start w -> obj_w "Start" w
@@ -307,21 +127,26 @@ let json_of_env (env:(string, string) Pmap.map) : json =
 let json_of_state ((os,tm):state) : json =
   Assoc [("env", json_of_env os.shell_env); ("term", json_of_state_term tm)]
 
-let main () =
-  Dash.initialize ();
-  parse_args ();
-  set_input_src ();
-  let ns = Dash.parse_all () in
-  let cs = List.map Ast.of_node ns in
-  let ws = List.map words_of_ast cs in (* TODO restrict to only simple commands? *)
-  let trace = trace_expansion (!initial_os_state, `Start (join ws)) in
+let show_trace trace =
   let tracej = List.map json_of_state trace in
   let out = Buffer.create (List.length tracej * 100) in
   begin
     write_json out (List tracej);
     Buffer.output_buffer stdout out
-  end;;
-  
+  end
+
+(**********************************************************************)
+(* DRIVER *************************************************************)
+(**********************************************************************)
+
+let main () =
+  Dash.initialize ();
+  parse_args ();
+  set_input_src ();
+  let ns = Dash.parse_all () in
+  let cs = List.map Shim.of_node ns in
+  let traces = List.map (trace_command !initial_os_state) cs in
+  List.iter show_trace traces;;  
 
 main ()
 
