@@ -8,7 +8,7 @@ OCAMLGENLIBS=zarith.cmxa nums.cmxa extract.cmxa
 
 MLFILES=$(LEMFILES:.lem=.ml) test_prelude.ml test_arith.ml test_expansion.ml
 
-expand : $(MLFILES) ../libdash/dash.cmxa expand.ml
+expand : $(MLFILES) ../libdash/dash.cmxa shim.ml expand.ml
 	ocamlopt.opt $(OCAMLOPTS) $(OCAMLINCLUDES) $(OCAMLLIBS) $(OCAMLGENLIBS) dash.cmxa $^ -o $@ 
 
 runtest : $(MLFILES) runtest.ml
