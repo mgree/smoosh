@@ -25,28 +25,27 @@ let parse_keqv s =
   let v = String.sub s (eq+1) (String.length s - eq - 1) in
   (k,v)
 
-let parse_entry (s:string) =
+let parse_entry (unescape:bool) (s:string) =
   let (name,value) = parse_keqv s in
   try
     let escaped =
-      try Scanf.unescaped value
+      try if unescape then Scanf.unescaped value else value
       with Scanf.Scan_failure _ -> eprintf "Environment parse error: couldn't handle escapes in %s, leaving as-is" s; value
     in
     initial_os_state := set_param name escaped !initial_os_state
   with Not_found -> eprintf "Environment parse error: couldn't find an '=' in %s" s
 
-let parse_env (env:string list) = List.iter parse_entry env
-                                
 let load_env (f:string) =
   let rec go (ic:in_channel) =
     try
-      parse_entry (input_line ic);
+      parse_entry true (input_line ic);
       go ic
     with End_of_file -> close_in ic
   in
   go (open_in f)
 
-let ambient_env () = parse_env (Array.to_list (Unix.environment ()))
+let ambient_env () = 
+  List.iter (parse_entry false) (Array.to_list (Unix.environment ()))
 
 let parse_user (s:string) =
   try
