@@ -77,7 +77,7 @@ and entry =
   | DQ of string (* why is this here? can't we just use Quote in control? *)
   | K of control
   | F
-  | R of stmt
+  | R of stmt (* symbolic results of commands *)
 
 and words = list entry
 
