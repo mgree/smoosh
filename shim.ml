@@ -264,6 +264,8 @@ and to_args (n : node union ptr) : words list =
 
 (* we don't need anything else, I think---just a tiny bit of JSON *)
 type json = String of string
+          | Bool of bool
+          | Int of int
           | List of json list 
           | Assoc of (string * json) list 
 
@@ -278,6 +280,10 @@ let rec write_json (buf : Buffer.t) =
      Buffer.add_char buf '"';
      Buffer.add_string buf (String.escaped s);
      Buffer.add_char buf '"'
+  | Bool b ->
+     Buffer.add_string buf (if b then "true" else "false")
+  | Int n ->
+     Buffer.add_string buf (string_of_int n)
   | List l ->
      Buffer.add_char buf '[';
      intercalate (write_json buf) comma l;
@@ -293,13 +299,65 @@ let tag name = ("tag", String name)
 let obj name = Assoc [tag name]
 let obj_v name v = Assoc [tag name; ("v", String v)]
 
-let rec json_of_stmt _c = String "TODO"
+let rec json_of_stmt = function
+  | Command (assigns, args, rs) -> 
+     Assoc [tag "Command"; 
+            ("assigns", List (List.map json_of_assign assigns));
+            ("args", json_of_words args);
+            ("rs", json_of_redirs rs)]
+  | Pipe (bg, cs) -> 
+     Assoc [tag "Pipe"; ("bg", Bool bg); ("cs", List (List.map json_of_stmt cs))]
+  | Redir (c, rs) -> obj_crs "Redir" c rs
+  | Background (c, rs) -> obj_crs "Background" c rs
+  | Subshell (c, rs) -> obj_crs "Subshell" c rs
+  | And (c1, c2) -> obj_lr "And" c1 c2
+  | Or (c1, c2) -> obj_lr "Or" c1 c2
+  | Not c -> Assoc [tag "Not"; ("c", json_of_stmt c)]
+  | Semi (c1, c2) -> obj_lr "Semi" c1 c2
+  | If (c1, c2, c3) -> 
+     Assoc [tag "If"; ("c", json_of_stmt c1); ("t", json_of_stmt c2); ("e", json_of_stmt c3)]
+  | While (c1, c2) -> 
+     Assoc [tag "While"; ("cond", json_of_stmt c1); ("body", json_of_stmt c2)]
+  | For (x, w, c) -> 
+     Assoc [tag "For"; ("var", String x); ("args", json_of_words w); ("body", json_of_stmt c)]
+  | Case (w, cases) -> 
+     Assoc [tag "Case"; ("args", json_of_words w); ("cases", List (List.map json_of_case cases))]
+  | Defun (f, c) -> Assoc [tag "Defun"; ("name", String f); ("body", json_of_stmt c)]
+and obj_lr name l r = Assoc [tag name; ("l", json_of_stmt l); ("r", json_of_stmt r)]
+and obj_crs name c rs = 
+  Assoc [tag name; ("c", json_of_stmt c); ("rs", json_of_redirs rs)]
+and json_of_redir = function
+  | File (ty, fd, w) -> 
+     Assoc [tag "File"; 
+            ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_words w)]
+  | Dup (ty, src, tgt) -> 
+     Assoc [tag "Dup";
+            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt)]
+  | Heredoc (ty, src, w) -> 
+     Assoc [tag "Heredoc";
+            ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_words w)]
+and json_of_redir_type = function
+  | To -> String "To"
+  | Clobber -> String "Clobber"
+  | From -> String "From"
+  | FromTo -> String "FromTo"
+  | Append -> String "Append"
+and json_of_dup_type = function
+  | ToFD -> String "ToFD"
+  | FromFD -> String "FromFD"
+and json_of_heredoc_type = function
+  | Here -> String "Here"
+  | XHere -> String "XHere"
+and json_of_redirs rs = List (List.map json_of_redir rs)
+and json_of_assign (x, w) = Assoc [("var", String x); ("w", json_of_words w)]
+and json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
 and json_of_words w = List (List.map json_of_entry w)
 and json_of_entry = function
   | S s -> obj_v "S" s
   | DQ s -> obj_v "DQ" s
   | K k -> Assoc [tag "K"; ("v", json_of_control k)]
   | F -> obj "F"
+  | R c -> obj_v "R" (string_of_stmt c)
 and json_of_control = function
   | Tilde -> obj "Tilde"
   | TildeUser user -> Assoc [tag "TildeUser"; ("user", String user)]
@@ -346,4 +404,3 @@ and json_of_fields ss = List (List.map (fun s -> String s) ss)
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
 and obj_f name f = Assoc [tag name; ("f", json_of_expanded_words f)]
 and obj_fw name f w = Assoc [tag name; ("f", json_of_expanded_words f); ("w", json_of_words w)]
-

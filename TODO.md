@@ -6,13 +6,10 @@ should we write a custom parser, too?
   need it for js_of_ocaml
   also need to drop/ignore zarith dep in lem somehow
 
-### Expansion.ml
+### Expansion.lem
 
 Monads for parsing etc.
 clean up to make null more explicit (simplify matches?)
-Backtick
-  convert AST
-  get rid of old Ast.ml from libdash? or just manually write our own copy-over jawn?
 
 Error handling (parse errors, error expansion mode, variable lookup)
 

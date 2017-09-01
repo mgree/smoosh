@@ -106,7 +106,7 @@ and expand_control s0 q k =
     | LMatch s side mode f w ->
         let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
         (s1, [], [K (LMatch s side mode (f ++ f1) w1)])
-    | Backtick c -> (s0, [], [S ("<<result of " ^ string_of_stmt c ^ ">>")]) (* This should create a new bash env *)
+    | Backtick c -> (s0, [], [R c]) (* TODO this should create a new bash process, setup pipes *)
     | Arith f [] ->
         match arith64 s0 (toCharList (concat_expanded f)) with
         | Right (s1, result) -> (s1, [ExpS (write result)], [])
@@ -142,6 +142,7 @@ and expand_words s0 q sm (f,w) =
         (s0, f ++ f1, ws)
     | (K(k)::ws) -> let (s1,f1,w1) = expand_control s0 q k in
         (s1, f++f1, (w1 ++ ws))
+    | (R(c)::ws) -> (s0, f ++ [ExpS ("<<" ^ string_of_stmt c ^ ">>")], ws) (* TODO would be good to stay symbolic *)
   end
 
 and control_code_expansion s0 q w =
