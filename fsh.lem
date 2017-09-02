@@ -19,22 +19,6 @@ type substring_side =
 | Suffix  
 
 (**********************************************************************)
-(* Expansion **********************************************************)
-(**********************************************************************)
-
-type expanded_word =
-   UsrF
- | ExpS of string
- | ExpDQ of string
- | UsrS of string
- | UsrDQ of string
-
-type expanded_words = list expanded_word
-
-(* final expansion output *)
-type fields = list string
-
-(**********************************************************************)
 (* Commands ***********************************************************)
 (**********************************************************************)
 
@@ -101,6 +85,28 @@ and redir =
    | File of redir_type * nat * words
    | Dup of dup_type * nat * nat
    | Heredoc of heredoc_type * nat * words
+
+
+(**********************************************************************)
+(* Expansion **********************************************************)
+(**********************************************************************)
+
+and expanded_word =
+   UsrF
+ | ExpS of string
+ | ExpDQ of string
+ | UsrS of string
+ | UsrDQ of string
+ | SymResult of stmt
+
+and expanded_words = list expanded_word
+
+(* final expansion output *)
+type abstract_string = 
+    Str of string
+  | Result of stmt (* symbolic result of evaluating a command *)
+
+type fields = list abstract_string
 
 (**********************************************************************)
 (* Pretty printing ****************************************************)

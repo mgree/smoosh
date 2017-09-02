@@ -18,7 +18,7 @@ type expansion_state = words * words
  * Stage 1 Expansion: Word expansion
  *)
 
-val concat_expanded : expanded_words -> string
+val concat_expanded : expanded_words -> string (* TODO make this an abstract string *)
 
 val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
 val expand_control : ty_os_state -> quoting_mode -> control -> (ty_os_state * expanded_words * words)
@@ -31,6 +31,7 @@ let rec concat_expanded w =
   | UsrF::ws -> " " ^ concat_expanded ws
   | ExpS s::ws -> s ^ concat_expanded ws
   | ExpDQ s::ws -> s ^ concat_expanded ws
+  | SymResult c::ws -> "<<symbolic result of " ^ string_of_stmt c ^ ">>" ^ concat_expanded ws
   | UsrS _::_ -> "TODO: broken invariant"
   | UsrDQ _::_ -> "TODO: broken invariant"
   end
@@ -142,7 +143,7 @@ and expand_words s0 q sm (f,w) =
         (s0, f ++ f1, ws)
     | (K(k)::ws) -> let (s1,f1,w1) = expand_control s0 q k in
         (s1, f++f1, (w1 ++ ws))
-    | (R(c)::ws) -> (s0, f ++ [ExpS ("<<" ^ string_of_stmt c ^ ">>")], ws) (* TODO would be good to stay symbolic *)
+    | (R(c)::ws) -> (s0, f ++ [SymResult c], ws)
   end
 
 and control_code_expansion s0 q w =
@@ -162,6 +163,7 @@ type tmp_field =
   | FS
   | Field of string
   | QField of string
+  | SymField of stmt
 
 type intermediate_fields = list tmp_field
 
@@ -205,6 +207,7 @@ let rec split_word ifs p =
   | (f, ExpDQ(s)::wrds) -> split_word ifs (f ++ [QField s], wrds)
   | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field s], wrds)
   | (f, UsrDQ(s)::wrds) -> split_word ifs (f ++ [QField s], wrds)
+  | (f, SymResult(c)::wrds) -> split_word ifs (f ++ [SymField c], wrds)
   end
 
 let split_fields s0 exp_words =
@@ -268,16 +271,17 @@ let rec remove_quotes f =
 let rec to_fields f =
   match f with
   | []           -> []
-  | FS::FS::rst  -> ""::(to_fields rst)
-  | Field s::rst -> s::(to_fields rst)
+  | FS::FS::rst  -> Str ""::(to_fields rst)
+  | Field s::rst -> Str s::(to_fields rst)
   | FS::rst      -> to_fields rst
-  | WFS::_       -> ["TODO: broken invariant"]
-  | QField _::_  -> ["TODO: broken invariant"]
+  | WFS::_       -> [Str "TODO: broken invariant"]
+  | QField _::_  -> [Str "TODO: broken invariant"]
+  | SymField c::rst -> Result c::(to_fields rst)
   end
 
 let rec finalize_fields f =
   match f with
-  | (FS::rst) -> ""::(finalize_fields rst)
+  | (FS::rst) -> Str ""::(finalize_fields rst)
   | _ -> to_fields f
   end
 
