@@ -13,3 +13,4 @@ clean up to make null more explicit (simplify matches?)
 
 Error handling (parse errors, error expansion mode, variable lookup)
 
+handle symbolic commands in pattern matching (rather than present kludge of string conversion)
