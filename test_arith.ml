@@ -166,6 +166,9 @@ let parser_tests:(string*(string,(Nat_big_num.num arith_token)list)Either.either
 
    ("Bitwise shift on numbers", lex_string "4 << 2 >> 32", Right(BinOp (RShift, BinOp (LShift, num 4, num 2), num 32)));
    ("Bitwise shift precedence", lex_string "3*2 << 2 + 4", Right((BinOp (LShift, BinOp (Times, num 3, num 2), BinOp (Plus, num 2, num 4)))));
+
+   ("Simple assignment with variables", lex_string "x=x+1", Right(AssignVar ("x", None, BinOp (Plus, Var "x", num 1))));
+
  ])
 
 (* let big_num = Int64.of_int Nat_big_num.of_int *)
@@ -248,6 +251,7 @@ let eval_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_o
     ("x | equals 2, x is set to 5", os_var_x_five, "x|=2", Right (shell_env_insert os_empty "x" "7", ofNumLiteral 7));
     ("x ^ equals 2, x is set to 5", os_var_x_five, "x^=2", Right (shell_env_insert os_empty "x" "7", ofNumLiteral 7));
 
+    ("x = x + 1, x is unset", os_empty, "x=x+1", Right (shell_env_insert os_empty "x" "1", ofNumLiteral 1));
   ]
 
 let eval_bignum_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_os_state * Nat_big_num.num)Either.either)list =

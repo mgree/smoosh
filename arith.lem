@@ -45,6 +45,7 @@ type BinaryOperator =
 
 type arith_exp 'a =
     Num of 'a
+  | Var of string
   | Neg of arith_exp 'a
   | BitNot of arith_exp 'a
   | BoolNot of arith_exp 'a
@@ -401,6 +402,7 @@ and unary_term tkns =
 and number_term tkns =
   match tkns with
   | ((TNum n)::ts) -> Right (Num n, ts)
+  | ((TVar s)::ts) -> Right (Var s, ts)
   | (TLParen::ts) ->
       match parse_assignment ts with
       | Right(term, TRParen::ts1) -> Right (term, ts1)
@@ -428,6 +430,15 @@ val eval_arith : forall 'a. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 
 let rec eval_arith bits s0 e =
   match e with
   | (Num n) -> Right (s0, n)
+  | (Var s) ->
+      match lookup_param s0 s with
+      | Just str ->
+          match read (toCharList str) with
+          | Right n -> Right (s0, n)
+          | Left e -> Left e
+          end
+      | Nothing -> Right (s0, fromNat 0) (* bash follows the spec and allows this, defaulting to 0, dash does not *)
+      end
   | (BinOp op e1 e2) ->
       match eval_arith bits s0 e1 with
       | Right (s1, n1) ->
@@ -501,7 +512,7 @@ let rec eval_arith bits s0 e =
                   end
               | Left e -> Left e
               end
-          | Nothing -> Left ("Unbound variable: " ^ s) (* bash follows the spec and allows this, defaulting to 0 *)
+          | Nothing -> Left ("Unbound variable: " ^ s) (* bash follows the spec and allows this, defaulting to 0, dash does not *)
           end
       | Nothing ->
           match eval_arith bits s0 exp with
