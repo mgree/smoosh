@@ -142,9 +142,7 @@ let main () =
   Dash.initialize ();
   parse_args ();
   set_input_src ();
-  let ns = 
-    Dash.with_handler (fun r -> Dash.parse_all ())
-  in
+  let ns = Dash.parse_all () in
   let cs = List.map Shim.of_node ns in
   let traces = List.map (trace_command !initial_os_state) cs in
   List.iter show_trace traces;;  
