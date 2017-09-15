@@ -8,8 +8,6 @@ should we write a custom parser, too?
 
 ### Expansion.lem
 
-bugfix in arith: ${x=1} $((x+1)) should yield 1 2, currently errors
-
 Monads for parsing etc.
 clean up to make null more explicit (simplify matches?)
 
