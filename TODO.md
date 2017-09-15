@@ -1,20 +1,31 @@
-##### Issues
+### Issues
 
-### CLI
+### Parsing
 
-should we write a custom parser, too?
-  need it for js_of_ocaml
-  also need to drop/ignore zarith dep in lem somehow
+Should we write a custom parser?
+
+### Expander tool
+
+JS/webpage
+CLI
+
+have both read the JSON output
 
 ### Expansion.lem
 
 Monads for parsing etc.
-clean up to make null more explicit (simplify matches?)
+Clean up to make null more explicit (simplify matches?)
 
-Error handling (parse errors, error expansion mode, variable lookup)
+Error handling
+  - parse errors break our libdash shim
+  - error expansion mode
+  - variable lookup
 
-handle symbolic commands in pattern matching (rather than present kludge of string conversion)
+Handle symbolic commands in pattern matching (rather than present kludge of string conversion)
 
-### evaluation
+### Evaluation
 
-handle basic command stepping (keep everything symbolic?)
+Handle basic command stepping
+  - need process repr
+  - need FD repr
+  - keep everything symbolic for now
