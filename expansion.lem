@@ -21,8 +21,8 @@ type expansion_state = words * words
 val concat_expanded : expanded_words -> string (* TODO make this an abstract string *)
 
 val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
-val expand_control : ty_os_state -> quoting_mode -> control -> (ty_os_state * expanded_words * words)
-val expand_words : ty_os_state -> quoting_mode -> string_mode -> (expanded_words * words) -> (ty_os_state * expanded_words * words)
+val expand_control : ty_os_state -> quoting_mode -> control -> either (ty_os_state * expanded_words) (ty_os_state * expanded_words * words)
+val expand_words : ty_os_state -> quoting_mode -> string_mode -> (expanded_words * words) -> either (ty_os_state * expanded_words) (ty_os_state * expanded_words * words)
 val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
 
 let rec concat_expanded w =
@@ -52,8 +52,8 @@ let rec expand_param s0 _q str f =
       | NDefault w      -> w
       | Assign w        -> [K (LAssign str [] w)]
       | NAssign w       -> [K (LAssign str [] w)]
-      | Error _         -> [S "TODO: error"] (* This should error *)
-      | NError _        -> [S "TODO: error"] (* This should error *)
+      | Error w         -> [K (LError str [] w)]
+      | NError w        -> [K (LError str [] w)]
       | Length          -> [S "0"]
       | Normal          -> [S ""] (* null *)
       | Alt _           -> [S ""]
@@ -63,7 +63,7 @@ let rec expand_param s0 _q str f =
     | Just "" -> (match f with
       | NDefault w      -> w
       | NAssign w       -> [K (LAssign str [] w)]
-      | NError _        -> [S "TODO: error"] (* This should error *)
+      | NError w        -> [K (LError str [] w)]
       | Alt w           -> w
       | Length          -> [S "0"]
       | Normal          -> [S ""] (* null *)
@@ -89,44 +89,57 @@ let rec expand_param s0 _q str f =
   end))
 
 and expand_control s0 q k =
-  match k with
-    | Tilde -> (s0, [], expand_param s0 Unquoted "HOME" Normal)
+    match k with
+    | Tilde -> Right (s0, [], expand_param s0 Unquoted "HOME" Normal)
     | TildeUser usr -> 
        match get_pwdir s0 usr with
-       | Nothing -> (s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
-       | Just path -> (s0, [], [S path])
+       | Nothing -> Right (s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
+       | Just path -> Right (s0, [], [S path])
        end
     | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
         let s1 = <| s0 with shell_env = Map.insert s (concat_expanded f) s0.shell_env |> in
-        (s1, f, [])
+        Right (s1, f, [])
     | LAssign s f w ->
-        let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
-        (s1, [], [K (LAssign s (f ++ f1) w1)])
-    | LMatch str side mode f [] -> (s0, [], [S (match_substring side mode f str)])
+       match expand_words s0 q GeneratedString ([], w) with
+       | Right (s1, f1, w1) -> Right (s1, [], [K (LAssign s (f ++ f1) w1)])
+       | Left err -> Left err
+       end
+    | LMatch str side mode f [] -> Right (s0, [], [S (match_substring side mode f str)])
     | LMatch s side mode f w ->
-        let (s1, f1, w1) = expand_words s0 q GeneratedString ([], w) in
-        (s1, [], [K (LMatch s side mode (f ++ f1) w1)])
-    | Backtick c -> (s0, [], [R c]) (* TODO this should create a new bash process, setup pipes *)
+       match expand_words s0 q GeneratedString ([], w) with
+       | Right (s1, f1, w1) -> Right (s1, [], [K (LMatch s side mode (f ++ f1) w1)])
+       | Left err -> Left err
+       end
+    | LError str f [] -> Left (s0, ExpS (str ^ ": ")::f) (* dash seems to print erroring variable name; TODO should we also have linno? *)
+    | LError str f w -> 
+       match expand_words s0 q GeneratedString ([], w) with
+       | Right (s1, f1, w1) -> Right (s1, [], [K (LError str (f ++ f1) w1)])
+       | Left err -> Left err
+       end
+    | Backtick c -> Right (s0, [], [R c]) (* TODO this should create a new bash process, setup pipes *)
     | Arith f [] ->
         match arith64 s0 (toCharList (concat_expanded f)) with
-        | Right (s1, result) -> (s1, [ExpS (write result)], [])
-        | Left e -> (s0, [ExpS e], [])
+        | Right (s1, result) -> Right (s1, [ExpS (write result)], [])
+        | Left e -> Left (s0, [ExpS e])
         end
-    | Arith f w -> let (s1, f1, w1) = expand_words s0 q GeneratedString ([],w) in
-        (s1, [], [K (Arith (f ++ f1) w1)])
-    | Quote w -> let (s1, f1, w1) = expand_words s0 Quoted GeneratedString ([],w) in
-        match w1 with
-        | [] -> (s1, f1, [])
-        | _ -> (s1, f1, [K (Quote (w1))])
-        end
-    (*| Nested (q, st) -> [K (Nested (q, expand_words *)
+    | Arith f w -> 
+       match expand_words s0 q GeneratedString ([],w) with
+       | Right (s1, f1, w1) -> Right (s1, [], [K (Arith (f ++ f1) w1)])
+       | Left err -> Left err
+       end
+    | Quote w -> 
+       match expand_words s0 Quoted GeneratedString ([],w) with
+       | Right (s1, f1, []) -> Right (s1, f1, [])
+       | Right (s1, f1, w1) -> Right (s1, f1, [K (Quote w1)])
+       | Left err -> Left err
+       end
   end
 
 and expand_words s0 q sm (f,w) =
   match w with
-    | [] -> (s0, f, w)
-    | (F::ws) -> (s0, f ++ [UsrF], ws)
+    | [] -> Right (s0, f, w)
+    | (F::ws) -> Right (s0, f ++ [UsrF], ws)
     | (S(s)::ws) ->
         let f1 = match (q, sm) with
         | (Quoted, UserString) -> [UsrDQ s]
@@ -134,24 +147,30 @@ and expand_words s0 q sm (f,w) =
         | (Unquoted, UserString) -> [UsrS s]
         | (Unquoted, GeneratedString) -> [ExpS s]
         end in
-        (s0, f ++ f1, ws)
+        Right (s0, f ++ f1, ws)
     | (DQ(s)::ws) ->
         let f1 = match sm with
         | UserString -> [UsrDQ s]
         | GeneratedString -> [ExpDQ s]
         end in
-        (s0, f ++ f1, ws)
-    | (K(k)::ws) -> let (s1,f1,w1) = expand_control s0 q k in
-        (s1, f++f1, (w1 ++ ws))
-    | (R(c)::ws) -> (s0, f ++ [SymResult c], ws)
+        Right (s0, f ++ f1, ws)
+    | (K(k)::ws) -> 
+       match expand_control s0 q k with
+       | Right (s1,f1,w1) -> Right (s1, f++f1, (w1 ++ ws))
+       | Left err -> Left err
+       end
+    | (R(c)::ws) -> Right (s0, f ++ [SymResult c], ws)
   end
 
 and control_code_expansion s0 q w =
-  let (s1, f1, w1) = expand_words s0 q UserString ([],w) in
-  match w1 with
-  | [] -> (s1, f1)
-  | _ -> let (s2, f2) = control_code_expansion s1 q w1 in
-                        (s2, (f1 ++ f2))
+  match expand_words s0 q UserString ([],w) with
+  | Right (s1, f1, w1) ->
+     match w1 with
+     | [] -> (s1, f1)
+     | _ -> let (s2, f2) = control_code_expansion s1 q w1 in
+            (s2, (f1 ++ f2))
+     end
+  | Left (s1, err1) -> (s1, err1)
   end
 
 (*

@@ -1,5 +1,8 @@
 ### Issues
 
+create a fork of kernel.org's dash, track it
+  but remove main, have proper handler abort
+
 ### Parsing
 
 Should we write a custom parser?
@@ -18,8 +21,6 @@ Clean up to make null more explicit (simplify matches?)
 
 Error handling
   - parse errors break our libdash shim
-  - error expansion mode
-  - variable lookup
 
 Handle symbolic commands in pattern matching (rather than present kludge of string conversion)
 

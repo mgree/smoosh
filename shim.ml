@@ -368,6 +368,8 @@ and json_of_control = function
                                        ("side", json_of_substring_side side);
                                        ("mode", json_of_substring_mode mode);
                                        ("f", json_of_expanded_words f); ("w", json_of_words w)]
+  | LError (x,f,w) -> Assoc [tag "LError"; ("var", String x);
+                             ("f", json_of_expanded_words f); ("w", json_of_words w)]
   | Backtick c -> Assoc [tag "Backtick"; ("stmt", json_of_stmt c)]
   | Arith (f,w) ->  obj_fw "Arith" f w
   | Quote w -> obj_w "Quote" w

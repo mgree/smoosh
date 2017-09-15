@@ -50,8 +50,9 @@ and control =
     Tilde
   | TildeUser of string
   | Param of string * format
-  | LAssign of string * expanded_words * words
-  | LMatch of string * substring_side * substring_mode * expanded_words * words
+  | LAssign of string * expanded_words * words (* runtime technicality *)
+  | LMatch of string * substring_side * substring_mode * expanded_words * words (* runtime technicality *)
+  | LError of string * expanded_words * words (* runtime technicality *)
   | Backtick of stmt
   | Arith of expanded_words * words
   | Quote of words
