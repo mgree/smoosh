@@ -3,6 +3,11 @@
 create a fork of kernel.org's dash, track it
   but remove main, have proper handler abort
 
+~ expansion without HOME:
+  should just yield ~, not null
+
+look into ExpDQ
+
 ### Parsing
 
 Should we write a custom parser?

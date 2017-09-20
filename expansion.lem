@@ -90,7 +90,7 @@ let rec expand_param s0 _q str f =
 
 and expand_control s0 q k =
     match k with
-    | Tilde -> Right (s0, [], expand_param s0 Unquoted "HOME" Normal)
+    | Tilde -> Right (s0, [], expand_param s0 Unquoted "HOME" Normal) (* if HOME is unset, results are unspecified *)
     | TildeUser usr -> 
        match get_pwdir s0 usr with
        | Nothing -> Right (s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
