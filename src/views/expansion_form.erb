@@ -1,3 +1,14 @@
+<h1>Shell expander!</h1>
 
-Expansion form page.
+<form method="post" action="/expand/submit">
+  <textarea name="shell" rows="10" cols="84">echo ${x=5} $((x+1))</textarea>
 
+  <br/>
+  <!-- TODO turn these into tables -->
+  <textarea name="env" rows="4" cols="40">{"PATH": "/usr/bin", "HOME": "/Users/mgree"}</textarea>
+  <textarea name="users" rows="4" cols="40">{"mgree": "/Users/mgree", "root": "/var/root"}</textarea>
+
+  <br />
+  <!-- TODO AJAX to load on this page -->
+  <input type="submit" value="Expand" />
+</form>
