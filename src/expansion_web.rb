@@ -23,5 +23,8 @@ class ExpansionWeb < Sinatra::Base
   end
 
   post '/expand/submit' do
+    # write appropriate files with date/time/ip in the name + temp suffix (need code, env, user info)
+    # run expander for JSON
+    # catch error or send json out
   end
 end
