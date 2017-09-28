@@ -1,7 +1,11 @@
 require 'sinatra'
+require "sinatra/config_file"
 require 'date'
 
 class ExpansionWeb < Sinatra::Base
+  register Sinatra::ConfigFile
+  config_file 'config.yml'
+
   configure :development do
     require "sinatra/reloader"
     register Sinatra::Reloader
@@ -24,10 +28,12 @@ class ExpansionWeb < Sinatra::Base
   end
 
   post '/expand/submit' do
+    require 'src/command'
+
     # create temporary directory logging time and IP
     timestamp = DateTime.now.to_s.gsub(":", "+")
-    ip = request.ip.gsub(":", "+") # just in case we're on the loop back interface    
-    d = Dir.mktmpdir "#{timestamp}_#{ip}" # TODO don't put this in var!
+    ip = request.ip.gsub(":", "+") # just in case we're on the loop back interface
+    d = Dir.mktmpdir("#{timestamp}_#{ip}", settings.submissions_tmpdir)
 
     # create files with provided info
     shell = File.new(File.join(d, "shell"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
@@ -37,7 +43,7 @@ class ExpansionWeb < Sinatra::Base
     # write files
     shell.write params['shell']
     shell.close
-    
+
     JSON.parse(params['env']).each do |k, v|
       env.write "#{k}=#{v}\n"
     end
@@ -47,11 +53,17 @@ class ExpansionWeb < Sinatra::Base
       user.write "#{u}=#{d}\n"
     end
     user.close
-    
-    "#{d} #{params['shell']} #{params['env']} #{params['users']}"
-    
+
     # run expander for JSON
     #   /path/to/expand -env-file env -user-file users shell
-    # catch error or send json out
+    expand = Command.new(settings.expand_executable, '-env-file', File.path(env), '-user-file', File.path(user), File.path(shell))
+    result = expand.execute!
+
+    if result[:exit_code].zero?
+      result[:stdout]
+    else
+      # TODO: Error
+      ""
+    end
   end
 end
