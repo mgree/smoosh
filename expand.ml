@@ -131,7 +131,7 @@ let json_of_state_term = function
   | `Expand (f,w) -> obj_fw "Expand" f w
   | `Split f -> obj_f "Split" f
   | `Error f -> Assoc [tag "Error"; ("msg", json_of_fields f)]
-  | `Done fs -> Assoc [tag "Done"; ("fields", json_of_fields fs)]
+  | `Done fs -> Assoc [tag "Done"; ("f", json_of_fields fs)]
 
 let json_of_env (env:(string, string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, String v)) (Pmap.bindings_list env))
