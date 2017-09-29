@@ -1,114 +1,6 @@
 include import Pervasives_extra
 include import Fsh_prelude
 
-(*
-Strings will be whatever lem uses for string
-??? What character set does lem use for strings? Does it matter?
-*)
-
-(**********************************************************************)
-(* Patterns ***********************************************************)
-(**********************************************************************)
-
-type substring_mode =
-  Shortest
-| Longest
-
-type substring_side =
-  Prefix
-| Suffix  
-
-(**********************************************************************)
-(* Commands ***********************************************************)
-(**********************************************************************)
-
-type redir_type = To | Clobber | From | FromTo | Append
-type dup_type = ToFD | FromFD
-type heredoc_type = Here | XHere (* for when in a quote... not sure when this comes up *)
-
-(**********************************************************************)
-(* AST ****************************************************************)
-(**********************************************************************)
-
-type format =
-    Normal
-  | Default of words
-  | NDefault of words
-  | Assign of words
-  | NAssign of words
-  | Error of words
-  | NError of words
-  | Alt of words
-  | NAlt of words
-  | Length
-  | Substring of substring_side * substring_mode * words
-                                
-(* Treating parameters niavely led to a problem when evaluating
- * ${x=${x=foo}bar${x=baz}} incorrectly when x was unset
- *)
-and control =
-    Tilde
-  | TildeUser of string
-  | Param of string * format
-  | LAssign of string * expanded_words * words (* runtime technicality *)
-  | LMatch of string * substring_side * substring_mode * expanded_words * words (* runtime technicality *)
-  | LError of string * expanded_words * words (* runtime technicality *)
-  | Backtick of stmt
-  | Arith of expanded_words * words
-  | Quote of words
-
-and entry =
-    S of string
-  | DQ of string (* why is this here? can't we just use Quote in control? *)
-  | K of control
-  | F
-  | R of stmt (* symbolic results of commands *)
-
-and words = list entry
-
-and stmt = 
-    Command of list (string * words) * words * list redir
-  | Pipe of bool (* bg? *) * list stmt
-  | Redir of stmt * list redir
-  | Background of stmt * list redir
-  | Subshell of stmt * list redir
-  | And of stmt * stmt
-  | Or of stmt * stmt
-  | Not of stmt
-  | Semi of stmt * stmt
-  | If of stmt * stmt * stmt
-  | While of stmt * stmt
-  (*   | InWhile of stmt (* condition *) * stmt (* original body *) * stmt (* current body *) *)
-  | For of string * words * stmt
-  | Case of words * list (words * stmt)
-  | Defun of string * stmt
-
-and redir = 
-   | File of redir_type * nat * words
-   | Dup of dup_type * nat * nat
-   | Heredoc of heredoc_type * nat * words
-
-
-(**********************************************************************)
-(* Expansion **********************************************************)
-(**********************************************************************)
-
-and expanded_word =
-   UsrF
- | ExpS of string
- | UsrS of string
- | DQuo of string
- | SymResult of stmt
-
-and expanded_words = list expanded_word
-
-(* final expansion output *)
-type symbolic 'a = 
-    Val of 'a
-  | Result of stmt (* symbolic result of evaluating a command *)
-
-type fields = list (symbolic string)
-
 (**********************************************************************)
 (* Pretty printing ****************************************************)
 (**********************************************************************)
@@ -215,9 +107,8 @@ and string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
 and string_of_entry e =
   match e with
   | S str -> "S(" ^ str ^ ")"
-  | R c -> "R(" ^ string_of_stmt c ^ ")"
+  | ESym _ -> "<<SYMBOLIC>>" (* TODO "R(" ^ string_of_symbolic_string c ^ ")" *)
   | DQ string -> "\"" ^ string ^ "\""
   | K _ -> "<<CTRL>>"
   | F -> "<<FS>>"
   end
-

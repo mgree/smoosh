@@ -1,5 +1,198 @@
 open import Pervasives_extra
 
+(*
+Strings will be whatever lem uses for string
+??? What character set does lem use for strings? Does it matter?
+*)
+
+(**********************************************************************)
+(* Patterns ***********************************************************)
+(**********************************************************************)
+
+type substring_mode =
+  Shortest
+| Longest
+
+type substring_side =
+  Prefix
+| Suffix  
+
+(**********************************************************************)
+(* Commands ***********************************************************)
+(**********************************************************************)
+
+type redir_type = To | Clobber | From | FromTo | Append
+type dup_type = ToFD | FromFD
+type heredoc_type = Here | XHere (* for when in a quote... not sure when this comes up *)
+
+(**********************************************************************)
+(* AST ****************************************************************)
+(**********************************************************************)
+
+type format =
+    Normal
+  | Default of words
+  | NDefault of words
+  | Assign of words
+  | NAssign of words
+  | Error of words
+  | NError of words
+  | Alt of words
+  | NAlt of words
+  | Length
+  | Substring of substring_side * substring_mode * words
+                                
+(* Treating parameters niavely led to a problem when evaluating
+ * ${x=${x=foo}bar${x=baz}} incorrectly when x was unset
+ *)
+and control =
+    Tilde
+  | TildeUser of string
+  | Param of string * format
+  | LAssign of string * expanded_words * words (* runtime technicality *)
+  | LMatch of fields * substring_side * substring_mode * expanded_words * words (* runtime technicality *)
+  | LError of string * expanded_words * words (* runtime technicality *)
+  | Backtick of stmt
+  | Arith of expanded_words * words
+  | Quote of words
+
+and entry =
+    S of string
+  | DQ of string (* why is this here? can't we just use Quote in control? *)
+  | K of control
+  | F
+  | ESym of symbolic_string (* embedded symbolic entries *)
+
+and words = list entry
+
+and stmt = 
+    Command of list (string * words) * words * list redir
+  | Pipe of bool (* bg? *) * list stmt
+  | Redir of stmt * list redir
+  | Background of stmt * list redir
+  | Subshell of stmt * list redir
+  | And of stmt * stmt
+  | Or of stmt * stmt
+  | Not of stmt
+  | Semi of stmt * stmt
+  | If of stmt * stmt * stmt
+  | While of stmt * stmt
+  (*   | InWhile of stmt (* condition *) * stmt (* original body *) * stmt (* current body *) *)
+  | For of string * words * stmt
+  | Case of words * list (words * stmt)
+  | Defun of string * stmt
+
+and redir = 
+   | File of redir_type * nat * words
+   | Dup of dup_type * nat * nat
+   | Heredoc of heredoc_type * nat * words
+
+
+(**********************************************************************)
+(* Expansion **********************************************************)
+(**********************************************************************)
+
+and expanded_word =
+   UsrF
+ | ExpS of string
+ | UsrS of string
+ | DQuo of string
+ | EWSym of symbolic_string
+
+and expanded_words = list expanded_word
+
+(* final expansion output *)
+and symbolic_char = 
+    C of char
+  | SymCommand of stmt (* symbolic result of evaluating a command *)
+  | SymArith of fields (* symbolic result of arithmetic evaluation *)
+
+and symbolic_string = list symbolic_char
+
+and fields = list (symbolic_string)
+
+val null_string : symbolic_string -> maybe bool
+let rec null_string f = 
+  match f with
+  | [] -> Just true
+  | C(c)::_ -> Just false
+  | SymArith _::_ -> Just false
+  | SymCommand _::f -> 
+     match null_string f with
+     | Just false -> Just false
+     | Just true -> Nothing
+     | Nothing -> Nothing
+     end
+  end
+
+val null_fields : fields -> maybe bool
+let rec null_fields fs = 
+  match fs with
+  | [] -> Just true
+  | f::fs -> 
+     match (null_string f, null_fields fs) with
+     | (Just true,  Just true)  -> Just true
+     | (Just false, _)          -> Just false
+     | (_,          Just false) -> Just false
+     | (_,          _)          -> Nothing
+     end
+   end
+
+val toSymbolicCharList : fields -> symbolic_string
+let rec toSymbolicCharList fs = 
+  match fs with
+  | [] -> []
+  | [f] -> f
+  | f::fs' -> f ++ [C #' '] ++ toSymbolicCharList fs
+  end
+
+val words_of_fields : fields -> words
+let words_of_fields fs = 
+  map (function 
+       | C c -> S (toString [c]) (* TODO find maximal runs of chars *)
+       | sym -> ESym [sym]
+       end)
+      (toSymbolicCharList fs)
+
+val expanded_words_of_fields : fields -> expanded_words
+let rec expanded_words_of_fields fs = 
+  map (function 
+       | C c -> ExpS (toString [c]) (* TODO find maximal runs of chars *)
+       | sym -> EWSym [sym]
+       end)
+      (toSymbolicCharList fs)
+
+val toSymbolicString : symbolic_string -> fields
+let toSymbolicString s = [s]
+
+val try_concrete : symbolic_string -> maybe string
+let rec try_concrete vs =
+  match vs with
+  | [] -> Just ""
+  | C(c)::vs' -> 
+     match try_concrete vs' with
+     | Nothing -> Nothing
+     | Just cs -> Just (toString [c] ^ cs)
+     end
+  | _ -> Nothing
+  end
+
+val symbolic_string_to_string_crappy : symbolic_string -> string
+let rec symbolic_string_to_string_crappy f =
+  match f with
+  | [] -> ""
+  | C(c)::f' -> toString [c] ^ symbolic_string_to_string_crappy f'
+  | _::f' -> "<<SYMBOLIC>>" ^ symbolic_string_to_string_crappy f'
+  end
+
+val fields_to_string_crappy : fields -> string
+let rec fields_to_string_crappy fs = 
+  match fs with
+  | [] -> ""
+  | [f] -> symbolic_string_to_string_crappy f
+  | f::fs' -> symbolic_string_to_string_crappy f ^ fields_to_string_crappy fs'
+  end
+
 (*-------------------------------*)
 (* sibylfs types                 *)
 (*-------------------------------*)
@@ -20,7 +213,7 @@ let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
 
 (* From t_fs_spec.lem_cppo line 1187 *)
 type ty_os_state = <|
-    shell_env: Map.map string string;
+    shell_env: Map.map string symbolic_string;
     passwd: Map.map string string (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
   |>
 
@@ -30,13 +223,20 @@ let os_empty : ty_os_state = <|
  |>
     
 val print_shell_env : ty_os_state -> string
-let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ v ^ ", " ^ s) st.shell_env ""
+let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ symbolic_string_to_string_crappy v ^ ", " ^ s) st.shell_env ""
 
 (* The result is nothing if the parameter is unset, and the empty string null. *)
-val lookup_param : ty_os_state -> string -> maybe string
+val lookup_param : ty_os_state -> string -> maybe symbolic_string
 let lookup_param s0 str = Map.lookup str s0.shell_env
 
-val set_param : string -> string -> ty_os_state -> ty_os_state
+val lookup_concrete_param : ty_os_state -> string -> maybe string
+let lookup_concrete_param s0 str =
+  match Map.lookup str s0.shell_env with
+  | Nothing -> Nothing
+  | Just fs -> try_concrete fs
+  end
+
+val set_param : string -> symbolic_string -> ty_os_state -> ty_os_state
 let set_param x v os = <| os with shell_env = Map.insert x v (os.shell_env) |>
 
 val get_pwdir : ty_os_state -> string -> maybe string

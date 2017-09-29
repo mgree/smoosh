@@ -431,13 +431,13 @@ let rec eval_arith bits s0 e =
   match e with
   | (Num n) -> Right (s0, n)
   | (Var s) ->
-      match lookup_param s0 s with
+      match lookup_concrete_param s0 s with
       | Just str ->
           match read (toCharList str) with
           | Right n -> Right (s0, n)
           | Left e -> Left e
           end
-      | Nothing -> Right (s0, fromNat 0) (* bash follows the spec and allows this, defaulting to 0, dash does not *)
+      | Nothing -> Right (s0, fromNat 0) (* bash follows the spec and allows this, defaulting to 0, dash does not *) (* TODO handle symbolic lookup results *)
       end
   | (BinOp op e1 e2) ->
       match eval_arith bits s0 e1 with
@@ -502,39 +502,48 @@ let rec eval_arith bits s0 e =
   | AssignVar s op exp ->
       match op with
       | Just o ->
-          match lookup_param s0 s with
+          match lookup_concrete_param s0 s with
           | Just str ->
-              match read (toCharList str) with
-              | Right n ->
-                  match eval_arith bits s0 (BinOp o (Num n) exp) with
-                  | Right (s1, n2) -> Right (<| s1 with shell_env = Map.insert s (write n2) s1.shell_env |>, n2)
-                  | Left e -> Left e
-                  end
-              | Left e -> Left e
-              end
-          | Nothing -> Left ("Unbound variable: " ^ s) (* bash follows the spec and allows this, defaulting to 0, dash does not *)
+                match read (toCharList str) with
+                | Right n ->
+                    match eval_arith bits s0 (BinOp o (Num n) exp) with
+                    | Right (s1, n2) -> Right (<| s1 with shell_env = Map.insert s [Val (write n2)] s1.shell_env |>, n2)
+                    | Left e -> Left e
+                    end
+                | Left e -> Left e
+                end
+          | Nothing -> Left ("Unbound or symbolic variable: " ^ s) (* bash follows the spec and allows this, defaulting to 0, dash does not *) (* TODO handle symbolic case *)
           end
       | Nothing ->
           match eval_arith bits s0 exp with
-          | Right (s1, n) -> Right (<| s1 with shell_env = Map.insert s (write n) s1.shell_env |>, n)
+          | Right (s1, n) -> Right (<| s1 with shell_env = Map.insert s [Val (write n)] s1.shell_env |>, n)
           | Left e -> Left e
           end
       end
   end
 
-val arith : forall 'a. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> ty_os_state -> (list char) -> either string (ty_os_state * 'a)
+val arith : forall 'a. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> ty_os_state -> list (symbolic char) -> either string (ty_os_state * fields)
 let arith bits s0 str =
-  match (either_monad parse_arith_exp (lexer str)) with
-  | Right aexp -> eval_arith bits s0 aexp
-  | Left e -> Left e
+  match try_concrete str with
+  | Just cstr ->
+     match (either_monad parse_arith_exp (lexer cstr)) with
+     | Right aexp -> 
+        match eval_arith bits s0 aexp with
+        | Right (s1,v) -> Right (s1,[Val (write v)])
+        | Left e -> Left e
+        end
+     | Left e -> Left e
+     end
+  | Nothing -> Right (s0 (* TODO record something about symbolic changes *),
+                      [SymArith (toSymbolicString str)])
   end
 
-val arith_big_num : ty_os_state -> (list char) -> either string (ty_os_state * integer)
+val arith_big_num : ty_os_state -> list (symbolic char) -> either string (ty_os_state * fields)
 let arith_big_num = arith (~(integerFromNat 1))
 
-val arith32 : ty_os_state -> (list char) -> either string (ty_os_state * int32)
+val arith32 : ty_os_state -> list (symbolic char) -> either string (ty_os_state * fields)
 let arith32 = arith (int32FromNat 32)
 
-val arith64 : ty_os_state -> (list char) -> either string (ty_os_state * int64)
+val arith64 : ty_os_state -> list (symbolic char) -> either string (ty_os_state * fields)
 let arith64 = arith (int64FromNat 64)
 

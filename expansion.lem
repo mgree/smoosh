@@ -18,97 +18,89 @@ type expansion_state = words * words
  * Stage 1 Expansion: Word expansion
  *)
 
-val concat_expanded : expanded_words -> fields
-
 val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
 val expand_control : ty_os_state -> quoting_mode -> control -> either (ty_os_state * expanded_words) (ty_os_state * expanded_words * words)
 val expand_words : ty_os_state -> quoting_mode -> string_mode -> (expanded_words * words) -> either (ty_os_state * expanded_words) (ty_os_state * expanded_words * words)
 val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
 
+val concat_expanded : expanded_words -> fields
 let rec concat_expanded w =
   match w with
   | [] -> [Val ""]
   | UsrF::ws -> Val " " :: concat_expanded ws
   | ExpS s::ws -> Val s :: concat_expanded ws
   | DQuo s::ws -> Val s :: concat_expanded ws
-  | SymResult c::ws -> Result c :: concat_expanded ws
+  | EWSym c::ws -> c :: concat_expanded ws
   | UsrS _::_ -> [Val "TODO: broken invariant"]
   end
 
-val toSymbolicCharList : fields -> list (symbolic char)
-let toSymbolicCharList fs = 
-  concatMap (function
-             | Val s -> map Val (toCharList s)
-             | Result c -> [Result c]
-             end) fs
-
-(* Lem doesn't allow let recs inside functions :( *)
-val stringify : list char -> symbolic string
-let stringify cs = Val (toString (reverse cs))
-
-val toSymbolicString' : list char -> list (symbolic char) -> fields
-let rec toSymbolicString' cs = function
-  | [] -> [stringify cs]
-  | Val(c)::fs' -> toSymbolicString' (c::cs) fs'
-  | Result(v)::fs' -> (stringify cs)::Result v::(toSymbolicString' [] fs')
-  end
-
-val toSymbolicString : list (symbolic char) -> fields
-let toSymbolicString = toSymbolicString' []
-
-let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:string) : string =
-  let pat = toSymbolicCharList (concat_expanded pat) in
-  let str = toSymbolicCharList [Val str] in
+let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : fields =
+  let sympat : list (symbolic char) = toSymbolicCharList (concat_expanded pat) in
+  let symstr : list (symbolic char) = toSymbolicCharList str in
   match side with
-  | Prefix -> toSymbolicString (try_match_prefix Locale.lc_ambient mode pat str) (* TODO way to select/update locale *)
-  | Suffix -> toSymbolicString (reverse (try_match_prefix Locale.lc_ambient mode (reverse pat) (reverse str))) (* TODO same *)
+  | Prefix -> toSymbolicString (try_match_prefix Locale.lc_ambient mode sympat symstr) (* TODO way to select/update locale *)
+  | Suffix -> toSymbolicString (reverse (try_match_prefix Locale.lc_ambient mode (reverse sympat) (reverse symstr))) (* TODO same *)
   end
 
-let rec expand_param s0 _q str f =
-  (let value = lookup_param s0 str in
-  (match value with
-    | Nothing -> (match f with
-      | Default w       -> w
-      | NDefault w      -> w
-      | Assign w        -> [K (LAssign str [] w)]
-      | NAssign w       -> [K (LAssign str [] w)]
-      | Error w         -> [K (LError str [] w)]
-      | NError w        -> [K (LError str [] w)]
-      | Length          -> [S "0"]
-      | Normal          -> [S ""] (* null *)
-      | Alt _           -> [S ""]
-      | NAlt _          -> [S ""]
-      | Substring _ _ _ -> [S ""]
-      end)
-    | Just "" -> (match f with
-      | NDefault w      -> w
-      | NAssign w       -> [K (LAssign str [] w)]
-      | NError w        -> [K (LError str [] w)]
-      | Alt w           -> w
-      | Length          -> [S "0"]
-      | Normal          -> [S ""] (* null *)
-      | Assign _        -> [S ""]
-      | Default _       -> [S ""]
-      | Error _         -> [S ""]
-      | NAlt _          -> [S ""]
-      | Substring _ _ _ -> [S ""] (* TODO: this feels like an optimization... is it correct? *)
-      end)
-    | Just v -> (match f with
-      | Alt w           -> w
-      | NAlt w          -> w
-      | Length          -> [S (show (stringLength v))]
-      | Normal          -> [S v]
-      | Default _       -> [S v]
-      | NDefault _      -> [S v]
-      | Assign _        -> [S v]
-      | NAssign _       -> [S v]
-      | Error _         -> [S v]
-      | NError _        -> [S v]
-      | Substring s m w -> [K (LMatch v s m [] w)]
-      end)
-   end))
+let expand_param s0 _q str f =
+  let value = lookup_param s0 str in
+  match (value, f) with
+  (* NORMAL *)
+  | (Nothing, Normal)     -> [S ""] (* null *)
+  | (Just fs, Normal)     -> words_of_fields fs
+  (* DEFAULT *)
+  | (Nothing, Default w)  -> w
+  | (Just fs, Default _)  -> words_of_fields fs
+  | (Nothing, NDefault w) -> w
+  | (Just fs, NDefault w) -> 
+     match null_fields fs with
+     | Nothing -> (* TODO symbolic result *) words_of_fields fs
+     | Just true -> w
+     | Just false -> words_of_fields fs
+     end
+  (* ASSIGN *)
+  | (Nothing, Assign w)  -> [K (LAssign str [] w)]
+  | (Just fs, Assign _)  -> words_of_fields fs       
+  | (Nothing, NAssign w) -> [K (LAssign str [] w)]
+  | (Just fs, NAssign w) -> 
+     match null_fields fs with
+     | Nothing -> (* TODO symbolic result *) words_of_fields fs
+     | Just true -> [K (LAssign str [] w)]
+     | Just false -> words_of_fields fs
+     end
+  (* ERROR *)
+  | (Nothing, Error w)  -> [K (LError str [] w)]
+  | (Just fs, Error _)  -> words_of_fields fs
+  | (Nothing, NError w) -> [K (LError str [] w)]
+  | (Just fs, NError w) -> 
+     match null_fields fs with
+     | Nothing -> (* TODO symbolic result *) words_of_fields fs
+     | Just true -> [K (LError str [] w)]
+     | Just false -> words_of_fields fs
+     end
+  (* LENGTH *)
+  | (Nothing, Length) -> [S "0"]
+  | (Just fs, Length) ->
+     match try_concrete fs with
+     | Nothing -> (* TODO symbolic result *) [S "0"]
+     | Just strs -> [S (show (stringLength (stringConcat strs)))]
+     end
+  (* ALT *)
+  | (Nothing, Alt _)  -> [S ""]
+  | (Just fs, Alt w)  -> w
+  | (Nothing, NAlt _) -> [S ""]
+  | (Just fs, NAlt w) ->
+     match null_fields fs with
+     | Nothing -> (* TODO symbolic result *) words_of_fields fs
+     | Just true -> [S ""]
+     | Just false -> w
+     end
+  (* SUBTRINGS (prefix/suffix) *)
+  | (Nothing, Substring _ _ _) -> [S ""]
+  | (Just fs, Substring s m w) -> [K (LMatch fs s m [] w)]
+  end
 
-and expand_control s0 q k =
+let rec expand_control s0 q k =
     match k with
     | Tilde ->
        let dir = match expand_param s0 Unquoted "HOME" Normal with
@@ -155,7 +147,7 @@ and expand_control s0 q k =
        | Right (s1, f1, w1) -> Right (s1, [], [K (LAssign s (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | LMatch str side mode f [] -> Right (s0, [], [S (match_substring side mode f str)])
+    | LMatch str side mode f [] -> Right (s0, [], words_of_fields (match_substring side mode f str))
     | LMatch s side mode f w ->
        match expand_words s0 q GeneratedString ([], w) with
        | Right (s1, f1, w1) -> Right (s1, [], [K (LMatch s side mode (f ++ f1) w1)])
@@ -167,10 +159,10 @@ and expand_control s0 q k =
        | Right (s1, f1, w1) -> Right (s1, [], [K (LError str (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | Backtick c -> Right (s0, [], [R c]) (* TODO this should create a new bash process, setup pipes *)
+    | Backtick c -> Right (s0, [], [ESym (SymCommand c)]) (* TODO this should create a new bash process, setup pipes *)
     | Arith f [] ->
-        match arith64 s0 (toCharList (concat_expanded f)) with
-        | Right (s1, result) -> Right (s1, [ExpS (write result)], [])
+        match arith64 s0 (toSymbolicCharList (concat_expanded f)) with
+        | Right (s1, result) -> Right (s1, expanded_words_of_fields result, [])
         | Left e -> Left (s0, [ExpS e])
         end
     | Arith f w -> 
@@ -203,7 +195,7 @@ and expand_words s0 q sm (f,w) =
        | Right (s1,f1,w1) -> Right (s1, f++f1, (w1 ++ ws))
        | Left err -> Left err
        end
-    | (R(c)::ws) -> Right (s0, f ++ [SymResult c], ws)
+    | (ESym(c)::ws) -> Right (s0, f ++ [EWSym c], ws)
   end
 
 and control_code_expansion s0 q w =
@@ -226,9 +218,9 @@ lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x 
 type tmp_field =
     WFS
   | FS
-  | Field of string
-  | QField of string
-  | SymField of stmt
+  | Field of fields
+  | QField of fields
+  | SymField of symbolic string
 
 type intermediate_fields = list tmp_field
 
@@ -258,8 +250,10 @@ let rec split_string ifs clst =
    | [] -> []
    | c::cs ->
        if elem c ifs
-       then let fs = if is_ws c then WFS else FS in fs::split_string ifs cs
-       else let (cc, cs1) = (collect_non_ifs ifs cs) in (Field (toString (c::cc)))::(split_string ifs cs1)
+       then let fs = if is_ws c then WFS else FS 
+            in fs::split_string ifs cs
+       else let (cc, cs1) = collect_non_ifs ifs cs in 
+            (Field [Val (toString (c::cc))])::(split_string ifs cs1)
   end
 
 let rec split_word ifs p =
@@ -269,17 +263,22 @@ let rec split_word ifs p =
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_string ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
-  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field s], wrds)
-  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField s], wrds)
-  | (f, SymResult(c)::wrds) -> split_word ifs (f ++ [SymField c], wrds)
+  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field [Val s]], wrds)
+  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField [Val s]], wrds)
+  | (f, EWSym(c)::wrds) -> split_word ifs (f ++ [SymField c], wrds)
   end
 
 let split_fields s0 exp_words =
   let ifs = lookup_param s0 "IFS" in
   let (f, _) = match ifs with
     | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
-    | Just "" -> ([Field (concat_expanded exp_words)], [])
-    | Just s -> split_word (toCharList s) ([], exp_words)
+    | Just fs -> 
+       match try_concrete fs with
+       | Nothing -> (* TODO symbolic, we're fucked *) 
+          split_word (toCharList " \n\t") ([], exp_words)
+       | Just [""] -> ([Field (concat_expanded exp_words)], [])
+       | Just s -> split_word (toCharList (stringConcat s)) ([], exp_words)
+       end
   end in f
 
 let rec combine_fields f =
@@ -289,7 +288,7 @@ let rec combine_fields f =
   | (WFS::WFS::rst) -> combine_fields (WFS::rst) (* Combine adjacent whitespace separators *)
   | (WFS::FS::rst) -> combine_fields (FS::rst)
   | (FS::WFS::rst) -> combine_fields (FS::rst)
-  | (Field(s1)::Field(s2)::rst) -> combine_fields (Field(s1 ^ s2)::rst)
+  | (Field(s1)::Field(s2)::rst) -> combine_fields (Field(s1 ++ s2)::rst)
   | (WFS::rst) -> FS::(combine_fields rst)
   | (f::rst) -> f::(combine_fields rst)
   end
@@ -336,11 +335,26 @@ let rec to_fields f =
   match f with
   | []           -> []
   | FS::FS::rst  -> Val ""::(to_fields rst)
-  | Field s::rst -> Val s::(to_fields rst)
+  | Field fs::rst -> 
+     (* TODO almost surely wrong...
+
+        we're conflating the string 
+
+          abc$(cmd)xyz
+
+        with
+ 
+
+          abc $(cmd) xyz
+
+        when they're def. different. need to separate our notion of
+        "fields" and our notion of symbolic strings
+      *)
+     fs ++ (to_fields rst) 
   | FS::rst      -> to_fields rst
   | WFS::_       -> [Val "TODO: broken invariant"]
   | QField _::_  -> [Val "TODO: broken invariant"]
-  | SymField c::rst -> Result c::(to_fields rst)
+  | SymField c::rst -> c::(to_fields rst)
   end
 
 let rec finalize_fields f =
