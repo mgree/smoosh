@@ -1,9 +1,0 @@
-development:
-  expand_executable: /Users/austb/research/fsh/model/expand
-  submissions_tmpdir: /Users/austb/research/fsh/web/submissions
-test:
-  expand_executable: path/to/expand
-  submissions_tmpdir: /full/path/to/tmpdir
-production:
-  expand_executable: path/to/expand
-  submissions_tmpdir: /full/path/to/tmpdir
