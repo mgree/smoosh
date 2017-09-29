@@ -30,10 +30,9 @@ let rec concat_expanded w =
   | [] -> ""
   | UsrF::ws -> " " ^ concat_expanded ws
   | ExpS s::ws -> s ^ concat_expanded ws
-  | ExpDQ s::ws -> s ^ concat_expanded ws
+  | DQuo s::ws -> s ^ concat_expanded ws
   | SymResult c::ws -> "<<symbolic result of " ^ string_of_stmt c ^ ">>" ^ concat_expanded ws
   | UsrS _::_ -> "TODO: broken invariant"
-  | UsrDQ _::_ -> "TODO: broken invariant"
   end
 
 let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:string) : string =
@@ -172,18 +171,12 @@ and expand_words s0 q sm (f,w) =
     | (F::ws) -> Right (s0, f ++ [UsrF], ws)
     | (S(s)::ws) ->
         let f1 = match (q, sm) with
-        | (Quoted, UserString) -> [UsrDQ s]
-        | (Quoted, GeneratedString) -> [ExpDQ s]
+        | (Quoted, _) -> [DQuo s]
         | (Unquoted, UserString) -> [UsrS s]
         | (Unquoted, GeneratedString) -> [ExpS s]
         end in
         Right (s0, f ++ f1, ws)
-    | (DQ(s)::ws) ->
-        let f1 = match sm with
-        | UserString -> [UsrDQ s]
-        | GeneratedString -> [ExpDQ s]
-        end in
-        Right (s0, f ++ f1, ws)
+    | (DQ(s)::ws) -> Right (s0, f ++ [DQuo s], ws)
     | (K(k)::ws) -> 
        match expand_control s0 q k with
        | Right (s1,f1,w1) -> Right (s1, f++f1, (w1 ++ ws))
@@ -255,9 +248,8 @@ let rec split_word ifs p =
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_string ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
-  | (f, ExpDQ(s)::wrds) -> split_word ifs (f ++ [QField s], wrds)
   | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field s], wrds)
-  | (f, UsrDQ(s)::wrds) -> split_word ifs (f ++ [QField s], wrds)
+  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField s], wrds)
   | (f, SymResult(c)::wrds) -> split_word ifs (f ++ [SymField c], wrds)
   end
 

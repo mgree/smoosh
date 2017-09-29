@@ -7,8 +7,6 @@ copy install instructions into top-level readme
 
 turn model into its own repo?
 
-look into ExpDQ
-
 ### Parsing
 
 Should we write a custom parser?

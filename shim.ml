@@ -398,9 +398,8 @@ and json_of_expanded_words f = List (List.map json_of_expanded_word f)
 and json_of_expanded_word = function
   | UsrF -> obj "UsrF"
   | ExpS s -> obj_v "ExpS" s
-  | ExpDQ s -> obj_v "ExpDQ" s
+  | DQuo s -> obj_v "DQuo" s
   | UsrS s -> obj_v "UsrS" s
-  | UsrDQ s -> obj_v "UsrDQ" s
   | SymResult c -> Assoc [tag "SymResult"; ("stmt", json_of_stmt c)]
 and json_of_fields ss = List (List.map json_of_abstract_string ss)
 and json_of_abstract_string = function

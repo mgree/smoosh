@@ -96,9 +96,8 @@ and redir =
 and expanded_word =
    UsrF
  | ExpS of string
- | ExpDQ of string
  | UsrS of string
- | UsrDQ of string
+ | DQuo of string
  | SymResult of stmt
 
 and expanded_words = list expanded_word
