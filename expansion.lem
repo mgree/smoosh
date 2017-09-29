@@ -86,11 +86,41 @@ let rec expand_param s0 _q str f =
       | NError _        -> [S v]
       | Substring s m w -> [K (LMatch v s m [] w)]
       end)
-  end))
+   end))
 
 and expand_control s0 q k =
     match k with
-    | Tilde -> Right (s0, [], expand_param s0 Unquoted "HOME" Normal) (* if HOME is unset, results are unspecified *)
+    | Tilde ->
+       let dir = match expand_param s0 Unquoted "HOME" Normal with
+         (* if HOME is unset, results are unspecified---we return "~" 
+            dash:
+              $ unset HOME
+              $ echo ~
+              ~
+              $ HOME=""
+              $ echo ~
+              ~
+              $ HOME="/Users/mgree"
+              $ echo ~
+              /Users/mgree
+
+            bash:
+              $ unset HOME
+              $ echo ~
+              /Users/mgree
+              $ HOME=""
+              $ echo ~
+              
+              $ HOME="/Users/mgree"
+              $ echo ~
+              /Users/mgree            
+
+            lol
+          *)
+         | [S ""] -> [S "~"] 
+         | dir -> dir
+         end in
+       Right (s0, [], dir)
     | TildeUser usr -> 
        match get_pwdir s0 usr with
        | Nothing -> Right (s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
@@ -172,6 +202,8 @@ and control_code_expansion s0 q w =
      end
   | Left (s1, err1) -> (s1, err1)
   end
+
+lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x Normal = [S s]
 
 (*
  * Stage 2 Expansion: Field Splitting

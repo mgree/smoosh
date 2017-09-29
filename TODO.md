@@ -1,10 +1,11 @@
 ### Issues
 
 create a fork of kernel.org's dash, track it
-  but remove main, have proper handler abort
+but remove main, have proper handler abort
 
-~ expansion without HOME:
-  should just yield ~, not null
+copy install instructions into top-level readme
+
+turn model into its own repo?
 
 look into ExpDQ
 
@@ -15,6 +16,9 @@ Should we write a custom parser?
 ### Expander tool
 
 JS/webpage
+  run expander in a chroot jail
+  error handling
+  mkdir for submissions
 CLI
 
 have both read the JSON output
@@ -23,6 +27,13 @@ have both read the JSON output
 
 Monads for parsing etc.
 Clean up to make null more explicit (simplify matches?)
+
+Symbolic record which steps were taken
+  Separate out splitting, quote removal
+
+Minimal FS model
+
+Commands
 
 Error handling
   - parse errors break our libdash shim

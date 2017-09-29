@@ -156,18 +156,18 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
   | '\130'::t::s,_ ->
      let var_name,s = Dash.split_at (fun c -> c = '=') s in
      let t = int_of_char t in
-     let v,s,bqlist,stack = match t land 0x0f, s with
+     let v,s,bqlist,stack = match t land 0x1f, s with
      (* VSNORMAL and VSLENGTH get special treatment
 
      neither ever gets VSNUL
      VSNORMAL is terminated just with the =, without a CTLENDVAR *)
      (* VSNORMAL *)
-     | 0x1,'='::s ->
+     | 0x01,'='::s ->
         K (Param (implode var_name, Normal)),s,bqlist,stack
      (* VSLENGTH *)
-     | 0xa,'='::'\131'::s ->
+     | 0x0a,'='::'\131'::s ->
         K (Param (implode var_name, Length)),s,bqlist,stack
-     | 0x1,c::_ | 0xa,c::_ ->
+     | 0x01,c::_ | 0xa,c::_ ->
         failwith ("Missing CTLENDVAR for VSNORMAL/VSLENGTH, found " ^ Char.escaped c)
      (* every other VSTYPE takes mods before CTLENDVAR *)
      | vstype,'='::s ->
