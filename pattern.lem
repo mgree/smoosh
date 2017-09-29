@@ -208,8 +208,9 @@ let rec match_prefix (lc:locale) (m:substring_mode) (pat:list char) (s:list char
      else Nothing
   end
 
-let try_match_prefix (lc:locale) (m:substring_mode) (pat:list char) (s:list char) : list char =
-  match match_prefix lc m pat s with
+(* TODO acutally push through symbolic characters *)
+let try_match_prefix (lc:locale) (m:substring_mode) (pat:list (symbolic char)) (s:list (symbolic char)) : list (symbolic char) =
+  match match_prefix lc m [] (* pat *) [] (* s *) with
   | Nothing -> s
-  | Just s' -> s'
+  | Just s' -> map Val s'
   end

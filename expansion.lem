@@ -18,7 +18,7 @@ type expansion_state = words * words
  * Stage 1 Expansion: Word expansion
  *)
 
-val concat_expanded : expanded_words -> string (* TODO make this an abstract string *)
+val concat_expanded : expanded_words -> fields
 
 val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
 val expand_control : ty_os_state -> quoting_mode -> control -> either (ty_os_state * expanded_words) (ty_os_state * expanded_words * words)
@@ -27,20 +27,41 @@ val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_stat
 
 let rec concat_expanded w =
   match w with
-  | [] -> ""
-  | UsrF::ws -> " " ^ concat_expanded ws
-  | ExpS s::ws -> s ^ concat_expanded ws
-  | DQuo s::ws -> s ^ concat_expanded ws
-  | SymResult c::ws -> "<<symbolic result of " ^ string_of_stmt c ^ ">>" ^ concat_expanded ws
-  | UsrS _::_ -> "TODO: broken invariant"
+  | [] -> [Val ""]
+  | UsrF::ws -> Val " " :: concat_expanded ws
+  | ExpS s::ws -> Val s :: concat_expanded ws
+  | DQuo s::ws -> Val s :: concat_expanded ws
+  | SymResult c::ws -> Result c :: concat_expanded ws
+  | UsrS _::_ -> [Val "TODO: broken invariant"]
   end
 
+val toSymbolicCharList : fields -> list (symbolic char)
+let toSymbolicCharList fs = 
+  concatMap (function
+             | Val s -> map Val (toCharList s)
+             | Result c -> [Result c]
+             end) fs
+
+(* Lem doesn't allow let recs inside functions :( *)
+val stringify : list char -> symbolic string
+let stringify cs = Val (toString (reverse cs))
+
+val toSymbolicString' : list char -> list (symbolic char) -> fields
+let rec toSymbolicString' cs = function
+  | [] -> [stringify cs]
+  | Val(c)::fs' -> toSymbolicString' (c::cs) fs'
+  | Result(v)::fs' -> (stringify cs)::Result v::(toSymbolicString' [] fs')
+  end
+
+val toSymbolicString : list (symbolic char) -> fields
+let toSymbolicString = toSymbolicString' []
+
 let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:string) : string =
-  let pat = toCharList (concat_expanded pat) in
-  let str = toCharList str in
+  let pat = toSymbolicCharList (concat_expanded pat) in
+  let str = toSymbolicCharList [Val str] in
   match side with
-  | Prefix -> toString (try_match_prefix Locale.lc_ambient mode pat str) (* TODO way to select/update locale *)
-  | Suffix -> toString (reverse (try_match_prefix Locale.lc_ambient mode (reverse pat) (reverse str))) (* TODO same *)
+  | Prefix -> toSymbolicString (try_match_prefix Locale.lc_ambient mode pat str) (* TODO way to select/update locale *)
+  | Suffix -> toSymbolicString (reverse (try_match_prefix Locale.lc_ambient mode (reverse pat) (reverse str))) (* TODO same *)
   end
 
 let rec expand_param s0 _q str f =
@@ -314,17 +335,17 @@ let rec remove_quotes f =
 let rec to_fields f =
   match f with
   | []           -> []
-  | FS::FS::rst  -> Str ""::(to_fields rst)
-  | Field s::rst -> Str s::(to_fields rst)
+  | FS::FS::rst  -> Val ""::(to_fields rst)
+  | Field s::rst -> Val s::(to_fields rst)
   | FS::rst      -> to_fields rst
-  | WFS::_       -> [Str "TODO: broken invariant"]
-  | QField _::_  -> [Str "TODO: broken invariant"]
+  | WFS::_       -> [Val "TODO: broken invariant"]
+  | QField _::_  -> [Val "TODO: broken invariant"]
   | SymField c::rst -> Result c::(to_fields rst)
   end
 
 let rec finalize_fields f =
   match f with
-  | (FS::rst) -> Str ""::(finalize_fields rst)
+  | (FS::rst) -> Val ""::(finalize_fields rst)
   | _ -> to_fields f
   end
 

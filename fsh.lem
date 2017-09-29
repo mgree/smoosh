@@ -103,11 +103,11 @@ and expanded_word =
 and expanded_words = list expanded_word
 
 (* final expansion output *)
-type abstract_string = 
-    Str of string
+type symbolic 'a = 
+    Val of 'a
   | Result of stmt (* symbolic result of evaluating a command *)
 
-type fields = list abstract_string
+type fields = list (symbolic string)
 
 (**********************************************************************)
 (* Pretty printing ****************************************************)
