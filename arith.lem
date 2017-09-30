@@ -507,7 +507,7 @@ let rec eval_arith bits s0 e =
                 match read (toCharList str) with
                 | Right n ->
                     match eval_arith bits s0 (BinOp o (Num n) exp) with
-                    | Right (s1, n2) -> Right (<| s1 with shell_env = Map.insert s [Val (write n2)] s1.shell_env |>, n2)
+                    | Right (s1, n2) -> Right (<| s1 with shell_env = Map.insert s (stringToSymbolicString (write n2)) s1.shell_env |>, n2)
                     | Left e -> Left e
                     end
                 | Left e -> Left e
@@ -516,34 +516,34 @@ let rec eval_arith bits s0 e =
           end
       | Nothing ->
           match eval_arith bits s0 exp with
-          | Right (s1, n) -> Right (<| s1 with shell_env = Map.insert s [Val (write n)] s1.shell_env |>, n)
+          | Right (s1, n) -> Right (<| s1 with shell_env = Map.insert s (stringToSymbolicString (write n)) s1.shell_env |>, n)
           | Left e -> Left e
           end
       end
   end
 
-val arith : forall 'a. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> ty_os_state -> list (symbolic char) -> either string (ty_os_state * fields)
+val arith : forall 'a. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a => 'a -> ty_os_state -> symbolic_string -> either string (ty_os_state * fields)
 let arith bits s0 str =
   match try_concrete str with
   | Just cstr ->
-     match (either_monad parse_arith_exp (lexer cstr)) with
+     match either_monad parse_arith_exp (lexer (toCharList cstr)) with
      | Right aexp -> 
         match eval_arith bits s0 aexp with
-        | Right (s1,v) -> Right (s1,[Val (write v)])
+        | Right (s1,v) -> Right (s1,[(map (C) (toCharList (write v)))])
         | Left e -> Left e
         end
      | Left e -> Left e
      end
   | Nothing -> Right (s0 (* TODO record something about symbolic changes *),
-                      [SymArith (toSymbolicString str)])
+                      [[SymArith (toSymbolicString str)]])
   end
 
-val arith_big_num : ty_os_state -> list (symbolic char) -> either string (ty_os_state * fields)
+val arith_big_num : ty_os_state -> symbolic_string -> either string (ty_os_state * fields)
 let arith_big_num = arith (~(integerFromNat 1))
 
-val arith32 : ty_os_state -> list (symbolic char) -> either string (ty_os_state * fields)
+val arith32 : ty_os_state -> symbolic_string -> either string (ty_os_state * fields)
 let arith32 = arith (int32FromNat 32)
 
-val arith64 : ty_os_state -> list (symbolic char) -> either string (ty_os_state * fields)
+val arith64 : ty_os_state -> symbolic_string -> either string (ty_os_state * fields)
 let arith64 = arith (int64FromNat 64)
 

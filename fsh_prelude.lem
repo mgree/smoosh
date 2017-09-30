@@ -162,6 +162,10 @@ let rec expanded_words_of_fields fs =
        end)
       (toSymbolicCharList fs)
 
+val stringToSymbolicString : string -> symbolic_string
+let stringToSymbolicString s = map C (toCharList s)
+
+(* TODO: this is toFields really *)
 val toSymbolicString : symbolic_string -> fields
 let toSymbolicString s = [s]
 
