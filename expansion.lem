@@ -23,20 +23,20 @@ val expand_control : ty_os_state -> quoting_mode -> control -> either (ty_os_sta
 val expand_words : ty_os_state -> quoting_mode -> string_mode -> (expanded_words * words) -> either (ty_os_state * expanded_words) (ty_os_state * expanded_words * words)
 val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
 
-val concat_expanded : expanded_words -> fields
+val concat_expanded : expanded_words -> symbolic_string
 let rec concat_expanded w =
   match w with
-  | [] -> [Val ""]
-  | UsrF::ws -> Val " " :: concat_expanded ws
-  | ExpS s::ws -> Val s :: concat_expanded ws
-  | DQuo s::ws -> Val s :: concat_expanded ws
-  | EWSym c::ws -> c :: concat_expanded ws
-  | UsrS _::_ -> [Val "TODO: broken invariant"]
+  | [] -> stringToSymbolicString ""
+  | UsrF::ws -> stringToSymbolicString " " ++ concat_expanded ws
+  | ExpS s::ws -> stringToSymbolicString s ++ concat_expanded ws
+  | DQuo s::ws -> stringToSymbolicString s ++ concat_expanded ws
+  | EWSym c::ws -> c ++ concat_expanded ws
+  | UsrS _::_ -> stringToSymbolicString "TODO: broken invariant"
   end
 
 let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : fields =
-  let sympat : list (symbolic char) = toSymbolicCharList (concat_expanded pat) in
-  let symstr : list (symbolic char) = toSymbolicCharList str in
+  let sympat : symbolic_string = (concat_expanded pat) in
+  let symstr : symbolic_string = toSymbolicCharList str in
   match side with
   | Prefix -> toSymbolicString (try_match_prefix Locale.lc_ambient mode sympat symstr) (* TODO way to select/update locale *)
   | Suffix -> toSymbolicString (reverse (try_match_prefix Locale.lc_ambient mode (reverse sympat) (reverse symstr))) (* TODO same *)
@@ -47,57 +47,57 @@ let expand_param s0 _q str f =
   match (value, f) with
   (* NORMAL *)
   | (Nothing, Normal)     -> [S ""] (* null *)
-  | (Just fs, Normal)     -> words_of_fields fs
+  | (Just fs, Normal)     -> words_of_symbolic_string fs
   (* DEFAULT *)
   | (Nothing, Default w)  -> w
-  | (Just fs, Default _)  -> words_of_fields fs
+  | (Just fs, Default _)  -> words_of_symbolic_string fs
   | (Nothing, NDefault w) -> w
-  | (Just fs, NDefault w) -> 
-     match null_fields fs with
-     | Nothing -> (* TODO symbolic result *) words_of_fields fs
+  | (Just fs, NDefault w) ->
+     match null_string fs with
+     | Nothing -> (* TODO symbolic result *) words_of_symbolic_string fs
      | Just true -> w
-     | Just false -> words_of_fields fs
+     | Just false -> words_of_symbolic_string fs
      end
   (* ASSIGN *)
   | (Nothing, Assign w)  -> [K (LAssign str [] w)]
-  | (Just fs, Assign _)  -> words_of_fields fs       
+  | (Just fs, Assign _)  -> words_of_symbolic_string fs       
   | (Nothing, NAssign w) -> [K (LAssign str [] w)]
   | (Just fs, NAssign w) -> 
-     match null_fields fs with
-     | Nothing -> (* TODO symbolic result *) words_of_fields fs
+     match null_string fs with
+     | Nothing -> (* TODO symbolic result *) words_of_symbolic_string fs
      | Just true -> [K (LAssign str [] w)]
-     | Just false -> words_of_fields fs
+     | Just false -> words_of_symbolic_string fs
      end
   (* ERROR *)
   | (Nothing, Error w)  -> [K (LError str [] w)]
-  | (Just fs, Error _)  -> words_of_fields fs
+  | (Just fs, Error _)  -> words_of_symbolic_string fs
   | (Nothing, NError w) -> [K (LError str [] w)]
   | (Just fs, NError w) -> 
-     match null_fields fs with
-     | Nothing -> (* TODO symbolic result *) words_of_fields fs
+     match null_string fs with
+     | Nothing -> (* TODO symbolic result *) words_of_symbolic_string fs
      | Just true -> [K (LError str [] w)]
-     | Just false -> words_of_fields fs
+     | Just false -> words_of_symbolic_string fs
      end
   (* LENGTH *)
   | (Nothing, Length) -> [S "0"]
   | (Just fs, Length) ->
      match try_concrete fs with
      | Nothing -> (* TODO symbolic result *) [S "0"]
-     | Just strs -> [S (show (stringLength (stringConcat strs)))]
+     | Just strs -> [S (show (stringLength strs))]
      end
   (* ALT *)
   | (Nothing, Alt _)  -> [S ""]
   | (Just fs, Alt w)  -> w
   | (Nothing, NAlt _) -> [S ""]
   | (Just fs, NAlt w) ->
-     match null_fields fs with
-     | Nothing -> (* TODO symbolic result *) words_of_fields fs
+     match null_string fs with
+     | Nothing -> (* TODO symbolic result *) words_of_symbolic_string fs
      | Just true -> [S ""]
      | Just false -> w
      end
   (* SUBTRINGS (prefix/suffix) *)
   | (Nothing, Substring _ _ _) -> [S ""]
-  | (Just fs, Substring s m w) -> [K (LMatch fs s m [] w)]
+  | (Just fs, Substring s m w) -> [K (LMatch [fs] s m [] w)]
   end
 
 let rec expand_control s0 q k =
@@ -159,9 +159,9 @@ let rec expand_control s0 q k =
        | Right (s1, f1, w1) -> Right (s1, [], [K (LError str (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | Backtick c -> Right (s0, [], [ESym (SymCommand c)]) (* TODO this should create a new bash process, setup pipes *)
+    | Backtick c -> Right (s0, [], [ESym [SymCommand c]]) (* TODO this should create a new bash process, setup pipes *)
     | Arith f [] ->
-        match arith64 s0 (toSymbolicCharList (concat_expanded f)) with
+        match arith64 s0 (concat_expanded f) with
         | Right (s1, result) -> Right (s1, expanded_words_of_fields result, [])
         | Left e -> Left (s0, [ExpS e])
         end
@@ -220,7 +220,7 @@ type tmp_field =
   | FS
   | Field of fields
   | QField of fields
-  | SymField of symbolic string
+  | SymField of symbolic_string
 
 type intermediate_fields = list tmp_field
 
@@ -253,7 +253,7 @@ let rec split_string ifs clst =
        then let fs = if is_ws c then WFS else FS 
             in fs::split_string ifs cs
        else let (cc, cs1) = collect_non_ifs ifs cs in 
-            (Field [Val (toString (c::cc))])::(split_string ifs cs1)
+            (Field [map C (c::cc)])::(split_string ifs cs1)
   end
 
 let rec split_word ifs p =
@@ -263,8 +263,8 @@ let rec split_word ifs p =
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_string ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
-  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field [Val s]], wrds)
-  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField [Val s]], wrds)
+  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field [map C (toCharList s)]], wrds)
+  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField [map C (toCharList s)]], wrds)
   | (f, EWSym(c)::wrds) -> split_word ifs (f ++ [SymField c], wrds)
   end
 
@@ -276,8 +276,8 @@ let split_fields s0 exp_words =
        match try_concrete fs with
        | Nothing -> (* TODO symbolic, we're fucked *) 
           split_word (toCharList " \n\t") ([], exp_words)
-       | Just [""] -> ([Field (concat_expanded exp_words)], [])
-       | Just s -> split_word (toCharList (stringConcat s)) ([], exp_words)
+       | Just "" -> ([Field [concat_expanded exp_words]], [])
+       | Just s -> split_word (toCharList s) ([], exp_words)
        end
   end in f
 
@@ -334,7 +334,7 @@ let rec remove_quotes f =
 let rec to_fields f =
   match f with
   | []           -> []
-  | FS::FS::rst  -> Val ""::(to_fields rst)
+  | FS::FS::rst  -> (stringToSymbolicString "")::(to_fields rst)
   | Field fs::rst -> 
      (* TODO almost surely wrong...
 
@@ -352,14 +352,14 @@ let rec to_fields f =
       *)
      fs ++ (to_fields rst) 
   | FS::rst      -> to_fields rst
-  | WFS::_       -> [Val "TODO: broken invariant"]
-  | QField _::_  -> [Val "TODO: broken invariant"]
+  | WFS::_       -> [stringToSymbolicString "TODO: broken invariant"]
+  | QField _::_  -> [stringToSymbolicString "TODO: broken invariant"]
   | SymField c::rst -> c::(to_fields rst)
   end
 
 let rec finalize_fields f =
   match f with
-  | (FS::rst) -> Val ""::(finalize_fields rst)
+  | (FS::rst) -> (stringToSymbolicString "")::(finalize_fields rst)
   | _ -> to_fields f
   end
 

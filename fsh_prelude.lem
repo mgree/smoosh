@@ -146,6 +146,13 @@ let rec toSymbolicCharList fs =
   | f::fs' -> f ++ [C #' '] ++ toSymbolicCharList fs
   end
 
+val words_of_symbolic_string : symbolic_string -> words
+let words_of_symbolic_string =
+  map (function 
+       | C c -> S (toString [c]) (* TODO find maximal runs of chars *)
+       | sym -> ESym [sym]
+       end)
+
 val words_of_fields : fields -> words
 let words_of_fields fs = 
   map (function 
@@ -165,7 +172,7 @@ let rec expanded_words_of_fields fs =
 val stringToSymbolicString : string -> symbolic_string
 let stringToSymbolicString s = map C (toCharList s)
 
-(* TODO: this is toFields really *)
+(* TODO: this is toFields or symbolicStringToFields really *)
 val toSymbolicString : symbolic_string -> fields
 let toSymbolicString s = [s]
 
