@@ -72,12 +72,16 @@ let eval_equals out expected =
   | _ -> false
 
 let check_eval_big_num (name, state, input, expected_out) =
-  checker (arith_big_num state) eval_equals (name, Xstring.explode input, expected_out)
+  checker (arith_big_num state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
+    either_monad (fun (st, n) -> Right (st, write_big_num n)) expected_out)
 
 let check_eval_int32 (name, state, input, expected_out) =
-  checker (arith32 state) eval_equals (name, Xstring.explode input, expected_out)
+  checker (arith32 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
+    either_monad (fun (st, n) -> Right (st, write32 n)) expected_out)
+
 let check_eval_int64 (name, state, input, expected_out) =
-  checker (arith64 state) eval_equals (name, Xstring.explode input, expected_out)
+  checker (arith64 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
+    either_monad (fun (st, n) -> Right (st, write64 n)) expected_out)
 
 let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either.either)list=
  ([
@@ -239,19 +243,19 @@ let eval_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_o
 
     ("assign x to 5", os_empty, "x=5", Right (os_var_x_five, ofNumLiteral 5));
 
-    ("x plus equals 2, x is set to 5", os_var_x_five, "x+=2", Right (shell_env_insert os_empty "x" "7", ofNumLiteral 7));
-    ("x minus equals 2, x is set to 5", os_var_x_five, "x-=2", Right (shell_env_insert os_empty "x" "3", ofNumLiteral 3));
-    ("x times equals 2, x is set to 5", os_var_x_five, "x*=2", Right (shell_env_insert os_empty "x" "10", ofNumLiteral 10));
-    ("x div equals 2, x is set to 5", os_var_x_five, "x/=2", Right (shell_env_insert os_empty "x" "2", ofNumLiteral 2));
-    ("x mod equals 2, x is set to 5", os_var_x_five, "x%=2", Right (shell_env_insert os_empty "x" "1", ofNumLiteral 1));
+    ("x plus equals 2, x is set to 5", os_var_x_five, "x+=2", Right (add_literal_env_string os_empty "x" "7", ofNumLiteral 7));
+    ("x minus equals 2, x is set to 5", os_var_x_five, "x-=2", Right (add_literal_env_string os_empty "x" "3", ofNumLiteral 3));
+    ("x times equals 2, x is set to 5", os_var_x_five, "x*=2", Right (add_literal_env_string os_empty "x" "10", ofNumLiteral 10));
+    ("x div equals 2, x is set to 5", os_var_x_five, "x/=2", Right (add_literal_env_string os_empty "x" "2", ofNumLiteral 2));
+    ("x mod equals 2, x is set to 5", os_var_x_five, "x%=2", Right (add_literal_env_string os_empty "x" "1", ofNumLiteral 1));
 
-    ("x lshift equals 2, x is set to 5", os_var_x_five, "x<<=2", Right (shell_env_insert os_empty "x" "20", ofNumLiteral 20));
-    ("x rshift equals 2, x is set to 5", os_var_x_five, "x>>=2", Right (shell_env_insert os_empty "x" "1", ofNumLiteral 1));
-    ("x & equals 2, x is set to 5", os_var_x_five, "x&=2", Right (shell_env_insert os_empty "x" "0", ofNumLiteral 0));
-    ("x | equals 2, x is set to 5", os_var_x_five, "x|=2", Right (shell_env_insert os_empty "x" "7", ofNumLiteral 7));
-    ("x ^ equals 2, x is set to 5", os_var_x_five, "x^=2", Right (shell_env_insert os_empty "x" "7", ofNumLiteral 7));
+    ("x lshift equals 2, x is set to 5", os_var_x_five, "x<<=2", Right (add_literal_env_string os_empty "x" "20", ofNumLiteral 20));
+    ("x rshift equals 2, x is set to 5", os_var_x_five, "x>>=2", Right (add_literal_env_string os_empty "x" "1", ofNumLiteral 1));
+    ("x & equals 2, x is set to 5", os_var_x_five, "x&=2", Right (add_literal_env_string os_empty "x" "0", ofNumLiteral 0));
+    ("x | equals 2, x is set to 5", os_var_x_five, "x|=2", Right (add_literal_env_string os_empty "x" "7", ofNumLiteral 7));
+    ("x ^ equals 2, x is set to 5", os_var_x_five, "x^=2", Right (add_literal_env_string os_empty "x" "7", ofNumLiteral 7));
 
-    ("x = x + 1, x is unset", os_empty, "x=x+1", Right (shell_env_insert os_empty "x" "1", ofNumLiteral 1));
+    ("x = x + 1, x is unset", os_empty, "x=x+1", Right (add_literal_env_string os_empty "x" "1", ofNumLiteral 1));
   ]
 
 let eval_bignum_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_os_state * Nat_big_num.num)Either.either)list =
@@ -274,7 +278,7 @@ let eval_int64_tests ofNumLiteral mul : (string * ty_os_state * string * (string
 
     ("right shift uses arithmetic shift", os_empty, "(15 << -1) >> 1", Right (os_empty, Int64.div int64Min (ofNumLiteral 2)));
 
-    ("x minus equals 7 return -2 when x is set to 5", os_var_x_five, "x-=7", Right (shell_env_insert os_empty "x" "-2", Int64.neg (ofNumLiteral 2)));
+    ("x minus equals 7 return -2 when x is set to 5", os_var_x_five, "x-=7", Right (add_literal_env_string os_empty "x" "-2", Int64.neg (ofNumLiteral 2)));
   ]
 
 let eval_int32_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_os_state * Int32.t)Either.either)list =
@@ -306,7 +310,7 @@ let test_part name checker stringOfExpected tests count failed =
 let run_tests () =
   let failed = ref 0 in
   let test_count = ref 0 in
-  let prnt = fun p (s, n) -> ("<| " ^ (print_shell_env s) ^ "; " ^ (p n) ^ " |>") in
+  let prnt = fun (s, n) -> ("<| " ^ (print_shell_env s) ^ "; " ^ (Fsh.fields_to_string_crappy n) ^ " |>") in
   print_endline "\n=== Running arithmetic tests...";
   (* Lexer tests *)
   test_part "Lexer" check_lexer (Either.either_case id token_list_to_string) lexer_tests test_count failed;
@@ -315,14 +319,14 @@ let run_tests () =
   test_part "Parser" check_parser (Either.either_case id string_of_aexp) parser_tests test_count failed;
 
   (* General eval tests *)
-  test_part "General eval Nat_big_num" check_eval_big_num (Either.either_case id (prnt Nat_big_num.to_string)) (eval_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
-  test_part "General eval int32" check_eval_int32 (Either.either_case id (prnt Int32.to_string)) (eval_tests Int32.of_int Int32.mul) test_count failed;
-  test_part "General eval int64" check_eval_int64 (Either.either_case id (prnt Int64.to_string)) (eval_tests Int64.of_int Int64.mul) test_count failed;
+  test_part "General eval Nat_big_num" check_eval_big_num (Either.either_case id prnt) (eval_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
+  test_part "General eval int32" check_eval_int32 (Either.either_case id prnt) (eval_tests Int32.of_int Int32.mul) test_count failed;
+  test_part "General eval int64" check_eval_int64 (Either.either_case id prnt) (eval_tests Int64.of_int Int64.mul) test_count failed;
 
   (* Type specific eval tests *)
-  test_part "Eval Nat_big_num" check_eval_big_num (Either.either_case id (prnt Nat_big_num.to_string)) (eval_bignum_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
-  test_part "Eval int32" check_eval_int32 (Either.either_case id (prnt Int32.to_string)) (eval_int32_tests Int32.of_int Int32.mul) test_count failed;
-  test_part "Eval int64" check_eval_int64 (Either.either_case id (prnt Int64.to_string)) (eval_int64_tests Int64.of_int Int64.mul) test_count failed;
+  test_part "Eval Nat_big_num" check_eval_big_num (Either.either_case id prnt) (eval_bignum_tests Nat_big_num.of_int Nat_big_num.mul) test_count failed;
+  test_part "Eval int32" check_eval_int32 (Either.either_case id prnt) (eval_int32_tests Int32.of_int Int32.mul) test_count failed;
+  test_part "Eval int64" check_eval_int64 (Either.either_case id prnt) (eval_int64_tests Int64.of_int Int64.mul) test_count failed;
 
   printf "=== ...ran %d arithmetic tests with %d failures.\n\n" !test_count !failed
 

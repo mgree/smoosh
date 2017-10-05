@@ -59,7 +59,7 @@ val span : (char -> bool) -> (list char) -> ((list char) * list char)
 val either_fmap : forall 'a 'b. ('a -> 'b) -> either string 'a -> either string 'b
 let either_fmap fn a = Either.either (fun e -> Left e) (fun b -> Right (fn b)) a
 
-val either_monad : forall 'a 'b. ('a -> either string 'b) -> either string 'a -> either string 'b
+val either_monad : forall 'a 'b 'c. ('a -> either 'b 'c) -> either 'b 'a -> either 'b 'c
 let either_monad fn a = Either.either (fun e -> Left e) fn a
 
 let is_plus c =
@@ -546,4 +546,13 @@ let arith32 = arith (int32FromNat 32)
 
 val arith64 : ty_os_state -> symbolic_string -> either string (ty_os_state * fields)
 let arith64 = arith (int64FromNat 64)
+
+val write_big_num : integer -> fields
+let write_big_num n = [stringToSymbolicString (write n)]
+
+val write32 : int32 -> fields
+let write32 n = [stringToSymbolicString (write n)]
+
+val write64 : int64 -> fields
+let write64 n = [stringToSymbolicString (write n)]
 
