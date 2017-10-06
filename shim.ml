@@ -357,14 +357,14 @@ and json_of_entry = function
   | DQ s -> obj_v "DQ" s
   | K k -> Assoc [tag "K"; ("v", json_of_control k)]
   | F -> obj "F"
-  | R c -> obj_v "R" (string_of_stmt c)
+  | ESym s -> Assoc [tag "ESym"; ("v", json_of_symbolic_string s)]
 and json_of_control = function
   | Tilde -> obj "Tilde"
   | TildeUser user -> Assoc [tag "TildeUser"; ("user", String user)]
   | Param (x,fmt) -> Assoc [tag "Param"; ("var", String x); ("fmt", json_of_format fmt)]
   | LAssign (x,f,w) -> Assoc [tag "LAssign"; ("var", String x);
                               ("f", json_of_expanded_words f); ("w", json_of_words w)]
-  | LMatch (x,side,mode,f,w) -> Assoc [tag "LMatch"; ("var", String x);
+  | LMatch (x,side,mode,f,w) -> Assoc [tag "LMatch"; ("var", json_of_fields x);
                                        ("side", json_of_substring_side side);
                                        ("mode", json_of_substring_mode mode);
                                        ("f", json_of_expanded_words f); ("w", json_of_words w)]
@@ -400,11 +400,13 @@ and json_of_expanded_word = function
   | ExpS s -> obj_v "ExpS" s
   | DQuo s -> obj_v "DQuo" s
   | UsrS s -> obj_v "UsrS" s
-  | SymResult c -> Assoc [tag "SymResult"; ("stmt", json_of_stmt c)]
-and json_of_fields ss = List (List.map json_of_abstract_string ss)
-and json_of_abstract_string = function
-  | Str s -> String s
-  | Result c -> Assoc [tag "Result"; ("stmt", json_of_stmt c)]
+  | EWSym sym -> Assoc [tag "EWSym"; ("s", json_of_symbolic_string sym)]
+and json_of_fields ss = List (List.map json_of_symbolic_string ss)
+and json_of_symbolic_char = function
+  | C c -> String (String.make 1 c)
+  | SymCommand c -> Assoc [tag "SymCommand"; ("stmt", json_of_stmt c)]
+  | SymArith f -> Assoc [tag "SymArith"; ("f", json_of_fields f)]
+and json_of_symbolic_string s = List (List.map json_of_symbolic_char s)
 
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
 and obj_f name f = Assoc [tag name; ("f", json_of_expanded_words f)]

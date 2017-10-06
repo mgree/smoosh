@@ -3,14 +3,6 @@ open Fsh
 open Expansion
 open Printf
 
-let rec fields_to_string = function
-[] -> ""
-| (Field(s)::rst) -> s ^ fields_to_string rst
-| (QField(s)::rst) -> s ^ fields_to_string rst
-| (WFS::rst) -> "<<WFS>>" ^ fields_to_string rst
-| (FS::rst) -> "<<FS>>" ^ fields_to_string rst
-| (SymField(c)::rst) -> "<<result of " ^ string_of_stmt c ^ ">>" ^ fields_to_string rst
-
 (* RErr test_name expected got *)
 type result = Ok | RErr of string * fields * fields
 
@@ -20,15 +12,15 @@ let check_expansion (test_name, s0, w_in, f_expected):result=
   then Ok
   else RErr( test_name, f_expected, f_out))
 
-let os_var_x_foofoobarbar:ty_os_state=  ({ os_empty with shell_env = (Pmap.add "x" "foofoobarbar" os_empty.shell_env) })
+let concrete = List.map (fun x -> List.map (fun c -> Fsh.C c) (Xstring.explode x))
 
-let concrete = List.map (fun x -> Str x)
+let os_var_x_foofoobarbar:ty_os_state=  add_literal_env_string os_empty "x" "foofoobarbar"
 
 (* TODO: tests for variable assignment (will have to check ending state as well) *)
 let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
  ([
     ("plain string foo", os_empty, [S "foo"], concrete ["foo"]);
-    ("expand tilde without username", { os_empty with shell_env = (Pmap.add "HOME" "/home/testuser" os_empty.shell_env) }, [K Tilde], concrete ["/home/testuser"]);
+    ("expand tilde without username", add_literal_env_string os_empty "HOME" "/home/testuser", [K Tilde], concrete ["/home/testuser"]);
     ("normal paramater lookup of unset variable", os_empty, [K (Param("x", Normal))], []);
     ("paramter length of unset variable", os_empty, [K (Param("x", Length))], concrete ["0"]);
 
@@ -186,15 +178,6 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
      [K (Param("x", Error [K (Arith ([], [S "1+1"]))]))], concrete ["x:";"2"]);
   ])
 
-let reify = function
-  | Str s -> s
-  | Result c -> "<<result of " ^ string_of_stmt c ^ ">>"
-
-let rec list_to_string = function		
-  | [] -> ""		
-  | [f] -> reify f		
-  | f::l -> reify f ^ "<<FS>>" ^ (list_to_string l)
-
 let run_tests () =
   let failed = ref 0 in
   print_endline "\n=== Running word expansion tests...";
@@ -204,7 +187,7 @@ let run_tests () =
       | Ok -> ()
       | RErr(name,expected,got) ->
          printf "%s failed: expected '%s' got '%s'\n"
-                name (list_to_string expected) (list_to_string got);
+                name (fields_to_string_crappy expected) (fields_to_string_crappy got);
          incr failed)
     expansion_tests;
   printf "=== ...ran %d word expansion tests with %d failures.\n\n" (List.length expansion_tests) !failed
