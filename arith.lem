@@ -502,7 +502,7 @@ let rec eval_arith bits s0 e =
   | AssignVar s op exp ->
       match op with
       | Just o ->
-          match lookup_concrete_param s0 s with
+          match lookup_concrete_param s0 s with (* TODO lookup and THEN try_concrete, with appropriate symbolic outputs *)
           | Just str ->
                 match read (toCharList str) with
                 | Right n ->

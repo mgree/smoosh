@@ -7,6 +7,12 @@ copy install instructions into top-level readme
 
 turn model into its own repo?
 
+### Merging symbolic
+
+Merge once all tests pass
+  Get patterns to work via try_concrete, at least
+  coalesce strings as much as possible, everywhere
+
 ### Parsing
 
 Should we write a custom parser?
