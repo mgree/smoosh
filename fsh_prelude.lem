@@ -304,6 +304,7 @@ class ( Read 'a )
   (* Read can fail with an error message by using Left.
    * Do not use any methods that may throw errors. *)
   val read : list char -> either string 'a
+  val write : 'a -> string
 end
 
 let readConstant dec hex oct acc chars =
@@ -359,23 +360,6 @@ let rec readInt32 base acc chars =
   end
 
 
-instance ( Read integer )
-  let read cs = readConstant (readInteger 10) (readInteger 16) (readInteger 8) 0 cs
-end
-
-instance ( Read int64 )
-  let read cs = readConstant (readInt64 10) (readInt64 16) (readInt64 8) (int64FromNat 0) cs
-end
-
-instance ( Read int32 )
-  let read cs = readConstant (readInt32 10) (readInt32 16) (readInt32 8) (int32FromNat 0) cs
-end
-
-
-(*--------------------------------*)
-(* Write "class"                  *)
-(*--------------------------------*)
-
 val write_helper : forall 'a. Eq 'a, Nat 'a, NumIntegerDivision 'a, NumRemainder 'a => string -> 'a -> string
 let rec write_helper str n =
   if n = fromNat 0
@@ -384,12 +368,41 @@ let rec write_helper str n =
     let next_digit = n mod ten in
     write_helper ((stringFromNat (toNat next_digit)) ^ str) (n div ten)
 
-val write : forall 'a. Eq 'a, Ord 'a, Nat 'a, NumNegate 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a -> string
-let write n =
+val unbounded_write : forall 'a. Eq 'a, Ord 'a, Nat 'a, NumNegate 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a -> string
+let unbounded_write n =
   if n < fromNat 0
   then "-" ^ (write_helper "" (~n))
   else 
     if n = fromNat 0
     then "0"
     else write_helper "" n
+
+val write32 : int32 -> string
+val write64 : int64 -> string
+declare ocaml target_rep function write32 = `Int32.to_string`
+declare ocaml target_rep function write64 = `Int64.to_string`
+
+instance ( Read integer )
+  let read cs = readConstant (readInteger 10) (readInteger 16) (readInteger 8) 0 cs
+  let write = unbounded_write
+end
+
+instance ( Read int64 )
+  let read cs = readConstant (readInt64 10) (readInt64 16) (readInt64 8) (int64FromNat 0) cs
+  let write = write64
+end
+
+instance ( Read int32 )
+  let read cs = readConstant (readInt32 10) (readInt32 16) (readInt32 8) (int32FromNat 0) cs
+  let write = write32
+end
+
+val integerToFields : integer -> fields
+let integerToFields n = [stringToSymbolicString (write n)]
+
+val int32ToFields : int32 -> fields
+let int32ToFields n = [stringToSymbolicString (write n)]
+
+val int64ToFields : int64 -> fields
+let int64ToFields n = [stringToSymbolicString (write n)]
 

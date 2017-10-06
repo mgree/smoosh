@@ -547,12 +547,3 @@ let arith32 = arith (int32FromNat 32)
 val arith64 : ty_os_state -> symbolic_string -> either string (ty_os_state * fields)
 let arith64 = arith (int64FromNat 64)
 
-val write_big_num : integer -> fields
-let write_big_num n = [stringToSymbolicString (write n)]
-
-val write32 : int32 -> fields
-let write32 n = [stringToSymbolicString (write n)]
-
-val write64 : int64 -> fields
-let write64 n = [stringToSymbolicString (write n)]
-

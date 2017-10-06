@@ -73,15 +73,15 @@ let eval_equals out expected =
 
 let check_eval_big_num (name, state, input, expected_out) =
   checker (arith_big_num state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
-    either_monad (fun (st, n) -> Right (st, write_big_num n)) expected_out)
+    either_monad (fun (st, n) -> Right (st, integerToFields n)) expected_out)
 
 let check_eval_int32 (name, state, input, expected_out) =
   checker (arith32 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
-    either_monad (fun (st, n) -> Right (st, write32 n)) expected_out)
+    either_monad (fun (st, n) -> Right (st, int32ToFields n)) expected_out)
 
 let check_eval_int64 (name, state, input, expected_out) =
   checker (arith64 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
-    either_monad (fun (st, n) -> Right (st, write64 n)) expected_out)
+    either_monad (fun (st, n) -> Right (st, int64ToFields n)) expected_out)
 
 let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either.either)list=
  ([
@@ -271,7 +271,7 @@ let eval_int64_tests ofNumLiteral mul : (string * ty_os_state * string * (string
     ("large hex number 0x8000000000000000", os_empty, "0x8000000000000000", Right (os_empty, int64Max));
     ("large oct number 01000000000000000000000", os_empty, "01000000000000000000000", Right (os_empty, int64Max));
 
-    ("arithmetic overflow", os_empty, "1073741824 * 1073741824 * 8", Right (os_empty, int64Min));
+   ("arithmetic overflow", os_empty, "1073741824 * 1073741824 * 8", Right (os_empty, int64Min));
 
     ("left shift by negative", os_empty, "15 << -63", Right (os_empty, ofNumLiteral 30));
     ("right shift by negative", os_empty, "15 >> -63", Right (os_empty, ofNumLiteral 7));
