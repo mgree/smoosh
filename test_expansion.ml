@@ -8,6 +8,7 @@ type result = Ok | RErr of string * fields * fields
 
 let check_expansion (test_name, s0, w_in, f_expected):result=
   (let (s1, f_out) = (full_expansion s0 w_in) in
+  (* TODO fields should probably be coalesced *)
   if (listEqualBy (=) f_out f_expected)
   then Ok
   else RErr( test_name, f_expected, f_out))
@@ -16,7 +17,6 @@ let concrete = List.map (fun x -> List.map (fun c -> Fsh.C c) (Xstring.explode x
 
 let os_var_x_foofoobarbar:ty_os_state=  add_literal_env_string os_empty "x" "foofoobarbar"
 
-(* TODO: tests for variable assignment (will have to check ending state as well) *)
 let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
  ([
     ("plain string foo", os_empty, [S "foo"], concrete ["foo"]);
@@ -121,7 +121,7 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
      [K (Param("x", Substring (Prefix, Longest, [S "*foo"])))], concrete ["barbar"]);
 
     ("Longest prefix, all-consuming *", os_var_x_foofoobarbar,
-     [K (Param("x", Substring (Prefix, Longest, [S "foo*"])))], concrete [""]);
+     [K (Param("x", Substring (Prefix, Longest, [S "foo*"])))], concrete []);
 
     ("Shortest suffix", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Suffix, Shortest, [S "bar"])))], concrete ["foofoobar"]);
@@ -139,7 +139,7 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
      [K (Param("x", Substring (Suffix, Longest, [S "bar*"])))], concrete ["foofoo"]);
 
     ("Longest suffix, all-consuming *", os_var_x_foofoobarbar,
-     [K (Param("x", Substring (Suffix, Longest, [S "*bar"])))], concrete [""]);
+     [K (Param("x", Substring (Suffix, Longest, [S "*bar"])))], concrete []);
 
     ("Shortest prefix bracket [fgh]", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Prefix, Shortest, [S "[fgh]"])))], concrete ["oofoobarbar"]);

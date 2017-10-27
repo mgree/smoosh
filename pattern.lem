@@ -210,7 +210,11 @@ let rec match_prefix (lc:locale) (m:substring_mode) (pat:list char) (s:list char
 
 (* TODO actually push through symbolic characters *)
 let try_match_prefix (lc:locale) (m:substring_mode) (pat : symbolic_string) (s:symbolic_string) : symbolic_string =
-  match match_prefix lc m [] (* pat *) [] (* s *) with (* TODO try_concrete *)
-  | Nothing -> s
-  | Just s' -> map C s'
+  match (try_concrete pat, try_concrete s) with
+  | (Just pat', Just s') ->
+    match match_prefix lc m (toCharList pat') (toCharList s') with
+    | Nothing -> s
+    | Just s' -> charListToSymbolicString s'
+    end
+  | _ -> s
   end

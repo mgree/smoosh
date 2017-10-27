@@ -169,8 +169,11 @@ let rec expanded_words_of_fields fs =
        end)
       (toSymbolicCharList fs)
 
+val charListToSymbolicString : list char -> symbolic_string
+let charListToSymbolicString cs = map C cs
+
 val stringToSymbolicString : string -> symbolic_string
-let stringToSymbolicString s = map C (toCharList s)
+let stringToSymbolicString s = charListToSymbolicString (toCharList s)
 
 (* TODO: this is toFields or symbolicStringToFields really *)
 val toSymbolicString : symbolic_string -> fields
@@ -191,17 +194,17 @@ let rec try_concrete vs =
 val symbolic_string_to_string_crappy : symbolic_string -> string
 let rec symbolic_string_to_string_crappy f =
   match f with
-  | [] -> ""
-  | C(c)::f' -> toString [c] ^ symbolic_string_to_string_crappy f'
+  | [] -> "c"
+  | C(c)::f' -> toString [c] ^ "<<CHAR>>" ^ symbolic_string_to_string_crappy f'
   | _::f' -> "<<SYMBOLIC>>" ^ symbolic_string_to_string_crappy f'
   end
 
 val fields_to_string_crappy : fields -> string
 let rec fields_to_string_crappy fs = 
   match fs with
-  | [] -> ""
+  | [] -> "f"
   | [f] -> symbolic_string_to_string_crappy f
-  | f::fs' -> symbolic_string_to_string_crappy f ^ fields_to_string_crappy fs'
+  | f::fs' -> symbolic_string_to_string_crappy f ^ "<<FB>>" ^ fields_to_string_crappy fs'
   end
 
 (*-------------------------------*)

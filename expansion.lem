@@ -218,8 +218,8 @@ lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x 
 type tmp_field =
     WFS
   | FS
-  | Field of fields
-  | QField of fields
+  | Field of symbolic_string
+  | QField of symbolic_string
   | SymField of symbolic_string
 
 type intermediate_fields = list tmp_field
@@ -253,7 +253,7 @@ let rec split_string ifs clst =
        then let fs = if is_ws c then WFS else FS 
             in fs::split_string ifs cs
        else let (cc, cs1) = collect_non_ifs ifs cs in 
-            (Field [map C (c::cc)])::(split_string ifs cs1)
+            (Field (charListToSymbolicString (c::cc)))::(split_string ifs cs1)
   end
 
 let rec split_word ifs p =
@@ -263,8 +263,8 @@ let rec split_word ifs p =
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_string ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
-  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field [map C (toCharList s)]], wrds)
-  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField [map C (toCharList s)]], wrds)
+  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (stringToSymbolicString s)], wrds)
+  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField (stringToSymbolicString s)], wrds)
   | (f, EWSym(c)::wrds) -> split_word ifs (f ++ [SymField c], wrds)
   end
 
@@ -276,7 +276,7 @@ let split_fields s0 exp_words =
        match try_concrete fs with
        | Nothing -> (* TODO symbolic, we're fucked *) 
           split_word (toCharList " \n\t") ([], exp_words)
-       | Just "" -> ([Field [concat_expanded exp_words]], [])
+       | Just "" -> ([Field (concat_expanded exp_words)], [])
        | Just s -> split_word (toCharList s) ([], exp_words)
        end
   end in f
@@ -350,7 +350,7 @@ let rec to_fields f =
         when they're def. different. need to separate our notion of
         "fields" and our notion of symbolic strings
       *)
-     fs ++ (to_fields rst) 
+     fs::(to_fields rst)
   | FS::rst      -> to_fields rst
   | WFS::_       -> [stringToSymbolicString "TODO: broken invariant"]
   | QField _::_  -> [stringToSymbolicString "TODO: broken invariant"]
@@ -359,7 +359,7 @@ let rec to_fields f =
 
 let rec finalize_fields f =
   match f with
-  | (FS::rst) -> (stringToSymbolicString "")::(finalize_fields rst)
+  | (FS::rst) -> stringToSymbolicString ""::finalize_fields rst
   | _ -> to_fields f
   end
 
