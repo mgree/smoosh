@@ -3,6 +3,11 @@ open import Fsh
 open import Arith
 open import Locale
 
+type match_result 'a =
+  NoMatch
+| Symbolic
+| Match of 'a
+
 type bracket_char =
   Char of char
 | Collating of string
@@ -17,47 +22,54 @@ type bracket =
   Matching of list bracket_entry
 | Nonmatching of list bracket_entry
 
-let rec parse_bracket_terminator (pat:list char) (term:char) : maybe (list char * list char) =
+let rec parse_bracket_terminator (pat:symbolic_string) (term:char) : match_result (list char * symbolic_string) =
   match pat with
-  | [] -> Nothing
-  | c::#']'::pat' -> 
+  | [] -> NoMatch
+  | C(c)::C(#']')::pat' -> 
       if c = term
-      then Just ([], pat')
-      else Nothing (* valid symbolic names are alpha . (alphanum|-)* (it seems per http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap06.html#tagtcjh_4)
+      then Match ([], pat')
+      else NoMatch (* valid symbolic names are alpha . (alphanum|-)* (it seems per http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap06.html#tagtcjh_4)
                       so there's no way for us to have a valid x] for any x!=term *)
-  | c::pat' -> match parse_bracket_terminator pat' term with
-               | Nothing -> Nothing
-               | Just (cs,pat'') -> Just (c::cs, pat'')
+  | C(c)::pat' -> match parse_bracket_terminator pat' term with
+               | NoMatch -> NoMatch
+               | Symbolic -> Symbolic
+               | Match (cs,pat'') -> Match (c::cs, pat'')
                end
+  | _ -> Symbolic
   end
 
-let parse_bracket_class (pat:list char) (term:char) : maybe (string * list char) =
+let parse_bracket_class (pat:symbolic_string) (term:char) : match_result (string * symbolic_string) =
   match parse_bracket_terminator pat term with
-  | Nothing -> Nothing
-  | Just (cls,pat') -> Just (toString cls, pat')
+  | NoMatch -> NoMatch
+  | Symbolic -> Symbolic
+  | Match (cls,pat') -> Match (toString cls, pat')
   end
                       
 (* http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_03_05 *)
 (* parsing brackets *)
-let rec parse_bracket_char (pat:list char) : maybe (bracket_char * list char) =
+let rec parse_bracket_char (pat:symbolic_string) : match_result (bracket_char * symbolic_string) =
   match pat with
-  | [] -> Nothing
-  | #'['::#'.'::pat' ->
+  | [] -> NoMatch
+  | C(#'[')::C(#'.')::pat' ->
      match parse_bracket_class pat' #'.' with
-     | Nothing -> Nothing
-     | Just (cls, pat'') -> Just (Collating cls, pat'')
+     | NoMatch -> NoMatch
+     | Symbolic -> Symbolic
+     | Match (cls, pat'') -> Match (Collating cls, pat'')
      end
-  | #'['::#'='::pat' ->
+  | C(#'[')::C(#'=')::pat' ->
      match parse_bracket_class pat' #'=' with
-     | Nothing -> Nothing
-     | Just (cls, pat'') -> Just (Equiv cls, pat'')
+     | NoMatch -> NoMatch
+     | Symbolic -> Symbolic
+     | Match (cls, pat'') -> Match (Equiv cls, pat'')
      end
-  | #'['::#':'::pat' ->
+  | C(#'[')::C(#':')::pat' ->
      match parse_bracket_class pat' #':' with
-     | Nothing -> Nothing
-     | Just (cls, pat'') -> Just (Class cls, pat'')
+     | NoMatch -> NoMatch
+     | Symbolic -> Symbolic
+     | Match (cls, pat'') -> Match (Class cls, pat'')
      end
-  | c::pat' -> Just (Char c,pat')
+  | C(c)::pat' -> Match (Char c,pat')
+  | _ -> Symbolic
   end
 
 (* The starting range point and the ending range point shall be a
@@ -78,34 +90,39 @@ let range_bc (bc : bracket_char) : maybe range_char =
   match bc with
   | Char c -> Just (RChar c)
   | Collating cls -> Just (RCollating cls)
-  | Equiv _c -> Nothing
-  | Class _c -> Nothing
+  | Equiv _c -> Nothing (* TODO implement *)
+  | Class _c -> Nothing (* TODO implement *)
   end
-                      
-let rec parse_bracket_entries (pat:list char) : maybe (list bracket_entry * list char) = 
+
+let rec parse_bracket_entries (pat:symbolic_string) : match_result (list bracket_entry * symbolic_string) = 
   match pat with
-  | [] -> Nothing
-  | #']'::pat' -> Just ([],pat')
+  | [] -> NoMatch
+  | C(#']')::pat' -> Match ([],pat')
   | _ -> match parse_bracket_char pat with
-         | Nothing -> Nothing
-         | Just (bc,#'-'::pat') -> 
+         | NoMatch -> NoMatch
+         | Match (bc,C(#'-')::pat') -> 
             match parse_bracket_char pat' with
-            | Nothing -> 
-               match parse_bracket_entries (#'-'::pat') with
-               | Nothing -> Nothing
-               | Just (es,pat'') -> Just (BC bc::es,pat'')
+            | NoMatch -> 
+               match parse_bracket_entries (C(#'-')::pat') with
+               | NoMatch -> NoMatch
+               | Symbolic -> Symbolic
+               | Match (es,pat'') -> Match (BC bc::es,pat'')
                end
-            | Just (bc',pat'') -> 
+            | Symbolic -> Symbolic
+            | Match (bc',pat'') -> 
                match (range_bc bc, range_bc bc', parse_bracket_entries pat'') with
-               | (Just lo, Just hi, Just (es,pat''')) -> Just (Range lo hi::es,pat''')
-               | _ -> Nothing
+               | (Just lo, Just hi, Match (es,pat''')) -> Match (Range lo hi::es,pat''')
+               | (Just _, Just _, Symbolic) -> Symbolic
+               | _ -> NoMatch
                end
             end
-         | Just (bc,pat') ->
+         | Match (bc,pat') ->
             match parse_bracket_entries pat' with
-            | Nothing -> Nothing
-            | Just (es,pat'') -> Just (BC bc::es,pat'')
+            | NoMatch -> NoMatch
+            | Symbolic -> Symbolic
+            | Match (es,pat'') -> Match (BC bc::es,pat'')
             end
+         | _ -> Symbolic
          end
   end
 
@@ -125,19 +142,22 @@ let rec parse_bracket_entries (pat:list char) : maybe (list bracket_entry * list
    we'll treat them as a range, like dash
  *)
 
-let rec parse_bracket (neg:char) (pat:list char) : maybe (bracket * list char) = 
+let rec parse_bracket (neg:char) (pat:symbolic_string) : match_result (bracket * symbolic_string) = 
   match pat with
-  | [] -> Nothing
-  | c::pat' ->
+  | [] -> NoMatch
+  | C(c)::pat' ->
      if c = neg
      then match parse_bracket_entries pat' with
-          | Nothing -> Nothing
-          | Just (es,pat'') -> Just (Nonmatching es, pat'')
+          | NoMatch -> NoMatch
+          | Symbolic -> Symbolic
+          | Match (es,pat'') -> Match (Nonmatching es, pat'')
           end
-     else match parse_bracket_entries (c::pat') with
-          | Nothing -> Nothing
-          | Just (es, pat'') -> Just (Matching es, pat'')
+     else match parse_bracket_entries (C(c)::pat') with
+          | NoMatch -> NoMatch
+          | Symbolic -> Symbolic
+          | Match (es, pat'') -> Match (Matching es, pat'')
           end
+  | _ -> Symbolic
   end
 
 let match_entry (lc:locale) (c : char) (be : bracket_entry) : bool = 
@@ -151,70 +171,72 @@ let match_entry (lc:locale) (c : char) (be : bracket_entry) : bool =
 
 (* returns nothing if no match, rest of string if so *)
 (* is this quite right, to account for collations? *)
-let match_bracket (lc:locale) (b : bracket) (c : list char) : maybe (list char) = 
-  match (b, c) with
-  | (_, [])                  -> Nothing
-  | (Matching cs,    c :: s) -> if any (match_entry lc c) cs then Just s else Nothing
-  | (Nonmatching cs, c :: s) -> if any (match_entry lc c) cs then Nothing else Just s
+let match_bracket (lc:locale) (b : bracket) (s : symbolic_string) : match_result symbolic_string =
+  match (b, s) with
+  | (_, [])                  -> NoMatch
+  | (Matching cs,    C(c) :: s') -> if any (match_entry lc c) cs then Match s' else NoMatch
+  | (Nonmatching cs, C(c) :: s') -> if any (match_entry lc c) cs then NoMatch else Match s'
+  | _ -> Symbolic
   end
 
-let rec match_prefix (lc:locale) (m:substring_mode) (pat:list char) (s:list char) : maybe (list char) =
+let rec match_prefix (lc:locale) (m:substring_mode) (pat:symbolic_string) (s:symbolic_string) : match_result (symbolic_string) =
   match (pat,s) with
 
   (* empty pattern *)
-  | ([]       ,       s) -> Just s
+  | ([]       ,       s) -> Match s
 
   (* question-mark expressions *)
-  | (#'?'::_   ,     []) -> Nothing
-  | (#'?'::pat', _ ::s') -> match_prefix lc m pat' s'
+  | (C(#'?')::_   ,     []) -> NoMatch
+  | (C(#'?')::pat', _ ::s') -> match_prefix lc m pat' s'
 
   (* star expressions *)
-  | (#'*'::pat',     []) -> match_prefix lc m pat' []
-  | (#'*'::pat', c ::s') ->
+  | (C(#'*')::pat',     []) -> match_prefix lc m pat' []
+  | (C(#'*')::pat', c ::s') ->
      match m with
      | Longest -> 
-        match match_prefix lc m (#'*'::pat') s' with  (* try skipping a character first *)
-        | Nothing -> match_prefix lc m pat' (c::s')   (*   ...no dice; try to stop here *)
-        | Just s' -> Just s'                       (*   ...success; we have our answer *)
+        match match_prefix lc m (C(#'*')::pat') s' with  (* try skipping a character first *)
+        | NoMatch -> match_prefix lc m pat' (c::s')   (*   ...no dice; try to stop here *)
+        | Symbolic -> Symbolic
+        | Match s' -> Match s'                       (*   ...success; we have our answer *)
         end
      | Shortest ->
         match (match_prefix lc m pat' (c::s')) with    (* try matching empty first *)
-        | Nothing -> match_prefix lc m (#'*'::pat') s' (*   ...no dice; skip a character and go on *)
-        | Just s' -> Just s'                        (*   ...success; we have our answer *)
+        | NoMatch -> match_prefix lc m (C(#'*')::pat') s' (*   ...no dice; skip a character and go on *)
+        | Symbolic -> Symbolic
+        | Match s' -> Match s'                        (*   ...success; we have our answer *)
         end
     end
 
   (* bracket expressions *)
-  | (#'['::_   ,     []) -> Nothing (* is this an optimization? *)
-  | (#'['::pat',c::s') ->
+  | (C(#'[')::_   ,     []) -> NoMatch (* is this an optimization? *)
+  | (C(#'[')::pat', C(c)::s') ->
      match parse_bracket #'!' pat' with
-     | Nothing -> 
+     | NoMatch -> 
         (* we couldn't parse a bracket expression, so treat it as literals *)
         if c = #'[' 
         then match_prefix lc m pat' s'
-        else Nothing
-     | Just (b,pat'') -> 
+        else NoMatch
+     | Symbolic -> Symbolic
+     | Match (b,pat'') -> 
         (* got a bracket expression (and some leftover pattern), match the whole string against it *)
-        match match_bracket lc b (c::s') with
-        | Nothing -> Nothing                    (* couldn't match the bracket, we're done *)
-        | Just s'' -> match_prefix lc m pat'' s''  (* got it, keep going with what's left *)
+        match match_bracket lc b (C(c)::s') with
+        | NoMatch -> NoMatch                    (* couldn't match the bracket, we're done *)
+        | Symbolic -> Symbolic
+        | Match s'' -> match_prefix lc m pat'' s''  (* got it, keep going with what's left *)
         end
      end
   (* plain characters *)                                  
-  | (   _::_,        []) -> Nothing
+  | (   _::_,        []) -> NoMatch
   | (  c1::pat', c2::s') ->
      if c1 = c2
      then match_prefix lc m pat' s'
-     else Nothing
+     else NoMatch
   end
 
 (* TODO actually push through symbolic characters *)
 let try_match_prefix (lc:locale) (m:substring_mode) (pat : symbolic_string) (s:symbolic_string) : symbolic_string =
-  match (try_concrete pat, try_concrete s) with
-  | (Just pat', Just s') ->
-    match match_prefix lc m (toCharList pat') (toCharList s') with
-    | Nothing -> s
-    | Just s' -> charListToSymbolicString s'
-    end
-  | _ -> s
+  match match_prefix lc m pat s with
+  | NoMatch -> s
+  | Symbolic -> [SymPat m pat s]
+  | Match s' -> s'
   end

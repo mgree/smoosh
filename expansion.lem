@@ -34,12 +34,15 @@ let rec concat_expanded w =
   | UsrS _::_ -> stringToSymbolicString "TODO: broken invariant"
   end
 
-let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : fields =
+let match_substring (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
   let sympat : symbolic_string = (concat_expanded pat) in
   let symstr : symbolic_string = toSymbolicCharList str in
   match side with
-  | Prefix -> toSymbolicString (try_match_prefix Locale.lc_ambient mode sympat symstr) (* TODO way to select/update locale *)
-  | Suffix -> toSymbolicString (reverse (try_match_prefix Locale.lc_ambient mode (reverse sympat) (reverse symstr))) (* TODO same *)
+  | Prefix -> try_match_prefix Locale.lc_ambient mode sympat symstr (* TODO way to select/update locale *)
+  | Suffix -> match try_match_prefix Locale.lc_ambient mode (reverse sympat) (reverse symstr) with(* TODO same *)
+              | [SymPat m pat s] -> [SymPat m (reverse pat) (reverse s)]
+              | ss               -> reverse ss
+              end
   end
 
 let expand_param s0 _q str f =
@@ -147,7 +150,7 @@ let rec expand_control s0 q k =
        | Right (s1, f1, w1) -> Right (s1, [], [K (LAssign s (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | LMatch str side mode f [] -> Right (s0, [], words_of_fields (match_substring side mode f str))
+    | LMatch str side mode f [] -> Right (s0, [], words_of_symbolic_string (match_substring side mode f str))
     | LMatch s side mode f w ->
        match expand_words s0 q GeneratedString ([], w) with
        | Right (s1, f1, w1) -> Right (s1, [], [K (LMatch s side mode (f ++ f1) w1)])

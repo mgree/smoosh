@@ -15,7 +15,9 @@ let check_expansion (test_name, s0, w_in, f_expected):result=
 
 let concrete = List.map (fun x -> List.map (fun c -> Fsh.C c) (Xstring.explode x))
 
-let os_var_x_foofoobarbar:ty_os_state=  add_literal_env_string os_empty "x" "foofoobarbar"
+let symcommand : symbolic_char = SymCommand (Command ([], [S "command"], []))
+let os_var_x_foofoobarbar:ty_os_state = add_literal_env_string os_empty "x" "foofoobarbar"
+let os_var_x_foocommand : ty_os_state = shell_env_insert os_empty "x" ((stringToSymbolicString "foo") @ [symcommand])
 
 let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
  ([
@@ -176,6 +178,9 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
      [K (Param("x", Error [K (Arith ([], [S "1+1"]))]))], concrete ["x:";"2"]);
     ("NError nested arith", os_empty,
      [K (Param("x", Error [K (Arith ([], [S "1+1"]))]))], concrete ["x:";"2"]);
+
+    ("Concrete prefix", os_var_x_foocommand,
+     [K (Param("x", Substring (Prefix, Shortest, [S "f"])))], [[C 'o'; C 'o'; symcommand]]); (*[[C 'o'; C 'o']; [symcommand]]*)
   ])
 
 let run_tests () =

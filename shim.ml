@@ -406,6 +406,10 @@ and json_of_symbolic_char = function
   | C c -> String (String.make 1 c)
   | SymCommand c -> Assoc [tag "SymCommand"; ("stmt", json_of_stmt c)]
   | SymArith f -> Assoc [tag "SymArith"; ("f", json_of_fields f)]
+  | SymPat (mode, pat, s) -> Assoc [tag "SymPat";
+                                    ("mode", json_of_substring_mode mode);
+                                    ("pat", json_of_symbolic_string pat);
+                                    ("s", json_of_symbolic_string s)]
 and json_of_symbolic_string s = List (List.map json_of_symbolic_char s)
 
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]

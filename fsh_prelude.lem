@@ -105,7 +105,8 @@ and expanded_words = list expanded_word
 and symbolic_char = 
     C of char
   | SymCommand of stmt (* symbolic result of evaluating a command *)
-  | SymArith of fields (* symbolic result of arithmetic evaluation *)
+  | SymArith of fields (* symbolic result of arithmetic evaluation *) (* TODO is fields necessary? *)
+  | SymPat of substring_mode * symbolic_string * symbolic_string (* symbolic result of pattern matching (mode, pat, string) *)
 
 and symbolic_string = list symbolic_char
 
@@ -118,6 +119,12 @@ let rec null_string f =
   | C(c)::_ -> Just false
   | SymArith _::_ -> Just false
   | SymCommand _::f -> 
+     match null_string f with
+     | Just false -> Just false
+     | Just true -> Nothing
+     | Nothing -> Nothing
+     end
+  | (SymPat _ _ _)::f ->
      match null_string f with
      | Just false -> Just false
      | Just true -> Nothing
