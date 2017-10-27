@@ -112,6 +112,17 @@ and symbolic_string = list symbolic_char
 
 and fields = list (symbolic_string)
 
+type expansion_step =
+    ESTilde of string
+  | ESParam of string
+  | ESCommand of string
+  | ESArith of string
+  | ESSplit of string
+  | ESPath of string
+  | ESQuote of string
+  | ESStep of string
+  | ESNested of expansion_step * expansion_step
+
 val null_string : symbolic_string -> maybe bool
 let rec null_string f = 
   match f with

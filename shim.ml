@@ -415,3 +415,14 @@ and json_of_symbolic_string s = List (List.map json_of_symbolic_char s)
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
 and obj_f name f = Assoc [tag name; ("f", json_of_expanded_words f)]
 and obj_fw name f w = Assoc [tag name; ("f", json_of_expanded_words f); ("w", json_of_words w)]
+
+let rec json_of_expansion_step = function
+  | ESTilde s -> Assoc [tag "ESTilde"; ("msg", String s)]
+  | ESParam s -> Assoc [tag "ESParam"; ("msg", String s)]
+  | ESCommand s -> Assoc [tag "ESCommand"; ("msg", String s)]
+  | ESArith s -> Assoc [tag "ESArith"; ("msg", String s)]
+  | ESSplit s -> Assoc [tag "ESSplit"; ("msg", String s)]
+  | ESPath s -> Assoc [tag "ESPath"; ("msg", String s)]
+  | ESQuote s -> Assoc [tag "ESQuote"; ("msg", String s)]
+  | ESStep s -> Assoc [tag "ESStep"; ("msg", String s)]
+  | ESNested (outer, inner) -> Assoc [tag "ESNested"; ("inner", json_of_expansion_step inner); ("outer", json_of_expansion_step outer)]

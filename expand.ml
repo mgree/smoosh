@@ -78,9 +78,9 @@ let parse_args () =
 
 type state = ty_os_state * 
              [ `Start of words 
-             | `Expand of expanded_words * words 
-             | `Split of expanded_words 
-             | `Error of fields
+             | `Expand of expansion_step * expanded_words * words 
+             | `Split of expansion_step * expanded_words 
+             | `Error of expansion_step * fields
              | `Done of fields]
 
 let finish_expansion (os0 : ty_os_state) (f0 : expanded_words) : fields = quote_removal os0 (pathname_expansion os0 (field_splitting os0 f0))
@@ -90,25 +90,25 @@ let rec step_expansion ((os0,s0) : state) : state =
   | `Start w0 -> 
      begin
        match expand_words os0 Unquoted UserString ([],w0) with
-       | Right (os1, f1, w1) -> (os1, `Expand (f1,w1))
-       | Left (os1, f1) -> (os1, `Error (finish_expansion os1 f1))
+       | Right (step, os1, f1, w1) -> (os1, `Expand (step, f1, w1))
+       | Left (step, os1, f1) -> (os1, `Error (step, finish_expansion os1 f1))
      end
-  | `Expand (f0,w0) ->
+  | `Expand (_, f0,w0) ->
      begin
        match expand_words os0 Unquoted UserString (f0,w0) with
-       | Right (os1, f1, w1) ->
+       | Right (step, os1, f1, w1) ->
           begin 
             match w1 with
-            | [] -> (os1, `Split f1)
-            | _ ->  (os1, `Expand (f1,w1))
+            | [] -> (os1, `Split (step, f1))
+            | _ ->  (os1, `Expand (step, f1, w1))
           end
-       | Left (os1, f1) -> (os1, `Error (finish_expansion os1 f1))
+       | Left (step, os1, f1) -> (os1, `Error (step, finish_expansion os1 f1))
      end
-  | `Split f0 ->
+  | `Split (_, f0) ->
      (os0, `Done (finish_expansion os0 f0))
-  | `Error f -> (os0, s0)
-  | `Done f -> (os0,s0)
-       
+  | `Error _ -> (os0, s0)
+  | `Done _ -> (os0,s0)
+
 let trace_expansion (init : state) : state list =
   let rec loop (st0 : state) (acc : state list) : state list =
     match st0 with
@@ -128,9 +128,9 @@ let trace_command os = function
 
 let json_of_state_term = function
   | `Start w -> obj_w "Start" w
-  | `Expand (f,w) -> obj_fw "Expand" f w
-  | `Split f -> obj_f "Split" f
-  | `Error f -> Assoc [tag "Error"; ("msg", json_of_fields f)]
+  | `Expand (step, f, w) -> obj_fw "Expand" f w
+  | `Split (step, f) -> obj_f "Split" f
+  | `Error (step, f) -> Assoc [tag "Error"; ("msg", json_of_fields f)]
   | `Done fs -> Assoc [tag "Done"; ("f", json_of_fields fs)]
 
 let json_of_env (env:(string, symbolic_string) Pmap.map) : json =
