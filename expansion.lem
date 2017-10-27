@@ -223,7 +223,6 @@ type tmp_field =
   | FS
   | Field of symbolic_string
   | QField of symbolic_string
-  | SymField of symbolic_string
 
 type intermediate_fields = list tmp_field
 
@@ -268,7 +267,7 @@ let rec split_word ifs p =
       split_word ifs (f ++ new_fields, wrds)
   | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (stringToSymbolicString s)], wrds)
   | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField (stringToSymbolicString s)], wrds)
-  | (f, EWSym(c)::wrds) -> split_word ifs (f ++ [SymField c], wrds)
+  | (f, EWSym(c)::wrds) -> split_word ifs (f ++ [Field c], wrds)
   end
 
 let split_fields s0 exp_words =
@@ -339,25 +338,10 @@ let rec to_fields f =
   | []           -> []
   | FS::FS::rst  -> (stringToSymbolicString "")::(to_fields rst)
   | Field fs::rst -> 
-     (* TODO almost surely wrong...
-
-        we're conflating the string 
-
-          abc$(cmd)xyz
-
-        with
- 
-
-          abc $(cmd) xyz
-
-        when they're def. different. need to separate our notion of
-        "fields" and our notion of symbolic strings
-      *)
      fs::(to_fields rst)
   | FS::rst      -> to_fields rst
   | WFS::_       -> [stringToSymbolicString "TODO: broken invariant"]
   | QField _::_  -> [stringToSymbolicString "TODO: broken invariant"]
-  | SymField c::rst -> c::(to_fields rst)
   end
 
 let rec finalize_fields f =
