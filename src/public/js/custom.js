@@ -10,14 +10,13 @@ $("#expansionForm").submit(function(e) {
       return maybeString;
     }
   }
-
+  
   var populateResults = function(data) {
-    parent = $("#submit-result");
-    console.log(parent);
+    result = $("#submit-result");
+    result.empty();
 
     for(var i = 0; i < data.length; i++) {
       var step = data[i];
-      console.log(step);
 
       var stepType = step['term']['tag'];
       var stepFields = step['term']['f'];
@@ -30,7 +29,7 @@ $("#expansionForm").submit(function(e) {
       htmlString += "<div>Words: " + orNone(JSON.stringify(stepWords)) + "</div>";
       htmlString += "</div>"
 
-      parent.append(htmlString);
+      result.append(htmlString);
     }
   }
 
@@ -44,4 +43,8 @@ $("#expansionForm").submit(function(e) {
   });
 
   e.preventDefault();
+});
+
+$("#clear").click(function (e) {
+  $("#submit-result").empty();
 });
