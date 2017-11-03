@@ -11,12 +11,6 @@ copy install instructions into top-level readme
 
 turn model into its own repo?
 
-### Merging symbolic
-
-Merge once all tests pass
-  Get patterns to work via try_concrete, at least
-  coalesce strings as much as possible, everywhere
-
 ### Parsing
 
 Should we write a custom parser?
@@ -30,6 +24,7 @@ JS/webpage
 CLI
 
 have both read the JSON output
+  include ENTIRE shell info in JSON output
 
 ### Expansion.lem
 
@@ -38,16 +33,14 @@ Clean up to make null more explicit (simplify matches?)
 
 Separate out splitting, quote removal
 
-Minimal FS model
-
-Commands
+Minimal FS model for path expansion
 
 Error handling
   - parse errors break our libdash shim
 
-Handle symbolic commands in pattern matching (rather than present kludge of string conversion)
-
 ### Evaluation
+
+Commands
 
 Handle basic command stepping
   - need process repr
