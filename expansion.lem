@@ -144,7 +144,7 @@ let rec expand_control s0 q k =
        | Nothing -> Right (ESTilde "defaulting to dash behavior for failed getpwnam (unspec per 2.6.1)", s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
        | Just path -> Right (ESTilde "", s0, [], [S path])
        end
-    | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f) (* TODO is this two steps? *)
+    | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
         let s1 = <| s0 with shell_env = Map.insert s (concat_expanded f) s0.shell_env |> in
         Right (ESParam "finished assignment", s1, f, [])

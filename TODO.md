@@ -1,3 +1,7 @@
+### Testing
+
+Add test case for appropriated field splitting for generated string (particularly parameters)
+
 ### Issues
 
 create a fork of kernel.org's dash, track it
@@ -32,8 +36,7 @@ have both read the JSON output
 Monads for parsing etc.
 Clean up to make null more explicit (simplify matches?)
 
-Symbolic record which steps were taken
-  Separate out splitting, quote removal
+Separate out splitting, quote removal
 
 Minimal FS model
 
