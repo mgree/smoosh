@@ -32,7 +32,7 @@ let parse_entry (unescape:bool) (s:string) =
       try if unescape then Scanf.unescaped value else value
       with Scanf.Scan_failure _ -> eprintf "Environment parse error: couldn't handle escapes in %s, leaving as-is" s; value
     in
-    initial_os_state := add_literal_env_string !initial_os_state name escaped
+    initial_os_state := add_literal_env_string name escaped !initial_os_state
   with Not_found -> eprintf "Environment parse error: couldn't find an '=' in %s" s
 
 let load_env (f:string) =
@@ -137,7 +137,7 @@ let json_of_env (env:(string, symbolic_string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))
 
 let json_of_state ((os,tm):state) : json =
-  Assoc [("env", json_of_env os.shell_env); ("term", json_of_state_term tm)]
+  Assoc [("env", json_of_env os.sh.env); ("term", json_of_state_term tm)] (* TODO pass through to json_of_env *)
 
 let show_trace trace =
   let tracej = List.map json_of_state trace in

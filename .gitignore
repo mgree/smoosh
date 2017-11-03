@@ -7,6 +7,7 @@ t_fs_prelude.ml
 fsh_prelude.ml
 expansion.ml
 arith.ml
+path.ml
 ocaml-lib
 runtest
 _build

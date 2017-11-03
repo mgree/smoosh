@@ -1,0 +1,7 @@
+open import Fsh
+
+open import Locale
+open import Pattern
+
+val split_slash : ty_os_state -> symbolic_string -> (list symbolic_string) * fs
+

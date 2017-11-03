@@ -67,7 +67,7 @@ let check_parser = checker (either_monad parse_arith_exp) (=)
 
 let eval_equals out expected =
   match (out, expected) with
-  | (Either.Right (s1, n1), Either.Right (s2, n2)) -> n1 = n2 && (Pmap.equal (=) s1.shell_env s2.shell_env)
+  | (Either.Right (s1, n1), Either.Right (s2, n2)) -> n1 = n2 && (Pmap.equal (=) s1.sh.env s2.sh.env)
   | (Either.Left e1, Either.Left e2) -> e1 = e2
   | _ -> false
 
@@ -243,19 +243,19 @@ let eval_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_o
 
     ("assign x to 5", os_empty, "x=5", Right (os_var_x_five, ofNumLiteral 5));
 
-    ("x plus equals 2, x is set to 5", os_var_x_five, "x+=2", Right (add_literal_env_string os_empty "x" "7", ofNumLiteral 7));
-    ("x minus equals 2, x is set to 5", os_var_x_five, "x-=2", Right (add_literal_env_string os_empty "x" "3", ofNumLiteral 3));
-    ("x times equals 2, x is set to 5", os_var_x_five, "x*=2", Right (add_literal_env_string os_empty "x" "10", ofNumLiteral 10));
-    ("x div equals 2, x is set to 5", os_var_x_five, "x/=2", Right (add_literal_env_string os_empty "x" "2", ofNumLiteral 2));
-    ("x mod equals 2, x is set to 5", os_var_x_five, "x%=2", Right (add_literal_env_string os_empty "x" "1", ofNumLiteral 1));
+    ("x plus equals 2, x is set to 5", os_var_x_five, "x+=2", Right (add_literal_env_string "x" "7" os_empty, ofNumLiteral 7));
+    ("x minus equals 2, x is set to 5", os_var_x_five, "x-=2", Right (add_literal_env_string "x" "3" os_empty, ofNumLiteral 3));
+    ("x times equals 2, x is set to 5", os_var_x_five, "x*=2", Right (add_literal_env_string "x" "10" os_empty, ofNumLiteral 10));
+    ("x div equals 2, x is set to 5", os_var_x_five, "x/=2", Right (add_literal_env_string "x" "2" os_empty, ofNumLiteral 2));
+    ("x mod equals 2, x is set to 5", os_var_x_five, "x%=2", Right (add_literal_env_string "x" "1" os_empty, ofNumLiteral 1));
 
-    ("x lshift equals 2, x is set to 5", os_var_x_five, "x<<=2", Right (add_literal_env_string os_empty "x" "20", ofNumLiteral 20));
-    ("x rshift equals 2, x is set to 5", os_var_x_five, "x>>=2", Right (add_literal_env_string os_empty "x" "1", ofNumLiteral 1));
-    ("x & equals 2, x is set to 5", os_var_x_five, "x&=2", Right (add_literal_env_string os_empty "x" "0", ofNumLiteral 0));
-    ("x | equals 2, x is set to 5", os_var_x_five, "x|=2", Right (add_literal_env_string os_empty "x" "7", ofNumLiteral 7));
-    ("x ^ equals 2, x is set to 5", os_var_x_five, "x^=2", Right (add_literal_env_string os_empty "x" "7", ofNumLiteral 7));
+    ("x lshift equals 2, x is set to 5", os_var_x_five, "x<<=2", Right (add_literal_env_string "x" "20" os_empty, ofNumLiteral 20));
+    ("x rshift equals 2, x is set to 5", os_var_x_five, "x>>=2", Right (add_literal_env_string "x" "1" os_empty, ofNumLiteral 1));
+    ("x & equals 2, x is set to 5", os_var_x_five, "x&=2", Right (add_literal_env_string "x" "0" os_empty, ofNumLiteral 0));
+    ("x | equals 2, x is set to 5", os_var_x_five, "x|=2", Right (add_literal_env_string "x" "7" os_empty, ofNumLiteral 7));
+    ("x ^ equals 2, x is set to 5", os_var_x_five, "x^=2", Right (add_literal_env_string "x" "7" os_empty, ofNumLiteral 7));
 
-    ("x = x + 1, x is unset", os_empty, "x=x+1", Right (add_literal_env_string os_empty "x" "1", ofNumLiteral 1));
+    ("x = x + 1, x is unset", os_empty, "x=x+1", Right (add_literal_env_string "x" "1" os_empty, ofNumLiteral 1));
   ]
 
 let eval_bignum_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_os_state * Nat_big_num.num)Either.either)list =
@@ -278,7 +278,7 @@ let eval_int64_tests ofNumLiteral mul : (string * ty_os_state * string * (string
 
     ("right shift uses arithmetic shift", os_empty, "(15 << -1) >> 1", Right (os_empty, Int64.div int64Min (ofNumLiteral 2)));
 
-    ("x minus equals 7 return -2 when x is set to 5", os_var_x_five, "x-=7", Right (add_literal_env_string os_empty "x" "-2", Int64.neg (ofNumLiteral 2)));
+    ("x minus equals 7 return -2 when x is set to 5", os_var_x_five, "x-=7", Right (add_literal_env_string "x" "-2" os_empty, Int64.neg (ofNumLiteral 2)));
   ]
 
 let eval_int32_tests ofNumLiteral mul : (string * ty_os_state * string * (string, ty_os_state * Int32.t)Either.either)list =

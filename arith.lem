@@ -507,7 +507,7 @@ let rec eval_arith bits s0 e =
                 match read (toCharList str) with
                 | Right n ->
                     match eval_arith bits s0 (BinOp o (Num n) exp) with
-                    | Right (s1, n2) -> Right (<| s1 with shell_env = Map.insert s (stringToSymbolicString (write n2)) s1.shell_env |>, n2)
+                    | Right (s1, n2) -> Right (set_param s (stringToSymbolicString (write n2)) s1, n2)
                     | Left e -> Left e
                     end
                 | Left e -> Left e
@@ -516,7 +516,7 @@ let rec eval_arith bits s0 e =
           end
       | Nothing ->
           match eval_arith bits s0 exp with
-          | Right (s1, n) -> Right (<| s1 with shell_env = Map.insert s (stringToSymbolicString (write n)) s1.shell_env |>, n)
+          | Right (s1, n) -> Right (set_param s (stringToSymbolicString (write n)) s1, n)
           | Left e -> Left e
           end
       end

@@ -146,7 +146,7 @@ let rec expand_control s0 q k =
        end
     | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
-        let s1 = <| s0 with shell_env = Map.insert s (concat_expanded f) s0.shell_env |> in
+        let s1 = set_param s (concat_expanded f) s0 in
         Right (ESParam "finished assignment", s1, f, [])
     | LAssign s f w ->
        match expand_words s0 q GeneratedString ([], w) with

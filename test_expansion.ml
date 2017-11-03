@@ -16,13 +16,13 @@ let check_expansion (test_name, s0, w_in, f_expected):result=
 let concrete = List.map (fun x -> List.map (fun c -> Fsh.C c) (Xstring.explode x))
 
 let symcommand : symbolic_char = SymCommand (Command ([], [S "command"], []))
-let os_var_x_foofoobarbar:ty_os_state = add_literal_env_string os_empty "x" "foofoobarbar"
-let os_var_x_foocommand : ty_os_state = shell_env_insert os_empty "x" ((stringToSymbolicString "foo") @ [symcommand])
+let os_var_x_foofoobarbar:ty_os_state = add_literal_env_string "x" "foofoobarbar" os_empty
+let os_var_x_foocommand : ty_os_state = set_param "x" ((stringToSymbolicString "foo") @ [symcommand]) os_empty
 
 let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
  ([
     ("plain string foo", os_empty, [S "foo"], concrete ["foo"]);
-    ("expand tilde without username", add_literal_env_string os_empty "HOME" "/home/testuser", [K Tilde], concrete ["/home/testuser"]);
+    ("expand tilde without username", add_literal_env_string "HOME" "/home/testuser" os_empty, [K Tilde], concrete ["/home/testuser"]);
     ("normal paramater lookup of unset variable", os_empty, [K (Param("x", Normal))], []);
     ("paramter length of unset variable", os_empty, [K (Param("x", Length))], concrete ["0"]);
 

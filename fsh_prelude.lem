@@ -243,33 +243,60 @@ end
 val dest_PID : ty_pid -> nat
 let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
 
+(* TODO Broadly, directories map to contents, which are dir trees. Model files as empty map, since no contents.
+No way to tell difference between empty dir and file. For now, fine, just using for pathname expansion. Ultimately, rely on SibylFS's detailed model *)
+type fs = <|
+  parent: maybe fs;
+  contents: Map.map string (list fs)
+|>
+
+val is_dir : fs -> bool
+let is_dir f = not (Map.null f.contents)
+
+val is_file : fs -> bool
+let is_file f = Map.null f.contents
+
+type ty_shell_state = <|
+    env: Map.map string symbolic_string;
+    cwd: fs;
+  |>
 (* From t_fs_spec.lem_cppo line 1187 *)
 type ty_os_state = <|
-    shell_env: Map.map string symbolic_string;
-    passwd: Map.map string string (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
+    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
+    sh: ty_shell_state;
+    fs_root: fs
+  |>
+
+let fs_empty =
+  <| parent = Nothing;
+     contents = Map.empty
   |>
 
 let os_empty : ty_os_state = <|
-    shell_env = Map.empty;
-    passwd = Map.empty
+    sh = <|
+      env = Map.empty;
+      cwd = fs_empty
+  |>;
+    passwd = Map.empty;
+    fs_root = fs_empty
  |>
     
 val print_shell_env : ty_os_state -> string
-let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ symbolic_string_to_string_crappy v ^ ", " ^ s) st.shell_env ""
+let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ symbolic_string_to_string_crappy v ^ ", " ^ s) st.sh.env ""
 
 (* The result is nothing if the parameter is unset, and the empty string null. *)
 val lookup_param : ty_os_state -> string -> maybe symbolic_string
-let lookup_param s0 str = Map.lookup str s0.shell_env
+let lookup_param s0 str = Map.lookup str s0.sh.env
 
 val lookup_concrete_param : ty_os_state -> string -> maybe string
 let lookup_concrete_param s0 str =
-  match Map.lookup str s0.shell_env with
+  match Map.lookup str s0.sh.env with
   | Nothing -> Nothing
   | Just fs -> try_concrete fs
   end
 
 val set_param : string -> symbolic_string -> ty_os_state -> ty_os_state
-let set_param x v os = <| os with shell_env = Map.insert x v (os.shell_env) |>
+let set_param x v os = <| os with sh = <| os.sh with env = Map.insert x v os.sh.env |> |>
 
 val get_pwdir : ty_os_state -> string -> maybe string
 let get_pwdir os u = Map.lookup u os.passwd

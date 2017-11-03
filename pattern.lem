@@ -1,6 +1,5 @@
 open import Fsh
 
-open import Arith
 open import Locale
 
 type match_result 'a =
