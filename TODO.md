@@ -4,7 +4,9 @@ Add test case for appropriated field splitting for generated string (particularl
 
 Unify testing helpers
 
-### Issues
+### Organizational issues
+
+move locale into shell state
 
 create a fork of kernel.org's dash, track it
 but remove main, have proper handler abort
