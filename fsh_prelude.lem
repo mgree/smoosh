@@ -247,7 +247,7 @@ let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
 No way to tell difference between empty dir and file. For now, fine, just using for pathname expansion. Ultimately, rely on SibylFS's detailed model *)
 type fs = <|
   parent: maybe fs;
-  contents: Map.map string (list fs)
+  contents: Map.map string fs
 |>
 
 val is_dir : fs -> bool
@@ -255,6 +255,13 @@ let is_dir f = not (Map.null f.contents)
 
 val is_file : fs -> bool
 let is_file f = Map.null f.contents
+
+val dotdot : fs -> fs
+let dotdot fs =
+  match fs.parent with
+  | Nothing -> fs
+  | Just fs' -> fs'
+  end
 
 type ty_shell_state = <|
     env: Map.map string symbolic_string;

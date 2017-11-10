@@ -3,5 +3,77 @@ open import Fsh
 open import Locale
 open import Pattern
 
-val split_slash : ty_os_state -> symbolic_string -> (list symbolic_string) * fs
+val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
+let rec break p ls =
+  match ls with
+  | [] -> ([], [])
+  | x::xs ->
+    if p x
+    then ([], xs)
+    else let (xs', xs'') = break p xs in (x::xs', xs'')
+  end
 
+val split : list char -> list (list char)
+let rec split cs =
+  match break ((=) #'/') cs with
+  | ([], []) -> []
+  | (cs', []) -> [cs']
+  | (cs', cs'') -> cs'::(split cs'')
+  end
+  
+val split_slash : ty_os_state -> string -> list string * (string * fs)
+let split_slash st pat =
+  match toCharList pat with
+  | #'/'::pat' -> (map toString (split pat'), ("/", st.fs_root))
+  | chars -> (map toString (split chars), ("", st.sh.cwd))
+  end
+
+(* We use shortest matching because we won't look at the content of the match.
+ * We only care whether or not there was a match.
+ *)
+val match_pattern_file_list : locale -> fs -> string -> set (string * fs)
+let match_pattern_file_list lc fs s =
+  (* TODO:
+    * Is first character literal '.'
+    * if not, remove all dot files from list
+    *)
+  Set.filter
+    (fun (file, _) -> 
+      match match_prefix lc Shortest (stringToSymbolicString s) (stringToSymbolicString file) with
+      | Match _ -> true
+      | _ -> false
+      end)
+    (toSet fs.contents)
+
+val stringToFs : fs -> string -> set fs -> set fs
+let stringtoFs fs k set =
+  match Map.lookup k fs.contents with
+  | Just fs' -> Set.insert fs' set
+  | _ -> set
+  end
+
+
+val match_dir : fs -> locale -> string -> set (string * fs)
+let match_dir dir lc name =
+  match name with
+  | "." -> Set.singleton (".", dir)
+  | ".." -> Set.singleton ("..", dotdot dir)
+  | _ -> match_pattern_file_list lc dir name
+  end
+
+val walk : (string * fs) -> locale -> list string -> set (string * fs)
+let rec walk (path_so_far, dir) lc path =
+  match path with
+  | [] -> Set.singleton (path_so_far, dir)
+  | path'::rest ->
+    let next = match_dir dir lc path' in
+    bigunionMap (fun (sub, dir') -> 
+      walk (path_so_far ^ "/" ^ sub, dir') lc rest)
+      next
+  end
+
+val match_path : ty_os_state -> locale -> string -> set string
+let match_path st lc path =
+  let (path_parts, start) = split_slash st path in
+  (* ss empty? *)
+  Set.map fst (walk start lc path_parts)
