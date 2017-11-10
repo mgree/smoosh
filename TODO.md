@@ -2,6 +2,8 @@
 
 Add test case for appropriated field splitting for generated string (particularly parameters)
 
+Unify testing helpers
+
 ### Issues
 
 create a fork of kernel.org's dash, track it
@@ -32,8 +34,6 @@ Monads for parsing etc.
 Clean up to make null more explicit (simplify matches?)
 
 Separate out splitting, quote removal
-
-Minimal FS model for path expansion
 
 Error handling
   - parse errors break our libdash shim
