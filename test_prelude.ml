@@ -35,7 +35,9 @@ let new_file (name:string) (parent_dir:fs_mut) : unit =
   (* set the parent link *)
   file.parent <- Some (freeze parent_dir)
 
-let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state = { st with fs_root = freeze fs }
+let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state = 
+  let root = freeze fs in
+  { st with fs_root = root; sh = { st.sh with cwd = root } }
 
 (* File system scaffolding *)
 let fs_simple : fs_mut = 

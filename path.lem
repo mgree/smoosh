@@ -21,11 +21,12 @@ let rec split cs =
   | (cs', cs'') -> cs'::(split cs'')
   end
   
-val split_slash : ty_os_state -> string -> list string * (string * fs)
+(* bug here with raw root path matching? *)
+val split_slash : ty_os_state -> string -> list string * (maybe string * fs)
 let split_slash st pat =
   match toCharList pat with
-  | #'/'::pat' -> (map toString (split pat'), ("/", st.fs_root))
-  | chars -> (map toString (split chars), ("", st.sh.cwd))
+  | #'/'::pat' -> (map toString (split pat'), (Just "", st.fs_root))
+  | chars -> (map toString (split chars), (Nothing, st.sh.cwd))
   end
 
 (* We use shortest matching because we won't look at the content of the match.
@@ -61,14 +62,25 @@ let match_dir dir lc name =
   | _ -> match_pattern_file_list lc dir name
   end
 
-val walk : (string * fs) -> locale -> list string -> set (string * fs)
+val walk : (maybe string * fs) -> locale -> list string -> set (string * fs)
 let rec walk (path_so_far, dir) lc path =
   match path with
-  | [] -> Set.singleton (path_so_far, dir)
+  | [] -> 
+     let full_path = 
+       match path_so_far with
+       | Nothing -> ""
+       | Just p -> p
+       end in  
+     Set.singleton (full_path, dir)
   | path'::rest ->
     let next = match_dir dir lc path' in
     bigunionMap (fun (sub, dir') -> 
-      walk (path_so_far ^ "/" ^ sub, dir') lc rest)
+      let full_path =
+        match path_so_far with
+        | Nothing -> sub
+        | Just parent -> parent ^ "/" ^ sub
+        end in
+      walk (Just full_path, dir') lc rest)
       next
   end
 
