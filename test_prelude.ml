@@ -21,3 +21,15 @@ type fs_mut = {
 let freeze (fs : fs_mut) : fs = Obj.magic fs
 
 let thaw (fs : fs) : fs_mut = Obj.magic fs
+
+(* File system scaffolding *)
+let fs_simple = add_empty_dir "a" fs_empty
+
+let os_simple_fs = set_fs fs_simple os_empty
+
+let fs_complicated =
+  let b_dir = add_empty_dir "b" fs_simple in
+  let c_dir = add_empty_dir "c" b_dir in
+  c_dir
+
+let os_complicated_fs = set_fs fs_complicated os_empty

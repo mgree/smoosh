@@ -181,6 +181,12 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
 
     ("Concrete prefix", os_var_x_foocommand,
      [K (Param("x", Substring (Prefix, Shortest, [S "f"])))], [[C 'o'; C 'o'; symcommand]]); (*[[C 'o'; C 'o']; [symcommand]]*)
+
+     (* TODO
+      * path expansion
+      *    foo* => multiple fields
+      *    "foo*" => one field
+      *)
   ])
 
 let run_tests () =

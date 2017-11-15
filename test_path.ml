@@ -28,6 +28,13 @@ let check_match_path (name, state, path, expected) =
 let match_path_tests : (string * ty_os_state * string * (string list)) list =
   [
     ("Root in empty", os_empty, "/", ["/"]);
+
+    ("Dir in simple fs", os_simple_fs, "/a", ["/a"]);
+
+    ("Dir in simple fs", os_complicated_fs, "/b", ["/b"]);
+    ("Dir in simple fs", os_complicated_fs, "/c*/..", ["/c/.."]);
+    ("Dir in simple fs", os_complicated_fs, "/c*/../c", ["/c*/../c"]);
+
     (* Sample fs state
      * /
      *   a/
