@@ -311,28 +311,6 @@ let get_pwdir os u = Map.lookup u os.passwd
 val set_pwdir : string -> string -> ty_os_state -> ty_os_state
 let set_pwdir u d os = <| os with passwd = Map.insert u d (os.passwd) |>
 
-val new_file : fs -> fs
-let new_file parent_dir = <|
-    (* TODO : Question? will the reference be reliable?
-     * ie. if I add a new element, will this parent_dir still point
-     * to the correct place *)
-    parent = Just parent_dir;
-    contents = Map.empty
-  |>
-
-(* Takes the name of the new file and the directory to add it to, returns the directory *)
-val add_empty_dir : string -> fs -> fs
-let add_empty_dir dirname fs = <| fs with contents = Map.insert dirname (new_file fs) fs.contents |>
-
-val set_fs : fs -> ty_os_state -> ty_os_state
-let set_fs fs st = <| st with fs_root = fs |>
-
-(* child -> new_parent -> (child, new_parent) *)
-val set_parent : string -> fs -> fs -> fs
-let set_parent name child new_parent =
-  let child' = <| child with parent = Just new_parent |> in
-  <| new_parent with contents = Map.insert name child' new_parent.contents |>
-
 (*--------------------------------*)
 (* Nat class                      *)
 (*--------------------------------*)

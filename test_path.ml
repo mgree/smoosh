@@ -33,7 +33,7 @@ let match_path_tests : (string * ty_os_state * string * (string list)) list =
 
     ("Dir in simple fs", os_complicated_fs, "/b", ["/b"]);
     ("Dir in simple fs", os_complicated_fs, "/c*/..", ["/c/.."]);
-    ("Dir in simple fs", os_complicated_fs, "/c*/../c", ["/c*/../c"]);
+    ("Dir in simple fs", os_complicated_fs, "/c*/../c", ["/c/../c"]);
 
     (* Sample fs state
      * /
