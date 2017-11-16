@@ -27,13 +27,14 @@ let fresh (fs : fs_mut) : fs_mut =
   { parent = fs.parent;
     contents = Pmap.map (fun x -> x) fs.contents }
 
-let new_file (name:string) (parent_dir:fs_mut) : unit = 
+let new_file (name:string) (parent_dir:fs_mut) : fs_mut = 
   (* create the file *)
   let file = { parent = None; contents = Pmap.empty compare } in
   (* install it in the parent directory *)
   parent_dir.contents <- Pmap.add name (freeze file) parent_dir.contents;
   (* set the parent link *)
-  file.parent <- Some (freeze parent_dir)
+  file.parent <- Some (freeze parent_dir);
+  file
 
 let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state = 
   let root = freeze fs in
@@ -48,9 +49,16 @@ let fs_simple : fs_mut =
 let os_simple_fs = set_fs fs_simple os_empty
 
 let fs_complicated : fs_mut =
-  let fs = fresh fs_simple in
-  new_file "b" fs;
-  new_file "c" fs;
+  let fs = fresh (thaw fs_empty) in
+  let a_file = new_file "a" fs in
+  let b_file = new_file "b" fs in
+  let c_file = new_file "c" fs in
+  let a_use_file = new_file "use" a_file in
+  let a_user_file = new_file "user" a_file in
+  new_file "x" a_use_file;
+  new_file "x" a_user_file;
+  new_file "y" a_user_file;
+  new_file "useful" a_file;
   fs
 
 let os_complicated_fs = set_fs fs_complicated os_empty

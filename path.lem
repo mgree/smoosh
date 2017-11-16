@@ -15,18 +15,19 @@ let rec break p ls =
 
 val split : list char -> list (list char)
 let rec split cs =
+  (* TODO: don't break a trailing slash
+   * /c*/../ should find /c/../ not /c/.. *)
   match break ((=) #'/') cs with
   | ([], []) -> []
   | (cs', []) -> [cs']
   | (cs', cs'') -> cs'::(split cs'')
   end
-  
-(* bug here with raw root path matching? *)
-val split_slash : ty_os_state -> string -> list string * (maybe string * fs)
+
+val split_slash : ty_os_state -> string -> list string * (fs * bool)
 let split_slash st pat =
   match toCharList pat with
-  | #'/'::pat' -> (map toString (split pat'), (Just "", st.fs_root))
-  | chars -> (map toString (split chars), (Nothing, st.sh.cwd))
+  | #'/'::pat' -> (map toString (split pat'), (st.fs_root, true))
+  | chars -> (map toString (split chars), (st.sh.cwd, false))
   end
 
 (* We use shortest matching because we won't look at the content of the match.
@@ -44,6 +45,7 @@ let match_pattern_file_list lc fs s =
       | Match _ -> true
       | _ -> false
       end)
+    (* WARNING!!! We have circularly defined fs's, for any non-trivial FS type this will be infinite *)
     (toSet fs.contents)
 
 val stringToFs : fs -> string -> set fs -> set fs
@@ -62,30 +64,42 @@ let match_dir dir lc name =
   | _ -> match_pattern_file_list lc dir name
   end
 
-val walk : (maybe string * fs) -> locale -> list string -> set (string * fs)
-let rec walk (path_so_far, dir) lc path =
+val walk : string -> (maybe string * fs) -> locale -> list string -> set (string * fs)
+let rec walk path_prefix (path_so_far, dir) lc path =
   match path with
-  | [] -> 
-     let full_path = 
+  | [] ->
+     let full_path =
        match path_so_far with
-       | Nothing -> ""
+       (* If there is no path so far, we are matching nothing,
+        * so just return the path prefix (either "" or "/") *)
+       | Nothing -> path_prefix
+       (* If we have a path so far, we are done, just return that path *)
        | Just p -> p
-       end in  
-     Set.singleton (full_path, dir)
+       end in
+      Set.singleton (full_path, dir)
   | path'::rest ->
     let next = match_dir dir lc path' in
     bigunionMap (fun (sub, dir') -> 
       let full_path =
         match path_so_far with
-        | Nothing -> sub
+        (* If we have nothing so far we are at the start of our
+         * walk. Therefore we append the path prefix. *)
+        | Nothing -> path_prefix ^ sub
+        (* Insert a '/' between two directories (or a directory and a file) *)
         | Just parent -> parent ^ "/" ^ sub
         end in
-      walk (Just full_path, dir') lc rest)
+      (* It is no longer necessary to pass through path_prefix because path_so_far will
+       * never be Nothing again *)
+      walk "" (Just full_path, dir') lc rest)
       next
   end
 
 val match_path : ty_os_state -> locale -> string -> set string
 let match_path st lc path =
-  let (path_parts, start) = split_slash st path in
+  let (path_parts, (start_fs, is_absolute_path)) = split_slash st path in
+  let path_prefix = if is_absolute_path
+               then "/"
+               else ""
+  in
   (* ss empty? *)
-  Set.map fst (walk start lc path_parts)
+  Set.map fst (walk path_prefix (Nothing, start_fs) lc path_parts)

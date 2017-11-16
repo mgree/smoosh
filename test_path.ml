@@ -37,7 +37,18 @@ let match_path_tests : (string * ty_os_state * string * (string list)) list =
     ("* in /a /b /c", os_complicated_fs, "*", ["a"; "b"; "c"]);
     ("/b in /a /b /c", os_complicated_fs, "/b", ["/b"]);
     ("/c*/.. in /a /b /c", os_complicated_fs, "/c*/..", ["/c/.."]);
+    ("/c*/../ in /a /b /c", os_complicated_fs, "/c*/../", ["/c/../"]);
     ("/c*/../c in /a /b /c", os_complicated_fs, "/c*/../c", ["/c/../c"]);
+
+    (*
+     * This is causing a memory error...
+    ("/a/use*", os_complicated_fs, "/a/use*", ["/a/use"; "/a/user"; "/a/useful"]);
+    *)
+
+    (*
+     * PENDING: This fails because no difference between empty dir and a file
+    ("/a/use*/", os_complicated_fs, "/a/use*", ["/a/use/"; "/a/user/"]);
+     *)
 
     (* Sample fs state
      * /
