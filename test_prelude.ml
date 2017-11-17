@@ -56,10 +56,10 @@ let os_simple_fs = set_fs fs_simple os_empty
  *   a/
  *     use/
  *       x
+ *     useful
  *     user/
  *       x
  *       y
- *     useful
  *   b/
  *     user/
  *       z

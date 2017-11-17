@@ -195,6 +195,11 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
      [S "/a/*"], concrete ["/a/use";"/a/useful";"/a/user"]);
     ("\"a/*\" in a/use/ a/useful a/user/", os_complicated_fs,
      [DQ "a/*"], concrete ["a/*"]);
+    ("\"${x=a/*}\" in a/use a/useful a/user/", os_complicated_fs,
+     [K (Quote [K (Param("x",Assign [S "a/*"]))])], concrete ["a/*"]);
+    ("\"${x=a}/*\" in a/use a/useful a/user/", os_complicated_fs,
+     [K (Param("x",Assign [S "a"])); S "/*"], concrete ["a/use";"a/useful";"a/user"]);
+
   ])
 
 let run_tests () =
