@@ -32,12 +32,12 @@ let new_file (name:string) (parent_dir:fs_mut) : unit =
 
 let new_dir (name:string) (parent_dir:fs_mut) : fs_mut = 
   (* create the file *)
-  let file = { parent = None; contents = Pmap.empty compare } in
+  let dir = { parent = None; contents = Pmap.empty compare } in
   (* install it in the parent directory *)
-  parent_dir.contents <- Pmap.add name (Dir (freeze file)) parent_dir.contents;
+  parent_dir.contents <- Pmap.add name (Dir (freeze dir)) parent_dir.contents;
   (* set the parent link *)
-  file.parent <- Some (freeze parent_dir);
-  file
+  dir.parent <- Some (freeze parent_dir);
+  dir
 
 let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state = 
   let root = freeze fs in

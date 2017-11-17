@@ -22,7 +22,7 @@ let rec split cs =
   | (cs', cs'') -> cs'::(split cs'')
   end
 
-type path_info = <| from_root : bool
+type path_info = <| path_prefix : string
                   ; trailing_slash : bool
                   ; leading_dot : bool
                   |>
@@ -43,8 +43,8 @@ let has_trailing_slash cs =
 val parse_path_pattern : ty_os_state -> string -> list string * fs * path_info
 let parse_path_pattern st pat =
   match toCharList pat with
-  | #'/'::pat' -> (map toString (split pat'), st.fs_root, <| from_root = true; trailing_slash = has_trailing_slash pat'; leading_dot = false |>)
-  | chars -> (map toString (split chars), st.sh.cwd, <| from_root = false; trailing_slash = has_trailing_slash chars; leading_dot = has_leading_dot chars |>)
+  | #'/'::pat' -> (map toString (split pat'), st.fs_root, <| path_prefix = "/"; trailing_slash = has_trailing_slash pat'; leading_dot = false |>)
+  | chars -> (map toString (split chars), st.sh.cwd, <| path_prefix = ""; trailing_slash = has_trailing_slash chars; leading_dot = has_leading_dot chars |>)
   end
 
 (* We use shortest matching because we won't look at the content of the match.
@@ -88,43 +88,41 @@ let match_dir dir lc name =
   | _ -> match_pattern_file_list lc dir name
   end
 
-val walk : string -> (maybe string * fs) -> path_info -> locale -> list string -> set (string * file)
-let rec walk path_prefix (path_so_far, dir) pinfo lc path =
+val walk : (maybe string * fs) -> path_info -> locale -> list string -> set (string * file)
+let rec walk (path_so_far, dir) pinfo lc path =
   match path with
   | [] ->
      let full_path =
        match path_so_far with
        (* If there is no path so far, we are matching nothing,
         * so just return the path prefix (either "" or "/") *)
-       | Nothing -> path_prefix
+       | Nothing -> pinfo.path_prefix
        (* If we have a path so far, we are done, just return that path *)
        | Just p -> p
        end in
-      Set.singleton (full_path, Dir dir)
+      Set.singleton (full_path ^ if pinfo.trailing_slash then "/" else "", Dir dir)
   | path'::rest ->
-    let next = match_dir dir lc path' in
     bigunionMapBy (fun (str, _) (str', _) -> compare str str') (fun (sub, file) ->
       let full_path =
         match path_so_far with
         (* If we have nothing so far we are at the start of our
          * walk. Therefore we append the path prefix. *)
-        | Nothing -> path_prefix ^ sub
+        | Nothing -> pinfo.path_prefix ^ sub
         (* Insert a '/' between two directories (or a directory and a file) *)
         | Just parent -> parent ^ "/" ^ sub
         end in
-      (* It is no longer necessary to pass through path_prefix because path_so_far will
-       * never be Nothing again *)
-      match (file,rest) with
-      | (File,[]) -> Set.singleton (full_path, File)
-      | (File,_) -> Set.empty
-      | (Dir dir',_) -> walk "" (Just full_path, dir') pinfo lc rest
+      match file with
+      | File -> 
+         if null rest && not (pinfo.trailing_slash)
+         then Set.singleton (full_path, File)
+         else Set.empty
+      | Dir dir' -> walk (Just full_path, dir') pinfo lc rest
       end)
-      next
+      (match_dir dir lc path')
   end
 
 val match_path : ty_os_state -> string -> set string
 let match_path st path =
   let (pat,start,pinfo) = parse_path_pattern st path in
-  let path_prefix = if pinfo.from_root then "/" else "" in
   (* ss empty? *)
-  Set.map fst (walk path_prefix (Nothing, start) pinfo st.sh.locale pat)
+  Set.map fst (walk (Nothing, start) pinfo st.sh.locale pat)
