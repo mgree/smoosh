@@ -22,18 +22,29 @@ let rec split cs =
   | (cs', cs'') -> cs'::(split cs'')
   end
 
-type pat_info = <| pat : list string
-                 ; start : fs
-                 ; from_root : bool
-                 ; trailing_slash : bool
-                 ; leading_dot : bool
-                 |>
+type path_info = <| from_root : bool
+                  ; trailing_slash : bool
+                  ; leading_dot : bool
+                  |>
 
-val parse_path_pattern : ty_os_state -> string -> pat_info
+val has_leading_dot : list char -> bool
+let has_leading_dot = function
+  | #'.'::_ -> true
+  | _ -> false
+  end
+
+val has_trailing_slash : list char -> bool
+let has_trailing_slash cs =
+  match reverse cs with
+  | #'/'::_ -> true
+  | _ -> false
+  end
+
+val parse_path_pattern : ty_os_state -> string -> list string * fs * path_info
 let parse_path_pattern st pat =
   match toCharList pat with
-  | #'/'::pat' -> <| pat = map toString (split pat'); start = st.fs_root; from_root = true; trailing_slash = false; leading_dot = false |> (* FIXME *)
-  | chars -> <| pat = map toString (split chars); start = st.sh.cwd; from_root = false; trailing_slash = false; leading_dot = false |> (* last two wrong *)
+  | #'/'::pat' -> (map toString (split pat'), st.fs_root, <| from_root = true; trailing_slash = has_trailing_slash pat'; leading_dot = false |>)
+  | chars -> (map toString (split chars), st.sh.cwd, <| from_root = false; trailing_slash = has_trailing_slash chars; leading_dot = has_leading_dot chars |>)
   end
 
 (* We use shortest matching because we won't look at the content of the match.
@@ -77,8 +88,8 @@ let match_dir dir lc name =
   | _ -> match_pattern_file_list lc dir name
   end
 
-val walk : string -> (maybe string * fs) -> locale -> list string -> set (string * file)
-let rec walk path_prefix (path_so_far, dir) lc path =
+val walk : string -> (maybe string * fs) -> path_info -> locale -> list string -> set (string * file)
+let rec walk path_prefix (path_so_far, dir) pinfo lc path =
   match path with
   | [] ->
      let full_path =
@@ -106,14 +117,14 @@ let rec walk path_prefix (path_so_far, dir) lc path =
       match (file,rest) with
       | (File,[]) -> Set.singleton (full_path, File)
       | (File,_) -> Set.empty
-      | (Dir dir',_) -> walk "" (Just full_path, dir') lc rest
+      | (Dir dir',_) -> walk "" (Just full_path, dir') pinfo lc rest
       end)
       next
   end
 
 val match_path : ty_os_state -> string -> set string
 let match_path st path =
-  let pinfo = parse_path_pattern st path in
+  let (pat,start,pinfo) = parse_path_pattern st path in
   let path_prefix = if pinfo.from_root then "/" else "" in
   (* ss empty? *)
-  Set.map fst (walk path_prefix (Nothing, pinfo.start) st.sh.locale pinfo.pat)
+  Set.map fst (walk path_prefix (Nothing, start) pinfo st.sh.locale pat)
