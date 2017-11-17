@@ -217,8 +217,8 @@ let rec try_concrete vs =
 val symbolic_string_to_string_crappy : symbolic_string -> string
 let rec symbolic_string_to_string_crappy f =
   match f with
-  | [] -> "c"
-  | C(c)::f' -> toString [c] ^ "<<CHAR>>" ^ symbolic_string_to_string_crappy f'
+  | [] -> ""
+  | C(c)::f' -> toString [c] ^ symbolic_string_to_string_crappy f'
   | _::f' -> "<<SYMBOLIC>>" ^ symbolic_string_to_string_crappy f'
   end
 

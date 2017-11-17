@@ -311,6 +311,14 @@ let field_splitting s0 w = clean_fields (split_fields s0 w)
  * Stage 3 Expansion: Pathname expansion
  *)
 
+val insert_field_separators : list string -> intermediate_fields
+let rec insert_field_separators fs =
+  match fs with
+  | [] -> []
+  | [f] -> [Field (stringToSymbolicString f)]
+  | f::fs' -> Field (stringToSymbolicString f)::FS::insert_field_separators fs'
+  end
+    
 val pathname_expansion : ty_os_state -> intermediate_fields -> intermediate_fields
 
 (* Parameter expansion only happens on unquoted fields *)
@@ -327,7 +335,7 @@ let rec pathname_expansion s0 f =
      let expansions = 
        if null matches 
        then [Field s] 
-       else map (fun s -> Field (stringToSymbolicString s)) matches 
+       else insert_field_separators matches 
      in
      expansions ++ pathname_expansion s0 rst
   | (f::rst) -> f::(pathname_expansion s0 rst)
