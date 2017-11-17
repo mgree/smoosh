@@ -44,8 +44,6 @@ Error handling
 
 No symbolic pathname expansion
 
-Split particular symbolic things out of symbolic_char to ease pattern matching burden?
-
 ### Evaluation
 
 Commands

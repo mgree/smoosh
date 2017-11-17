@@ -211,7 +211,7 @@ let run_tests () =
       | Ok -> ()
       | RErr(name,expected,got) ->
          printf "%s failed: expected '%s' got '%s'\n"
-                name (fields_to_string_crappy expected) (fields_to_string_crappy got);
+                name (fields_to_string expected) (fields_to_string got);
          incr failed)
     expansion_tests;
   printf "=== ...ran %d word expansion tests with %d failures.\n\n" (List.length expansion_tests) !failed

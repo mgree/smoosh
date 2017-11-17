@@ -225,23 +225,32 @@ let rec try_concrete vs =
      | Nothing -> Nothing
      | Just cs -> Just (toString [c] ^ cs)
      end
-  | _ -> Nothing
+  | Sym _::_ -> Nothing
   end
 
-val symbolic_string_to_string_crappy : symbolic_string -> string
-let rec symbolic_string_to_string_crappy f =
-  match f with
+val symbolic_to_string : symbolic -> string
+let symbolic_to_string _sym = "<<SYMBOLIC>>"
+
+val symbolic_char_to_string : symbolic_char -> string
+let symbolic_char_to_string c =
+  match c with
+  | C c -> toString [c]
+  | Sym sym -> symbolic_to_string sym
+  end
+
+val symbolic_string_to_string : symbolic_string -> string
+let rec symbolic_string_to_string sym_str =
+  match sym_str with
   | [] -> ""
-  | C(c)::f' -> toString [c] ^ symbolic_string_to_string_crappy f'
-  | _::f' -> "<<SYMBOLIC>>" ^ symbolic_string_to_string_crappy f'
+  | c::cs -> symbolic_char_to_string c ^ symbolic_string_to_string cs
   end
 
-val fields_to_string_crappy : fields -> string
-let rec fields_to_string_crappy fs = 
+val fields_to_string : fields -> string
+let rec fields_to_string fs = 
   match fs with
   | [] -> "f"
-  | [f] -> symbolic_string_to_string_crappy f
-  | f::fs' -> symbolic_string_to_string_crappy f ^ "<<FB>>" ^ fields_to_string_crappy fs'
+  | [f] -> symbolic_string_to_string f
+  | f::fs' -> symbolic_string_to_string f ^ "<<FB>>" ^ fields_to_string fs'
   end
 
 (**********************************************************************)
@@ -375,7 +384,7 @@ let os_empty : ty_os_state = <|
  |>
 
 val print_shell_env : ty_os_state -> string
-let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ symbolic_string_to_string_crappy v ^ ", " ^ s) st.sh.env ""
+let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ symbolic_string_to_string v ^ ", " ^ s) st.sh.env ""
 
 (* The result is nothing if the parameter is unset, and the empty string null. *)
 val lookup_param : ty_os_state -> string -> maybe symbolic_string

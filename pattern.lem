@@ -32,7 +32,7 @@ let rec parse_bracket_terminator (pat:symbolic_string) (term:char) : match_resul
                | Symbolic -> Symbolic
                | Match (cs,pat'') -> Match (c::cs, pat'')
                end
-  | _ -> Symbolic
+  | Sym _::_ -> Symbolic
   end
 
 let parse_bracket_class (pat:symbolic_string) (term:char) : match_result (string * symbolic_string) =
@@ -66,7 +66,7 @@ let rec parse_bracket_char (pat:symbolic_string) : match_result (bracket_char * 
      | Match (cls, pat'') -> Match (Class cls, pat'')
      end
   | C(c)::pat' -> Match (Char c,pat')
-  | _ -> Symbolic
+  | Sym _::_ -> Symbolic
   end
 
 (* The starting range point and the ending range point shall be a
@@ -154,7 +154,7 @@ let rec parse_bracket (neg:char) (pat:symbolic_string) : match_result (bracket *
           | Symbolic -> Symbolic
           | Match (es, pat'') -> Match (Matching es, pat'')
           end
-  | _ -> Symbolic
+  | Sym _::_ -> Symbolic
   end
 
 let match_entry (lc:locale) (c : char) (be : bracket_entry) : bool = 
@@ -173,7 +173,7 @@ let match_bracket (lc:locale) (b : bracket) (s : symbolic_string) : match_result
   | (_, [])                  -> NoMatch
   | (Matching cs,    C(c) :: s') -> if any (match_entry lc c) cs then Match s' else NoMatch
   | (Nonmatching cs, C(c) :: s') -> if any (match_entry lc c) cs then NoMatch else Match s'
-  | _ -> Symbolic
+  | (_, Sym _::_) -> Symbolic
   end
 
 let rec match_prefix (lc:locale) (m:substring_mode) (pat:symbolic_string) (s:symbolic_string) : match_result (symbolic_string) =
