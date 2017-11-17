@@ -1,6 +1,5 @@
 open import Fsh
 
-open import Locale
 open import Pattern
 
 val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
@@ -95,12 +94,12 @@ let rec walk path_prefix (path_so_far, dir) lc path =
       next
   end
 
-val match_path : ty_os_state -> locale -> string -> set string
-let match_path st lc path =
+val match_path : ty_os_state -> string -> set string
+let match_path st path =
   let (path_parts, (start_fs, is_absolute_path)) = split_slash st path in
   let path_prefix = if is_absolute_path
                then "/"
                else ""
   in
   (* ss empty? *)
-  Set.map fst (walk path_prefix (Nothing, start_fs) lc path_parts)
+  Set.map fst (walk path_prefix (Nothing, start_fs) st.sh.locale path_parts)

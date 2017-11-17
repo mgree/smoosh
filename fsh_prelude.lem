@@ -123,11 +123,16 @@ type expansion_step =
   | ESStep of string
   | ESNested of expansion_step * expansion_step
 
+(**********************************************************************)
+(* SYMBOLIC STRINGS ***************************************************)
+(**********************************************************************)
+
+
 val null_string : symbolic_string -> maybe bool
 let rec null_string f = 
   match f with
   | [] -> Just true
-  | C(c)::_ -> Just false
+  | C(_)::_ -> Just false
   | SymArith _::_ -> Just false
   | SymCommand _::f -> 
      match null_string f with
@@ -161,7 +166,7 @@ let rec toSymbolicCharList fs =
   match fs with
   | [] -> []
   | [f] -> f
-  | f::fs' -> f ++ [C #' '] ++ toSymbolicCharList fs
+  | f::fs' -> f ++ [C #' '] ++ toSymbolicCharList fs'
   end
 
 val words_of_symbolic_string : symbolic_string -> words
@@ -225,23 +230,65 @@ let rec fields_to_string_crappy fs =
   | f::fs' -> symbolic_string_to_string_crappy f ^ "<<FB>>" ^ fields_to_string_crappy fs'
   end
 
-(*-------------------------------*)
-(* sibylfs types                 *)
-(*-------------------------------*)
+(**********************************************************************)
+(* LOCALES ************************************************************)
+(**********************************************************************)
 
-type ty_pid = Pid of nat (*o with sexp o*) (* coverage:sexp *)
-let ty_pid_compare (Pid n0) (Pid n1) = compare n0 n1
-instance ( SetType ty_pid )
-  let setElemCompare = ty_pid_compare
-end
+type range_char = 
+    RChar of char
+  | RCollating of string
 
-instance (Eq ty_pid)
-  let (=) = unsafe_structural_equality
-  let (<>) = unsafe_structural_inequality
-end
+type locale = 
+  <| collates : char -> string -> bool ; 
+     equiv : char -> string -> bool ; 
+     charclass : char -> string -> bool ; 
+     range : char -> range_char -> range_char -> bool |>
 
-val dest_PID : ty_pid -> nat
-let dest_PID x = (match x with Pid n -> n end) (* coverage:unused *)
+(* TODO: look at LC_ environment variables, decide what to do *)
+
+(* need functions for various locale operations on, e.g., matching collating elements, equivalence classes, character classes, and ranges *)
+
+let between lo c hi = lo <= c && c <= hi
+
+let rec ambient_charclass c cls = 
+  match cls with     (* TODO expose is_ functions from ctypes into ocaml, just use those *)
+  | "alnum" -> ambient_charclass c "alpha" || ambient_charclass c "digit"
+  | "alpha" -> ambient_charclass c "upper" || ambient_charclass c "lower"
+  | "blank" -> elem c (toCharList " \t")
+  | "cntrl" -> ord c < ord #' ' || ord c = 127 (* del *)
+  | "digit" -> elem c (toCharList "0123456789")
+  | "graph" -> ambient_charclass c "alnum" || ambient_charclass c "punct"
+  | "lower" -> between (ord #'a') (ord c) (ord #'z')
+  | "print" -> ambient_charclass c "graph" || c = #' '
+  | "punct" -> elem c (toCharList "!\"#$%&'()*+,-./:;<=>?@[\\]^_{}~|") || ord c = 200 (* grave accent *)
+  | "space" -> elem c (toCharList " \t\n\r") || ord c = 11 (* VT *) || ord c = 14 (* FF *)
+  | "upper" -> between (ord #'A') (ord c) (ord #'Z')
+  | "xdigit" -> elem c (toCharList "0123456789ABCDEFabcdef")
+  | _ -> false
+  end 
+
+let lc_ambient = 
+  let collates c cls = elem c (toCharList cls) in (* TODO strcoll-ish *)
+  let equiv c cls = elem c (toCharList cls) in (* derp derp *)
+  let rchar (rc:range_char) : maybe char =
+    match rc with
+    | RChar c -> Just c
+    | RCollating s -> 
+       match toCharList s with
+       | [c] -> Just c
+       | _ -> Nothing
+       end
+    end in
+  let range c rlo rhi = 
+    match (rchar rlo, rchar rhi) with
+    | (Just lo, Just hi) -> between (ord lo) (ord c) (ord hi)
+    | _ -> false
+    end in
+  <| collates = collates ; equiv = equiv ; charclass = ambient_charclass ; range = range |>
+
+(**********************************************************************)
+(* FILESYSTEMS ********************************************************)
+(**********************************************************************)
 
 (* TODO Broadly, directories map to contents, which are dir trees. Model files as empty map, since no contents.
 No way to tell difference between empty dir and file. For now, fine, just using for pathname expansion. Ultimately, rely on SibylFS's detailed model *)
@@ -263,9 +310,14 @@ let dotdot fs =
   | Just fs' -> fs'
   end
 
+(**********************************************************************)
+(* SHELL/OS STATE *****************************************************)
+(**********************************************************************)
+
 type ty_shell_state = <|
     env: Map.map string symbolic_string;
     cwd: fs;
+    locale: locale
   |>
 (* From t_fs_spec.lem_cppo line 1187 *)
 type ty_os_state = <|
@@ -282,7 +334,8 @@ let fs_empty =
 let os_empty : ty_os_state = <|
     sh = <|
       env = Map.empty;
-      cwd = fs_empty
+      cwd = fs_empty;
+      locale = lc_ambient
   |>;
     passwd = Map.empty;
     fs_root = fs_empty

@@ -6,8 +6,6 @@ Unify testing helpers
 
 ### Organizational issues
 
-move locale into shell state
-
 create a fork of kernel.org's dash, track it
 but remove main, have proper handler abort
 
