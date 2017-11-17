@@ -1,16 +1,47 @@
-<h1>Shell expander!</h1>
+<div class="ui relaxed grid container">
 
-<form id="expansionForm" method="post" action="/expand/submit">
-  <textarea name="shell" rows="10" cols="84">echo ${x=5} $((x+1))</textarea>
+  <div class="row">
+    <div class="ui segment">
+      <h1 class="ui header">Shell expansion step-by-step</h1>
 
-  <br/>
-  <!-- TODO turn these into tables -->
-  <textarea name="env" rows="4" cols="40">{"PATH": "/usr/bin", "HOME": "/Users/mgree"}</textarea>
-  <textarea name="users" rows="4" cols="40">{"mgree": "/Users/mgree", "root": "/var/root"}</textarea>
+      <p>Wondering why the POSIX shell behaves the way it does? We can
+      expand strings the according to the POSIX step in arbitrary
+      shell and operating system environments.</p>
+    </div>
+  </div>
 
-  <br />
-  <input type="submit" value="Expand" />
-  <input type="button" id="clear" value="Clear" />
-</form>
+  <div class="ui form">
+    <form id="expansionForm" method="post" action="/expand/submit">
+      <div class="sixteen wide field">
+        <label>Shell code to expand</label>
+        <textarea name="shell" rows="10" cols="84">echo ${x=5} $((x+1))</textarea>
+      </div>
+    
+      <div class="two fields">
+        <div class="eight wide field">
+          <label>Environment</label>
+          <textarea name="env" rows="4" cols="40">{"PATH": "/usr/bin", "HOME": "/Users/mgree"}</textarea>
+        </div>
+        
+        <div class="eight wide field">
+          <label>Home directories</label>
+          <textarea name="users" rows="4" cols="40">{"mgree": "/Users/mgree", "root": "/var/root"}</textarea>
+        </div>
+      </div>
+    
+      <div class="row">
+        <button class="ui primary labeled button icon" type="submit">
+          <i class="expand icon"></i>
+          Expand
+        </button>
+        <button class="ui labeled button icon" id="clear" type="button">
+          <i class="undo icon"></i>
+          Clear
+        </button>
+      </div>
+    </form>
+  </div>
+  
+</div>
 
 <div id="submit-result"></div>
