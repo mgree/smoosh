@@ -33,14 +33,20 @@ let split_slash st pat =
  * We only care whether or not there was a match.
  *)
 val match_pattern_file_list : locale -> fs -> string -> set (string * fs)
-let match_pattern_file_list lc fs s =
+let match_pattern_file_list lc fs pat =
   (* TODO:
     * Is first character literal '.'
     * if not, remove all dot files from list
+  let should_remove_dot_files =
+    match (toCharList pat) with
+    | #'.'::_ -> true
+    | _ -> false
+    end
+  in
     *)
   Set.filter
     (fun (file, _) -> 
-      match match_prefix lc Shortest (stringToSymbolicString s) (stringToSymbolicString file) with
+      match match_prefix lc Shortest (stringToSymbolicString pat) (stringToSymbolicString file) with
       | Match _ -> true
       | _ -> false
       end)
@@ -79,7 +85,7 @@ let rec walk path_prefix (path_so_far, dir) lc path =
       Set.singleton (full_path, dir)
   | path'::rest ->
     let next = match_dir dir lc path' in
-    bigunionMap (fun (sub, dir') -> 
+    bigunionMapBy (fun (str, _) (str', _) -> compare str str') (fun (sub, dir') ->
       let full_path =
         match path_so_far with
         (* If we have nothing so far we are at the start of our

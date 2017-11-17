@@ -46,9 +46,7 @@ let match_path_tests : (string * ty_os_state * string * (string list)) list =
     ("/a/use*/", os_complicated_fs, "/a/use*", ["/a/use/"; "/a/user/"]);
 
     ("/a/user/*", os_complicated_fs, "/a/user/*", ["/a/user/x"; "/a/user/y"]);
-
-    (* Failing due to out of memory error *)
-    (* ("/a/use*/*", os_complicated_fs, "/a/use*/*", ["/a/use/x"; "/a/user/x"; "/a/user/y"]); *)
+    ("/a/use*/*", os_complicated_fs, "/a/use*/*", ["/a/use/x"; "/a/user/x"; "/a/user/y"]);
 
   ]
 
