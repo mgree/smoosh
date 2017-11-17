@@ -22,11 +22,18 @@ let rec split cs =
   | (cs', cs'') -> cs'::(split cs'')
   end
 
-val split_slash : ty_os_state -> string -> list string * (fs * bool)
-let split_slash st pat =
+type pat_info = <| pat : list string
+                 ; start : fs
+                 ; from_root : bool
+                 ; trailing_slash : bool
+                 ; leading_dot : bool
+                 |>
+
+val parse_path_pattern : ty_os_state -> string -> pat_info
+let parse_path_pattern st pat =
   match toCharList pat with
-  | #'/'::pat' -> (map toString (split pat'), (st.fs_root, true))
-  | chars -> (map toString (split chars), (st.sh.cwd, false))
+  | #'/'::pat' -> <| pat = map toString (split pat'); start = st.fs_root; from_root = true; trailing_slash = false; leading_dot = false |> (* FIXME *)
+  | chars -> <| pat = map toString (split chars); start = st.sh.cwd; from_root = false; trailing_slash = false; leading_dot = false |> (* last two wrong *)
   end
 
 (* We use shortest matching because we won't look at the content of the match.
@@ -106,10 +113,7 @@ let rec walk path_prefix (path_so_far, dir) lc path =
 
 val match_path : ty_os_state -> string -> set string
 let match_path st path =
-  let (path_parts, (start_fs, is_absolute_path)) = split_slash st path in
-  let path_prefix = if is_absolute_path
-               then "/"
-               else ""
-  in
+  let pinfo = parse_path_pattern st path in
+  let path_prefix = if pinfo.from_root then "/" else "" in
   (* ss empty? *)
-  Set.map fst (walk path_prefix (Nothing, start_fs) st.sh.locale path_parts)
+  Set.map fst (walk path_prefix (Nothing, pinfo.start) st.sh.locale pinfo.pat)
