@@ -21,6 +21,10 @@ Should we write a custom parser?
 
 JS/webpage
   run expander in a chroot jail
+  use syntax highlighting in editor window
+    fancier output
+    cleaner handling of environment, etc.
+    presets
   error handling
   mkdir for submissions
 CLI
