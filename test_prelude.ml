@@ -36,6 +36,8 @@ let new_file (name:string) (parent_dir:fs_mut) : fs_mut =
   file.parent <- Some (freeze parent_dir);
   file
 
+let mk_new_file name parent_dir = ignore (new_file name parent_dir)
+
 let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state = 
   let root = freeze fs in
   { st with fs_root = root; sh = { st.sh with cwd = root } }
@@ -43,7 +45,7 @@ let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state =
 (* File system scaffolding *)
 let fs_simple : fs_mut = 
   let fs = fresh (thaw fs_empty) in
-  new_file "a" fs;
+  mk_new_file "a" fs;
   fs
 
 let os_simple_fs = set_fs fs_simple os_empty
@@ -72,14 +74,14 @@ let fs_complicated : fs_mut =
   let a_user_file = new_file "user" a_file in
   let b_user_file = new_file "user" b_file in
   (* /a/*/* files *)
-  new_file "x" a_use_file;
-  new_file "x" a_user_file;
-  new_file "y" a_user_file;
-  new_file "useful" a_file;
+  mk_new_file "x" a_use_file;
+  mk_new_file "x" a_user_file;
+  mk_new_file "y" a_user_file;
+  mk_new_file "useful" a_file;
   (* /b/*/* files *)
-  new_file "z" b_user_file;
+  mk_new_file "z" b_user_file;
   (* /c/* files *)
-  new_file "foo" c_file;
+  mk_new_file "foo" c_file;
   fs
 
 let os_complicated_fs = set_fs fs_complicated os_empty
