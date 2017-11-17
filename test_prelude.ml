@@ -64,7 +64,7 @@ let os_simple_fs = set_fs fs_simple os_empty
  *     user/
  *       z
  *   c/
- *      foo
+ *      .foo
  *)
 let fs_complicated : fs_mut =
   let fs = fresh (thaw fs_empty) in
@@ -82,7 +82,7 @@ let fs_complicated : fs_mut =
   (* /b/*/* files *)
   new_file "z" b_user_file;
   (* /c/* files *)
-  new_file "foo" c_file;
+  new_file ".foo" c_file;
   fs
 
 let os_complicated_fs = set_fs fs_complicated os_empty

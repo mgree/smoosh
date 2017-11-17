@@ -64,7 +64,7 @@ let match_pattern_file_list lc fs pat =
   Set.filter
     (fun (file, _) -> 
       match match_prefix lc Shortest (stringToSymbolicString pat) (stringToSymbolicString file) with
-      | Match _ -> true
+      | Match _ -> not (has_leading_dot (toCharList file)) || has_leading_dot (toCharList pat)
       | _ -> false
       end)
     (* Only compare equality for the set based on the keys.

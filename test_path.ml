@@ -37,16 +37,17 @@ let match_path_tests : (string * ty_os_state * string * (string list)) list =
     ("* in /a /b /c", os_complicated_fs, "*", ["a"; "b"; "c"]);
     ("/b in /a /b /c", os_complicated_fs, "/b", ["/b"]);
     ("/c*/.. in /a /b /c", os_complicated_fs, "/c*/..", ["/c/.."]);
-    (* This fails because we drop the ending / *)
     ("/c*/../ in /a /b /c", os_complicated_fs, "/c*/../", ["/c/../"]);
     ("/c*/../c in /a /b /c", os_complicated_fs, "/c*/../c", ["/c/../c"]);
 
     ("/a/use*", os_complicated_fs, "/a/use*", ["/a/use"; "/a/user"; "/a/useful"]);
-    (* PENDING: This fails because no difference between empty dir and a file *)
     ("/a/use*/", os_complicated_fs, "/a/use*/", ["/a/use/"; "/a/user/"]);
-
     ("/a/user/*", os_complicated_fs, "/a/user/*", ["/a/user/x"; "/a/user/y"]);
     ("/a/use*/*", os_complicated_fs, "/a/use*/*", ["/a/use/x"; "/a/user/x"; "/a/user/y"]);
+
+    ("/c/.f*", os_complicated_fs, "/c/.f*", ["/c/.foo"]);
+    ("/c/*", os_complicated_fs, "/c/*", []);
+
 
   ]
 
