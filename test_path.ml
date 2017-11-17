@@ -48,6 +48,11 @@ let match_path_tests : (string * ty_os_state * string * (string list)) list =
     ("/c/.f*", os_complicated_fs, "/c/.f*", ["/c/.foo"]);
     ("/c/*", os_complicated_fs, "/c/*", []);
 
+    ("/c/[.f]*oo", os_complicated_fs, "/c/[.f]*oo", []);
+    ("/c/.?oo", os_complicated_fs, "/c/.?oo", ["/c/.foo"]);
+    ("/c/?foo", os_complicated_fs, "/c/?foo", []);
+
+
 
   ]
 
