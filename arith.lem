@@ -535,7 +535,7 @@ let arith bits s0 str =
      | Left e -> Left e
      end
   | Nothing -> Right (s0 (* TODO record something about symbolic changes *),
-                      [[SymArith (toSymbolicString str)]])
+                      [[Sym (SymArith (toSymbolicString str))]])
   end
 
 val arith_big_num : ty_os_state -> symbolic_string -> either string (ty_os_state * fields)

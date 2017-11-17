@@ -61,7 +61,7 @@ and entry =
   | DQ of string (* why is this here? can't we just use Quote in control? *)
   | K of control
   | F
-  | ESym of symbolic_string (* embedded symbolic entries *)
+  | ESym of symbolic_string (* embedded symbolic entries TODO: can this be 'symbolic'? *)
 
 and words = list entry
 
@@ -102,12 +102,13 @@ and expanded_word =
 and expanded_words = list expanded_word
 
 (* final expansion output *)
-and symbolic_char = 
-    C of char
+and symbolic =
+    SymArith of fields (* symbolic result of arithmetic evaluation *) (* TODO is fields necessary? *)
   | SymCommand of stmt (* symbolic result of evaluating a command *)
-  | SymArith of fields (* symbolic result of arithmetic evaluation *) (* TODO is fields necessary? *)
   | SymPat of substring_mode * symbolic_string * symbolic_string (* symbolic result of pattern matching (mode, pat, string) *)
-
+and symbolic_char =
+    C of char
+  | Sym of symbolic
 and symbolic_string = list symbolic_char
 
 and fields = list (symbolic_string)
@@ -127,25 +128,38 @@ type expansion_step =
 (* SYMBOLIC STRINGS ***************************************************)
 (**********************************************************************)
 
+val null_sym : symbolic -> maybe bool
+let null_sym sym =
+  match sym with
+  | SymArith _ -> Just false
+  | SymCommand _ -> Nothing
+  | SymPat _ _ _-> Nothing
+  end
+
+val null_char : symbolic_char -> maybe bool
+let null_char c =
+  match c with
+  | C _ -> Just false
+  | Sym sym -> null_sym sym
+  end
 
 val null_string : symbolic_string -> maybe bool
-let rec null_string f = 
-  match f with
+let rec null_string sym_str = 
+  match sym_str with
   | [] -> Just true
-  | C(_)::_ -> Just false
-  | SymArith _::_ -> Just false
-  | SymCommand _::f -> 
-     match null_string f with
-     | Just false -> Just false
-     | Just true -> Nothing
-     | Nothing -> Nothing
-     end
-  | (SymPat _ _ _)::f ->
-     match null_string f with
-     | Just false -> Just false
-     | Just true -> Nothing
-     | Nothing -> Nothing
-     end
+  | c::cs ->
+    let only_false mb =
+      match mb with
+      | Just true -> Nothing
+      | Just false -> Just false
+      | Nothing -> Nothing
+      end
+    in
+    match null_char c with
+    | Just true -> only_false (null_string cs)
+    | Just false -> Just false
+    | Nothing -> only_false (null_string cs)
+    end
   end
 
 val null_fields : fields -> maybe bool
@@ -290,8 +304,8 @@ let lc_ambient =
 (* FILESYSTEMS ********************************************************)
 (**********************************************************************)
 
-(* TODO Broadly, directories map to contents, which are dir trees. Model files as empty map, since no contents.
-No way to tell difference between empty dir and file. For now, fine, just using for pathname expansion. Ultimately, rely on SibylFS's detailed model *)
+(* TODO Broadly, directories map to contents, which are dir trees or files.
+ * For now, fine, just using for pathname expansion. Ultimately, rely on SibylFS's detailed model *)
 type fs = <|
   parent: maybe fs;
   contents: Map.map string file

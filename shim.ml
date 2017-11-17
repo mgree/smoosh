@@ -402,14 +402,16 @@ and json_of_expanded_word = function
   | UsrS s -> obj_v "UsrS" s
   | EWSym sym -> Assoc [tag "EWSym"; ("s", json_of_symbolic_string sym)]
 and json_of_fields ss = List (List.map json_of_symbolic_string ss)
-and json_of_symbolic_char = function
-  | C c -> String (String.make 1 c)
+and json_of_symbolic = function
   | SymCommand c -> Assoc [tag "SymCommand"; ("stmt", json_of_stmt c)]
   | SymArith f -> Assoc [tag "SymArith"; ("f", json_of_fields f)]
   | SymPat (mode, pat, s) -> Assoc [tag "SymPat";
                                     ("mode", json_of_substring_mode mode);
                                     ("pat", json_of_symbolic_string pat);
                                     ("s", json_of_symbolic_string s)]
+and json_of_symbolic_char = function
+  | C c -> String (String.make 1 c)
+  | Sym sym -> json_of_symbolic sym
 and json_of_symbolic_string s = List (List.map json_of_symbolic_char s)
 
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]

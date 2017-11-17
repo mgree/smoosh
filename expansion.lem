@@ -44,7 +44,7 @@ let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat
   match side with
   | Prefix -> try_match_prefix lc mode sympat symstr (* TODO way to select/update locale *)
   | Suffix -> match try_match_prefix lc mode (reverse sympat) (reverse symstr) with(* TODO same *)
-              | [SymPat m pat s] -> [SymPat m (reverse pat) (reverse s)]
+              | [Sym (SymPat m pat s)] -> [Sym (SymPat m (reverse pat) (reverse s))]
               | ss               -> reverse ss
               end
   end
@@ -166,7 +166,7 @@ let rec expand_control s0 q k =
        | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "error") step, s1, [], [K (LError str (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | Backtick c -> Right (ESCommand "treating commands symbolically", s0, [], [ESym [SymCommand c]]) (* TODO this should create a new bash process, setup pipes *)
+    | Backtick c -> Right (ESCommand "treating commands symbolically", s0, [], [ESym [Sym (SymCommand c)]]) (* TODO this should create a new bash process, setup pipes *)
     | Arith f [] ->
         match arith64 s0 (concat_expanded f) with
         | Right (s1, result) -> Right (ESArith "", s1, expanded_words_of_fields result, [])

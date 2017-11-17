@@ -15,7 +15,7 @@ let check_expansion (test_name, s0, w_in, f_expected):result=
 
 let concrete = List.map (fun x -> List.map (fun c -> Fsh.C c) (Xstring.explode x))
 
-let symcommand : symbolic_char = SymCommand (Command ([], [S "command"], []))
+let symcommand : symbolic_char = Sym (SymCommand (Command ([], [S "command"], [])))
 let os_var_x_foofoobarbar:ty_os_state = add_literal_env_string "x" "foofoobarbar" os_empty
 let os_var_x_foocommand : ty_os_state = set_param "x" ((stringToSymbolicString "foo") @ [symcommand]) os_empty
 
