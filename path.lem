@@ -32,7 +32,7 @@ let split_slash st pat =
 (* We use shortest matching because we won't look at the content of the match.
  * We only care whether or not there was a match.
  *)
-val match_pattern_file_list : locale -> fs -> string -> set (string * fs)
+val match_pattern_file_list : locale -> fs -> string -> set (string * file)
 let match_pattern_file_list lc fs pat =
   (* TODO:
     * Is first character literal '.'
@@ -62,15 +62,15 @@ let stringtoFs fs k set =
   end
 
 
-val match_dir : fs -> locale -> string -> set (string * fs)
+val match_dir : fs -> locale -> string -> set (string * file)
 let match_dir dir lc name =
   match name with
-  | "." -> Set.singleton (".", dir)
-  | ".." -> Set.singleton ("..", dotdot dir)
+  | "." -> Set.singleton (".", Dir dir)
+  | ".." -> Set.singleton ("..", Dir (dotdot dir))
   | _ -> match_pattern_file_list lc dir name
   end
 
-val walk : string -> (maybe string * fs) -> locale -> list string -> set (string * fs)
+val walk : string -> (maybe string * fs) -> locale -> list string -> set (string * file)
 let rec walk path_prefix (path_so_far, dir) lc path =
   match path with
   | [] ->
@@ -82,10 +82,10 @@ let rec walk path_prefix (path_so_far, dir) lc path =
        (* If we have a path so far, we are done, just return that path *)
        | Just p -> p
        end in
-      Set.singleton (full_path, dir)
+      Set.singleton (full_path, Dir dir)
   | path'::rest ->
     let next = match_dir dir lc path' in
-    bigunionMapBy (fun (str, _) (str', _) -> compare str str') (fun (sub, dir') ->
+    bigunionMapBy (fun (str, _) (str', _) -> compare str str') (fun (sub, file) ->
       let full_path =
         match path_so_far with
         (* If we have nothing so far we are at the start of our
@@ -96,7 +96,11 @@ let rec walk path_prefix (path_so_far, dir) lc path =
         end in
       (* It is no longer necessary to pass through path_prefix because path_so_far will
        * never be Nothing again *)
-      walk "" (Just full_path, dir') lc rest)
+      match (file,rest) with
+      | (File,[]) -> Set.singleton (full_path, File)
+      | (File,_) -> Set.empty
+      | (Dir dir',_) -> walk "" (Just full_path, dir') lc rest
+      end)
       next
   end
 

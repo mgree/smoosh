@@ -85,14 +85,14 @@ and string_of_case (w,c) =
 
 and string_of_redir r = 
   match r with
-  | File To fd a      -> show_unless 1 fd ^ ">" ^ string_of_words a
-  | File Clobber fd a -> show_unless 1 fd ^ ">|" ^ string_of_words a
-  | File From fd a    -> show_unless 0 fd ^ "<" ^ string_of_words a
-  | File FromTo fd a  -> show_unless 0 fd ^ "<>" ^ string_of_words a
-  | File Append fd a  -> show_unless 1 fd ^ ">>" ^ string_of_words a
-  | Dup ToFD fd tgt   -> show_unless 1 fd ^ ">&" ^ stringFromNat tgt
-  | Dup FromFD fd tgt -> show_unless 0 fd ^ "<&" ^ stringFromNat tgt
-  | Heredoc t fd a ->
+  | RFile To fd a      -> show_unless 1 fd ^ ">" ^ string_of_words a
+  | RFile Clobber fd a -> show_unless 1 fd ^ ">|" ^ string_of_words a
+  | RFile From fd a    -> show_unless 0 fd ^ "<" ^ string_of_words a
+  | RFile FromTo fd a  -> show_unless 0 fd ^ "<>" ^ string_of_words a
+  | RFile Append fd a  -> show_unless 1 fd ^ ">>" ^ string_of_words a
+  | RDup ToFD fd tgt   -> show_unless 1 fd ^ ">&" ^ stringFromNat tgt
+  | RDup FromFD fd tgt -> show_unless 0 fd ^ "<&" ^ stringFromNat tgt
+  | RHeredoc t fd a ->
      let heredoc = string_of_words a in
      let marker = "EOF" in
      show_unless 0 fd ^ "<<" ^

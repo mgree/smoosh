@@ -100,13 +100,13 @@ and redirs (n : node union ptr) =
   else
     let mk_file ty =
       let n = n @-> node_nfile in
-      File (ty,getf n nfile_fd,to_arg (getf n nfile_fname @-> node_narg)) in
+      RFile (ty,getf n nfile_fd,to_arg (getf n nfile_fname @-> node_narg)) in
     let mk_dup ty =
       let n = n @-> node_ndup in
-      Dup (ty,getf n ndup_fd,getf n ndup_dupfd) in
+      RDup (ty,getf n ndup_fd,getf n ndup_dupfd) in
     let mk_here ty =
       let n = n @-> node_nhere in
-      Heredoc (ty,getf n nhere_fd,to_arg (getf n nhere_doc @-> node_narg)) in
+      RHeredoc (ty,getf n nhere_fd,to_arg (getf n nhere_doc @-> node_narg)) in
     let h = match n @-> node_type with
       (* NTO *)
       | 16 -> mk_file To
@@ -327,13 +327,13 @@ and obj_lr name l r = Assoc [tag name; ("l", json_of_stmt l); ("r", json_of_stmt
 and obj_crs name c rs = 
   Assoc [tag name; ("c", json_of_stmt c); ("rs", json_of_redirs rs)]
 and json_of_redir = function
-  | File (ty, fd, w) -> 
+  | RFile (ty, fd, w) -> 
      Assoc [tag "File"; 
             ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_words w)]
-  | Dup (ty, src, tgt) -> 
+  | RDup (ty, src, tgt) -> 
      Assoc [tag "Dup";
             ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt)]
-  | Heredoc (ty, src, w) -> 
+  | RHeredoc (ty, src, w) -> 
      Assoc [tag "Heredoc";
             ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_words w)]
 and json_of_redir_type = function

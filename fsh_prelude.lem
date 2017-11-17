@@ -83,9 +83,9 @@ and stmt =
   | Defun of string * stmt
 
 and redir = 
-   | File of redir_type * nat * words
-   | Dup of dup_type * nat * nat
-   | Heredoc of heredoc_type * nat * words
+   | RFile of redir_type * nat * words
+   | RDup of dup_type * nat * nat
+   | RHeredoc of heredoc_type * nat * words
 
 
 (**********************************************************************)
@@ -294,14 +294,33 @@ let lc_ambient =
 No way to tell difference between empty dir and file. For now, fine, just using for pathname expansion. Ultimately, rely on SibylFS's detailed model *)
 type fs = <|
   parent: maybe fs;
-  contents: Map.map string fs
+  contents: Map.map string file
 |>
 
-val is_dir : fs -> bool
-let is_dir f = not (Map.null f.contents)
+and file = File | Dir of fs
 
-val is_file : fs -> bool
-let is_file f = Map.null f.contents
+val file_exists : fs -> string -> bool
+let file_exists f name = 
+  match Map.lookup name f.contents with
+  | Nothing -> false
+  | Just _ -> true
+  end
+
+val is_dir : fs -> string -> bool
+let is_dir f name = 
+  match Map.lookup name f.contents with
+  | Just File -> false
+  | Just (Dir _) -> true
+  | Nothing -> false (* ??? *)
+  end
+
+val is_file : fs -> string -> bool
+let is_file f name = 
+  match Map.lookup name f.contents with
+  | Just File -> true
+  | Just (Dir _) -> false
+  | Nothing -> false (* ??? *)
+  end
 
 val dotdot : fs -> fs
 let dotdot fs =

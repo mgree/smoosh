@@ -18,7 +18,7 @@ let os_ifs_comma:ty_os_state= add_literal_env_string "IFS" "," os_empty
 (* some worrying coercions we need in order to actually build an interesting filesystem *)
 type fs_mut = {
   mutable parent: fs option;
-  mutable contents: (string, fs) Pmap.map
+  mutable contents: (string, file) Pmap.map
   }
 
 let freeze (fs : fs_mut) : fs = Obj.magic fs
@@ -27,16 +27,17 @@ let fresh (fs : fs_mut) : fs_mut =
   { parent = fs.parent;
     contents = Pmap.map (fun x -> x) fs.contents }
 
-let new_file (name:string) (parent_dir:fs_mut) : fs_mut = 
+let new_file (name:string) (parent_dir:fs_mut) : unit =
+  parent_dir.contents <- Pmap.add name File parent_dir.contents
+
+let new_dir (name:string) (parent_dir:fs_mut) : fs_mut = 
   (* create the file *)
   let file = { parent = None; contents = Pmap.empty compare } in
   (* install it in the parent directory *)
-  parent_dir.contents <- Pmap.add name (freeze file) parent_dir.contents;
+  parent_dir.contents <- Pmap.add name (Dir (freeze file)) parent_dir.contents;
   (* set the parent link *)
   file.parent <- Some (freeze parent_dir);
   file
-
-let mk_new_file name parent_dir = ignore (new_file name parent_dir)
 
 let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state = 
   let root = freeze fs in
@@ -45,7 +46,7 @@ let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state =
 (* File system scaffolding *)
 let fs_simple : fs_mut = 
   let fs = fresh (thaw fs_empty) in
-  mk_new_file "a" fs;
+  new_file "a" fs;
   fs
 
 let os_simple_fs = set_fs fs_simple os_empty
@@ -67,21 +68,21 @@ let os_simple_fs = set_fs fs_simple os_empty
  *)
 let fs_complicated : fs_mut =
   let fs = fresh (thaw fs_empty) in
-  let a_file = new_file "a" fs in
-  let b_file = new_file "b" fs in
-  let c_file = new_file "c" fs in
-  let a_use_file = new_file "use" a_file in
-  let a_user_file = new_file "user" a_file in
-  let b_user_file = new_file "user" b_file in
+  let a_file = new_dir "a" fs in
+  let b_file = new_dir "b" fs in
+  let c_file = new_dir "c" fs in
+  let a_use_file = new_dir "use" a_file in
+  let a_user_file = new_dir "user" a_file in
+  let b_user_file = new_dir "user" b_file in
   (* /a/*/* files *)
-  mk_new_file "x" a_use_file;
-  mk_new_file "x" a_user_file;
-  mk_new_file "y" a_user_file;
-  mk_new_file "useful" a_file;
+  new_file "x" a_use_file;
+  new_file "x" a_user_file;
+  new_file "y" a_user_file;
+  new_file "useful" a_file;
   (* /b/*/* files *)
-  mk_new_file "z" b_user_file;
+  new_file "z" b_user_file;
   (* /c/* files *)
-  mk_new_file "foo" c_file;
+  new_file "foo" c_file;
   fs
 
 let os_complicated_fs = set_fs fs_complicated os_empty
