@@ -24,7 +24,6 @@ let rec split cs =
 
 type path_info = <| path_prefix : string
                   ; trailing_slash : bool
-                  ; leading_dot : bool
                   |>
 
 val has_leading_dot : list char -> bool
@@ -43,8 +42,8 @@ let has_trailing_slash cs =
 val parse_path_pattern : ty_os_state -> string -> list string * fs * path_info
 let parse_path_pattern st pat =
   match toCharList pat with
-  | #'/'::pat' -> (map toString (split pat'), st.fs_root, <| path_prefix = "/"; trailing_slash = has_trailing_slash pat'; leading_dot = false |>)
-  | chars -> (map toString (split chars), st.sh.cwd, <| path_prefix = ""; trailing_slash = has_trailing_slash chars; leading_dot = has_leading_dot chars |>)
+  | #'/'::pat' -> (map toString (split pat'), st.fs_root, <| path_prefix = "/"; trailing_slash = has_trailing_slash pat' |>)
+  | chars -> (map toString (split chars), st.sh.cwd, <| path_prefix = ""; trailing_slash = has_trailing_slash chars |>)
   end
 
 (* We use shortest matching because we won't look at the content of the match.
