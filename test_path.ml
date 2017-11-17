@@ -37,42 +37,15 @@ let match_path_tests : (string * ty_os_state * string * (string list)) list =
     ("* in /a /b /c", os_complicated_fs, "*", ["a"; "b"; "c"]);
     ("/b in /a /b /c", os_complicated_fs, "/b", ["/b"]);
     ("/c*/.. in /a /b /c", os_complicated_fs, "/c*/..", ["/c/.."]);
+    (* This fails because we drop the ending / *)
     ("/c*/../ in /a /b /c", os_complicated_fs, "/c*/../", ["/c/../"]);
     ("/c*/../c in /a /b /c", os_complicated_fs, "/c*/../c", ["/c/../c"]);
 
-    (*
-     * This is causing a memory error...
     ("/a/use*", os_complicated_fs, "/a/use*", ["/a/use"; "/a/user"; "/a/useful"]);
-    *)
-
-    (*
-     * PENDING: This fails because no difference between empty dir and a file
+    (* PENDING: This fails because no difference between empty dir and a file *)
     ("/a/use*/", os_complicated_fs, "/a/use*", ["/a/use/"; "/a/user/"]);
-     *)
+    ("/a/use*/*", os_complicated_fs, "/a/use*", ["/a/use/x"; "/a/user/x"; "a/user/y"]);
 
-    (* Sample fs state
-     * /
-     *   a/
-     *     use/
-     *       x
-     *     user/
-     *       x
-     *       y
-     *     useful
-     *   b/
-     *     user/
-     *       z
-     *   c/
-     *      foo
-     *
-     *
-     *  in /a
-     *      use* => use, user, useful
-     *      use*/ => use/ user/
-     *      use*/* => use/x, user/x, user/y
-     *
-     *  see egs/path for more examples
-     *)
   ]
 
 let test_part name checker stringOfExpected tests count failed =

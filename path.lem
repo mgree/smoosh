@@ -45,8 +45,9 @@ let match_pattern_file_list lc fs s =
       | Match _ -> true
       | _ -> false
       end)
-    (* WARNING!!! We have circularly defined fs's, for any non-trivial FS type this will be infinite *)
-    (toSet fs.contents)
+    (* Only compare equality for the set based on the keys.
+     * Comparing equality of a non-trivial file system will loop infinitely. *)
+    (toSetBy (fun (str, _)  (str', _) -> compare str str') fs.contents)
 
 val stringToFs : fs -> string -> set fs -> set fs
 let stringtoFs fs k set =

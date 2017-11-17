@@ -48,6 +48,21 @@ let fs_simple : fs_mut =
 
 let os_simple_fs = set_fs fs_simple os_empty
 
+(* Sample fs state
+ * /
+ *   a/
+ *     use/
+ *       x
+ *     user/
+ *       x
+ *       y
+ *     useful
+ *   b/
+ *     user/
+ *       z
+ *   c/
+ *      foo
+ *)
 let fs_complicated : fs_mut =
   let fs = fresh (thaw fs_empty) in
   let a_file = new_file "a" fs in
@@ -55,10 +70,16 @@ let fs_complicated : fs_mut =
   let c_file = new_file "c" fs in
   let a_use_file = new_file "use" a_file in
   let a_user_file = new_file "user" a_file in
+  let b_user_file = new_file "user" b_file in
+  (* /a/*/* files *)
   new_file "x" a_use_file;
   new_file "x" a_user_file;
   new_file "y" a_user_file;
   new_file "useful" a_file;
+  (* /b/*/* files *)
+  new_file "z" b_user_file;
+  (* /c/* files *)
+  new_file "foo" c_file;
   fs
 
 let os_complicated_fs = set_fs fs_complicated os_empty
