@@ -42,6 +42,10 @@ Separate out splitting, quote removal
 Error handling
   - parse errors break our libdash shim
 
+No symbolic pathname expansion
+
+Split particular symbolic things out of symbolic_char to ease pattern matching burden?
+
 ### Evaluation
 
 Commands

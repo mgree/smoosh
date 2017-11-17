@@ -2,6 +2,7 @@ open import Fsh
 
 open import Arith
 open import Pattern
+open import Path
 
 type string_mode =
     UserString
@@ -232,7 +233,7 @@ type intermediate_fields = list tmp_field
 val is_ws : char -> bool
 val collect_non_ifs : list char -> list char -> (list char) * (list char)
 (*val collect_ifs_whitespace : list char -> list char -> list char*)
-val split_string : list char -> list char -> intermediate_fields
+val split_expstring : list char -> list char -> intermediate_fields
 val split_word : list char -> (intermediate_fields * expanded_words) -> (intermediate_fields * expanded_words)
 val split_fields : ty_os_state -> expanded_words -> intermediate_fields
 val clean_fields : intermediate_fields -> intermediate_fields
@@ -250,15 +251,15 @@ let rec collect_non_ifs ifs ls =
            (c::f, remaining)
   end
 
-let rec split_string ifs clst =
+let rec split_expstring ifs clst =
    match clst with
    | [] -> []
    | c::cs ->
        if elem c ifs
        then let fs = if is_ws c then WFS else FS 
-            in fs::split_string ifs cs
+            in fs::split_expstring ifs cs
        else let (cc, cs1) = collect_non_ifs ifs cs in 
-            (Field (charListToSymbolicString (c::cc)))::(split_string ifs cs1)
+            (Field (charListToSymbolicString (c::cc)))::(split_expstring ifs cs1)
   end
 
 let rec split_word ifs p =
@@ -266,7 +267,7 @@ let rec split_word ifs p =
   | (f, []) -> (f, [])
   | (f, UsrF::wrds) -> split_word ifs (f ++ [FS], wrds)
   | (f, ExpS(s)::wrds) ->
-      let new_fields = split_string ifs (toCharList s) in
+      let new_fields = split_expstring ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
   | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (stringToSymbolicString s)], wrds)
   | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField (stringToSymbolicString s)], wrds)
@@ -316,7 +317,19 @@ val pathname_expansion : ty_os_state -> intermediate_fields -> intermediate_fiel
 let rec pathname_expansion s0 f =
   match f with
   | [] -> []
-  | (Field(s)::rst) -> ([Field s]) ++ (pathname_expansion s0 rst)
+  | (Field(s)::rst) -> 
+     let matches = 
+       match try_concrete s with
+       | Just pat -> match_path s0 pat
+       | Nothing -> [] (* slightly inaccurate: we're not modeling symbolic pathname expansions *)
+       end 
+     in
+     let expansions = 
+       if null matches 
+       then [Field s] 
+       else map (fun s -> Field (stringToSymbolicString s)) matches 
+     in
+     expansions ++ pathname_expansion s0 rst
   | (f::rst) -> f::(pathname_expansion s0 rst)
   end
 

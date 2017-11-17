@@ -13,8 +13,8 @@ let rec intercalate sep ss =
   | [s] -> s
   | s::ss' -> s ^ sep ^ intercalate sep ss'
 
-let show_set set =
-  "{" ^ intercalate "," (Pset.elements set) ^ "}"
+let show_list set =
+  "[" ^ intercalate "," set ^ "]"
 
 let checker test_fn equal (test_name, input, expected_out) =
   let out = test_fn input in
@@ -23,7 +23,7 @@ let checker test_fn equal (test_name, input, expected_out) =
   else Err {msg = test_name; expected = expected_out; got = out}
 
 let check_match_path (name, state, path, expected) =
-  checker (match_path state) Pset.equal (name, path, (Pset.from_list compare expected))
+  checker (match_path state) (=) (name, path, expected)
 
 let match_path_tests : (string * ty_os_state * string * (string list)) list =
   [
@@ -40,7 +40,7 @@ let match_path_tests : (string * ty_os_state * string * (string list)) list =
     ("/c*/../ in /a /b /c", os_complicated_fs, "/c*/../", ["/c/../"]);
     ("/c*/../c in /a /b /c", os_complicated_fs, "/c*/../c", ["/c/../c"]);
 
-    ("/a/use*", os_complicated_fs, "/a/use*", ["/a/use"; "/a/user"; "/a/useful"]);
+    ("/a/use*", os_complicated_fs, "/a/use*", ["/a/use"; "/a/useful"; "/a/user"]);
     ("/a/use*/", os_complicated_fs, "/a/use*/", ["/a/use/"; "/a/user/"]);
     ("/a/user/*", os_complicated_fs, "/a/user/*", ["/a/user/x"; "/a/user/y"]);
     ("/a/use*/*", os_complicated_fs, "/a/use*/*", ["/a/use/x"; "/a/user/x"; "/a/user/y"]);
@@ -73,7 +73,7 @@ let run_tests () =
   let prnt = fun (s, n) -> ("<| " ^ (print_shell_env s) ^ "; " ^ (Fsh.fields_to_string_crappy n) ^ " |>") in
   print_endline "\n=== Running path/fs tests...";
   (* core path matching tests *)
-  test_part "Match path" check_match_path show_set match_path_tests test_count failed;
+  test_part "Match path" check_match_path show_list match_path_tests test_count failed;
 
   printf "=== ...ran %d path/fs tests with %d failures.\n\n" !test_count !failed
 

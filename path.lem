@@ -120,8 +120,7 @@ let rec walk (path_so_far, dir) pinfo lc path =
       (match_dir dir lc path')
   end
 
-val match_path : ty_os_state -> string -> set string
+val match_path : ty_os_state -> string -> list string
 let match_path st path =
   let (pat,start,pinfo) = parse_path_pattern st path in
-  (* ss empty? *)
-  Set.map fst (walk (Nothing, start) pinfo st.sh.locale pat)
+  Set_extra.toOrderedList (Set.map fst (walk (Nothing, start) pinfo st.sh.locale pat))
