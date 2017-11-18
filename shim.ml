@@ -354,7 +354,6 @@ and json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt
 and json_of_words w = List (List.map json_of_entry w)
 and json_of_entry = function
   | S s -> obj_v "S" s
-  | DQ s -> obj_v "DQ" s
   | K k -> Assoc [tag "K"; ("v", json_of_control k)]
   | F -> obj "F"
   | ESym s -> Assoc [tag "ESym"; ("v", json_of_symbolic_string s)]

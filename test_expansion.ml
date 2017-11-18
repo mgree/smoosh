@@ -59,7 +59,7 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
       [K (Param("x", (Default [S "a b c"])))], concrete ["a"; "b"; "c"]);
 
     ("Field splitting parameter expansions, quoted", os_empty,
-      [K (Param("x", (Default [DQ "a b c"])))], concrete ["a b c"]);
+      [K (Param("x", Default [K (Quote [S "a b c"])]))], concrete ["a b c"]);
 
     ("Field splitting w/ IFS set to ' ,'; commas force field separation", os_ifs_spaceandcomma,
       [K (Param("x", (Assign [S ",b,c"])))], concrete [""; "b"; "c"]);
@@ -194,7 +194,7 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("/a/* in a/use/ a/useful a/user/", os_complicated_fs,
      [S "/a/*"], concrete ["/a/use";"/a/useful";"/a/user"]);
     ("\"a/*\" in a/use/ a/useful a/user/", os_complicated_fs,
-     [DQ "a/*"], concrete ["a/*"]);
+     [K (Quote [S "a/*"])], concrete ["a/*"]);
     ("\"${x=a/*}\" in a/use a/useful a/user/", os_complicated_fs,
      [K (Quote [K (Param("x",Assign [S "a/*"]))])], concrete ["a/*"]);
     ("\"${x=a}/*\" in a/use a/useful a/user/", os_complicated_fs,

@@ -58,7 +58,6 @@ and control =
 
 and entry =
     S of string
-  | DQ of string (* why is this here? can't we just use Quote in control? *)
   | K of control
   | F
   | ESym of symbolic_string (* embedded symbolic entries TODO: can this be 'symbolic'? *)

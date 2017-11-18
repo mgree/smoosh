@@ -108,7 +108,6 @@ and string_of_entry e =
   match e with
   | S str -> "S(" ^ str ^ ")"
   | ESym _ -> "<<SYMBOLIC>>" (* TODO "R(" ^ string_of_symbolic_string c ^ ")" *)
-  | DQ string -> "\"" ^ string ^ "\""
   | K _ -> "<<CTRL>>"
   | F -> "<<FS>>"
   end

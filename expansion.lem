@@ -196,7 +196,6 @@ and expand_words s0 q sm (f,w) =
         | (Unquoted, GeneratedString) -> [ExpS s]
         end in
         Right (ESStep "plain string", s0, f ++ f1, ws)
-    | (DQ(s)::ws) -> Right (ESStep "quoted string", s0, f ++ [DQuo s], ws)
     | (K(k)::ws) ->
        match expand_control s0 q k with
        | Right (step, s1, f1, w1) -> Right (step, s1, f++f1, (w1 ++ ws))
