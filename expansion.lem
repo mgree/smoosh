@@ -34,7 +34,7 @@ let rec concat_expanded w =
   | UsrF::ws -> stringToSymbolicString " " ++ concat_expanded ws
   | ExpS s::ws -> stringToSymbolicString s ++ concat_expanded ws
   | DQuo s::ws -> stringToSymbolicString s ++ concat_expanded ws
-  | EWSym c::ws -> c ++ concat_expanded ws
+  | EWSym sym::ws -> Sym sym::concat_expanded ws
   | UsrS _::_ -> stringToSymbolicString "TODO: broken invariant"
   end
 
@@ -166,7 +166,7 @@ let rec expand_control s0 q k =
        | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "error") step, s1, [], [K (LError str (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | Backtick c -> Right (ESCommand "treating commands symbolically", s0, [], [ESym [Sym (SymCommand c)]]) (* TODO this should create a new bash process, setup pipes *)
+    | Backtick c -> Right (ESCommand "treating commands symbolically", s0, [], [ESym (SymCommand c)]) (* TODO this should create a new bash process, setup pipes *)
     | Arith f [] ->
         match arith64 s0 (concat_expanded f) with
         | Right (s1, result) -> Right (ESArith "", s1, expanded_words_of_fields result, [])
@@ -270,7 +270,7 @@ let rec split_word ifs p =
       split_word ifs (f ++ new_fields, wrds)
   | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (stringToSymbolicString s)], wrds)
   | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField (stringToSymbolicString s)], wrds)
-  | (f, EWSym(c)::wrds) -> split_word ifs (f ++ [Field c], wrds)
+  | (f, EWSym sym::wrds) -> split_word ifs (f ++ [Field [Sym sym]], wrds)
   end
 
 let split_fields s0 exp_words =

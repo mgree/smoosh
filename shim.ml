@@ -356,7 +356,7 @@ and json_of_entry = function
   | S s -> obj_v "S" s
   | K k -> Assoc [tag "K"; ("v", json_of_control k)]
   | F -> obj "F"
-  | ESym s -> Assoc [tag "ESym"; ("v", json_of_symbolic_string s)]
+  | ESym sym -> Assoc [tag "ESym"; ("v", json_of_symbolic sym)]
 and json_of_control = function
   | Tilde -> obj "Tilde"
   | TildeUser user -> Assoc [tag "TildeUser"; ("user", String user)]
@@ -399,7 +399,7 @@ and json_of_expanded_word = function
   | ExpS s -> obj_v "ExpS" s
   | DQuo s -> obj_v "DQuo" s
   | UsrS s -> obj_v "UsrS" s
-  | EWSym sym -> Assoc [tag "EWSym"; ("s", json_of_symbolic_string sym)]
+  | EWSym sym -> Assoc [tag "EWSym"; ("s", json_of_symbolic sym)]
 and json_of_fields ss = List (List.map json_of_symbolic_string ss)
 and json_of_symbolic = function
   | SymCommand c -> Assoc [tag "SymCommand"; ("stmt", json_of_stmt c)]
