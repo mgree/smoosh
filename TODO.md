@@ -52,3 +52,14 @@ Handle basic command stepping
   - need process repr
   - need FD repr
   - keep everything symbolic for now
+
+### Remaining unclear TODO's
+
+- pattern.lem
+  - Implement range Equiv/Class (a note above says this is unnecessary?)
+- expand.ml
+  - pass through to json_of_env (pass through what?)
+- expansion.lem
+  - A bunch of TODO: symbolic result and TODO: broken invariant comments
+    and it is unclear what needs to be done here to fix it
+

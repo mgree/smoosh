@@ -8,7 +8,6 @@ type result = Ok | RErr of string * fields * fields
 
 let check_expansion (test_name, s0, w_in, f_expected):result=
   (let (s1, f_out) = (full_expansion s0 w_in) in
-  (* TODO fields should probably be coalesced *)
   if (listEqualBy (=) f_out f_expected)
   then Ok
   else RErr( test_name, f_expected, f_out))
@@ -181,12 +180,6 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
 
     ("Concrete prefix", os_var_x_foocommand,
      [K (Param("x", Substring (Prefix, Shortest, [S "f"])))], [[C 'o'; C 'o'; symcommand]]);
-
-     (* TODO
-      * path expansion
-      *    foo* => multiple fields
-      *    "foo*" => one field
-      *)
 
     (* path expansion *)
     ("a/* in a/use/ a/useful a/user/", os_complicated_fs,

@@ -2,6 +2,9 @@ open import Fsh
 
 open import Pattern
 
+val compare_by_first : forall 'a 'b. Ord 'a => ('a * 'b) -> ('a * 'b) -> ordering
+let compare_by_first (a, _) (a', _) = compare a a'
+
 val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
 let rec break p ls =
   match ls with
@@ -14,8 +17,6 @@ let rec break p ls =
 
 val split : list char -> list (list char)
 let rec split cs =
-  (* TODO: don't break a trailing slash
-   * /c*/../ should find /c/../ not /c/.. *)
   match break ((=) #'/') cs with
   | ([], []) -> []
   | (cs', []) -> [cs']
@@ -51,16 +52,6 @@ let parse_path_pattern st pat =
  *)
 val match_pattern_file_list : locale -> fs -> string -> set (string * file)
 let match_pattern_file_list lc fs pat =
-  (* TODO:
-    * Is first character literal '.'
-    * if not, remove all dot files from list
-  let should_remove_dot_files =
-    match (toCharList pat) with
-    | #'.'::_ -> true
-    | _ -> false
-    end
-  in
-    *)
   Set.filter
     (fun (file, _) -> 
       match match_prefix lc Shortest (stringToSymbolicString pat) (stringToSymbolicString file) with
@@ -69,7 +60,7 @@ let match_pattern_file_list lc fs pat =
       end)
     (* Only compare equality for the set based on the keys.
      * Comparing equality of a non-trivial file system will loop infinitely. *)
-    (toSetBy (fun (str, _)  (str', _) -> compare str str') fs.contents)
+    (toSetBy compare_by_first fs.contents)
 
 val stringToFs : fs -> string -> set fs -> set fs
 let stringtoFs fs k set =
@@ -101,7 +92,7 @@ let rec walk (path_so_far, dir) pinfo lc path =
        end in
       Set.singleton (full_path ^ if pinfo.trailing_slash then "/" else "", Dir dir)
   | path'::rest ->
-    bigunionMapBy (fun (str, _) (str', _) -> compare str str') (fun (sub, file) ->
+    bigunionMapBy compare_by_first (fun (sub, file) ->
       let full_path =
         match path_so_far with
         (* If we have nothing so far we are at the start of our

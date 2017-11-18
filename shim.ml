@@ -408,10 +408,15 @@ and json_of_symbolic = function
                                     ("mode", json_of_substring_mode mode);
                                     ("pat", json_of_symbolic_string pat);
                                     ("s", json_of_symbolic_string s)]
-and json_of_symbolic_char = function
-  | C c -> String (String.make 1 c)
-  | Sym sym -> json_of_symbolic sym
-and json_of_symbolic_string s = List (List.map json_of_symbolic_char s)
+and json_of_symbolic_string s = List (list_of_symbolic_string s)
+and list_of_symbolic_string s =
+       ((function
+         | [] -> []
+         | C _::_ ->
+           let (cs, s') = maximal_char_list s in
+           String (implode cs)::list_of_symbolic_string s'
+         | Sym sym::s' -> json_of_symbolic sym::list_of_symbolic_string s')
+        s)
 
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
 and obj_f name f = Assoc [tag name; ("f", json_of_expanded_words f)]

@@ -182,28 +182,41 @@ let rec toSymbolicCharList fs =
   | f::fs' -> f ++ [C #' '] ++ toSymbolicCharList fs'
   end
 
+val maximal_char_list : symbolic_string -> (list char * symbolic_string)
+let rec maximal_char_list sym_str =
+  match sym_str with
+  | [] -> ([], [])
+  | C c::rest ->
+    let (cs, sym_str') = maximal_char_list rest in
+    (c::cs, sym_str')
+  | Sym _::_ -> ([], sym_str)
+  end
+
 val words_of_symbolic_string : symbolic_string -> words
-let words_of_symbolic_string =
-  map (function 
-       | C c -> S (toString [c]) (* TODO find maximal runs of chars *)
-       | Sym sym -> ESym sym
-       end)
+let rec words_of_symbolic_string sym_str =
+  match sym_str with
+  | [] -> []
+  | C _::_ ->
+    let (cs, sym_str') = maximal_char_list sym_str in
+    S (toString cs)::words_of_symbolic_string sym_str'
+  | Sym sym::sym_str' -> ESym sym::words_of_symbolic_string sym_str'
+  end
 
 val words_of_fields : fields -> words
-let words_of_fields fs = 
-  map (function 
-       | C c -> S (toString [c]) (* TODO find maximal runs of chars *)
-       | Sym sym -> ESym sym
-       end)
-      (toSymbolicCharList fs)
+let words_of_fields fs = words_of_symbolic_string (toSymbolicCharList fs)
+
+val expanded_words_of_symbolic_string : symbolic_string -> expanded_words
+let rec expanded_words_of_symbolic_string sym_str =
+  match sym_str with
+  | [] -> []
+  | C _::_ ->
+    let (cs, sym_str') = maximal_char_list sym_str in
+    ExpS (toString cs)::expanded_words_of_symbolic_string sym_str'
+  | Sym sym::sym_str' -> EWSym sym::expanded_words_of_symbolic_string sym_str'
+  end
 
 val expanded_words_of_fields : fields -> expanded_words
-let rec expanded_words_of_fields fs = 
-  map (function 
-       | C c -> ExpS (toString [c]) (* TODO find maximal runs of chars *)
-       | Sym sym -> EWSym sym
-       end)
-      (toSymbolicCharList fs)
+let expanded_words_of_fields fs = expanded_words_of_symbolic_string (toSymbolicCharList fs)
 
 val charListToSymbolicString : list char -> symbolic_string
 let charListToSymbolicString cs = map C cs
@@ -312,8 +325,10 @@ let lc_ambient =
 (* FILESYSTEMS ********************************************************)
 (**********************************************************************)
 
-(* TODO Broadly, directories map to contents, which are dir trees or files.
- * For now, fine, just using for pathname expansion. Ultimately, rely on SibylFS's detailed model *)
+(* Broadly, directories map to contents, which are dir trees or files.
+ * For now, fine, just using for pathname expansion.
+ *
+ * TODO: Ultimately, rely on SibylFS's detailed model *)
 type fs = <|
   parent: maybe fs;
   contents: Map.map string file
