@@ -41,13 +41,7 @@ let rec concat_expanded w =
 let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
   let sympat : symbolic_string = (concat_expanded pat) in
   let symstr : symbolic_string = toSymbolicCharList str in
-  match side with
-  | Prefix -> try_match_prefix lc mode sympat symstr (* TODO way to select/update locale *)
-  | Suffix -> match try_match_prefix lc mode (reverse sympat) (reverse symstr) with(* TODO same *)
-              | [Sym (SymPat m pat s)] -> [Sym (SymPat m (reverse pat) (reverse s))]
-              | ss               -> reverse ss
-              end
-  end
+  try_match_prefix lc side mode sympat symstr
 
 let expand_param s0 _q str f =
   let value = lookup_param s0 str in

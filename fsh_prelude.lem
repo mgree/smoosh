@@ -104,7 +104,7 @@ and expanded_words = list expanded_word
 and symbolic =
     SymArith of fields (* symbolic result of arithmetic evaluation *) (* TODO is fields necessary? *)
   | SymCommand of stmt (* symbolic result of evaluating a command *)
-  | SymPat of substring_mode * symbolic_string * symbolic_string (* symbolic result of pattern matching (mode, pat, string) *)
+  | SymPat of substring_side * substring_mode * symbolic_string * symbolic_string (* symbolic result of pattern matching (mode, pat, string) *)
 and symbolic_char =
     C of char
   | Sym of symbolic
@@ -132,7 +132,7 @@ let null_sym sym =
   match sym with
   | SymArith _ -> Just false
   | SymCommand _ -> Nothing
-  | SymPat _ _ _-> Nothing
+  | SymPat _ _ _ _-> Nothing
   end
 
 val null_char : symbolic_char -> maybe bool

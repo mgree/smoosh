@@ -404,7 +404,8 @@ and json_of_fields ss = List (List.map json_of_symbolic_string ss)
 and json_of_symbolic = function
   | SymCommand c -> Assoc [tag "SymCommand"; ("stmt", json_of_stmt c)]
   | SymArith f -> Assoc [tag "SymArith"; ("f", json_of_fields f)]
-  | SymPat (mode, pat, s) -> Assoc [tag "SymPat";
+  | SymPat (side, mode, pat, s) -> Assoc [tag "SymPat";
+                                    ("side", json_of_substring_side side);
                                     ("mode", json_of_substring_mode mode);
                                     ("pat", json_of_symbolic_string pat);
                                     ("s", json_of_symbolic_string s)]

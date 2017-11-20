@@ -230,9 +230,15 @@ let rec match_prefix (lc:locale) (m:substring_mode) (pat:symbolic_string) (s:sym
      else NoMatch
   end
 
-let try_match_prefix (lc:locale) (m:substring_mode) (pat : symbolic_string) (s:symbolic_string) : symbolic_string =
-  match match_prefix lc m pat s with
-  | NoMatch -> s
-  | Symbolic -> [Sym (SymPat m pat s)]
-  | Match s' -> s'
+let try_match_prefix (lc:locale) (s:substring_side) (m:substring_mode) (pat : symbolic_string) (str:symbolic_string) : symbolic_string =
+  let fixup string = 
+    (* maybe reverse string to support suffix matching *)
+    match s with
+    | Prefix -> string
+    | Suffix -> reverse string
+    end in
+  match match_prefix lc m (fixup pat) (fixup str) with
+  | NoMatch -> str
+  | Symbolic -> [Sym (SymPat s m pat str)]
+  | Match str' -> fixup str'
   end
