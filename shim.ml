@@ -410,15 +410,13 @@ and json_of_symbolic = function
                                     ("pat", json_of_symbolic_string pat);
                                     ("s", json_of_symbolic_string s)]
 and json_of_symbolic_string s = List (list_of_symbolic_string s)
-and list_of_symbolic_string s =
-       ((function
-         | [] -> []
-         | C _::_ ->
-           let (cs, s') = maximal_char_list s in
-           String (implode cs)::list_of_symbolic_string s'
-         | Sym sym::s' -> json_of_symbolic sym::list_of_symbolic_string s')
-        s)
-
+and list_of_symbolic_string = function
+  | [] -> []
+  | (C _::_) as s ->
+     let (cs, s') = maximal_char_list s in
+     String (implode cs)::list_of_symbolic_string s'
+  | Sym sym::s' -> json_of_symbolic sym::list_of_symbolic_string s'
+  
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
 and obj_f name f = Assoc [tag name; ("f", json_of_expanded_words f)]
 and obj_fw name f w = Assoc [tag name; ("f", json_of_expanded_words f); ("w", json_of_words w)]
