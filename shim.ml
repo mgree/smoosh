@@ -72,7 +72,7 @@ let rec of_node (n : node union ptr) : stmt =
   | 11 ->
      let n = n @-> node_nfor in
      For (getf n nfor_var,
-          to_arg (getf n nfor_args @-> node_narg),
+          join (to_args (getf n nfor_args)),
           of_node (getf n nfor_body))
   (* NCASE *)
   | 12 ->
