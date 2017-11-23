@@ -1,5 +1,17 @@
 'use strict';
 
+function renderRedir(elt, redir) {
+  console.assert(typeof redir === 'object', 'expected redir object, got %o', redir);
+  console.assert('tag' in redir, 'expected tag for statement object');
+  console.assert(['File', 'Dup', 'Heredoc'].includes(redir['tag']), 
+                 'got weird redir tag %s', redir['tag']);
+
+  elt.addClass('redir');
+
+  // TODO actually pretty print
+  elt.append(JSON.stringify(stmt));
+}
+
 function renderStmt(elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got %o', stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
@@ -10,9 +22,6 @@ function renderStmt(elt, stmt) {
 
   elt.addClass('stmt stmt-' + stmt['tag']);
   
-  // TODO actually pretty print the various bits and bobs
-  elt.append(JSON.stringify(stmt));
-
   switch (stmt['tag']) {
     case 'Command':
       // | Command (assigns, args, rs) -> 
@@ -21,46 +30,177 @@ function renderStmt(elt, stmt) {
       //           ("args", json_of_words args);
       //           ("rs", json_of_redirs rs)]
 
+      let assigns = $('<span></span>').addClass('simple-assigns').appendTo(elt);
+      for (const assign of stmt['assigns']) {
+        let a = $('<span></span>').addClass('assign').appendTo(assigns);
+        $('<span></span>').addClass('variable').append(assign['var']).appendTo(a);
+        
+        a.append('=');
+        
+        let v = $('<span></span>').addClass('variable').appendTo(a);
+        renderWords(v, assign['w']);
+        
+        a.append('&nbsp;');
+      }
+
+      let args = $('<span></span>').addClass('simple-args').appendTo(elt);
+      renderWords(args, stmt['args']);
+    
+      if (stmt['rs'] !== []) {
+        args.append('&nbsp;');
+      }
+
+      var redirs = $('<span></span>').addClass('simple-redirs').appendTo(elt);
+      for (const redir of stmt['rs']) {
+        let r = $('<span></span>').appendTo(redirs);
+        renderRedir(r, redir);
+        redirs.append('&nbsp;');
+      }
+
       break;
 
     case 'Pipe':
       // | Pipe (bg, cs) -> 
       //    Assoc [tag "Pipe"; ("bg", Bool bg); ("cs", List (List.map json_of_stmt cs))]
 
+      let commands = $('<span></span>').addClass('pipe-commands').appendTo(elt);
+      for (let i = 0; i < stmt['cs'].length; i += 1) {
+        let c = $('<span></span>').appendTo(commands);
+        renderStmt(c, stmt['cs'][i]); 
+
+        if (i != stmt['cs'].length - 1) {
+          commands.append('&nbsp;|&nbsp;');
+        }
+      }
+
+      if (stmt['bg']) {
+        elt.append('&nbsp; &amp;');
+      }
+
       break;
 
     case 'Redir':
       // | Redir (c, rs) -> obj_crs "Redir" c rs
+
+      var command = $('<span></span>').addClass('redir-command').appendTo(elt);
+      renderStmt(command, stmt['c']);
+
+      elt.append('&nbsp;');
+
+      var redirs = $('<span></span>').addClass('redir-redirs').appendTo(elt);
+      for (const redir of stmt['rs']) {
+        let r = $('<span></span>').appendTo(redirs);
+        renderRedir(r, redir);
+        redirs.append('&nbsp;');
+      }
 
       break;
 
     case 'Background':
       // | Background (c, rs) -> obj_crs "Background" c rs
 
+      /* we translate 
+           cmds... &
+        to
+           { cmds & }
+        this avoids issues with parsing; in particular,
+          cmd1 & ; cmd2 & ; cmd3
+        doesn't parse; it must be:
+          cmd1 & cmd2 & cmd3
+        it's a little too annoying to track "was the last thing
+        backgrounded?" so the braces resolve the issue. testing
+        indicates that they're semantically equivalent.
+      */
+
+      elt.append('{'); 
+
+      var command = $('<span></span>').addClass('bg-command').appendTo(elt);
+      renderStmt(command, stmt['c']);
+
+      elt.append('&nbsp;');
+
+      var redirs = $('<span></span>').addClass('bg-redirs').appendTo(elt);
+      for (const redir of stmt['rs']) {
+        let r = $('<span></span>').appendTo(redirs);
+        renderRedir(r, redir);
+        redirs.append('&nbsp;');
+      }
+
+      elt.append('}'); 
+
       break;
 
     case 'Subshell':
       // | Subshell (c, rs) -> obj_crs "Subshell" c rs
+
+      elt.append('('); 
+
+      var command = $('<span></span>').addClass('subshell-command').appendTo(elt);
+      renderStmt(command, stmt['c']);
+
+      elt.append('&nbsp;');
+
+      var redirs = $('<span></span>').addClass('subshell-redirs').appendTo(elt);
+      for (const redir of stmt['rs']) {
+        let r = $('<span></span>').appendTo(redirs);
+        renderRedir(r, redir);
+        redirs.append('&nbsp;');
+      }
+
+      elt.append(')'); 
 
       break;
 
     case 'And':
       // | And (c1, c2) -> obj_lr "And" c1 c2
 
+      var c1 = $('<span></span>').addClass('and-left').appendTo(elt);
+      renderStmt(c1, stmt['l']);
+
+      elt.append('&nbsp;&amp;&amp;&nbsp;');
+
+      var c2 = $('<span></span>').addClass('and-right').appendTo(elt);
+      renderStmt(c2, stmt['r']);
+
       break;
 
     case 'Or':
       // | Or (c1, c2) -> obj_lr "Or" c1 c2
+
+      var c1 = $('<span></span>').addClass('or-left').appendTo(elt);
+      renderStmt(c1, stmt['l']);
+
+      elt.append('&nbsp;||&nbsp;');
+
+      var c2 = $('<span></span>').addClass('or-right').appendTo(elt);
+      renderStmt(c2, stmt['r']);
 
       break;
 
     case 'Not':
       // | Not c -> Assoc [tag "Not"; ("c", json_of_stmt c)]
 
+      // for parsing reasons similar to bg above
+
+      elt.append('!&nbsp;{&nbsp;');
+
+      var c = $('<span></span>').addClass('not-stmt').appendTo(elt);
+      renderStmt(c, stmt['c']);
+
+      elt.append('&nbsp;}');
+
       break;
 
     case 'Semi':
       // | Semi (c1, c2) -> obj_lr "Semi" c1 c2
+
+      var c1 = $('<span></span>').addClass('semi-left').appendTo(elt);
+      renderStmt(c1, stmt['l']);
+
+      elt.append('&nbsp;;&nbsp;');
+
+      var c2 = $('<span></span>').addClass('semi-right').appendTo(elt);
+      renderStmt(c2, stmt['r']);
 
       break;
 
@@ -68,11 +208,54 @@ function renderStmt(elt, stmt) {
       // | If (c1, c2, c3) -> 
       //    Assoc [tag "If"; ("c", json_of_stmt c1); ("t", json_of_stmt c2); ("e", json_of_stmt c3)]
 
+      elt.append('if&nbsp;');
+
+      var c1 = $('<span></span>').addClass('if-cond').appendTo(elt);
+      renderStmt(c1, stmt['c']);
+
+      elt.append('&nbsp; then&nbsp;');
+
+      var c2 = $('<span></span>').addClass('if-then').appendTo(elt);
+      renderStmt(c2, stmt['t']);
+
+      var c3 = $('<span></span>').addClass('if-else').appendTo(elt);
+      let cElse = stmt['e'];
+      if (typeof cElse === 'object' && 
+          'tag' in cElse && cElse['tag'] === 'Command' &&
+          cElse['assigns'] === [] && cElse['args'] === [] && cElse['rs'] === []) {
+        // one-armed if
+        elt.append(';&nbsp;fi');
+      } else if (typeof cElse === 'object' && 
+          'tag' in cElse && cElse['tag'] === 'If') {
+        // else-if, rely on recursion to get the fi
+        c3.append(';&nbsp;el');
+        renderStmt(c3, cElse);
+      } else {
+        // plain else clause, provide our own fi
+        renderStmt(c3, cElse);
+        elt.append(';&nbsp;fi');
+      }
+
       break;
 
     case 'While':
       // | While (c1, c2) -> 
       //    Assoc [tag "While"; ("cond", json_of_stmt c1); ("body", json_of_stmt c2)]
+
+      const kw   = stmt['cond']['tag'] === 'Not' ? 'until' : 'while';
+      const cond = stmt['cond']['tag'] === 'Not' ? stmt['cond']['c'] : stmt['cond'];
+  
+      elt.append(kw + '&nbsp;');
+      
+      var c = $('<span></span>').addClass(kw + '-cond').appendTo(elt);
+      renderStmt(c, cond);
+
+      elt.append(';&nbsp;do');
+
+      var body = $('<span></span>').addClass(kw + '-body').appendTo(elt);
+      renderStmt(body, stmt['body']);
+
+      elt.append(';&nbsp; done');
 
       break;
 
@@ -80,16 +263,67 @@ function renderStmt(elt, stmt) {
       // | For (x, w, c) -> 
       //    Assoc [tag "For"; ("var", String x); ("args", json_of_words w); ("body", json_of_stmt c)]
 
+      elt.append('for&nbsp;');
+      $('<span></span>').addClass('for-varname variable').append(stmt['var']).appendTo(elt);
+      elt.append('&nbsp;in&nbsp;');
+
+      var w = $('<span></span>').addClass('for-args').appendTo(elt);
+      renderWords(w, stmt['args']);
+
+      elt.append(';&nbsp;do');
+  
+      var body = $('<span></span>').addClass('for-body').appendTo(elt);
+      renderStmt(body, stmt['body']);
+
+      elt.append(';&nbsp; done');
+
       break;
 
     case 'Case':
       // | Case (w, cases) -> 
       //    Assoc [tag "Case"; ("args", json_of_words w); ("cases", List (List.map json_of_case cases))]
 
+      elt.append('case&nbsp;');
+
+      var w = $('<span></span>').addClass('case-args').appendTo(elt);
+      renderWords(w, stmt['args']);
+  
+      elt.append('&nbsp;in&nbsp;');
+
+      // json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
+      let cases = $('<span></span>').addClass('case-cases').appendTo(elt);
+      for (const c of stmt['cases']) {
+        let eCase = $('<span></span>').addClass('case').appendTo(cases);
+
+        let pat = $('<span></span>').addClass('case-pattern').appendTo(eCase);
+        renderWords(pat, c['pat']);
+
+        eCase.append(')&nbsp;');
+
+        var body = $('<span></span>').addClass('case-stmt').appendTo(eCase);
+        renderStmt(body, c['stmt']);
+
+        eCase.append('&nbsp;;;');
+      }
+  
+      elt.append('&nbsp; esac');
+
       break;
 
     case 'Defun':
       // | Defun (f, c) -> Assoc [tag "Defun"; ("name", String f); ("body", json_of_stmt c)]
+
+      // we force { } to make sure it always parses
+
+      let name = $('<span></span>').addClass('defun-name variable').appendTo(elt);
+      name.append(stmt['name']);
+
+      elt.append('()&nbsp;{&nbsp;');
+
+      var body = $('<span></span>').addClass('defun-body').appendTo(elt);
+      renderStmt(body, stmt['body']);
+
+      elt.append('&nbsp;}');
 
       break;
 
@@ -121,11 +355,11 @@ function renderSymbolicChar(elt, symbolic) {
       //  | SymArith f -> Assoc [tag "SymArith"; ("f", json_of_fields f)]
   
       elt.append('$((');
-      elt.append('<span></span>').addClass('param-varname').append(control['var']);
-      var f = $('<span></span>').addClass('fields').appendTo(fmt);
+      elt.append('<span></span>').addClass('param-varname variable').append(control['var']);
+      var f = $('<span></span>').appendTo(fmt);
       renderFields(f, control['f']);
 
-      var w = $('<span></span>').addClass('words').appendTo(fmt);
+      var w = $('<span></span>').appendTo(fmt);
       renderWords(w, control['w']);
 
       elt.append('))');                 
@@ -149,7 +383,7 @@ function renderSymbolicChar(elt, symbolic) {
       var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
       fmt.append(renderSubstring(control['side'], control['mode']));
 
-      var pat = $('<span></span>').addClass('fields').appendTo(elt);
+      var pat = $('<span></span>').appendTo(elt);
       renderFields(pat, control['pat']);
 
       elt.append('}');
@@ -189,6 +423,8 @@ function renderSymbolicString(elt, ss) {
 function renderFields(elt, fields) {
   console.assert(typeof fields === 'object', 'expected fields list, got %o', fields);
   console.assert('length' in fields, 'expected length field for fields object');
+
+  elt.addClass('fields');
 
   for (let i = 0; i < fields.length; i += 1) {
     let s = $('<span></span>').addClass('field').appendTo(elt);
@@ -331,7 +567,7 @@ function renderFormat(elt, format) {
     case 'NError':
     case 'Alt':
     case 'NAlt':
-      var w = $('<span></span>').addClass('words').appendTo(elt);
+      var w = $('<span></span>').appendTo(elt);
       renderWords(w, format['w']);
 
       break;
@@ -345,7 +581,7 @@ function renderFormat(elt, format) {
       var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
       fmt.append(renderSubstring(control['side'], control['mode']));
 
-      var w = $('<span></span>').addClass('words').appendTo(elt);
+      var w = $('<span></span>').appendTo(elt);
       renderWords(w, control['w']);
 
       break;
@@ -408,10 +644,10 @@ function renderControl(elt, control) {
       var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
       fmt.append('=');
 
-      var f = $('<span></span>').addClass('fields').appendTo(fmt);
+      var f = $('<span></span>').appendTo(fmt);
       renderExpandedWords(f, control['f']);
 
-      var w = $('<span></span>').addClass('words').appendTo(fmt);
+      var w = $('<span></span>').appendTo(fmt);
       renderWords(w, control['w']);
 
       elt.append('}');
@@ -430,10 +666,10 @@ function renderControl(elt, control) {
       var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
       fmt.append(renderSubstring(control['side'], control['mode']));
 
-      var f = $('<span></span>').addClass('fields').appendTo(elt);
+      var f = $('<span></span>').appendTo(elt);
       renderExpandedWords(f, control['f']);
 
-      var w = $('<span></span>').addClass('words').appendTo(elt);
+      var w = $('<span></span>').appendTo(elt);
       renderWords(w, control['w']);
 
       elt.append('}');
@@ -449,10 +685,10 @@ function renderControl(elt, control) {
       var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
       fmt.append('?');
 
-      var f = $('<span></span>').addClass('fields').appendTo(fmt);
+      var f = $('<span></span>').appendTo(fmt);
       renderExpandedWords(f, control['f']);
 
-      var w = $('<span></span>').addClass('words').appendTo(fmt);
+      var w = $('<span></span>').appendTo(fmt);
       renderWords(w, control['w']);
 
       elt.append('}');
@@ -476,10 +712,10 @@ function renderControl(elt, control) {
 
       elt.append('$((');
 
-      var f = $('<span></span>').addClass('fields').appendTo(elt);
+      var f = $('<span></span>').appendTo(elt);
       renderExpandedWords(f, control['f']);
 
-      var w = $('<span></span>').addClass('words').appendTo(elt);
+      var w = $('<span></span>').appendTo(elt);
       renderWords(w, control['w']);
 
       elt.append('))');                 
@@ -492,7 +728,7 @@ function renderControl(elt, control) {
       elt.addClass('quoted');
       elt.append('"');
                  
-      var w = $('<span></span>').addClass('words').appendTo(elt);
+      var w = $('<span></span>').appendTo(elt);
       renderWords(w, control['w']);
 
       elt.append('"');
@@ -546,7 +782,9 @@ function renderEntry(elt, entry) {
 
 function renderWords(elt, words) {
   console.assert(typeof words === 'object', 'expected words list, got %o', words);
-  console.assert('length' in words, 'expected length field for words object');
+  console.assert('length' in words, 'expected length field for words object, got %o', words);
+
+  elt.addClass('words');
 
   for (let i = 0; i < words.length; i += 1) {
     let entry = $('<span></span>').appendTo(elt);
@@ -574,7 +812,7 @@ function renderTerm(elt, step) {
       // | `Start w -> obj_w "Start" w     
       icon.addClass('play');
 
-      var w = $('<span></span>').addClass('words').appendTo(term);
+      var w = $('<span></span>').appendTo(term);
       renderWords(w, step['w']);
 
       break;
@@ -583,10 +821,10 @@ function renderTerm(elt, step) {
       // | `Expand (step, f, w) -> obj_fw "Expand" f w
       icon.addClass('expand');
 
-      var f = $('<span></span>').addClass('fields').appendTo(term);
+      var f = $('<span></span>').appendTo(term);
       renderExpandedWords(f, step['f']);
 
-      var w = $('<span></span>').addClass('words').appendTo(term);
+      var w = $('<span></span>').appendTo(term);
       renderWords(w, step['w']);
 
       break;
@@ -595,7 +833,7 @@ function renderTerm(elt, step) {
       // | `Split (step, f) -> obj_f "Split" f
       icon.addClass('unlinkify');
 
-      var f = $('<span></span>').addClass('fields').appendTo(term);
+      var f = $('<span></span>').appendTo(term);
       renderExpandedWords(f, step['f']);
 
       break;
@@ -604,7 +842,7 @@ function renderTerm(elt, step) {
       // | `Error (step, f) -> Assoc [tag "Error"; ("msg", json_of_fields f)]
       icon.addClass('warning circle');
 
-      var f = $('<span></span>').addClass('fields').appendTo(term);
+      var f = $('<span></span>').appendTo(term);
       renderFields(f, step['f']);
 
       break;
@@ -613,7 +851,7 @@ function renderTerm(elt, step) {
       // | `Done fs -> Assoc [tag "Done"; ("f", json_of_fields fs)]
       icon.addClass('check circle outline');
 
-      var f = $('<span></span>').addClass('fields').appendTo(term);
+      var f = $('<span></span>').appendTo(term);
       renderFields(f, step['f']);
 
       break;
