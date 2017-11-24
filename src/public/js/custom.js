@@ -1,15 +1,106 @@
 'use strict';
 
+/* default file redirection fd numbers, by type */
+const fileRedirDefault = { 'To': 1,
+                           'Clobber': 1,
+                           'From': 0,
+                           'FromTo': 0,
+                           'Append': 1 };
+
+/* default fd duplication fd numbers, by type */
+const dupRedirDefault = { 'ToFD': 1,
+                          'FromFD': 0 };
+
+/* file redirection symbols */
+const fileRedirSym = { 'To': '&gt;', 
+                       'Clobber': '&gt;|',
+                       'From': '&lt;',
+                       'FromTo': '&lt;&gt;',
+                       'Append': '&gt;&gt;' };
+
+/* dup redirection symbols */
+const dupRedirSym = { 'ToFD': '&gt;&amp;',
+                      'FromFD': '&lt;&amp;' }
+
+function showUnless(def, actual) {
+  return def === actual ? "" : String(actual);
+}
+
 function renderRedir(elt, redir) {
   console.assert(typeof redir === 'object', 'expected redir object, got %o', redir);
   console.assert('tag' in redir, 'expected tag for statement object');
   console.assert(['File', 'Dup', 'Heredoc'].includes(redir['tag']), 
                  'got weird redir tag %s', redir['tag']);
 
-  elt.addClass('redir');
+  const tagClass = 'redir-' + redir['tag']
+  const tyClass = tagClass + redir['ty']
+  elt.addClass('redir ' + tagClass + ' ' + tyClass);
 
-  // TODO actually pretty print
-  elt.append(JSON.stringify(stmt));
+  switch(redir['tag']) {
+    case 'File':
+      // | RFile (ty, fd, w) -> 
+      //    Assoc [tag "File"; 
+      //           ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_words w)]
+      let fSrc = $('<span></span>').addClass('redir-File-src').appendTo(elt);
+      fSrc.append(showUnless(fileRedirDefault[redir['ty']], redir['src']));
+
+      let fSym = $('<span></span>').addClass('redir-File-sym').appendTo(elt);
+      fSym.append(fileRedirSym[redir['ty']]);
+
+      let fTgt = $('<span></span>').addClass('redir-File-tgt').appendTo(elt);
+      renderWords(fTgt, redir['tgt']);
+
+      break;
+
+    case 'Dup':
+      // | RDup (ty, src, tgt) -> 
+      //    Assoc [tag "Dup";
+      //           ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt)]
+
+      let dSrc = $('<span></span>').addClass('redir-Dup-src').appendTo(elt);
+      dSrc.append(showUnless(dupRedirDefault[redir['ty']], redir['src']));
+
+      let dSym = $('<span></span>').addClass('redir-Dup-sym').appendTo(elt);
+      dSym.append(dupRedirSym[redir['ty']]);
+
+      let dTgt = $('<span></span>').addClass('redir-Dup-tgt').appendTo(elt);
+      dTgt.append(String(redir['tgt']));
+
+      break;
+
+    case 'Heredoc':
+      // | RHeredoc (ty, src, w) -> 
+      //    Assoc [tag "Heredoc";
+      //           ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_words w)]
+
+
+      let hSrc = $('<span></span>').addClass('redir-Heredoc-src').appendTo(elt);
+      hSrc.append(showUnless(0, redir['src']));
+
+      let hSym = $('<span></span>').addClass('redir-Heredoc-sym').appendTo(elt);
+      hSym.append('&lt;&lt;');
+
+      // compute a collision-free marker
+      let marker = "EOF";
+      const lines = redir['w'].split(/\n\r|\n|\r/);
+      while (lines.includes(marker)) {
+        marker += "EOF";
+      }
+
+      hSym.append(marker);
+      hSym.append('<br></br>');
+
+      let hText = $('<span></span>').addClass('redir-Heredoc-text').appendTo(elt);
+      renderWords(hText, redir['w']);
+
+      let hMarker = $('<span></span>').addClass('redir-Heredoc-marker').appendTo(elt);
+      hMarker.append(marker);
+      
+      break;
+
+    default:
+      debugger;
+  }
 }
 
 function renderStmt(elt, stmt) {
