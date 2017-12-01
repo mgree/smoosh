@@ -160,8 +160,8 @@ let rec expand_control s0 q k =
     | Backtick c -> Right (ESCommand "treating commands symbolically", s0, [], [ESym (SymCommand c)]) (* TODO this should create a new bash process, setup pipes *)
     | Arith f [] ->
         match arith64 s0 (concat_expanded f) with
-        | Right (s1, result) -> Right (ESArith "", s1, expanded_words_of_fields result, [])
-        | Left e -> Left (ESArith "", s0, [ExpS e])
+        | Right (s1, result) -> Right (ESArith "computed arithmetic result", s1, expanded_words_of_fields result, [])
+        | Left e -> Left (ESArith "arithmetic error", s0, [ExpS e])
         end
     | Arith f w ->
        match expand_words s0 q GeneratedString ([],w) with
