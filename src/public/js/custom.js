@@ -970,7 +970,7 @@ function renderTerm(elt, step) {
       icon.addClass('warning circle');
 
       var f = $('<span></span>').appendTo(term);
-      renderFields(f, step['f']);
+      renderFields(f, step['msg']);
 
       break;
 
