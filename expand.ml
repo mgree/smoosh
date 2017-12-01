@@ -122,6 +122,15 @@ let trace_command os = function
   | Command ([],ws,[]) -> trace_expansion (os, `Start ws)
   | _ -> failwith "unsupported command type (don't use keywords, etc.)"
 
+let rec trace_commands os = function
+  | [] -> [(os, `Done [])]
+  | [c] -> trace_command os c
+  | c::cs -> 
+     let tc = trace_command os c in
+     let (os',_) = List.hd (List.rev tc) in
+     let tcs = trace_commands os' cs in
+     tc @ tcs
+
 (**********************************************************************)
 (* OUTPUT *************************************************************)
 (**********************************************************************)
@@ -157,8 +166,7 @@ let main () =
   set_input_src ();
   let ns = Dash.parse_all () in
   let cs = List.map Shim.of_node ns in
-  let traces = List.map (trace_command !initial_os_state) cs in
-  List.iter show_trace traces;;  
+  show_trace (trace_commands !initial_os_state cs);;
 
 main ()
 
