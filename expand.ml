@@ -137,6 +137,7 @@ let rec trace_commands os = function
 (* OUTPUT *************************************************************)
 (**********************************************************************)
 
+(* TODO: 2017-12-01 pass step through to json *)
 let json_of_state_term = function
   | `Start w -> obj_w "Start" w
   | `Expand (step, f, w) -> obj_fw "Expand" f w
@@ -148,7 +149,7 @@ let json_of_env (env:(string, symbolic_string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))
 
 let json_of_state ((os,tm):state) : json =
-  Assoc [("env", json_of_env os.sh.env); ("term", json_of_state_term tm)] (* TODO pass through to json_of_env *)
+  Assoc [("env", json_of_env os.sh.env); ("term", json_of_state_term tm)]
 
 let show_trace trace =
   let tracej = List.map json_of_state trace in

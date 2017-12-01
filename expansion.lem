@@ -40,6 +40,13 @@ let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat
   let symstr : symbolic_string = toSymbolicCharList str in
   try_match_prefix lc side mode sympat symstr
 
+(* TODO 2017-12-01
+ * In an N____ case, when null_string fs is Nothing, the
+ * string is entirely symbolic so we need
+ * to represent the symbolic result of "it could be either
+ * true or false, we don't know". This means we need to branch
+ * and allow for both cases to progress.
+ *)
 let expand_param s0 _q str f =
   let value = lookup_param s0 str in
   match (value, f) with
@@ -52,7 +59,7 @@ let expand_param s0 _q str f =
   | (Nothing, NDefault w) -> w
   | (Just fs, NDefault w) ->
      match null_string fs with
-     | Nothing -> (* TODO symbolic result *) words_of_symbolic_string fs
+     | Nothing -> words_of_symbolic_string fs
      | Just true -> w
      | Just false -> words_of_symbolic_string fs
      end
@@ -62,7 +69,7 @@ let expand_param s0 _q str f =
   | (Nothing, NAssign w) -> [K (LAssign str [] w)]
   | (Just fs, NAssign w) -> 
      match null_string fs with
-     | Nothing -> (* TODO symbolic result *) words_of_symbolic_string fs
+     | Nothing -> words_of_symbolic_string fs
      | Just true -> [K (LAssign str [] w)]
      | Just false -> words_of_symbolic_string fs
      end
@@ -72,7 +79,7 @@ let expand_param s0 _q str f =
   | (Nothing, NError w) -> [K (LError str [] w)]
   | (Just fs, NError w) -> 
      match null_string fs with
-     | Nothing -> (* TODO symbolic result *) words_of_symbolic_string fs
+     | Nothing -> words_of_symbolic_string fs
      | Just true -> [K (LError str [] w)]
      | Just false -> words_of_symbolic_string fs
      end
@@ -80,7 +87,7 @@ let expand_param s0 _q str f =
   | (Nothing, Length) -> [S "0"]
   | (Just fs, Length) ->
      match try_concrete fs with
-     | Nothing -> (* TODO symbolic result *) [S "0"]
+     | Nothing -> (* TODO This should be the length of the symbolic result of fs *) [S "0"]
      | Just strs -> [S (show (stringLength strs))]
      end
   (* ALT *)
@@ -89,7 +96,7 @@ let expand_param s0 _q str f =
   | (Nothing, NAlt _) -> [S ""]
   | (Just fs, NAlt w) ->
      match null_string fs with
-     | Nothing -> (* TODO symbolic result *) words_of_symbolic_string fs
+     | Nothing -> words_of_symbolic_string fs
      | Just true -> [S ""]
      | Just false -> w
      end
@@ -270,7 +277,7 @@ let split_fields s0 exp_words =
     | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
     | Just fs -> 
        match try_concrete fs with
-       | Nothing -> (* TODO symbolic, we're fucked *) 
+       | Nothing -> (* TODO symbolic, a symbolic IFS makes it nearly-impossible to model field splitting *)
           split_word (toCharList " \n\t") ([], exp_words)
        | Just "" -> ([Field (concat_expanded exp_words)], [])
        | Just s -> split_word (toCharList s) ([], exp_words)
@@ -354,8 +361,9 @@ let rec to_fields f =
   | Field fs::rst -> 
      fs::(to_fields rst)
   | FS::rst      -> to_fields rst
-  | WFS::_       -> [stringToSymbolicString "TODO: broken invariant"]
-  | QField _::_  -> [stringToSymbolicString "TODO: broken invariant"]
+  (* TODO 2017-12-01 Preferably we need an AST that doesn't have WFS or QField's at this point, or lem failure *)
+  | WFS::_       -> [stringToSymbolicString "broken invariant"]
+  | QField _::_  -> [stringToSymbolicString "broken invariant"]
   end
 
 let rec finalize_fields f =
