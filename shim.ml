@@ -250,7 +250,12 @@ and arg_char c s bqlist stack =
 and to_assign v = function
   | [] -> failwith ("Never found an '=' sign in assignment, got " ^ v)
   | S "=" :: a -> (v,a)
-  | (S c) :: a -> to_assign (v ^ c) a
+  | (S s) :: a ->
+     (* hunt for an = sign, try to split the string *)
+     begin match String.index_opt s '=' with
+     | None -> to_assign (v ^ s) a
+     | Some i -> (v ^ String.sub s 0 i, S (String.sub s (i+1) (String.length s - i - 1)) :: a) 
+     end
   | _ -> failwith "Unexpected special character in assignment"
     
 and to_assigns n = List.map (to_assign "") (to_args n)
