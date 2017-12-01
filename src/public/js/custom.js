@@ -1,5 +1,28 @@
 'use strict';
 
+/**********************************************************************/
+/* RENDERING: JSON AST -> DOM *****************************************/
+/**********************************************************************/
+/*
+ * We define a variety of functions renderX : JQuery -> X_JSON_AST -> ()
+ *
+ * renderX(elt, x) will add a rendering of the object X to the DOM
+ * node at elt
+ *
+ * INVARIANTS:
+ *   renderX will apply appropriate classes for X, don't do it in advance
+ *   classes are of the form X-part1 X-part2 (e.g., redir-src, redir-tgt)
+ *   default element to add is a span
+ *   field separators are rendered as &nbsp;
+ *
+ * GLOBAL CLASSES OF IMPORTANCE:
+ *   symbolic - for anything treated symbolically
+ */
+
+const fieldSep = '&nbsp;';
+
+/* Redirections *******************************************************/
+
 /* default file redirection fd numbers, by type */
 const fileRedirDefault = { 'To': 1,
                            'Clobber': 1,
@@ -130,22 +153,27 @@ function renderStmt(elt, stmt) {
         
         let v = $('<span></span>').addClass('variable').appendTo(a);
         renderWords(v, assign['w']);
-        
-        a.append('&nbsp;');
       }
-
+    
+      // if we had an assignment and also have args or redirects, then put a space in
+      if (stmt['assigns'].length !== 0 && 
+          (stmt['args'].length !== 0 || stmt['rs'].length !== 0)) {
+        assigns.append(fieldSep);
+      }
+    
       let args = $('<span></span>').addClass('simple-args').appendTo(elt);
       renderWords(args, stmt['args']);
-    
-      if (stmt['rs'] !== []) {
-        args.append('&nbsp;');
+
+      // if we have following redirs, then put a space in
+      if (stmt['rs'].length !== 0) {
+        args.append(fieldSep);
       }
 
       var redirs = $('<span></span>').addClass('simple-redirs').appendTo(elt);
       for (const redir of stmt['rs']) {
         let r = $('<span></span>').appendTo(redirs);
         renderRedir(r, redir);
-        redirs.append('&nbsp;');
+        redirs.append(fieldSep); // FIXME will add an extra space at the end
       }
 
       break;
@@ -160,12 +188,12 @@ function renderStmt(elt, stmt) {
         renderStmt(c, stmt['cs'][i]); 
 
         if (i != stmt['cs'].length - 1) {
-          commands.append('&nbsp;|&nbsp;');
+          commands.append(fieldSep + '|' + fieldSep);
         }
       }
 
       if (stmt['bg']) {
-        elt.append('&nbsp; &amp;');
+        elt.append(fieldSep + '&amp;');
       }
 
       break;
@@ -176,13 +204,13 @@ function renderStmt(elt, stmt) {
       var command = $('<span></span>').addClass('redir-command').appendTo(elt);
       renderStmt(command, stmt['c']);
 
-      elt.append('&nbsp;');
+      elt.append(fieldSep);
 
       var redirs = $('<span></span>').addClass('redir-redirs').appendTo(elt);
       for (const redir of stmt['rs']) {
         let r = $('<span></span>').appendTo(redirs);
         renderRedir(r, redir);
-        redirs.append('&nbsp;');
+        redirs.append(fieldSep);
       }
 
       break;
@@ -208,13 +236,13 @@ function renderStmt(elt, stmt) {
       var command = $('<span></span>').addClass('bg-command').appendTo(elt);
       renderStmt(command, stmt['c']);
 
-      elt.append('&nbsp;');
+      elt.append(fieldSep);
 
       var redirs = $('<span></span>').addClass('bg-redirs').appendTo(elt);
       for (const redir of stmt['rs']) {
         let r = $('<span></span>').appendTo(redirs);
         renderRedir(r, redir);
-        redirs.append('&nbsp;');
+        redirs.append(fieldSep);
       }
 
       elt.append('}'); 
@@ -229,13 +257,13 @@ function renderStmt(elt, stmt) {
       var command = $('<span></span>').addClass('subshell-command').appendTo(elt);
       renderStmt(command, stmt['c']);
 
-      elt.append('&nbsp;');
+      elt.append(fieldSep);
 
       var redirs = $('<span></span>').addClass('subshell-redirs').appendTo(elt);
       for (const redir of stmt['rs']) {
         let r = $('<span></span>').appendTo(redirs);
         renderRedir(r, redir);
-        redirs.append('&nbsp;');
+        redirs.append(fieldSep);
       }
 
       elt.append(')'); 
@@ -248,7 +276,7 @@ function renderStmt(elt, stmt) {
       var c1 = $('<span></span>').addClass('and-left').appendTo(elt);
       renderStmt(c1, stmt['l']);
 
-      elt.append('&nbsp;&amp;&amp;&nbsp;');
+      elt.append(fieldSep + '&amp;&amp;' + fieldSep);
 
       var c2 = $('<span></span>').addClass('and-right').appendTo(elt);
       renderStmt(c2, stmt['r']);
@@ -261,7 +289,7 @@ function renderStmt(elt, stmt) {
       var c1 = $('<span></span>').addClass('or-left').appendTo(elt);
       renderStmt(c1, stmt['l']);
 
-      elt.append('&nbsp;||&nbsp;');
+      elt.append(fieldSep + '||' + fieldSep);
 
       var c2 = $('<span></span>').addClass('or-right').appendTo(elt);
       renderStmt(c2, stmt['r']);
@@ -273,12 +301,12 @@ function renderStmt(elt, stmt) {
 
       // for parsing reasons similar to bg above
 
-      elt.append('!&nbsp;{&nbsp;');
+      elt.append('!' + fieldSep + '{' + fieldSep);
 
       var c = $('<span></span>').addClass('not-stmt').appendTo(elt);
       renderStmt(c, stmt['c']);
 
-      elt.append('&nbsp;}');
+      elt.append(fieldSep + '}');
 
       break;
 
@@ -288,7 +316,7 @@ function renderStmt(elt, stmt) {
       var c1 = $('<span></span>').addClass('semi-left').appendTo(elt);
       renderStmt(c1, stmt['l']);
 
-      elt.append('&nbsp;;&nbsp;');
+      elt.append(fieldSep + ';' + fieldSep);
 
       var c2 = $('<span></span>').addClass('semi-right').appendTo(elt);
       renderStmt(c2, stmt['r']);
@@ -299,12 +327,12 @@ function renderStmt(elt, stmt) {
       // | If (c1, c2, c3) -> 
       //    Assoc [tag "If"; ("c", json_of_stmt c1); ("t", json_of_stmt c2); ("e", json_of_stmt c3)]
 
-      elt.append('if&nbsp;');
+      elt.append('if' + fieldSep);
 
       var c1 = $('<span></span>').addClass('if-cond').appendTo(elt);
       renderStmt(c1, stmt['c']);
 
-      elt.append('&nbsp; then&nbsp;');
+      elt.append(fieldSep + 'then' + fieldSep);
 
       var c2 = $('<span></span>').addClass('if-then').appendTo(elt);
       renderStmt(c2, stmt['t']);
@@ -315,16 +343,16 @@ function renderStmt(elt, stmt) {
           'tag' in cElse && cElse['tag'] === 'Command' &&
           cElse['assigns'] === [] && cElse['args'] === [] && cElse['rs'] === []) {
         // one-armed if
-        elt.append(';&nbsp;fi');
+        elt.append(';' + fieldSep + 'fi');
       } else if (typeof cElse === 'object' && 
           'tag' in cElse && cElse['tag'] === 'If') {
         // else-if, rely on recursion to get the fi
-        c3.append(';&nbsp;el');
+        c3.append(';' + fieldSep + 'el');
         renderStmt(c3, cElse);
       } else {
         // plain else clause, provide our own fi
         renderStmt(c3, cElse);
-        elt.append(';&nbsp;fi');
+        elt.append(';' + fieldSep + 'fi');
       }
 
       break;
@@ -336,17 +364,17 @@ function renderStmt(elt, stmt) {
       const kw   = stmt['cond']['tag'] === 'Not' ? 'until' : 'while';
       const cond = stmt['cond']['tag'] === 'Not' ? stmt['cond']['c'] : stmt['cond'];
   
-      elt.append(kw + '&nbsp;');
+      elt.append(kw + fieldSep);
       
       var c = $('<span></span>').addClass(kw + '-cond').appendTo(elt);
       renderStmt(c, cond);
 
-      elt.append(';&nbsp;do');
+      elt.append(';' + fieldSep + 'do');
 
       var body = $('<span></span>').addClass(kw + '-body').appendTo(elt);
       renderStmt(body, stmt['body']);
 
-      elt.append(';&nbsp; done');
+      elt.append(';' + fieldSep + 'done');
 
       break;
 
@@ -354,19 +382,19 @@ function renderStmt(elt, stmt) {
       // | For (x, w, c) -> 
       //    Assoc [tag "For"; ("var", String x); ("args", json_of_words w); ("body", json_of_stmt c)]
 
-      elt.append('for&nbsp;');
+      elt.append('for' + fieldSep);
       $('<span></span>').addClass('for-varname variable').append(stmt['var']).appendTo(elt);
-      elt.append('&nbsp;in&nbsp;');
+      elt.append(fieldSep + 'in' + fieldSep);
 
       var w = $('<span></span>').addClass('for-args').appendTo(elt);
       renderWords(w, stmt['args']);
 
-      elt.append(';&nbsp;do');
+      elt.append(';' + fieldSep + 'do');
   
       var body = $('<span></span>').addClass('for-body').appendTo(elt);
       renderStmt(body, stmt['body']);
 
-      elt.append(';&nbsp; done');
+      elt.append(';' + fieldSep + 'done');
 
       break;
 
@@ -374,12 +402,12 @@ function renderStmt(elt, stmt) {
       // | Case (w, cases) -> 
       //    Assoc [tag "Case"; ("args", json_of_words w); ("cases", List (List.map json_of_case cases))]
 
-      elt.append('case&nbsp;');
+      elt.append('case' + fieldSep);
 
       var w = $('<span></span>').addClass('case-args').appendTo(elt);
       renderWords(w, stmt['args']);
   
-      elt.append('&nbsp;in&nbsp;');
+      elt.append(fieldSep + 'in' + fieldSep);
 
       // json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
       let cases = $('<span></span>').addClass('case-cases').appendTo(elt);
@@ -389,15 +417,15 @@ function renderStmt(elt, stmt) {
         let pat = $('<span></span>').addClass('case-pattern').appendTo(eCase);
         renderWords(pat, c['pat']);
 
-        eCase.append(')&nbsp;');
+        eCase.append(')' + fieldSep);
 
         var body = $('<span></span>').addClass('case-stmt').appendTo(eCase);
         renderStmt(body, c['stmt']);
 
-        eCase.append('&nbsp;;;');
+        eCase.append(fieldSep + ';;');
       }
   
-      elt.append('&nbsp; esac');
+      elt.append(fieldSep + ' esac');
 
       break;
 
@@ -409,12 +437,12 @@ function renderStmt(elt, stmt) {
       let name = $('<span></span>').addClass('defun-name variable').appendTo(elt);
       name.append(stmt['name']);
 
-      elt.append('()&nbsp;{&nbsp;');
+      elt.append('()' + fieldSep + '{' + fieldSep);
 
       var body = $('<span></span>').addClass('defun-body').appendTo(elt);
       renderStmt(body, stmt['body']);
 
-      elt.append('&nbsp;}');
+      elt.append(fieldSep + '}');
 
       break;
 
@@ -522,7 +550,7 @@ function renderFields(elt, fields) {
     renderSymbolicString(s, fields[i]);
 
     if (i !== fields.length - 1) {
-      $('<span></span>').addClass('field-separator').append('&nbsp;').appendTo(elt);
+      $('<span></span>').addClass('field-separator').append(fieldSep).appendTo(elt);
     }
   }
 };
@@ -538,7 +566,7 @@ function renderExpandedWord(elt, w) {
     case 'UsrF':
       // | UsrF -> obj "UsrF"
 
-      elt.append('&nbsp;');
+      elt.append(fieldSep);
 
       break;
 
@@ -855,7 +883,7 @@ function renderEntry(elt, entry) {
     case 'F':
       // | F -> obj "F"
 
-      elt.append('&nbsp;');
+      elt.append(fieldSep);
 
       break;
 
@@ -877,9 +905,9 @@ function renderWords(elt, words) {
 
   elt.addClass('words');
 
-  for (let i = 0; i < words.length; i += 1) {
+  for (const e of words) {
     let entry = $('<span></span>').appendTo(elt);
-    renderEntry(entry, words[i]);
+    renderEntry(entry, e);
   }
 };
 
@@ -983,6 +1011,12 @@ function renderStep(elt, step) {
   renderEnv(env, step['env']);
 };
 
+/**
+ * Handle expansion: makes the AJAX request for expansion and calls
+ * the various rendering functions.
+ *
+ * By default, it will clear any existing expansion.
+ */
 // Submit the expansion form
 $('#expansionForm').submit(function(e) {
   var url = '/expand/submit';
@@ -1026,6 +1060,9 @@ $('#expansionForm').submit(function(e) {
   e.preventDefault();
 });
 
+/**
+ * Clears any existing expansion.
+ */
 $('#clear').click(function (e) {
   $('#submit-result').empty();
 });
