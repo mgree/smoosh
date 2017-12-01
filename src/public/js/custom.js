@@ -167,7 +167,7 @@ function stmtBinary(elt, name, sym, stmt) {
 function renderStmt(elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got %o', stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
-  console.assert(['Command', 'Pipe', 'Redir', 'Background', 'Subshell',
+  console.assert(['Command', 'CommandExp', 'Pipe', 'Redir', 'Background', 'Subshell',
                   'And', 'Or', 'Not', 'Semi', 'If', 
                   'While', 'For', 'Case', 'Defun'].includes(stmt['tag']), 
                  'got weird statement tag %s', stmt['tag']);
@@ -205,6 +205,51 @@ function renderStmt(elt, stmt) {
       // if we have following redirs, then put a space in
       if (stmt['rs'].length !== 0) {
         args.append(fieldSep);
+      }
+
+      stmtRedirs(elt, 'simple', stmt);
+
+      break;
+
+    case 'CommandExp':
+      // | CommandExp (assigns, args, rs) -> 
+      //    Assoc [tag "CommandExp"; 
+      //           ("assigns", List (List.map json_of_inprogress_assign assigns));
+      //           ("args", json_of_inprogress_words args);
+      //           ("rs", json_of_redirs rs)]
+
+      const assignsExp = $('<span></span>').addClass('simple-assigns').appendTo(elt);
+      for (const assign of stmt['assigns']) {
+        const a = $('<span></span>').addClass('assign').appendTo(assignsExp);
+        $('<span></span>').addClass('variable').append(assign['var']).appendTo(a);
+        
+        a.append('=');
+        
+        const v = $('<span></span>').addClass('variable').appendTo(a);
+
+        const vF = $('<span></span>').appendTo(v);
+        renderFields(vF, assign['f']);
+
+        const vW = $('<span></span>').appendTo(v);
+        renderWords(vW, assign['w']);
+      }
+    
+      // if we had an assignment and also have args or redirects, then put a space in
+      if (stmt['assigns'].length !== 0 && 
+          (stmt['args'].length !== 0 || stmt['rs'].length !== 0)) {
+        assignsExp.append(fieldSep);
+      }
+    
+      const argsExp = $('<span></span>').addClass('simple-args').appendTo(elt);
+      const argsF = $('<span></span>').appendTo(v);
+      renderFields(vF, stmt['args']['f']);
+
+      const argsW = $('<span></span>').appendTo(v);
+      renderWords(vW, stmt['args']['w']);
+
+      // if we have following redirs, then put a space in
+      if (stmt['rs'].length !== 0) {
+        argsExp.append(fieldSep);
       }
 
       stmtRedirs(elt, 'simple', stmt);
