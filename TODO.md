@@ -22,12 +22,13 @@ Should we write a custom parser?
 JS/webpage
   + run expander in a chroot jail
   + use syntax highlighting in editor window
+  + fancier output
     - favicon
-    - fancier output
     - legend on the side, more color-coding
     - step details (string that comes with each step)
     - cleaner handling of environment, etc.
     - presets
+  + use a JS contracts/types library 
   + error handling
   + mkdir for submissions
   + docker container, provision shell.cs.pomona.edu
