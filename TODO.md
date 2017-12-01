@@ -20,13 +20,17 @@ Should we write a custom parser?
 ### Expander tool
 
 JS/webpage
-  run expander in a chroot jail
-  use syntax highlighting in editor window
-    fancier output
-    cleaner handling of environment, etc.
-    presets
-  error handling
-  mkdir for submissions
+  + run expander in a chroot jail
+  + use syntax highlighting in editor window
+    - favicon
+    - fancier output
+    - legend on the side, more color-coding
+    - step details (string that comes with each step)
+    - cleaner handling of environment, etc.
+    - presets
+  + error handling
+  + mkdir for submissions
+  + docker container, provision shell.cs.pomona.edu
 CLI
 
 have both read the JSON output
