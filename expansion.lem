@@ -12,9 +12,6 @@ type quoting_mode =
     Unquoted
   | Quoted
 
-  (* Left is what has been parsed, right is unparsed *)
-type expansion_state = words * words
-
 (*
  * Stage 1 Expansion: Word expansion
  *)

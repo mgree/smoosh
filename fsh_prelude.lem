@@ -123,6 +123,24 @@ type expansion_step =
   | ESStep of string
   | ESNested of expansion_step * expansion_step
 
+type evaluation_step =
+    XSSimple of string
+  | XSPipe of string
+  | XSRedir of string
+  | XSBackground of string
+  | XSSubshell of string
+  | XSAnd of string
+  | XSOr of string
+  | XSNot of string
+  | XSSemi of string
+  | XSIf of string
+  | XSWhile of string
+  | XSFor of string
+  | XSCase of string
+  | XSDefun of string
+  | XSNested of evaluation_step * evaluation_step
+  | XSExpand of evaluation_step * expansion_step
+
 (**********************************************************************)
 (* SYMBOLIC STRINGS ***************************************************)
 (**********************************************************************)

@@ -14,3 +14,4 @@ _build
 pattern.ml
 locale.ml
 fsh.ml
+evaluation.ml
