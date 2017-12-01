@@ -85,6 +85,7 @@ type state = ty_os_state *
 
 let finish_expansion (os0 : ty_os_state) (f0 : expanded_words) : fields = quote_removal os0 (pathname_expansion os0 (field_splitting os0 f0))
 
+(* TODO 2017-12-01 move this logic into expansion.lem *)
 let rec step_expansion ((os0,s0) : state) : state =
   match s0 with
   | `Start w0 -> 

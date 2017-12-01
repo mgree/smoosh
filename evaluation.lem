@@ -24,6 +24,11 @@ let rec eval_step s0 stmt =
         check on the assigns... if not all in fields, work there
         then check on commands
 
+        CRITICAL QUESTION: how do we handle splitting, quote removal, etc.?
+
+          they're just functions now, but they're steps we need to take exactly once
+          and at a particular point in time
+
         if EVERYTHING is expanded, 
           perform assignments
           setup redirect
