@@ -39,6 +39,13 @@ let rec string_of_stmt c =
      (if List.length assigns = 0 || List.length cmds = 0 then "" else " ") ^
      string_of_words cmds ^
      string_of_redirs redirs
+  | CommandExp assigns cmds redirs ->
+     concat " " (List.map string_of_inprogress_assign assigns) ^
+     (if List.length assigns = 0 || 
+         List.length (fst cmds) + List.length (snd cmds) = 0 then "" else " ") ^
+     string_of_inprogress_words cmds ^
+     string_of_redirs redirs
+  
   | Pipe bg cmds ->
      let p = concat " | " (List.map string_of_stmt cmds) in
      if bg then background p else p
@@ -70,6 +77,8 @@ let rec string_of_stmt c =
   end
 
 and string_of_assign (v,a) = v ^ "=" ^ string_of_words a
+
+and string_of_inprogress_assign (v,f,a) = v ^ "=" ^ fields_to_string f ^ string_of_words a
 
 and string_of_if c t e =
   "if " ^ string_of_stmt c ^
@@ -104,6 +113,7 @@ and string_of_redirs rs =
   (if List.length ss > 0 then " " else "") ^ concat " " ss
 
 and string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
+and string_of_inprogress_words (f,w) = fields_to_string f ^ string_of_words w
 and string_of_entry e =
   match e with
   | S str -> "S(" ^ str ^ ")"

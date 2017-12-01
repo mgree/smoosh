@@ -9,7 +9,27 @@ val eval_step : ty_os_state -> stmt ->
                        (evaluation_step * ty_os_state * stmt) (* success *)
 let rec eval_step s0 stmt =
   match stmt with
-  | Command _assigns _ws _redirs -> Left (XSSimple "TODO", s0)
+  | Command assigns ws redirs -> 
+     Right (XSSimple "begin expansion", 
+            s0,
+            CommandExp (map (fun (x,w) -> (x,[],w)) assigns)
+                       ([],ws)
+                       redirs)
+  | CommandExp _assigns _ws _redirs ->
+     (* TODO 2017-12-01
+        evaluate each of ws step by step 
+
+        need to _carefully_ keep track of expansion status and splitting, etc.
+
+        check on the assigns... if not all in fields, work there
+        then check on commands
+
+        if EVERYTHING is expanded, 
+          perform assignments
+          setup redirect
+          run command
+      *)
+     Left (XSSimple "TODO", s0)
   | Pipe _bg _stmts -> Left (XSPipe "TODO", s0)
   | Redir _stmt' _redirs -> Left (XSRedir "TODO", s0)
   | Background _stmt' _redirs -> Left (XSBackground "TODO", s0)

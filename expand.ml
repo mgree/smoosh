@@ -118,6 +118,7 @@ let trace_expansion (init : state) : state list =
              loop st1 (st0::acc)
   in loop init []
 
+(* TODO 2017-12-01 use eval_step instead of these two functions *)
 let trace_command os = function
   | Command ([],ws,[]) -> trace_expansion (os, `Start ws)
   | _ -> failwith "unsupported command type (don't use keywords, etc.)"

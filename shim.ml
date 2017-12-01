@@ -310,6 +310,11 @@ let rec json_of_stmt = function
             ("assigns", List (List.map json_of_assign assigns));
             ("args", json_of_words args);
             ("rs", json_of_redirs rs)]
+  | CommandExp (assigns, args, rs) -> 
+     Assoc [tag "CommandExp"; 
+            ("assigns", List (List.map json_of_inprogress_assign assigns));
+            ("args", json_of_inprogress_words args);
+            ("rs", json_of_redirs rs)]
   | Pipe (bg, cs) -> 
      Assoc [tag "Pipe"; ("bg", Bool bg); ("cs", List (List.map json_of_stmt cs))]
   | Redir (c, rs) -> obj_crs "Redir" c rs
@@ -355,8 +360,11 @@ and json_of_heredoc_type = function
   | XHere -> String "XHere"
 and json_of_redirs rs = List (List.map json_of_redir rs)
 and json_of_assign (x, w) = Assoc [("var", String x); ("w", json_of_words w)]
+and json_of_inprogress_assign (x, f, w) = Assoc [("var", String x); ("f", json_of_fields f); ("w", json_of_words w)]
 and json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
 and json_of_words w = List (List.map json_of_entry w)
+and json_of_inprogress_words (f,w) = Assoc [("f", json_of_fields f); 
+                                            ("w", List (List.map json_of_entry w))]
 and json_of_entry = function
   | S s -> obj_v "S" s
   | K k -> Assoc [tag "K"; ("v", json_of_control k)]
