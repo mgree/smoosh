@@ -167,7 +167,8 @@ function stmtBinary(elt, name, sym, stmt) {
 function renderStmt(elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got %o', stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
-  console.assert(['Command', 'CommandExp', 'Pipe', 'Redir', 'Background', 'Subshell',
+  console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded'
+                  'Pipe', 'Redir', 'Background', 'Subshell',
                   'And', 'Or', 'Not', 'Semi', 'If', 
                   'While', 'For', 'Case', 'Defun'].includes(stmt['tag']), 
                  'got weird statement tag %s', stmt['tag']);
@@ -211,13 +212,18 @@ function renderStmt(elt, stmt) {
 
       break;
 
-    case 'CommandExp':
+    case 'CommandExpAssign':
+    case 'CommandExpArgs':
+    case 'CommandExpanded':
       // | CommandExp (assigns, args, rs) -> 
       //    Assoc [tag "CommandExp"; 
       //           ("assigns", List (List.map json_of_inprogress_assign assigns));
       //           ("args", json_of_inprogress_words args);
       //           ("rs", json_of_redirs rs)]
 
+    elt.append('TODO sorry');
+
+    /*
       const assignsExp = $('<span></span>').addClass('simple-assigns').appendTo(elt);
       for (const assign of stmt['assigns']) {
         const a = $('<span></span>').addClass('assign').appendTo(assignsExp);
@@ -253,7 +259,7 @@ function renderStmt(elt, stmt) {
       }
 
       stmtRedirs(elt, 'simple', stmt);
-
+    */
       break;
 
     case 'Pipe':
