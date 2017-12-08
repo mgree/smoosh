@@ -468,7 +468,16 @@ and json_of_expansion_state = function
   | ExpExpand (f, w) -> obj_fw "ExpExpand" f w
   | ExpSplit f -> obj_f "ExpSplit" f
   | ExpPath ifs -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
-  | ExpQuote ifs -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
+  | ExpQuote ifs -> Assoc [tag "ExpQuote"; ("ifs", json_of_intermediate_fields ifs)]
   | ExpError f -> Assoc [tag "ExpError"; ("msg", json_of_fields f)]
   | ExpDone fs -> Assoc [tag "ExpDone"; ("f", json_of_fields fs)]
 
+and json_of_expansion_trace_entry (os, state, step) =
+  Assoc [("env", json_of_env os.sh.env);
+         ("term", json_of_expansion_state state);
+         ("step", json_of_expansion_step step)]
+
+and json_of_trace t = List (List.map json_of_expansion_trace_entry t)
+
+and json_of_env (env:(string, symbolic_string) Pmap.map) : json =
+  Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))

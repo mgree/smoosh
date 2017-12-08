@@ -73,89 +73,27 @@ let parse_args () =
     "Final argument should be either a filename or - (for STDIN); only the last such argument is used"
 
 (**********************************************************************)
-(* TRACING ************************************************************)
-(**********************************************************************)
-
-type state = ty_os_state * 
-             [ `Start of words 
-             | `Expand of expansion_step * expanded_words * words 
-             | `Split of expansion_step * expanded_words 
-             | `Error of expansion_step * fields
-             | `Done of fields]
-
-let finish_expansion (os0 : ty_os_state) (f0 : expanded_words) : fields = quote_removal os0 (pathname_expansion os0 (field_splitting os0 f0))
-
-(* TODO 2017-12-01 move this logic into expansion.lem *)
-let rec step_expansion ((os0,s0) : state) : state =
-  match s0 with
-  | `Start w0 -> 
-     begin
-       match expand_words os0 Unquoted UserString ([],w0) with
-       | Right (step, os1, f1, w1) -> (os1, `Expand (step, f1, w1))
-       | Left (step, os1, f1) -> (os1, `Error (step, finish_expansion os1 f1))
-     end
-  | `Expand (_, f0,w0) ->
-     begin
-       match expand_words os0 Unquoted UserString (f0,w0) with
-       | Right (step, os1, f1, w1) ->
-          begin 
-            match w1 with
-            | [] -> (os1, `Split (step, f1))
-            | _ ->  (os1, `Expand (step, f1, w1))
-          end
-       | Left (step, os1, f1) -> (os1, `Error (step, finish_expansion os1 f1)) (* WRONG: don't finish normal expansion *)
-     end
-  | `Split (_, f0) ->
-     (os0, `Done (finish_expansion os0 f0))
-  | `Error _ -> (os0, s0)
-  | `Done _ -> (os0,s0)
-
-let trace_expansion (init : state) : state list =
-  let rec loop (st0 : state) (acc : state list) : state list =
-    match st0 with
-    | (_, `Error _) -> List.rev (st0::acc)
-    | (_, `Done _) -> List.rev (st0::acc)
-    | _ -> let st1 = step_expansion st0 in
-             loop st1 (st0::acc)
-  in loop init []
-
-(* TODO 2017-12-01 use eval_step instead of these two functions *)
-let trace_command os = function
-  | Command ([],ws,[]) -> trace_expansion (os, `Start ws)
-  | _ -> failwith "unsupported command type (don't use keywords, etc.)"
-
-let rec trace_commands os = function
-  | [] -> [(os, `Done [])]
-  | [c] -> trace_command os c
-  | c::cs -> 
-     let tc = trace_command os c in
-     let (os',_) = List.hd (List.rev tc) in
-     let tcs = trace_commands os' cs in
-     tc @ tcs
-
-(**********************************************************************)
 (* OUTPUT *************************************************************)
 (**********************************************************************)
 
-(* TODO: 2017-12-01 pass step through to json *)
-let json_of_state_term = function
-  | `Start w -> obj_w "Start" w
-  | `Expand (step, f, w) -> obj_fw "Expand" f w
-  | `Split (step, f) -> obj_f "Split" f
-  | `Error (step, f) -> Assoc [tag "Error"; ("msg", json_of_fields f)]
-  | `Done fs -> Assoc [tag "Done"; ("f", json_of_fields fs)]
+(* TODO 2017-12-08 use eval_step instead of these two functions *)
+let trace_command os = function
+  | Command ([],ws,[]) -> trace_expansion os ws
+  | _ -> failwith "unsupported command type (don't use keywords, etc.)"
 
-let json_of_env (env:(string, symbolic_string) Pmap.map) : json =
-  Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))
-
-let json_of_state ((os,tm):state) : json =
-  Assoc [("env", json_of_env os.sh.env); ("term", json_of_state_term tm)]
+let rec trace_commands os = function
+  | [] -> [(os, ExpDone [],ESStep "")]
+  | [c] -> trace_command os c
+  | c::cs -> 
+     let tc = trace_command os c in
+     let (os',_,_) = List.hd (List.rev tc) in
+     let tcs = trace_commands os' cs in
+     tc @ tcs
 
 let show_trace trace =
-  let tracej = List.map json_of_state trace in
-  let out = Buffer.create (List.length tracej * 100) in
+  let out = Buffer.create (List.length trace * 250) in
   begin
-    write_json out (List tracej);
+    write_json out (json_of_trace trace);
     Buffer.output_buffer stdout out
   end
 

@@ -386,15 +386,19 @@ let step_expansion (os0,st) =
   | ExpDone _ -> (os0, st, ESStep "done in success state")
   end
 
-val trace_expansion : ty_os_state * expansion_state -> list (ty_os_state * expansion_state * expansion_step)
-let rec trace_expansion (os0,st0) =
+val run_trace_expansion : ty_os_state * expansion_state -> list (ty_os_state * expansion_state * expansion_step)
+let rec run_trace_expansion (os0,st0) =
   match st0 with
   | ExpError _ -> []
   | ExpDone _ -> []
   | _ -> 
      let (os1,st1,step) = step_expansion (os0,st0) in
-     (os1,st1,step)::trace_expansion (os1,st1)
+     (os1,st1,step)::run_trace_expansion (os1,st1)
   end
+
+val trace_expansion : ty_os_state -> words -> list (ty_os_state * expansion_state * expansion_step)
+let trace_expansion os0 w0 = 
+  (os0,ExpStart w0, ESStep "")::run_trace_expansion (os0, ExpStart w0)
 
 (* function for testing final expansion results (used in
    test_expansion.ml)
@@ -405,7 +409,7 @@ let rec trace_expansion (os0,st0) =
  *)
 val full_expansion : ty_os_state -> words -> ty_os_state * fields
 let full_expansion s0 w0 =
-  let (s1,f1,_) = last (trace_expansion (s0, ExpStart w0)) in
+  let (s1,f1,_) = last (trace_expansion s0 w0) in
   match f1 with
   | ExpError f -> (s1, f)
   | ExpDone f -> (s1, f)
