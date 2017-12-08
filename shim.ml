@@ -321,7 +321,7 @@ let rec json_of_stmt = function
             ("args", json_of_inprogress_words args);
             ("rs", json_of_redirs rs)]
   | CommandExpanded (assigns, args, rs) -> 
-     Assoc [tag "CommandExpArgs"; 
+     Assoc [tag "CommandExpanded"; 
             ("assigns", List (List.map json_of_expanded_assign assigns));
             ("args", json_of_fields args);
             ("rs", json_of_redirs rs)]

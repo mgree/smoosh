@@ -28,7 +28,23 @@ let rec eval_step s0 stmt =
       *)
      Left (XSSimple "TODO", s0)
   | CommandExpArgs _assigns _ws _redirs ->
-     (* assigns are done, check on args *)
+     (* assigns are done, check on args 
+
+extremely subtle behavior with errors in expansion:
+
+$ count() { echo $# ; }
+$ count $(echo ${x?one two three})
+/Users/mgree/fsh/dash/src/dash: 2: x: one two three
+0
+$ count $(echo ${x?one two three} four)
+/Users/mgree/fsh/dash/src/dash: 3: x: one two three
+0
+$ count $(echo ${x?one two three}) four
+/Users/mgree/fsh/dash/src/dash: 4: x: one two three
+1
+$ count $(${x? one two three}) four
+/Users/mgree/fsh/dash/src/dash: 5: x:  one two three
+      *)
      Left (XSSimple "TODO", s0)
   | CommandExpanded _assigns _ws _redirs ->
      (* TODO

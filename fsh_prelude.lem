@@ -304,6 +304,20 @@ let rec fields_to_string fs =
   | f::fs' -> symbolic_string_to_string f ^ "<<FB>>" ^ fields_to_string fs'
   end
 
+val concat_expanded : expanded_words -> symbolic_string
+let rec concat_expanded w =
+  match w with
+  | [] -> stringToSymbolicString ""
+  | UsrF::ws -> stringToSymbolicString " " ++ concat_expanded ws
+  | ExpS s::ws -> stringToSymbolicString s ++ concat_expanded ws
+  | DQuo s::ws -> stringToSymbolicString s ++ concat_expanded ws
+  | EWSym sym::ws -> Sym sym::concat_expanded ws
+  | UsrS _::_ -> stringToSymbolicString "TODO: broken invariant"
+  end
+
+val fields_of_expanded_words : expanded_words -> fields
+let fields_of_expanded_words w = [concat_expanded w]
+
 (**********************************************************************)
 (* LOCALES ************************************************************)
 (**********************************************************************)

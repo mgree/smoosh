@@ -163,20 +163,21 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("Shortest prefix bracket [[.a.]-[.z.]]", os_var_x_foofoobarbar,
      [K (Param("x", Substring (Prefix, Shortest, [S "[[.a.]-[.z.]]"])))], concrete ["oofoobarbar"]);
 
+    (* slightly unfaithful: we're not tracking errors at all in our expansion tests, just results  *)
     ("Error unset", os_empty,
-     [K (Param("x", Error [S "uhoh"]))], concrete ["x:";"uhoh"]);
+     [K (Param("x", Error [S "uhoh"]))], concrete ["x: uhoh"]);
     ("NError unset", os_empty,
-     [K (Param("x", NError [S "uhoh"]))], concrete ["x:";"uhoh"]);
+     [K (Param("x", NError [S "uhoh"]))], concrete ["x: uhoh"]);
 
     ("Error null", os_var_x_null,
      [K (Param("x", Error [S "uhoh"]))], concrete []);
     ("NError null", os_var_x_null,
-     [K (Param("x", NError [S "uhoh"]))], concrete ["x:";"uhoh"]);
+     [K (Param("x", NError [S "uhoh"]))], concrete ["x: uhoh"]);
 
     ("Error nested arith", os_empty,
-     [K (Param("x", Error [K (Arith ([], [S "1+1"]))]))], concrete ["x:";"2"]);
+     [K (Param("x", Error [K (Arith ([], [S "1+1"]))]))], concrete ["x: 2"]);
     ("NError nested arith", os_empty,
-     [K (Param("x", Error [K (Arith ([], [S "1+1"]))]))], concrete ["x:";"2"]);
+     [K (Param("x", Error [K (Arith ([], [S "1+1"]))]))], concrete ["x: 2"]);
 
     ("Concrete prefix", os_var_x_foocommand,
      [K (Param("x", Substring (Prefix, Shortest, [S "f"])))], [[C 'o'; C 'o'; symcommand]]);

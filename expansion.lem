@@ -24,17 +24,6 @@ val expand_words : ty_os_state -> quoting_mode -> string_mode -> (expanded_words
 (* Runs expansion all the way, for testing purposes only *)
 val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
 
-val concat_expanded : expanded_words -> symbolic_string
-let rec concat_expanded w =
-  match w with
-  | [] -> stringToSymbolicString ""
-  | UsrF::ws -> stringToSymbolicString " " ++ concat_expanded ws
-  | ExpS s::ws -> stringToSymbolicString s ++ concat_expanded ws
-  | DQuo s::ws -> stringToSymbolicString s ++ concat_expanded ws
-  | EWSym sym::ws -> Sym sym::concat_expanded ws
-  | UsrS _::_ -> stringToSymbolicString "TODO: broken invariant"
-  end
-
 let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
   let sympat : symbolic_string = (concat_expanded pat) in
   let symstr : symbolic_string = toSymbolicCharList str in
@@ -368,15 +357,57 @@ let quote_removal _s0 f =
   let no_quotes = combine_fields (remove_quotes f) in
   finalize_fields no_quotes
 
-(*
- * Run a full expansion on the given words
+(**********************************************************************)
+(* EXPANSION TRANSITIONS **********************************************)
+(**********************************************************************)
+
+val step_expansion : ty_os_state * expansion_state -> ty_os_state * expansion_state * expansion_step
+let step_expansion (os0,st) =
+  match st with
+  | ExpStart w0 -> 
+     match expand_words os0 Unquoted UserString ([],w0) with
+     | Right (step, os1, f1, w1) -> (os1, ExpExpand f1 w1, step)
+     | Left (step, os1, f1) -> (os1, ExpError (fields_of_expanded_words f1), step)
+     end
+  | ExpExpand f0 w0 -> 
+     match expand_words os0 Unquoted UserString (f0,w0) with
+     | Right (step, os1, f1, w1) ->
+        match w1 with
+        | [] -> (os1, ExpSplit f1, step)
+        | _ ->  (os1, ExpExpand f1 w1, step)
+        end
+     | Left (step, os1, f1) -> (os1, ExpError (fields_of_expanded_words f1), step)
+     end
+  | ExpSplit f0 -> (os0, ExpPath (field_splitting os0 f0), ESSplit "")
+  | ExpPath ifs0 -> (os0, ExpQuote (pathname_expansion os0 ifs0), ESPath "")
+  | ExpQuote ifs0 -> (os0, ExpDone (quote_removal os0 ifs0), ESQuote "")
+  (* the following cases should never occur in calls from trace_expansion: *)
+  | ExpError _ -> (os0, st, ESStep "done in error state")
+  | ExpDone _ -> (os0, st, ESStep "done in success state")
+  end
+
+val trace_expansion : ty_os_state * expansion_state -> list (ty_os_state * expansion_state * expansion_step)
+let rec trace_expansion (os0,st0) =
+  match st0 with
+  | ExpError _ -> []
+  | ExpDone _ -> []
+  | _ -> 
+     let (os1,st1,step) = step_expansion (os0,st0) in
+     (os1,st1,step)::trace_expansion (os1,st1)
+  end
+
+(* function for testing final expansion results (used in
+   test_expansion.ml)
+
+   this function is a little unfaithful to the expansion semantics
+   because we're not keeping track of whether the result was a message
+   printed to stderr or the actual result of expansion
  *)
-
 val full_expansion : ty_os_state -> words -> ty_os_state * fields
-let full_expansion s0 w_in =
-  let (s1, f1_out) = control_code_expansion s0 Unquoted w_in in
-  let f2_out = field_splitting s1 f1_out in
-  let f3_out = pathname_expansion s1 f2_out in
-  let f4_out = quote_removal s1 f3_out in
-  (s1, f4_out)
-
+let full_expansion s0 w0 =
+  let (s1,f1,_) = last (trace_expansion (s0, ExpStart w0)) in
+  match f1 with
+  | ExpError f -> (s1, f)
+  | ExpDone f -> (s1, f)
+  | _ -> (s1, [stringToSymbolicString "!!! broken invariant"])
+  end
