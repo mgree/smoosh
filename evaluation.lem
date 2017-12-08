@@ -10,29 +10,32 @@ val eval_step : ty_os_state -> stmt ->
 let rec eval_step s0 stmt =
   match stmt with
   | Command assigns ws redirs -> 
+     Left (XSSimple "TODO", s0)
+     (* TODO 2017-12-08 not quite right
      Right (XSSimple "begin expansion", 
             s0,
-            CommandExp (map (fun (x,w) -> (x,[],w)) assigns)
-                       ([],ws)
-                       redirs)
-  | CommandExp _assigns _ws _redirs ->
+            CommandExpAssign 
+              (map (fun (x,w) -> (x,[],w)) assigns)
+              ([],ws)
+              redirs) *)
+  | CommandExpAssign _assigns _ws _redirs ->
      (* TODO 2017-12-01
         evaluate each of ws step by step 
 
         need to _carefully_ keep track of expansion status and splitting, etc.
 
         check on the assigns... if not all in fields, work there
-        then check on commands
-
-        CRITICAL QUESTION: how do we handle splitting, quote removal, etc.?
-
-          they're just functions now, but they're steps we need to take exactly once
-          and at a particular point in time
-
-        if EVERYTHING is expanded, 
-          perform assignments
-          setup redirect
-          run command
+      *)
+     Left (XSSimple "TODO", s0)
+  | CommandExpArgs _assigns _ws _redirs ->
+     (* assigns are done, check on args *)
+     Left (XSSimple "TODO", s0)
+  | CommandExpanded _assigns _ws _redirs ->
+     (* TODO
+          EVERYTHING is expanded, 
+            perform assignments
+            setup redirect
+            run command
       *)
      Left (XSSimple "TODO", s0)
   | Pipe _bg _stmts -> Left (XSPipe "TODO", s0)

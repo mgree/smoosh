@@ -310,10 +310,20 @@ let rec json_of_stmt = function
             ("assigns", List (List.map json_of_assign assigns));
             ("args", json_of_words args);
             ("rs", json_of_redirs rs)]
-  | CommandExp (assigns, args, rs) -> 
-     Assoc [tag "CommandExp"; 
+  | CommandExpAssign (assigns, args, rs) -> 
+     Assoc [tag "CommandExpAssign"; 
             ("assigns", List (List.map json_of_inprogress_assign assigns));
+            ("args", json_of_words args);
+            ("rs", json_of_redirs rs)]
+  | CommandExpArgs (assigns, args, rs) ->
+     Assoc [tag "CommandExpArgs"; 
+            ("assigns", List (List.map json_of_expanded_assign assigns));
             ("args", json_of_inprogress_words args);
+            ("rs", json_of_redirs rs)]
+  | CommandExpanded (assigns, args, rs) -> 
+     Assoc [tag "CommandExpArgs"; 
+            ("assigns", List (List.map json_of_expanded_assign assigns));
+            ("args", json_of_fields args);
             ("rs", json_of_redirs rs)]
   | Pipe (bg, cs) -> 
      Assoc [tag "Pipe"; ("bg", Bool bg); ("cs", List (List.map json_of_stmt cs))]
@@ -360,11 +370,13 @@ and json_of_heredoc_type = function
   | XHere -> String "XHere"
 and json_of_redirs rs = List (List.map json_of_redir rs)
 and json_of_assign (x, w) = Assoc [("var", String x); ("w", json_of_words w)]
-and json_of_inprogress_assign (x, f, w) = Assoc [("var", String x); ("f", json_of_fields f); ("w", json_of_words w)]
+and json_of_inprogress_assign (x, f, state, w) = Assoc [("var", String x); ("f", json_of_fields f); ("state", json_of_expansion_state state); ("w", json_of_words w)]
+and json_of_expanded_assign (x, f) = Assoc [("var", String x); ("f", json_of_fields f)]
 and json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
 and json_of_words w = List (List.map json_of_entry w)
-and json_of_inprogress_words (f,w) = Assoc [("f", json_of_fields f); 
-                                            ("w", List (List.map json_of_entry w))]
+and json_of_inprogress_words (f,state,w) = Assoc [("f", json_of_fields f); 
+                                                  ("state", json_of_expansion_state state);
+                                                  ("w", List (List.map json_of_entry w))]
 and json_of_entry = function
   | S s -> obj_v "S" s
   | K k -> Assoc [tag "K"; ("v", json_of_control k)]
@@ -429,12 +441,18 @@ and list_of_symbolic_string = function
      let (cs, s') = maximal_char_list s in
      String (implode cs)::list_of_symbolic_string s'
   | Sym sym::s' -> json_of_symbolic sym::list_of_symbolic_string s'
-  
+and json_of_tmp_field = function
+  | WFS -> Assoc [tag "WFS"]
+  | FS -> Assoc [tag "FS"]
+  | Field s -> Assoc [tag "Field"; ("s", json_of_symbolic_string s)]
+  | QField s -> Assoc [tag "QField"; ("s", json_of_symbolic_string s)]
+and json_of_intermediate_fields fs = List (List.map json_of_tmp_field fs)
+
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
 and obj_f name f = Assoc [tag name; ("f", json_of_expanded_words f)]
 and obj_fw name f w = Assoc [tag name; ("f", json_of_expanded_words f); ("w", json_of_words w)]
 
-let rec json_of_expansion_step = function
+and json_of_expansion_step = function
   | ESTilde s -> Assoc [tag "ESTilde"; ("msg", String s)]
   | ESParam s -> Assoc [tag "ESParam"; ("msg", String s)]
   | ESCommand s -> Assoc [tag "ESCommand"; ("msg", String s)]
@@ -444,3 +462,13 @@ let rec json_of_expansion_step = function
   | ESQuote s -> Assoc [tag "ESQuote"; ("msg", String s)]
   | ESStep s -> Assoc [tag "ESStep"; ("msg", String s)]
   | ESNested (outer, inner) -> Assoc [tag "ESNested"; ("inner", json_of_expansion_step inner); ("outer", json_of_expansion_step outer)]
+
+and json_of_expansion_state = function
+  | ExpStart w -> obj_w "ExpStart" w
+  | ExpExpand (f, w) -> obj_fw "ExpExpand" f w
+  | ExpSplit f -> obj_f "ExpSplit" f
+  | ExpPath ifs -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
+  | ExpQuote ifs -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
+  | ExpError f -> Assoc [tag "ExpError"; ("msg", json_of_fields f)]
+  | ExpDone fs -> Assoc [tag "ExpDone"; ("f", json_of_fields fs)]
+

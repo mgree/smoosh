@@ -66,7 +66,9 @@ and words = list entry
 
 and stmt = 
     Command of list (string * words) * words * list redir
-  | CommandExp of list (string * fields * words) * (fields * words) * list redir
+  | CommandExpAssign of list (string * fields * expansion_state * words) * words * list redir
+  | CommandExpArgs of list (string * fields) * (fields * expansion_state * words) * list redir
+  | CommandExpanded of list (string * fields) * fields * list redir
   | Pipe of bool (* bg? *) * list stmt
   | Redir of stmt * list redir
   | Background of stmt * list redir
@@ -113,7 +115,25 @@ and symbolic_string = list symbolic_char
 
 and fields = list (symbolic_string)
 
-type expansion_step =
+and tmp_field =
+    WFS
+  | FS
+  | Field of symbolic_string
+  | QField of symbolic_string
+
+and intermediate_fields = list tmp_field
+
+and expansion_state = 
+    (* the constructor name indicates the *next* step to perform *)
+    ExpStart of words
+  | ExpExpand of expanded_words * words 
+  | ExpSplit of expanded_words
+  | ExpPath of intermediate_fields
+  | ExpQuote of intermediate_fields
+  | ExpError of fields
+  | ExpDone of fields
+
+and expansion_step =
     ESTilde of string
   | ESParam of string
   | ESCommand of string
@@ -124,7 +144,7 @@ type expansion_step =
   | ESStep of string
   | ESNested of expansion_step * expansion_step
 
-type evaluation_step =
+and evaluation_step =
     XSSimple of string
   | XSPipe of string
   | XSRedir of string

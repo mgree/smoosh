@@ -103,7 +103,7 @@ let rec step_expansion ((os0,s0) : state) : state =
             | [] -> (os1, `Split (step, f1))
             | _ ->  (os1, `Expand (step, f1, w1))
           end
-       | Left (step, os1, f1) -> (os1, `Error (step, finish_expansion os1 f1))
+       | Left (step, os1, f1) -> (os1, `Error (step, finish_expansion os1 f1)) (* WRONG: don't finish normal expansion *)
      end
   | `Split (_, f0) ->
      (os0, `Done (finish_expansion os0 f0))
