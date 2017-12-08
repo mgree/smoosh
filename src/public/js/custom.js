@@ -59,6 +59,15 @@ const fileRedirSym = { 'To': '&gt;',
 const dupRedirSym = { 'ToFD': '&gt;&amp;',
                       'FromFD': '&lt;&amp;' }
 
+/* step names */
+const stepName = { 'ExpStart': 'Start',
+                   'ExpExpand': 'Control code expansion (tildes, variables, commands, arithmetic)',
+                   'ExpSplit': 'Field splitting',
+                   'ExpPath': 'Pathname expansion',
+                   'ExpQuote': 'Quote removal',
+                   'ExpError': 'Error',
+                   'ExpDone': 'Done' }
+
 function showUnless(def, actual) {
   return def === actual ? "" : String(actual);
 }
@@ -167,7 +176,7 @@ function stmtBinary(elt, name, sym, stmt) {
 function renderStmt(elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got %o', stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
-  console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded'
+  console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded',
                   'Pipe', 'Redir', 'Background', 'Subshell',
                   'And', 'Or', 'Not', 'Semi', 'If', 
                   'While', 'For', 'Case', 'Defun'].includes(stmt['tag']), 
@@ -592,7 +601,7 @@ function renderSymbolicString(elt, ss) {
   }
 };
 
-/* Fields and expanded words ******************************************/
+/* Fields, intermediate fields, and expanded words******************************/
 
 function renderFields(elt, fields) {
   console.assert(typeof fields === 'object', 'expected fields list, got %o', fields);
@@ -601,7 +610,7 @@ function renderFields(elt, fields) {
   elt.addClass('fields');
 
   for (let i = 0; i < fields.length; i += 1) {
-    let s = $('<span></span>').addClass('field').appendTo(elt);
+    const s = $('<span></span>').addClass('field').appendTo(elt);
     renderSymbolicString(s, fields[i]);
 
     if (i !== fields.length - 1) {
@@ -609,6 +618,62 @@ function renderFields(elt, fields) {
     }
   }
 };
+
+function renderTmpField(elt, tf) {
+  console.assert(typeof tf === 'object', 'expected temp field character, got %o', tf);
+  console.assert('tag' in tf, 'expected tag field in temp field character');
+  console.assert(['WFS','FS','Field','QField'].includes(tf['tag']));
+
+  elt.addClass('tmp-field');
+  elt.addClass('tmp-field-' + tf['tag']);
+  
+  switch (tf['tag']) {
+    case 'WFS':
+      // | WFS -> Assoc [tag "WFS"]
+      elt.append(fieldSep);
+
+      break;
+
+    case 'FS':
+      // | FS -> Assoc [tag "FS"]
+      elt.append(fieldSep);
+
+      break;
+
+    case 'Field':
+      // | Field s -> Assoc [tag "Field"; ("s", json_of_symbolic_string s)]
+
+      const f = $('<span></span>').appendTo(elt);
+      renderSymbolicString(f, tf['s']);
+
+      break;
+
+    case 'QField':
+      // | QField s -> Assoc [tag "QField"; ("s", json_of_symbolic_string s)]
+
+      const qf = $('<span></span>').appendTo(elt);
+      qf.append('&ldquo;');
+      renderSymbolicString(qf, tf['s']);
+      qf.append('&rdquo;');
+    
+      break;
+
+    default:
+      debugger;
+  }
+}
+
+function renderIntermediateFields(elt, ifs) {
+  console.assert(typeof ifs === 'object', 'expected intermediate field list, got %o', ifs);
+  console.assert('length' in ifs, 'expected length field for intermediate field list');
+  
+  elt.addClass('intermediate-fields');
+
+  for (const tmp_field of ifs) {
+    const tf = $('<span></span>').appendTo(elt);
+    renderTmpField(tf, tmp_field);
+  }
+}
 
 function renderExpandedWord(elt, w) {
   console.assert(typeof w === 'object', 'expected expanded word character, got %o', w);
@@ -973,21 +1038,23 @@ function renderWords(elt, words) {
 function renderTerm(elt, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('tag' in step, 'expected tag for step object');
-  console.assert(['Start','Expand','Split','Error','Done'].includes(step['tag']),
-                 'got weird step tag %s', step['tag']);
+  console.assert(['ExpStart',
+                  'ExpExpand','ExpSplit','ExpPath','ExpQuote',
+                  'ExpError','ExpDone'].includes(step['tag']),
+                 'got weird step tag %o', step['tag']);
 
   elt.addClass('step-' + step['tag']);
 
   let label = $('<div></div>').addClass('ui top left attached icon label').appendTo(elt);
   let icon = $('<i></i>').addClass('icon').appendTo(label);
-  label.append(step['tag']);
+  label.append(stepName[step['tag']]);
   
 
   let term = $('<div></div>').addClass('term').appendTo(elt);
 
   switch (step['tag']) {
-    case 'Start':
-      // | `Start w -> obj_w "Start" w     
+    case 'ExpStart':
+      // | ExpStart w -> obj_w "Start" w     
       icon.addClass('play');
 
       var w = $('<span></span>').appendTo(term);
@@ -995,8 +1062,8 @@ function renderTerm(elt, step) {
 
       break;
 
-    case 'Expand':
-      // | `Expand (step, f, w) -> obj_fw "Expand" f w
+    case 'ExpExpand':
+      // | ExpExpand (f, w) -> obj_fw "Expand" f w
       icon.addClass('expand');
 
       var f = $('<span></span>').appendTo(term);
@@ -1007,8 +1074,8 @@ function renderTerm(elt, step) {
 
       break;
 
-    case 'Split':
-      // | `Split (step, f) -> obj_f "Split" f
+    case 'ExpSplit':
+      // | ExpSplit (f) -> obj_f "Split" f
       icon.addClass('unlinkify');
 
       var f = $('<span></span>').appendTo(term);
@@ -1016,8 +1083,26 @@ function renderTerm(elt, step) {
 
       break;
 
-    case 'Error':
-      // | `Error (step, f) -> Assoc [tag "Error"; ("msg", json_of_fields f)]
+    case 'ExpPath':
+      // | ExpPath ifs -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
+      icon.addClass('disk outline');
+
+      var ifs = $('<span></span>').appendTo(term);
+      renderIntermediateFields(ifs, step['ifs']);
+
+      break;
+
+    case 'ExpQuote':
+      // | ExpQuote ifs -> Assoc [tag "ExpQuote"; ("ifs", json_of_intermediate_fields ifs)]
+      icon.addClass('quote right');
+
+      var ifs = $('<span></span>').appendTo(term);
+      renderIntermediateFields(ifs, step['ifs']);
+
+      break;
+
+    case 'ExpError':
+      // | ExpError (f) -> Assoc [tag "Error"; ("msg", json_of_fields f)]
       icon.addClass('warning circle');
 
       var f = $('<span></span>').appendTo(term);
@@ -1025,8 +1110,8 @@ function renderTerm(elt, step) {
 
       break;
 
-    case 'Done':
-      // | `Done fs -> Assoc [tag "Done"; ("f", json_of_fields fs)]
+    case 'ExpDone':
+      // | ExpDone fs -> Assoc [tag "Done"; ("f", json_of_fields fs)]
       icon.addClass('check circle outline');
 
       var f = $('<span></span>').appendTo(term);
@@ -1058,16 +1143,108 @@ function renderEnv(elt, env) {
   }
 };
 
+function stepMessage(msg) {
+  return msg === '' ? '' : ': ' + msg;
+}
+
+function renderExpansionStep(elt, step) {
+  console.assert(typeof step === 'object', 'expected step object, got %o', step);
+  console.assert('tag' in step, 'expected tag for step object');
+  console.assert(['ESTilde', 'ESParam', 'ESCommand', 'ESArith', 'ESSplit', 'ESPath',
+                  'ESQuote', 'ESStep', 'ESNested'].includes(step['tag']),
+                 'got weird step tag %o', step['tag']);
+
+  // TODO get me
+  switch (step['tag']) {
+    case 'ESTilde':
+      // | ESTilde s -> Assoc [tag "ESTilde"; ("msg", String s)]
+  
+      elt.append('Tilde expansion' + stepMessage(step['msg']));
+
+      break;
+
+    case 'ESParam':
+      // | ESParam s -> Assoc [tag "ESParam"; ("msg", String s)]
+
+      elt.append('Parameter expansion' + stepMessage(step['msg']));
+    
+      break;
+
+    case 'ESCommand':
+      // | ESCommand s -> Assoc [tag "ESCommand"; ("msg", String s)]
+
+      elt.append('Command substitution' + stepMessage(step['msg']));
+      
+      break;
+
+    case 'ESArith':
+      // | ESArith s -> Assoc [tag "ESArith"; ("msg", String s)]
+  
+      elt.append('Arithmetic expansion' + stepMessage(step['msg']));
+
+      break;
+
+    case 'ESSplit':
+      // | ESSplit s -> Assoc [tag "ESSplit"; ("msg", String s)]
+    
+      elt.append('Field splitting' + stepMessage(step['msg']));
+
+      break;
+
+    case 'ESPath':
+      // | ESPath s -> Assoc [tag "ESPath"; ("msg", String s)]
+      
+      elt.append('Pathname expansion' + stepMessage(step['msg']));
+
+      break;
+
+    case 'ESQuote':
+      // | ESQuote s -> Assoc [tag "ESQuote"; ("msg", String s)]
+  
+      elt.append('Quote removal' + stepMessage(step['msg']));
+
+      break;
+
+    case 'ESStep':
+      // | ESStep s -> Assoc [tag "ESStep"; ("msg", String s)]
+
+      if (step['msg'] !== '') {
+        elt.append('Expansion step' + stepMessage(step['msg']));
+      }
+
+      break;
+
+    case 'ESNested':
+      // | ESNested (outer, inner) -> Assoc [tag "ESNested"; ("inner", json_of_expansion_step inner); ("outer", json_of_expansion_step outer)]
+  
+      renderExpansionStep(elt, step['outer']);
+      elt.append(' (');
+      renderExpansionStep(elt, step['inner']);
+      elt.append(')');
+      
+      break;
+
+    default:
+      debugger;
+  }
+}
+
 function renderStep(elt, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('term' in step, 'expected term for step object');
   console.assert('env' in step, 'expected environment for step object');
+  console.assert('step' in step, 'expected step description for step object');
+
+  // TODO debug display
+  let exp_step = $('<div></div>').addClass('step').appendTo(elt);
+  renderExpansionStep(exp_step, step['step']);
 
   let term = $('<div></div>').addClass('term').appendTo(elt);
   renderTerm(term, step['term']);
 
   let env = $('<div></div>').addClass('env').appendTo(elt);
   renderEnv(env, step['env']);
+
 };
 
 /**********************************************************************/
@@ -1104,7 +1281,7 @@ $('#expansionForm').submit(function(e) {
     for(var i = 0; i < data.length; i++) {
       var step = data[i];
 
-      console.info('%d: term %o env %o', i, step['term'], step['env']);
+      console.info('%d: term %o env %o step %o', i, step['term'], step['env'], step['step']);
 
       let elt = $('<div></div>').addClass('expansion-step ui segment').appendTo(steps);
       renderStep(elt, step);
