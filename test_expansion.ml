@@ -194,6 +194,9 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("\"${x=a}/*\" in a/use a/useful a/user/", os_complicated_fs,
      [K (Param("x",Assign [S "a"])); S "/*"], concrete ["a/use";"a/useful";"a/user"]);
 
+    ("\"${x:?a*}\" in error output shouldn't expand", os_complicated_fs,
+     [K (Param("x", Error [S "a*"]))], concrete ["x: a*"]);
+
   ])
 
 let run_tests () =

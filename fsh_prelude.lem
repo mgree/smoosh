@@ -213,6 +213,10 @@ let rec null_fields fs =
      end
    end
 
+(* TODO 2017-12-08 refactor names
+ *  - no camel case
+ *  - follow format (type1 -> type2) = type2_of_type1
+ *)
 val toSymbolicCharList : fields -> symbolic_string
 let rec toSymbolicCharList fs = 
   match fs with
