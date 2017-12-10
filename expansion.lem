@@ -26,7 +26,7 @@ val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_stat
 
 let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
   let sympat : symbolic_string = (concat_expanded pat) in
-  let symstr : symbolic_string = toSymbolicCharList str in
+  let symstr : symbolic_string = symbolic_string_of_fields str in
   try_match_prefix lc side mode sympat symstr
 
 (* TODO 2017-12-01
@@ -237,7 +237,7 @@ let rec split_expstring ifs clst =
        then let fs = if is_ws c then WFS else FS 
             in fs::split_expstring ifs cs
        else let (cc, cs1) = collect_non_ifs ifs cs in 
-            (Field (charListToSymbolicString (c::cc)))::(split_expstring ifs cs1)
+            (Field (symbolic_string_of_char_list (c::cc)))::(split_expstring ifs cs1)
   end
 
 let rec split_word ifs p =
@@ -247,8 +247,8 @@ let rec split_word ifs p =
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_expstring ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
-  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (stringToSymbolicString s)], wrds)
-  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField (stringToSymbolicString s)], wrds)
+  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (symbolic_string_of_string s)], wrds)
+  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField (symbolic_string_of_string s)], wrds)
   | (f, EWSym sym::wrds) -> split_word ifs (f ++ [Field [Sym sym]], wrds)
   end
 
@@ -293,8 +293,8 @@ val insert_field_separators : list string -> intermediate_fields
 let rec insert_field_separators fs =
   match fs with
   | [] -> []
-  | [f] -> [Field (stringToSymbolicString f)]
-  | f::fs' -> Field (stringToSymbolicString f)::FS::insert_field_separators fs'
+  | [f] -> [Field (symbolic_string_of_string f)]
+  | f::fs' -> Field (symbolic_string_of_string f)::FS::insert_field_separators fs'
   end
     
 val pathname_expansion : ty_os_state -> intermediate_fields -> intermediate_fields
@@ -338,18 +338,18 @@ let rec remove_quotes f =
 let rec to_fields f =
   match f with
   | []           -> []
-  | FS::FS::rst  -> (stringToSymbolicString "")::(to_fields rst)
+  | FS::FS::rst  -> (symbolic_string_of_string "")::(to_fields rst)
   | Field fs::rst -> 
      fs::(to_fields rst)
   | FS::rst      -> to_fields rst
   (* TODO 2017-12-01 Preferably we need an AST that doesn't have WFS or QField's at this point, or lem failure *)
-  | WFS::_       -> [stringToSymbolicString "broken invariant"]
-  | QField _::_  -> [stringToSymbolicString "broken invariant"]
+  | WFS::_       -> [symbolic_string_of_string "broken invariant"]
+  | QField _::_  -> [symbolic_string_of_string "broken invariant"]
   end
 
 let rec finalize_fields f =
   match f with
-  | (FS::rst) -> stringToSymbolicString ""::finalize_fields rst
+  | (FS::rst) -> symbolic_string_of_string ""::finalize_fields rst
   | _ -> to_fields f
   end
 
@@ -413,5 +413,5 @@ let full_expansion s0 w0 =
   match f1 with
   | ExpError f -> (s1, f)
   | ExpDone f -> (s1, f)
-  | _ -> (s1, [stringToSymbolicString "!!! broken invariant"])
+  | _ -> (s1, [symbolic_string_of_string "!!! broken invariant"])
   end

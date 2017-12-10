@@ -1,6 +1,6 @@
 open Fsh
 
-let add_literal_env_string k v s0 = set_param k (Fsh.stringToSymbolicString v) s0
+let add_literal_env_string k v s0 = set_param k (Fsh.symbolic_string_of_string v) s0
 
 let os_var_x_null:ty_os_state= add_literal_env_string "x" "" os_empty
 let os_var_x_set:ty_os_state = add_literal_env_string "x" "bar" os_empty

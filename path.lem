@@ -54,7 +54,7 @@ val match_pattern_file_list : locale -> fs -> string -> set (string * file)
 let match_pattern_file_list lc fs pat =
   Set.filter
     (fun (file, _) -> 
-      match match_prefix lc Shortest (stringToSymbolicString pat) (stringToSymbolicString file) with
+      match match_prefix lc Shortest (symbolic_string_of_string pat) (symbolic_string_of_string file) with
       | Match _ -> not (has_leading_dot (toCharList file)) || has_leading_dot (toCharList pat)
       | _ -> false
       end)

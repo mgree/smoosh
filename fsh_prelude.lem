@@ -213,16 +213,12 @@ let rec null_fields fs =
      end
    end
 
-(* TODO 2017-12-08 refactor names
- *  - no camel case
- *  - follow format (type1 -> type2) = type2_of_type1
- *)
-val toSymbolicCharList : fields -> symbolic_string
-let rec toSymbolicCharList fs = 
+val symbolic_string_of_fields : fields -> symbolic_string
+let rec symbolic_string_of_fields fs = 
   match fs with
   | [] -> []
   | [f] -> f
-  | f::fs' -> f ++ [C #' '] ++ toSymbolicCharList fs'
+  | f::fs' -> f ++ [C #' '] ++ symbolic_string_of_fields fs'
   end
 
 val maximal_char_list : symbolic_string -> (list char * symbolic_string)
@@ -246,7 +242,7 @@ let rec words_of_symbolic_string sym_str =
   end
 
 val words_of_fields : fields -> words
-let words_of_fields fs = words_of_symbolic_string (toSymbolicCharList fs)
+let words_of_fields fs = words_of_symbolic_string (symbolic_string_of_fields fs)
 
 val expanded_words_of_symbolic_string : symbolic_string -> expanded_words
 let rec expanded_words_of_symbolic_string sym_str =
@@ -259,17 +255,16 @@ let rec expanded_words_of_symbolic_string sym_str =
   end
 
 val expanded_words_of_fields : fields -> expanded_words
-let expanded_words_of_fields fs = expanded_words_of_symbolic_string (toSymbolicCharList fs)
+let expanded_words_of_fields fs = expanded_words_of_symbolic_string (symbolic_string_of_fields fs)
 
-val charListToSymbolicString : list char -> symbolic_string
-let charListToSymbolicString cs = map C cs
+val symbolic_string_of_char_list : list char -> symbolic_string
+let symbolic_string_of_char_list cs = map C cs
 
-val stringToSymbolicString : string -> symbolic_string
-let stringToSymbolicString s = charListToSymbolicString (toCharList s)
+val symbolic_string_of_string : string -> symbolic_string
+let symbolic_string_of_string s = symbolic_string_of_char_list (toCharList s)
 
-(* TODO: this is toFields or symbolicStringToFields really *)
-val toSymbolicString : symbolic_string -> fields
-let toSymbolicString s = [s]
+val fields_of_symbolic_string : symbolic_string -> fields
+let fields_of_symbolic_string s = [s]
 
 val try_concrete : symbolic_string -> maybe string
 let rec try_concrete vs =
@@ -311,12 +306,12 @@ let rec fields_to_string fs =
 val concat_expanded : expanded_words -> symbolic_string
 let rec concat_expanded w =
   match w with
-  | [] -> stringToSymbolicString ""
-  | UsrF::ws -> stringToSymbolicString " " ++ concat_expanded ws
-  | ExpS s::ws -> stringToSymbolicString s ++ concat_expanded ws
-  | DQuo s::ws -> stringToSymbolicString s ++ concat_expanded ws
+  | [] -> symbolic_string_of_string ""
+  | UsrF::ws -> symbolic_string_of_string " " ++ concat_expanded ws
+  | ExpS s::ws -> symbolic_string_of_string s ++ concat_expanded ws
+  | DQuo s::ws -> symbolic_string_of_string s ++ concat_expanded ws
   | EWSym sym::ws -> Sym sym::concat_expanded ws
-  | UsrS _::_ -> stringToSymbolicString "TODO: broken invariant"
+  | UsrS _::_ -> symbolic_string_of_string "TODO: broken invariant"
   end
 
 val fields_of_expanded_words : expanded_words -> fields
@@ -619,11 +614,11 @@ instance ( Read int32 )
 end
 
 val integerToFields : integer -> fields
-let integerToFields n = [stringToSymbolicString (write n)]
+let integerToFields n = [symbolic_string_of_string (write n)]
 
 val int32ToFields : int32 -> fields
-let int32ToFields n = [stringToSymbolicString (write n)]
+let int32ToFields n = [symbolic_string_of_string (write n)]
 
 val int64ToFields : int64 -> fields
-let int64ToFields n = [stringToSymbolicString (write n)]
+let int64ToFields n = [symbolic_string_of_string (write n)]
 
