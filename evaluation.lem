@@ -30,6 +30,7 @@ let rec step_assign s0 assigns =
     Right (s1, (x, next_state)::assigns')
   end
 
+(* TODO 2017-12-12 move evaluation_step to end of tuple *)
 val eval_step : ty_os_state -> stmt -> 
                 either (evaluation_step * ty_os_state) (* error case *)
                        (evaluation_step * ty_os_state * stmt) (* success *)
