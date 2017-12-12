@@ -66,8 +66,8 @@ and words = list entry
 
 and stmt = 
     Command of list (string * words) * words * list redir
-  | CommandExpAssign of list (string * fields * expansion_state * words) * words * list redir
-  | CommandExpArgs of list (string * fields) * (fields * expansion_state * words) * list redir
+  | CommandExpAssign of list (string * expansion_state) * words * list redir
+  | CommandExpArgs of list (string * fields) * expansion_state * list redir
   | CommandExpanded of list (string * fields) * fields * list redir
   | Pipe of bool (* bg? *) * list stmt
   | Redir of stmt * list redir

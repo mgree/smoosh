@@ -4,21 +4,46 @@ open import Path
 open import Pattern
 open import Expansion
 
+val step_assign : ty_os_state -> list (string * expansion_state) ->
+                  either (ty_os_state * list (string * fields)) (* Done state *)
+                         (ty_os_state * list (string * expansion_state)) (* In progress or error *)
+(* Steps the first, non-complete expansion_state and returns.
+ * If it reached the base case, they are all complete, so
+ *   we return the Left type to continue on the arg expansion. *)
+let rec step_assign s0 assigns =
+  match assigns with
+  | [] -> Left (s0, [])
+  | ((x, ExpError f) as error)::assigns' ->
+    match step_assign s0 assigns' with
+    | Right (s1, processed) -> Right (s1, error::processed)
+    | Left (s1, completed) -> Left (s1, (x, f)::completed)
+    end
+  | ((x, ExpDone f) as finished)::assigns' ->
+    match step_assign s0 assigns' with
+    | Right (s1, processed) -> Right (s1, finished::processed)
+    | Left (s1, completed) -> Left (s1, (x, f)::completed)
+    end
+  | (x, exp_state)::assigns' ->
+    (* TODO 2017-12-10 do we care about the expansion_step information?
+     *                 if so, should we just run trace_expansion? *)
+    let (s1, next_state, _step) = step_expansion (s0, exp_state) in
+    Right (s1, (x, next_state)::assigns')
+  end
+
 val eval_step : ty_os_state -> stmt -> 
                 either (evaluation_step * ty_os_state) (* error case *)
                        (evaluation_step * ty_os_state * stmt) (* success *)
 let rec eval_step s0 stmt =
   match stmt with
-  | Command assigns ws redirs -> 
-     Left (XSSimple "TODO", s0)
-     (* TODO 2017-12-08 not quite right
-     Right (XSSimple "begin expansion", 
+  | Command assigns ws redirs ->
+     (* TODO 2017-12-08 not quite right *)
+     Right (XSSimple "begin expansion",
             s0,
-            CommandExpAssign 
-              (map (fun (x,w) -> (x,[],w)) assigns)
-              ([],ws)
-              redirs) *)
-  | CommandExpAssign _assigns _ws _redirs ->
+            CommandExpAssign
+              (map (fun (x, w) -> (x, ExpStart w)) assigns)
+              ws
+              redirs)
+  | CommandExpAssign assigns ws redirs ->
      (* TODO 2017-12-01
         evaluate each of ws step by step 
 
@@ -26,11 +51,37 @@ let rec eval_step s0 stmt =
 
         check on the assigns... if not all in fields, work there
       *)
-     Left (XSSimple "TODO", s0)
-  | CommandExpArgs _assigns _ws _redirs ->
+     match step_assign s0 assigns with
+     (* Perform an expansion step in an assignment *)
+     | Right (s1, assigns') ->
+         Right (XSSimple "step an assignment",
+                s1,
+                CommandExpAssign assigns' ws redirs)
+     (* Done, move on to expanding arguments *)
+     | Left (s1, fields) ->
+         Right (XSSimple "assignments fully expanded",
+                s1,
+                CommandExpArgs fields (ExpStart ws) redirs)
+     end
+  | CommandExpArgs assigns exp_state redirs ->
+      let (os1,st1,step) = step_expansion (s0, exp_state) in
+      match st1 with
+        | ExpError _ ->
+            Left (XSSimple "error in argument expansion",
+                  os1)
+        | ExpDone f ->
+          Right (XSSimple "arguments fully expanded",
+                   os1,
+                   CommandExpanded assigns f redirs)
+        | (_ as in_progress) ->
+          Right(XSSimple "step of argument expansion",
+                   os1,
+                   CommandExpArgs assigns in_progress redirs)
+      end
      (* assigns are done, check on args 
 
 extremely subtle behavior with errors in expansion:
+  an expansion error is NOT a field
 
 $ count() { echo $# ; }
 $ count $(echo ${x?one two three})
@@ -45,7 +96,6 @@ $ count $(echo ${x?one two three}) four
 $ count $(${x? one two three}) four
 /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
       *)
-     Left (XSSimple "TODO", s0)
   | CommandExpanded _assigns _ws _redirs ->
      (* TODO
           EVERYTHING is expanded, 

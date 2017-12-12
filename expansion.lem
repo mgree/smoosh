@@ -153,6 +153,7 @@ let rec expand_control s0 q k =
        | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "error") step, s1, [], [K (LError str (f ++ f1) w1)])
        | Left err -> Left err
        end
+    (* TODO 2017-12-11 When a subshell errors, it should evaluate to the null string and print its error message *)
     | Backtick c -> Right (ESCommand "treating commands symbolically", s0, [], [ESym (SymCommand c)]) (* TODO this should create a new bash process, setup pipes *)
     | Arith f [] ->
         match arith64 s0 (concat_expanded f) with
