@@ -1,7 +1,7 @@
 open Test_prelude
 open Shim
 open Fsh
-open Expansion
+open Evaluation
 open Printf
 
 (**********************************************************************)
@@ -76,20 +76,6 @@ let parse_args () =
 (* OUTPUT *************************************************************)
 (**********************************************************************)
 
-(* TODO 2017-12-08 use eval_step instead of these two functions *)
-let trace_command os = function
-  | Command ([],ws,[]) -> trace_expansion os ws
-  | _ -> failwith "unsupported command type (don't use keywords, etc.)"
-
-let rec trace_commands os = function
-  | [] -> [(os, ExpDone [],ESStep "")]
-  | [c] -> trace_command os c
-  | c::cs -> 
-     let tc = trace_command os c in
-     let (os',_,_) = List.hd (List.rev tc) in
-     let tcs = trace_commands os' cs in
-     tc @ tcs
-
 let show_trace trace =
   let out = Buffer.create (List.length trace * 250) in
   begin
@@ -107,8 +93,7 @@ let main () =
   set_input_src ();
   let ns = Dash.parse_all () in
   let cs = List.map Shim.of_node ns in
-  show_trace (trace_commands !initial_os_state cs);;
+  show_trace (trace_evaluation_multi !initial_os_state cs);;
 
 main ()
 
-           

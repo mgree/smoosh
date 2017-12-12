@@ -470,12 +470,35 @@ and json_of_expansion_state = function
   | ExpError f -> Assoc [tag "ExpError"; ("msg", json_of_fields f)]
   | ExpDone fs -> Assoc [tag "ExpDone"; ("f", json_of_fields fs)]
 
+and json_of_evaluation_step = function
+  | XSSimple s -> Assoc [tag "XSSimple"; ("msg", String s)]
+  | XSPipe s -> Assoc [tag "XSPipe"; ("msg", String s)]
+  | XSRedir s -> Assoc [tag "XSRedir"; ("msg", String s)]
+  | XSBackground s -> Assoc [tag "XSBackground"; ("msg", String s)]
+  | XSSubshell s -> Assoc [tag "XSSubshell"; ("msg", String s)]
+  | XSAnd s -> Assoc [tag "XSAnd"; ("msg", String s)]
+  | XSOr s -> Assoc [tag "XSOr"; ("msg", String s)]
+  | XSNot s -> Assoc [tag "XSNot"; ("msg", String s)]
+  | XSSemi s -> Assoc [tag "XSSemi"; ("msg", String s)]
+  | XSIf s -> Assoc [tag "XSIf"; ("msg", String s)]
+  | XSWhile s -> Assoc [tag "XSWhile"; ("msg", String s)]
+  | XSFor s -> Assoc [tag "XSFor"; ("msg", String s)]
+  | XSCase s -> Assoc [tag "XSCase"; ("msg", String s)]
+  | XSDefun s -> Assoc [tag "XSDefun"; ("msg", String s)]
+  | XSNested (outer, inner) -> Assoc [tag "XSNested"; ("inner", json_of_evaluation_step inner); ("outer", json_of_evaluation_step outer)]
+  | XSExpand (eval_step, exp_step) -> Assoc [tag "XSExpand"; ("inner", json_of_expansion_step  exp_step); ("outer", json_of_evaluation_step eval_step)]
+
 and json_of_expansion_trace_entry (os, state, step) =
   Assoc [("env", json_of_env os.sh.env);
          ("term", json_of_expansion_state state);
          ("step", json_of_expansion_step step)]
 
-and json_of_trace t = List (List.map json_of_expansion_trace_entry t)
+and json_of_evaluation_trace_entry (os, stmt, step) =
+  Assoc [("env", json_of_env os.sh.env);
+         ("term", json_of_stmt stmt);
+         ("step", json_of_evaluation_step step)]
+
+and json_of_trace t = List (List.map json_of_evaluation_trace_entry t)
 
 and json_of_env (env:(string, symbolic_string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))
