@@ -370,9 +370,9 @@ and json_of_heredoc_type = function
   | Here -> String "Here"
   | XHere -> String "XHere"
 and json_of_redirs rs = List (List.map json_of_redir rs)
-and json_of_assign (x, w) = Assoc [("var", String x); ("w", json_of_words w)]
-and json_of_inprogress_assign (x, state) = Assoc [("var", String x); ("state", json_of_expansion_state state)]
-and json_of_expanded_assign (x, f) = Assoc [("var", String x); ("f", json_of_fields f)]
+and json_of_assign (x, w) = Assoc [("var", String x); ("value", json_of_words w)]
+and json_of_inprogress_assign (x, state) = Assoc [("var", String x); ("value", json_of_expansion_state state)]
+and json_of_expanded_assign (x, f) = Assoc [("var", String x); ("value", json_of_fields f)]
 and json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
 and json_of_words w = List (List.map json_of_entry w)
 and json_of_entry = function
@@ -485,6 +485,7 @@ and json_of_evaluation_step = function
   | XSFor s -> Assoc [tag "XSFor"; ("msg", String s)]
   | XSCase s -> Assoc [tag "XSCase"; ("msg", String s)]
   | XSDefun s -> Assoc [tag "XSDefun"; ("msg", String s)]
+  | XSStep s -> Assoc [tag "XSDefun"; ("msg", String s)]
   | XSNested (outer, inner) -> Assoc [tag "XSNested"; ("inner", json_of_evaluation_step inner); ("outer", json_of_evaluation_step outer)]
   | XSExpand (eval_step, exp_step) -> Assoc [tag "XSExpand"; ("inner", json_of_expansion_step  exp_step); ("outer", json_of_evaluation_step eval_step)]
 

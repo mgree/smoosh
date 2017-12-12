@@ -101,8 +101,10 @@ $ count $(${x? one two three}) four
             perform assignments
             setup redirect
             run command
+
+          need s0 to be a more robust model of stdin/stdout, exit codes, etc.
       *)
-     Left (XSSimple "TODO", s0)
+     Right (XSSimple "evaluate command", s0, Done)
   | Pipe _bg _stmts -> Left (XSPipe "TODO", s0)
   | Redir _stmt' _redirs -> Left (XSRedir "TODO", s0)
   | Background _stmt' _redirs -> Left (XSBackground "TODO", s0)
@@ -120,16 +122,19 @@ $ count $(${x? one two three}) four
   | Done -> Right(XSSimple "", s0, Done)
   end
 
-val trace_evaluation : ty_os_state -> stmt -> list (ty_os_state * stmt * evaluation_step)
-let rec trace_evaluation os0 stmt0 =
+val run_trace_evaluation : ty_os_state -> stmt -> list (ty_os_state * stmt * evaluation_step)
+let rec run_trace_evaluation os0 stmt0 =
   match stmt0 with
   | Done -> []
   | _ ->
       match step_eval os0 stmt0 with
-      | Right (step, os1, stmt1) -> (os1, stmt1, step)::trace_evaluation os1 stmt1
+      | Right (step, os1, stmt1) -> (os1, stmt1, step)::run_trace_evaluation os1 stmt1
       | Left (step, os1) -> [(os1, Done, step)]
       end
   end
+
+val trace_evaluation : ty_os_state -> stmt -> list (ty_os_state * stmt * evaluation_step)
+let trace_evaluation os0 stmt0 = (os0,stmt0,XSStep "")::run_trace_evaluation os0 stmt0
 
 val trace_evaluation_multi : ty_os_state -> list stmt -> list (ty_os_state * stmt * evaluation_step)
 let rec trace_evaluation_multi os0 stmts =

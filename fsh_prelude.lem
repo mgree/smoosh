@@ -160,6 +160,7 @@ and evaluation_step =
   | XSFor of string
   | XSCase of string
   | XSDefun of string
+  | XSStep of string
   | XSNested of evaluation_step * evaluation_step
   | XSExpand of evaluation_step * expansion_step
 
