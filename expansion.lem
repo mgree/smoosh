@@ -155,6 +155,7 @@ let rec expand_control s0 q k =
        end
     (* TODO 2017-12-11 When a subshell errors, it should evaluate to the null string and print its error message *)
     | Backtick c -> Right (ESCommand "treating commands symbolically", s0, [], [ESym (SymCommand c)]) (* TODO this should create a new bash process, setup pipes *)
+    (* The shell shall expand the command substitution by executing command in a subshell environment (see Shell Execution Environment) and replacing the command substitution (the text of command plus the enclosing "$()" or backquotes) with the standard output of the command, removing sequences of one or more <newline>s at the end of the substitution  POSIX 2.6.3 *)
     | Arith f [] ->
         match arith64 s0 (concat_expanded f) with
         | Right (s1, result) -> Right (ESArith "computed arithmetic result", s1, expanded_words_of_fields result, [])
