@@ -151,6 +151,35 @@ function renderRedir(elt, redir) {
 
 /* Statements *********************************************************/
 
+function stmtSimple(elt, stmt, fAssign, fArgs) {
+      const assignsExp = $('<span></span>').addClass('simple-assigns').appendTo(elt);
+      for (const assign of stmt['assigns']) {
+        const a = $('<span></span>').addClass('assign').appendTo(assignsExp);
+        $('<span></span>').addClass('variable').append(assign['var']).appendTo(a);
+        
+        a.append('=');
+        
+        const v = $('<span></span>').addClass('variable').appendTo(a);
+        fAssign(v, assign['value']);
+      }
+    
+      // if we had an assignment and also have args or redirects, then put a space in
+      if (stmt['assigns'].length !== 0 && 
+          (stmt['args'].length !== 0 || stmt['rs'].length !== 0)) {
+        assignsExp.append(fieldSep);
+      }
+    
+      const argsExp = $('<span></span>').addClass('simple-args').appendTo(elt);
+      fArgs(argsExp, stmt['args']);
+
+      // if we have following redirs, then put a space in
+      if (stmt['rs'].length !== 0) {
+        argsExp.append(fieldSep);
+      }
+
+      stmtRedirs(elt, 'simple', stmt);
+}
+
 function stmtRedirs(elt, name, stmt) {
   var redirs = $('<span></span>').addClass(name + '-redirs').appendTo(elt);
   for (let i = 0; i < stmt['rs'].length; i += 1) {
@@ -192,83 +221,41 @@ function renderStmt(elt, stmt) {
       //           ("args", json_of_words args);
       //           ("rs", json_of_redirs rs)]
 
-      const assigns = $('<span></span>').addClass('simple-assigns').appendTo(elt);
-      for (const assign of stmt['assigns']) {
-        const a = $('<span></span>').addClass('assign').appendTo(assigns);
-        $('<span></span>').addClass('variable').append(assign['var']).appendTo(a);
-        
-        a.append('=');
-        
-        const v = $('<span></span>').addClass('variable').appendTo(a);
-        renderWords(v, assign['w']);
-      }
-    
-      // if we had an assignment and also have args or redirects, then put a space in
-      if (stmt['assigns'].length !== 0 && 
-          (stmt['args'].length !== 0 || stmt['rs'].length !== 0)) {
-        assigns.append(fieldSep);
-      }
-    
-      const args = $('<span></span>').addClass('simple-args').appendTo(elt);
-      renderWords(args, stmt['args']);
-
-      // if we have following redirs, then put a space in
-      if (stmt['rs'].length !== 0) {
-        args.append(fieldSep);
-      }
-
-      stmtRedirs(elt, 'simple', stmt);
+      stmtSimple(elt, stmt, renderWords, renderWords);
 
       break;
 
     case 'CommandExpAssign':
-    case 'CommandExpArgs':
-    case 'CommandExpanded':
-      // | CommandExp (assigns, args, rs) -> 
-      //    Assoc [tag "CommandExp"; 
+      // | CommandExpAssign (assigns, args, rs) -> 
+      //    Assoc [tag "CommandExpAssign"; 
       //           ("assigns", List (List.map json_of_inprogress_assign assigns));
-      //           ("args", json_of_inprogress_words args);
+      //           ("args", json_of_words args);
       //           ("rs", json_of_redirs rs)]
 
-    elt.append('TODO sorry');
+      stmtSimple(elt, stmt, renderExpansionState, renderWords);
 
-    /*
-      const assignsExp = $('<span></span>').addClass('simple-assigns').appendTo(elt);
-      for (const assign of stmt['assigns']) {
-        const a = $('<span></span>').addClass('assign').appendTo(assignsExp);
-        $('<span></span>').addClass('variable').append(assign['var']).appendTo(a);
-        
-        a.append('=');
-        
-        const v = $('<span></span>').addClass('variable').appendTo(a);
+      break;
 
-        const vF = $('<span></span>').appendTo(v);
-        renderFields(vF, assign['f']);
+    case 'CommandExpArgs':
+      // | CommandExpArgs (assigns, args, rs) ->
+      //    Assoc [tag "CommandExpArgs"; 
+      //           ("assigns", List (List.map json_of_expanded_assign assigns));
+      //           ("args", json_of_expansion_state args);
+      //           ("rs", json_of_redirs rs)]
 
-        const vW = $('<span></span>').appendTo(v);
-        renderWords(vW, assign['w']);
-      }
-    
-      // if we had an assignment and also have args or redirects, then put a space in
-      if (stmt['assigns'].length !== 0 && 
-          (stmt['args'].length !== 0 || stmt['rs'].length !== 0)) {
-        assignsExp.append(fieldSep);
-      }
-    
-      const argsExp = $('<span></span>').addClass('simple-args').appendTo(elt);
-      const argsF = $('<span></span>').appendTo(v);
-      renderFields(vF, stmt['args']['f']);
+      stmtSimple(elt, stmt, renderFields, renderExpansionState);
 
-      const argsW = $('<span></span>').appendTo(v);
-      renderWords(vW, stmt['args']['w']);
+      break;
 
-      // if we have following redirs, then put a space in
-      if (stmt['rs'].length !== 0) {
-        argsExp.append(fieldSep);
-      }
+    case 'CommandExpanded':
+      // | CommandExpanded (assigns, args, rs) -> 
+      //    Assoc [tag "CommandExpanded"; 
+      //           ("assigns", List (List.map json_of_expanded_assign assigns));
+      //           ("args", json_of_fields args);
+      //           ("rs", json_of_redirs rs)]
 
-      stmtRedirs(elt, 'simple', stmt);
-    */
+      stmtSimple(elt, stmt, renderFields, renderFields);
+
       break;
 
     case 'Pipe':
@@ -1040,7 +1027,7 @@ function renderWords(elt, words) {
 
 /* Top-level step/environment rendering *******************************/
 
-function renderTerm(elt, step) {
+function renderExpansionState(elt, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['ExpStart',
@@ -1234,7 +1221,7 @@ function renderExpansionStep(elt, step) {
   }
 }
 
-function renderStep(elt, step) {
+function renderExpansionTraceEntry(elt, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('term' in step, 'expected term for step object');
   console.assert('env' in step, 'expected environment for step object');
@@ -1245,7 +1232,149 @@ function renderStep(elt, step) {
   renderExpansionStep(exp_step, step['step']);
 
   let term = $('<div></div>').addClass('term').appendTo(elt);
-  renderTerm(term, step['term']);
+  renderExpansionState(term, step['term']);
+
+  let env = $('<div></div>').addClass('env').appendTo(elt);
+  renderEnv(env, step['env']);
+
+};
+
+function renderEvaluationStep(elt, step) {
+  console.assert(typeof step === 'object', 'expected step object, got %o', step);
+  console.assert('tag' in step, 'expected tag for step object');
+  console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
+                  'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
+                  'XSFor', 'XSCase', 'XSDefun', 'XSNested', 'XSExpand'].includes(step['tag']),
+                 'got weird step tag %o', step['tag']);
+
+  // TODO get me
+  switch (step['tag']) {
+    case 'XSSimple':
+
+      elt.append('Simple commmand' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSPipe':
+
+      elt.append('Pipe commmand' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSRedir':
+
+      elt.append('Redirection' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSBackground':
+
+      elt.append('Background' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSSubshell':
+
+      elt.append('Subshell' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSAnd':
+
+      elt.append('And' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSOr':
+
+      elt.append('Or' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSNot':
+
+      elt.append('Not' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSSemi':
+
+      elt.append('Semi' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSIf':
+
+      elt.append('If' + stepMessage(step['msg']));
+    
+      break;
+
+    case 'XSWhile':
+
+      elt.append('While' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSFor':
+
+      elt.append('For' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSCase':
+
+      elt.append('Case statement' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSDefun':
+
+      elt.append('Function definition' + stepMessage(step['msg']));
+
+      break;
+
+    case 'XSStep':
+      if (step['msg'] !== '') {
+        elt.append('Evaluation step' + stepMessage(step['msg']));
+      }
+
+      break;
+
+    case 'XSNested':
+
+      renderEvaluationStep(elt, step['outer']);
+      elt.append(' (');
+      renderEvaluationStep(elt, step['inner']);
+      elt.append(')');
+
+      break;
+
+    case 'XSExpand':
+
+      renderEvaluationStep(elt, step['outer']);
+      elt.append(' (');
+      renderExpansionStep(elt, step['inner']);
+      elt.append(')');
+
+      break;
+
+    default:
+      debugger;
+  }
+}
+
+function renderEvaluationTraceEntry(elt, step) {
+  console.assert(typeof step === 'object', 'expected step object, got %o', step);
+  console.assert('term' in step, 'expected term for step object');
+  console.assert('env' in step, 'expected environment for step object');
+  console.assert('step' in step, 'expected step description for step object');
+
+  // TODO debug display
+  let exp_step = $('<div></div>').addClass('step').appendTo(elt);
+  renderEvaluationStep(exp_step, step['step']);
+
+  let term = $('<div></div>').addClass('term').appendTo(elt);
+  renderStmt(term, step['term']);
 
   let env = $('<div></div>').addClass('env').appendTo(elt);
   renderEnv(env, step['env']);
@@ -1288,8 +1417,8 @@ $('#expansionForm').submit(function(e) {
 
       console.info('%d: term %o env %o step %o', i, step['term'], step['env'], step['step']);
 
-      let elt = $('<div></div>').addClass('expansion-step ui segment').appendTo(steps);
-      renderStep(elt, step);
+      let elt = $('<div></div>').addClass('evaluation-step ui segment').appendTo(steps);
+      renderEvaluationTraceEntry(elt, step);
     }
   }
 
