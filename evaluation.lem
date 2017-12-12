@@ -130,3 +130,13 @@ let rec trace_evaluation os0 stmt0 =
       | Left (step, os1) -> [(os1, Done, step)]
       end
   end
+
+val trace_evaluation_multi : ty_os_state -> list stmt -> list (ty_os_state * stmt * evaluation_step)
+let rec trace_evaluation_multi os0 stmts =
+  match stmts with
+  | [] -> []
+  | (stmt::stmts') -> 
+     let trace = trace_evaluation os0 stmt in
+     let (os1,_,_) = last trace in
+     trace ++ trace_evaluation_multi os1 stmts'
+  end
