@@ -6,8 +6,8 @@
 /*
  * We define a variety of functions renderX : JQuery -> X_JSON_AST -> ()
  *
- * renderX(elt, x) will add a rendering of the object X to the DOM
- * node at elt
+ * renderX(info, elt, x) will add a rendering of the object X to the DOM
+ * node at elt with information going to info
  *
  * INVARIANTS:
  *   renderX will apply appropriate classes for X, don't do it in advance
@@ -72,7 +72,7 @@ function showUnless(def, actual) {
   return def === actual ? "" : String(actual);
 }
 
-function renderRedir(elt, redir) {
+function renderRedir(info, elt, redir) {
   console.assert(typeof redir === 'object', 'expected redir object, got %o', redir);
   console.assert('tag' in redir, 'expected tag for statement object');
   console.assert(['File', 'Dup', 'Heredoc'].includes(redir['tag']), 
@@ -94,7 +94,7 @@ function renderRedir(elt, redir) {
       fSym.append(fileRedirSym[redir['ty']]);
 
       const fTgt = $('<span></span>').addClass('redir-File-tgt').appendTo(elt);
-      renderWords(fTgt, redir['tgt']);
+      renderWords(info, fTgt, redir['tgt']);
 
       break;
 
@@ -137,7 +137,7 @@ function renderRedir(elt, redir) {
       hSym.append('<br></br>');
 
       const hText = $('<span></span>').addClass('redir-Heredoc-text').appendTo(elt);
-      renderWords(hText, redir['w']);
+      renderWords(info, hText, redir['w']);
 
       const hMarker = $('<span></span>').addClass('redir-Heredoc-marker').appendTo(elt);
       hMarker.append(marker);
@@ -151,7 +151,7 @@ function renderRedir(elt, redir) {
 
 /* Statements *********************************************************/
 
-function stmtSimple(elt, stmt, fAssign, fArgs) {
+function stmtSimple(info, elt, stmt, fAssign, fArgs) {
       const assignsExp = $('<span></span>').addClass('simple-assigns').appendTo(elt);
       for (const assign of stmt['assigns']) {
         const a = $('<span></span>').addClass('assign').appendTo(assignsExp);
@@ -160,7 +160,7 @@ function stmtSimple(elt, stmt, fAssign, fArgs) {
         a.append('=');
         
         const v = $('<span></span>').addClass('variable').appendTo(a);
-        fAssign(v, assign['value']);
+        fAssign(info, v, assign['value']);
       }
     
       // if we had an assignment and also have args or redirects, then put a space in
@@ -170,21 +170,21 @@ function stmtSimple(elt, stmt, fAssign, fArgs) {
       }
     
       const argsExp = $('<span></span>').addClass('simple-args').appendTo(elt);
-      fArgs(argsExp, stmt['args']);
+      fArgs(info, argsExp, stmt['args']);
 
       // if we have following redirs, then put a space in
       if (stmt['rs'].length !== 0) {
         argsExp.append(fieldSep);
       }
 
-      stmtRedirs(elt, 'simple', stmt);
+      stmtRedirs(info, elt, 'simple', stmt);
 }
 
-function stmtRedirs(elt, name, stmt) {
+function stmtRedirs(info, elt, name, stmt) {
   var redirs = $('<span></span>').addClass(name + '-redirs').appendTo(elt);
   for (let i = 0; i < stmt['rs'].length; i += 1) {
     const r = $('<span></span>').appendTo(redirs);    
-    renderRedir(r, stmt['rs'][i]);
+    renderRedir(info, r, stmt['rs'][i]);
     
     if (i !== stmt['rs'].length - 1) {
       redirs.append(fieldSep);
@@ -192,17 +192,17 @@ function stmtRedirs(elt, name, stmt) {
   }
 }
 
-function stmtBinary(elt, name, sym, stmt) {
+function stmtBinary(info, elt, name, sym, stmt) {
   const c1 = $('<span></span>').addClass(name + '-left').appendTo(elt);
-  renderStmt(c1, stmt['l']);
+  renderStmt(info, c1, stmt['l']);
   
   elt.append(fieldSep + sym + fieldSep);
   
   const c2 = $('<span></span>').addClass(name + '-right').appendTo(elt);
-  renderStmt(c2, stmt['r']);
+  renderStmt(info, c2, stmt['r']);
 }
 
-function renderStmt(elt, stmt) {
+function renderStmt(info, elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got %o', stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
   console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded',
@@ -221,7 +221,7 @@ function renderStmt(elt, stmt) {
       //           ("args", json_of_words args);
       //           ("rs", json_of_redirs rs)]
 
-      stmtSimple(elt, stmt, renderWords, renderWords);
+      stmtSimple(info, elt, stmt, renderWords, renderWords);
 
       break;
 
@@ -232,7 +232,7 @@ function renderStmt(elt, stmt) {
       //           ("args", json_of_words args);
       //           ("rs", json_of_redirs rs)]
 
-      stmtSimple(elt, stmt, renderExpansionState, renderWords);
+      stmtSimple(info, elt, stmt, renderExpansionState, renderWords);
 
       break;
 
@@ -243,7 +243,7 @@ function renderStmt(elt, stmt) {
       //           ("args", json_of_expansion_state args);
       //           ("rs", json_of_redirs rs)]
 
-      stmtSimple(elt, stmt, renderFields, renderExpansionState);
+      stmtSimple(info, elt, stmt, renderFields, renderExpansionState);
 
       break;
 
@@ -254,7 +254,7 @@ function renderStmt(elt, stmt) {
       //           ("args", json_of_fields args);
       //           ("rs", json_of_redirs rs)]
 
-      stmtSimple(elt, stmt, renderFields, renderFields);
+      stmtSimple(info, elt, stmt, renderFields, renderFields);
 
       break;
 
@@ -265,7 +265,7 @@ function renderStmt(elt, stmt) {
       const commands = $('<span></span>').addClass('pipe-commands').appendTo(elt);
       for (let i = 0; i < stmt['cs'].length; i += 1) {
         const c = $('<span></span>').appendTo(commands);
-        renderStmt(c, stmt['cs'][i]); 
+        renderStmt(info, c, stmt['cs'][i]); 
 
         if (i != stmt['cs'].length - 1) {
           commands.append(fieldSep + '|' + fieldSep);
@@ -282,11 +282,11 @@ function renderStmt(elt, stmt) {
       // | Redir (c, rs) -> obj_crs "Redir" c rs
 
       var command = $('<span></span>').addClass('redir-command').appendTo(elt);
-      renderStmt(command, stmt['c']);
+      renderStmt(info, command, stmt['c']);
 
       elt.append(fieldSep);
 
-      stmtRedirs(elt, 'redir', stmt);
+      stmtRedirs(info, elt, 'redir', stmt);
 
       break;
 
@@ -309,11 +309,11 @@ function renderStmt(elt, stmt) {
       elt.append('{' + fieldSep); 
 
       var command = $('<span></span>').addClass('bg-command').appendTo(elt);
-      renderStmt(command, stmt['c']);
+      renderStmt(info, command, stmt['c']);
 
       elt.append(fieldSep);
 
-      stmtRedirs(elt, 'redir', stmt);
+      stmtRedirs(info, elt, 'redir', stmt);
 
       elt.append(fieldSep + '}' + fieldSep + '&amp;'); 
 
@@ -325,11 +325,11 @@ function renderStmt(elt, stmt) {
       elt.append('('); 
 
       const subC = $('<span></span>').addClass('subshell-command').appendTo(elt);
-      renderStmt(subC, stmt['c']);
+      renderStmt(info, subC, stmt['c']);
 
       elt.append(fieldSep);
 
-      stmtRedirs(elt, 'subshell', stmt);
+      stmtRedirs(info, elt, 'subshell', stmt);
 
       elt.append(')'); 
 
@@ -338,14 +338,14 @@ function renderStmt(elt, stmt) {
     case 'And':
       // | And (c1, c2) -> obj_lr "And" c1 c2
 
-      stmtBinary(elt, 'and', '&amp;&amp;', stmt);
+      stmtBinary(info, elt, 'and', '&amp;&amp;', stmt);
 
       break;
 
     case 'Or':
       // | Or (c1, c2) -> obj_lr "Or" c1 c2
 
-      stmtBinary(elt, 'or', '||', stmt);
+      stmtBinary(info, elt, 'or', '||', stmt);
 
       break;
 
@@ -357,7 +357,7 @@ function renderStmt(elt, stmt) {
       elt.append('!' + fieldSep + '{' + fieldSep);
 
       const cNot = $('<span></span>').addClass('not-stmt').appendTo(elt);
-      renderStmt(cNot, stmt['c']);
+      renderStmt(info, cNot, stmt['c']);
 
       elt.append(fieldSep + '}');
 
@@ -366,7 +366,7 @@ function renderStmt(elt, stmt) {
     case 'Semi':
       // | Semi (c1, c2) -> obj_lr "Semi" c1 c2
 
-      stmtBinary(elt, 'semi', ';', stmt);
+      stmtBinary(info, elt, 'semi', ';', stmt);
 
       break;
 
@@ -377,12 +377,12 @@ function renderStmt(elt, stmt) {
       elt.append('if' + fieldSep);
 
       var c1 = $('<span></span>').addClass('if-cond').appendTo(elt);
-      renderStmt(c1, stmt['c']);
+      renderStmt(info, c1, stmt['c']);
 
       elt.append(fieldSep + 'then' + fieldSep);
 
       var c2 = $('<span></span>').addClass('if-then').appendTo(elt);
-      renderStmt(c2, stmt['t']);
+      renderStmt(info, c2, stmt['t']);
 
       var c3 = $('<span></span>').addClass('if-else').appendTo(elt);
       let cElse = stmt['e'];
@@ -395,10 +395,10 @@ function renderStmt(elt, stmt) {
           'tag' in cElse && cElse['tag'] === 'If') {
         // else-if, rely on recursion to get the fi
         c3.append(';' + fieldSep + 'el');
-        renderStmt(c3, cElse);
+        renderStmt(info, c3, cElse);
       } else {
         // plain else clause, provide our own fi
-        renderStmt(c3, cElse);
+        renderStmt(info, c3, cElse);
         elt.append(';' + fieldSep + 'fi');
       }
 
@@ -414,12 +414,12 @@ function renderStmt(elt, stmt) {
       elt.append(kw + fieldSep);
       
       var c = $('<span></span>').addClass(kw + '-cond').appendTo(elt);
-      renderStmt(c, cond);
+      renderStmt(info, c, cond);
 
       elt.append(';' + fieldSep + 'do');
 
       var body = $('<span></span>').addClass(kw + '-body').appendTo(elt);
-      renderStmt(body, stmt['body']);
+      renderStmt(info, body, stmt['body']);
 
       elt.append(';' + fieldSep + 'done');
 
@@ -434,12 +434,12 @@ function renderStmt(elt, stmt) {
       elt.append(fieldSep + 'in' + fieldSep);
 
       var w = $('<span></span>').addClass('for-args').appendTo(elt);
-      renderWords(w, stmt['args']);
+      renderWords(info, w, stmt['args']);
 
       elt.append(';' + fieldSep + 'do');
   
       var body = $('<span></span>').addClass('for-body').appendTo(elt);
-      renderStmt(body, stmt['body']);
+      renderStmt(info, body, stmt['body']);
 
       elt.append(';' + fieldSep + 'done');
 
@@ -452,7 +452,7 @@ function renderStmt(elt, stmt) {
       elt.append('case' + fieldSep);
 
       var w = $('<span></span>').addClass('case-args').appendTo(elt);
-      renderWords(w, stmt['args']);
+      renderWords(info, w, stmt['args']);
   
       elt.append(fieldSep + 'in' + fieldSep);
 
@@ -462,12 +462,12 @@ function renderStmt(elt, stmt) {
         let eCase = $('<span></span>').addClass('case').appendTo(cases);
 
         let pat = $('<span></span>').addClass('case-pattern').appendTo(eCase);
-        renderWords(pat, c['pat']);
+        renderWords(info, pat, c['pat']);
 
         eCase.append(')' + fieldSep);
 
         var body = $('<span></span>').addClass('case-stmt').appendTo(eCase);
-        renderStmt(body, c['stmt']);
+        renderStmt(info, body, c['stmt']);
 
         eCase.append(fieldSep + ';;');
       }
@@ -487,7 +487,7 @@ function renderStmt(elt, stmt) {
       elt.append('()' + fieldSep + '{' + fieldSep);
 
       var body = $('<span></span>').addClass('defun-body').appendTo(elt);
-      renderStmt(body, stmt['body']);
+      renderStmt(info, body, stmt['body']);
 
       elt.append(fieldSep + '}');
 
@@ -505,7 +505,7 @@ function renderStmt(elt, stmt) {
 
 /* Symbolic values ****************************************************/
 
-function renderSymbolicChar(elt, symbolic) {
+function renderSymbolicChar(info, elt, symbolic) {
   console.assert(typeof symbolic === 'object', 'expected symbolic character object, got %o', symbolic);
   console.assert('tag' in symbolic, 'expected tag for symbolic character object');
   console.assert(['SymCommand', 'SymArith', 'SymPat'].includes(symbolic['tag']), 
@@ -519,7 +519,7 @@ function renderSymbolicChar(elt, symbolic) {
   
       elt.append('$(');
       var stmt = $('<span></span>').addClass('stmt').appendTo(elt);
-      renderStmt(stmt, symbolic['stmt']);
+      renderStmt(info, stmt, symbolic['stmt']);
       elt.append(')');
     
       break;
@@ -530,10 +530,10 @@ function renderSymbolicChar(elt, symbolic) {
       elt.append('$((');
       elt.append('<span></span>').addClass('param-varname variable').append(control['var']);
       var f = $('<span></span>').appendTo(fmt);
-      renderFields(f, control['f']);
+      renderFields(info, f, control['f']);
 
       var w = $('<span></span>').appendTo(fmt);
-      renderWords(w, control['w']);
+      renderWords(info, w, control['w']);
 
       elt.append('))');                 
 
@@ -551,13 +551,13 @@ function renderSymbolicChar(elt, symbolic) {
       varname.append(control['var']);
       varname.append('=');
       var w = $('<span></span>').appendTo(varname);
-      renderWords(w, control['s']);
+      renderWords(info, w, control['s']);
 
       var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
       fmt.append(renderSubstring(control['side'], control['mode']));
 
       var pat = $('<span></span>').appendTo(elt);
-      renderFields(pat, control['pat']);
+      renderFields(info, pat, control['pat']);
 
       elt.append('}');
 
@@ -569,7 +569,7 @@ function renderSymbolicChar(elt, symbolic) {
   }
 };
 
-function renderSymbolicString(elt, ss) {
+function renderSymbolicString(info, elt, ss) {
   console.assert(typeof ss === 'object', 'expected symbolic string list, got %o', ss);
   console.assert('length' in ss, 'expected length field for symbolic string, got %o', ss);
 
@@ -583,7 +583,7 @@ function renderSymbolicString(elt, ss) {
         break;
 
       case 'object':
-        renderSymbolicChar(c, ss[i]);
+        renderSymbolicChar(info, c, ss[i]);
 
         break;
 
@@ -595,7 +595,7 @@ function renderSymbolicString(elt, ss) {
 
 /* Fields, intermediate fields, and expanded words******************************/
 
-function renderFields(elt, fields) {
+function renderFields(info, elt, fields) {
   console.assert(typeof fields === 'object', 'expected fields list, got %o', fields);
   console.assert('length' in fields, 'expected length field for fields object');
 
@@ -603,7 +603,7 @@ function renderFields(elt, fields) {
 
   for (let i = 0; i < fields.length; i += 1) {
     const s = $('<span></span>').addClass('field').appendTo(elt);
-    renderSymbolicString(s, fields[i]);
+    renderSymbolicString(info, s, fields[i]);
 
     if (i !== fields.length - 1) {
       $('<span></span>').addClass('field-separator').append(fieldSep).appendTo(elt);
@@ -611,7 +611,7 @@ function renderFields(elt, fields) {
   }
 };
 
-function renderTmpField(elt, tf) {
+function renderTmpField(info, elt, tf) {
   console.assert(typeof tf === 'object', 'expected temp field character, got %o', tf);
   console.assert('tag' in tf, 'expected tag field in temp field character');
   console.assert(['WFS','FS','Field','QField'].includes(tf['tag']));
@@ -636,7 +636,7 @@ function renderTmpField(elt, tf) {
       // | Field s -> Assoc [tag "Field"; ("s", json_of_symbolic_string s)]
 
       const f = $('<span></span>').appendTo(elt);
-      renderSymbolicString(f, tf['s']);
+      renderSymbolicString(info, f, tf['s']);
 
       break;
 
@@ -645,7 +645,7 @@ function renderTmpField(elt, tf) {
 
       const qf = $('<span></span>').appendTo(elt);
       qf.append('&ldquo;');
-      renderSymbolicString(qf, tf['s']);
+      renderSymbolicString(info, qf, tf['s']);
       qf.append('&rdquo;');
     
       break;
@@ -655,7 +655,7 @@ function renderTmpField(elt, tf) {
   }
 }
 
-function renderIntermediateFields(elt, ifs) {
+function renderIntermediateFields(info, elt, ifs) {
   console.assert(typeof ifs === 'object', 'expected intermediate field list, got %o', ifs);
   console.assert('length' in ifs, 'expected length field for intermediate field list');
   
@@ -663,11 +663,11 @@ function renderIntermediateFields(elt, ifs) {
 
   for (const tmp_field of ifs) {
     const tf = $('<span></span>').appendTo(elt);
-    renderTmpField(tf, tmp_field);
+    renderTmpField(info, tf, tmp_field);
   }
 }
 
-function renderExpandedWord(elt, w) {
+function renderExpandedWord(info, elt, w) {
   console.assert(typeof w === 'object', 'expected expanded word character, got %o', w);
   console.assert('tag' in w, 'expected tag field in expanded word character');
   console.assert(['UsrF','ExpS','DQuo','UsrS','EWSym'].includes(w['tag']));
@@ -711,7 +711,7 @@ function renderExpandedWord(elt, w) {
       // | EWSym sym -> Assoc [tag "EWSym"; ("s", json_of_symbolic sym)]
 
       let sym = $('<span></span>').appendTo(elt);
-      renderSymbolicChar(sym, w['s']);
+      renderSymbolicChar(info, sym, w['s']);
       break;
 
     default:
@@ -719,13 +719,13 @@ function renderExpandedWord(elt, w) {
   }
 };
 
-function renderExpandedWords(elt, w) {
+function renderExpandedWords(info, elt, w) {
   console.assert(typeof w === 'object', 'expected expanded word list, got %o', w);
   console.assert('length' in w, 'expected length field for expanded words object');
 
   for (let i = 0; i < w.length; i += 1) {
     let char = $('<span></span>').addClass('expanded-word').appendTo(elt);
-    renderExpandedWord(char, w[i]);
+    renderExpandedWord(info, char, w[i]);
   }
 };
 
@@ -777,7 +777,7 @@ function renderFormatChar(format) {
   }
 };
 
-function renderFormat(elt, format) {
+function renderFormat(info, elt, format) {
   console.assert(typeof format === 'object', 'expected format object, got %o', format);
   console.assert('tag' in format, 'expected tag for format object');
   console.assert(['Normal', 'Length', 'Default', 'NDefault',
@@ -801,7 +801,7 @@ function renderFormat(elt, format) {
     case 'Alt':
     case 'NAlt':
       var w = $('<span></span>').appendTo(elt);
-      renderWords(w, format['w']);
+      renderWords(info, w, format['w']);
 
       break;
 
@@ -824,7 +824,7 @@ function renderFormat(elt, format) {
   }
 };
 
-function renderControl(elt, control) {
+function renderControl(info, elt, control) {
   console.assert(typeof control === 'object', 'expected control object, got %o', control);
   console.assert('tag' in control, 'expected tag for control object');
   console.assert(['Tilde', 'TildeUser', 'Param', 'LAssign', 'LMatch',
@@ -861,7 +861,7 @@ function renderControl(elt, control) {
 
       if (control['fmt'] !== 'Length') {
         var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
-        renderFormat(fmt, control['fmt']);
+        renderFormat(info, fmt, control['fmt']);
       }
       elt.append('}');
 
@@ -878,10 +878,10 @@ function renderControl(elt, control) {
       fmt.append('=');
 
       var f = $('<span></span>').appendTo(fmt);
-      renderExpandedWords(f, control['f']);
+      renderExpandedWords(info, f, control['f']);
 
       var w = $('<span></span>').appendTo(fmt);
-      renderWords(w, control['w']);
+      renderWords(info, w, control['w']);
 
       elt.append('}');
 
@@ -900,10 +900,10 @@ function renderControl(elt, control) {
       fmt.append(renderSubstring(control['side'], control['mode']));
 
       var f = $('<span></span>').appendTo(elt);
-      renderExpandedWords(f, control['f']);
+      renderExpandedWords(info, f, control['f']);
 
       var w = $('<span></span>').appendTo(elt);
-      renderWords(w, control['w']);
+      renderWords(info, w, control['w']);
 
       elt.append('}');
 
@@ -919,10 +919,10 @@ function renderControl(elt, control) {
       fmt.append('?');
 
       var f = $('<span></span>').appendTo(fmt);
-      renderExpandedWords(f, control['f']);
+      renderExpandedWords(info, f, control['f']);
 
       var w = $('<span></span>').appendTo(fmt);
-      renderWords(w, control['w']);
+      renderWords(info, w, control['w']);
 
       elt.append('}');
 
@@ -935,7 +935,7 @@ function renderControl(elt, control) {
 
       elt.append('$(');
       var stmt = $('<span></span>').addClass('stmt').appendTo(elt);
-      renderStmt(stmt, control['stmt']);
+      renderStmt(info, stmt, control['stmt']);
       elt.append(')');
 
       break;
@@ -946,10 +946,10 @@ function renderControl(elt, control) {
       elt.append('$((');
 
       var f = $('<span></span>').appendTo(elt);
-      renderExpandedWords(f, control['f']);
+      renderExpandedWords(info, f, control['f']);
 
       var w = $('<span></span>').appendTo(elt);
-      renderWords(w, control['w']);
+      renderWords(info, w, control['w']);
 
       elt.append('))');                 
 
@@ -962,7 +962,7 @@ function renderControl(elt, control) {
       elt.append('"');
                  
       var w = $('<span></span>').appendTo(elt);
-      renderWords(w, control['w']);
+      renderWords(info, w, control['w']);
 
       elt.append('"');
 
@@ -973,7 +973,7 @@ function renderControl(elt, control) {
   }
 };
 
-function renderEntry(elt, entry) {
+function renderEntry(info, elt, entry) {
   console.assert(typeof entry === 'object', 'expected entry object, got %o', entry);
   console.assert('tag' in entry, 'expected tag for entry object');
   console.assert(['S', 'K', 'F', 'ESym'].includes(entry['tag']), 
@@ -990,7 +990,7 @@ function renderEntry(elt, entry) {
 
     case 'K':
       // | K k -> Assoc [tag "K"; ("v", json_of_control k)]
-      renderControl(elt, entry['v']);
+      renderControl(info, elt, entry['v']);
 
       break;
 
@@ -1004,7 +1004,7 @@ function renderEntry(elt, entry) {
     case 'ESym':
       // | ESym sym -> Assoc [tag "ESym"; ("v", json_of_symbolic sym)]
 
-      renderSymbolicChar(elt, entry['v']);
+      renderSymbolicChar(info, elt, entry['v']);
 
       break;
 
@@ -1013,7 +1013,7 @@ function renderEntry(elt, entry) {
   }
 };
 
-function renderWords(elt, words) {
+function renderWords(info, elt, words) {
   console.assert(typeof words === 'object', 'expected words list, got %o', words);
   console.assert('length' in words, 'expected length field for words object, got %o', words);
 
@@ -1021,13 +1021,13 @@ function renderWords(elt, words) {
 
   for (const e of words) {
     let entry = $('<span></span>').appendTo(elt);
-    renderEntry(entry, e);
+    renderEntry(info, entry, e);
   }
 };
 
 /* Top-level step/environment rendering *******************************/
 
-function renderExpansionState(elt, step) {
+function renderExpansionState(info, elt, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['ExpStart',
@@ -1037,11 +1037,11 @@ function renderExpansionState(elt, step) {
 
   elt.addClass('step-' + step['tag']);
 
-  let label = $('<div></div>').addClass('ui top left attached icon label').appendTo(elt);
-  let icon = $('<i></i>').addClass('icon').appendTo(label);
-  label.append(stepName[step['tag']]);
+  renderDivider(info);
+  const marker = $('<div></div>').addClass('section').appendTo(info);
+  const icon = $('<i></i>').addClass('icon').appendTo(marker);
+  marker.append(stepName[step['tag']]);
   
-
   let term = $('<div></div>').addClass('term').appendTo(elt);
 
   switch (step['tag']) {
@@ -1050,7 +1050,7 @@ function renderExpansionState(elt, step) {
       icon.addClass('play');
 
       var w = $('<span></span>').appendTo(term);
-      renderWords(w, step['w']);
+      renderWords(info, w, step['w']);
 
       break;
 
@@ -1059,10 +1059,10 @@ function renderExpansionState(elt, step) {
       icon.addClass('expand');
 
       var f = $('<span></span>').appendTo(term);
-      renderExpandedWords(f, step['f']);
+      renderExpandedWords(info, f, step['f']);
 
       var w = $('<span></span>').appendTo(term);
-      renderWords(w, step['w']);
+      renderWords(info, w, step['w']);
 
       break;
 
@@ -1071,7 +1071,7 @@ function renderExpansionState(elt, step) {
       icon.addClass('unlinkify');
 
       var f = $('<span></span>').appendTo(term);
-      renderExpandedWords(f, step['f']);
+      renderExpandedWords(info, f, step['f']);
 
       break;
 
@@ -1080,7 +1080,7 @@ function renderExpansionState(elt, step) {
       icon.addClass('disk outline');
 
       var ifs = $('<span></span>').appendTo(term);
-      renderIntermediateFields(ifs, step['ifs']);
+      renderIntermediateFields(info, ifs, step['ifs']);
 
       break;
 
@@ -1089,7 +1089,7 @@ function renderExpansionState(elt, step) {
       icon.addClass('quote right');
 
       var ifs = $('<span></span>').appendTo(term);
-      renderIntermediateFields(ifs, step['ifs']);
+      renderIntermediateFields(info, ifs, step['ifs']);
 
       break;
 
@@ -1098,7 +1098,7 @@ function renderExpansionState(elt, step) {
       icon.addClass('warning circle');
 
       var f = $('<span></span>').appendTo(term);
-      renderFields(f, step['msg']);
+      renderFields(info, f, step['msg']);
 
       break;
 
@@ -1107,7 +1107,7 @@ function renderExpansionState(elt, step) {
       icon.addClass('check circle outline');
 
       var f = $('<span></span>').appendTo(term);
-      renderFields(f, step['f']);
+      renderFields(info, f, step['f']);
 
       break;
 
@@ -1116,7 +1116,7 @@ function renderExpansionState(elt, step) {
   };
 };
 
-function renderEnv(elt, env) {
+function renderEnv(info, elt, env) {
   console.assert(typeof env === 'object', 'expected environment object, got %o', env);
 
   let table = $('<table></table>').addClass('ui unstackable compact table').appendTo(elt);
@@ -1130,70 +1130,79 @@ function renderEnv(elt, env) {
       varname.append(x);
 
       let value = $('<td></td>').appendTo(entry);
-      renderSymbolicString(value, env[x]);
+      renderSymbolicString(info, value, env[x]);
     }
   }
 };
+
+function renderDivider(info) {
+    $('<i></i>').addClass('right chevron icon divider').appendTo(info);
+}
 
 function stepMessage(msg) {
   return msg === '' ? '' : ': ' + msg;
 }
 
-function renderExpansionStep(elt, step) {
+function renderMessage(info, desc, step) {
+  const crumb = $('<div></div>').addClass('section').appendTo(info)
+  crumb.append(desc + stepMessage(step['msg']));
+}
+
+
+function renderExpansionStep(info, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['ESTilde', 'ESParam', 'ESCommand', 'ESArith', 'ESSplit', 'ESPath',
                   'ESQuote', 'ESStep', 'ESNested'].includes(step['tag']),
                  'got weird step tag %o', step['tag']);
 
-  // TODO get me
   switch (step['tag']) {
     case 'ESTilde':
       // | ESTilde s -> Assoc [tag "ESTilde"; ("msg", String s)]
   
-      elt.append('Tilde expansion' + stepMessage(step['msg']));
+      renderMessage(info, 'Tilde expansion', step);
 
       break;
 
     case 'ESParam':
       // | ESParam s -> Assoc [tag "ESParam"; ("msg", String s)]
 
-      elt.append('Parameter expansion' + stepMessage(step['msg']));
+      renderMessage(info, 'Parameter expansion', step);
     
       break;
 
     case 'ESCommand':
       // | ESCommand s -> Assoc [tag "ESCommand"; ("msg", String s)]
 
-      elt.append('Command substitution' + stepMessage(step['msg']));
+      renderMessage(info, 'Command substitution', step);
       
       break;
 
     case 'ESArith':
       // | ESArith s -> Assoc [tag "ESArith"; ("msg", String s)]
   
-      elt.append('Arithmetic expansion' + stepMessage(step['msg']));
+      renderMessage(info, 'Arithmetic expansion', step);
 
       break;
 
     case 'ESSplit':
       // | ESSplit s -> Assoc [tag "ESSplit"; ("msg", String s)]
     
-      elt.append('Field splitting' + stepMessage(step['msg']));
+      renderMessage(info, 'Field splitting', step);
 
       break;
 
     case 'ESPath':
       // | ESPath s -> Assoc [tag "ESPath"; ("msg", String s)]
       
-      elt.append('Pathname expansion' + stepMessage(step['msg']));
+      renderMessage(info, 'Pathname expansion', step);
 
       break;
 
     case 'ESQuote':
       // | ESQuote s -> Assoc [tag "ESQuote"; ("msg", String s)]
   
-      elt.append('Quote removal' + stepMessage(step['msg']));
+      renderMessage(info, 'Quote removal', step);
 
       break;
 
@@ -1201,7 +1210,7 @@ function renderExpansionStep(elt, step) {
       // | ESStep s -> Assoc [tag "ESStep"; ("msg", String s)]
 
       if (step['msg'] !== '') {
-        elt.append('Expansion step' + stepMessage(step['msg']));
+          renderMessage(info, 'Expansion step', step);
       }
 
       break;
@@ -1209,10 +1218,9 @@ function renderExpansionStep(elt, step) {
     case 'ESNested':
       // | ESNested (outer, inner) -> Assoc [tag "ESNested"; ("inner", json_of_expansion_step inner); ("outer", json_of_expansion_step outer)]
   
-      renderExpansionStep(elt, step['outer']);
-      elt.append(' (');
-      renderExpansionStep(elt, step['inner']);
-      elt.append(')');
+      renderExpansionStep(info, step['outer']);
+      renderDivider(info);
+      renderExpansionStep(info, step['inner']);
       
       break;
 
@@ -1221,140 +1229,137 @@ function renderExpansionStep(elt, step) {
   }
 }
 
-function renderExpansionTraceEntry(elt, step) {
+function renderExpansionTraceEntry(info, elt, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('term' in step, 'expected term for step object');
   console.assert('env' in step, 'expected environment for step object');
   console.assert('step' in step, 'expected step description for step object');
 
   // TODO debug display
-  let exp_step = $('<div></div>').addClass('step').appendTo(elt);
-  renderExpansionStep(exp_step, step['step']);
+  renderExpansionStep(info, step['step']);
 
   let term = $('<div></div>').addClass('term').appendTo(elt);
-  renderExpansionState(term, step['term']);
+  renderExpansionState(info, term, step['term']);
 
   let env = $('<div></div>').addClass('env').appendTo(elt);
-  renderEnv(env, step['env']);
+  renderEnv(info, env, step['env']);
 
 };
 
-function renderEvaluationStep(elt, step) {
+function renderEvaluationStep(info, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
                   'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
-                  'XSFor', 'XSCase', 'XSDefun', 'XSNested', 'XSExpand'].includes(step['tag']),
+                  'XSFor', 'XSCase', 'XSDefun', 
+                  'XSStep', 'XSNested', 'XSExpand'].includes(step['tag']),
                  'got weird step tag %o', step['tag']);
 
-  // TODO get me
   switch (step['tag']) {
     case 'XSSimple':
 
-      elt.append('Simple commmand' + stepMessage(step['msg']));
+      renderMessage(info, 'Simple commmand', step);
 
       break;
 
     case 'XSPipe':
 
-      elt.append('Pipe commmand' + stepMessage(step['msg']));
+      renderMessage(info, 'Pipe commmand', step);
 
       break;
 
     case 'XSRedir':
 
-      elt.append('Redirection' + stepMessage(step['msg']));
+      renderMessage(info, 'Redirection', step);
 
       break;
 
     case 'XSBackground':
 
-      elt.append('Background' + stepMessage(step['msg']));
+      renderMessage(info, 'Background', step);
 
       break;
 
     case 'XSSubshell':
 
-      elt.append('Subshell' + stepMessage(step['msg']));
+      renderMessage(info, 'Subshell', step);
 
       break;
 
     case 'XSAnd':
 
-      elt.append('And' + stepMessage(step['msg']));
+      renderMessage(info, 'And', step);
 
       break;
 
     case 'XSOr':
 
-      elt.append('Or' + stepMessage(step['msg']));
+      renderMessage(info, 'Or', step);
 
       break;
 
     case 'XSNot':
 
-      elt.append('Not' + stepMessage(step['msg']));
+      renderMessage(info, 'Not', step);
 
       break;
 
     case 'XSSemi':
 
-      elt.append('Semi' + stepMessage(step['msg']));
+      renderMessage(info, 'Semi', step);
 
       break;
 
     case 'XSIf':
 
-      elt.append('If' + stepMessage(step['msg']));
+      renderMessage(info, 'If', step);
     
       break;
 
     case 'XSWhile':
 
-      elt.append('While' + stepMessage(step['msg']));
+      renderMessage(info, 'While', step);
 
       break;
 
     case 'XSFor':
 
-      elt.append('For' + stepMessage(step['msg']));
+      renderMessage(info, 'For', step);
 
       break;
 
     case 'XSCase':
 
-      elt.append('Case statement' + stepMessage(step['msg']));
+      renderMessage(info, 'Case statement', step);
 
       break;
 
     case 'XSDefun':
 
-      elt.append('Function definition' + stepMessage(step['msg']));
+      renderMessage(info, 'Function definition', step);
 
       break;
 
     case 'XSStep':
       if (step['msg'] !== '') {
-        elt.append('Evaluation step' + stepMessage(step['msg']));
+        renderMessage(info, 'Evaluation step', step);
       }
 
       break;
 
     case 'XSNested':
 
-      renderEvaluationStep(elt, step['outer']);
-      elt.append(' (');
-      renderEvaluationStep(elt, step['inner']);
-      elt.append(')');
+      renderEvaluationStep(info, step['outer']);
+      renderDivider(info);
+      renderEvaluationStep(info, step['inner']);
 
       break;
 
     case 'XSExpand':
 
-      renderEvaluationStep(elt, step['outer']);
-      elt.append(' (');
-      renderExpansionStep(elt, step['inner']);
-      elt.append(')');
+      renderEvaluationStep(info, step['outer']);
+      renderDivider(info);
+      renderExpansionStep(info, step['inner']);
 
       break;
 
@@ -1363,21 +1368,19 @@ function renderEvaluationStep(elt, step) {
   }
 }
 
-function renderEvaluationTraceEntry(elt, step) {
+function renderEvaluationTraceEntry(info, elt, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('term' in step, 'expected term for step object');
   console.assert('env' in step, 'expected environment for step object');
   console.assert('step' in step, 'expected step description for step object');
 
-  // TODO debug display
-  let exp_step = $('<div></div>').addClass('step').appendTo(elt);
-  renderEvaluationStep(exp_step, step['step']);
+  renderEvaluationStep(info, step['step']);
 
   let term = $('<div></div>').addClass('term').appendTo(elt);
-  renderStmt(term, step['term']);
+  renderStmt(info, term, step['term']);
 
   let env = $('<div></div>').addClass('env').appendTo(elt);
-  renderEnv(env, step['env']);
+  renderEnv(info, env, step['env']);
 
 };
 
@@ -1417,8 +1420,16 @@ $('#expansionForm').submit(function(e) {
 
       console.info('%d: term %o env %o step %o', i, step['term'], step['env'], step['step']);
 
-      let elt = $('<div></div>').addClass('evaluation-step ui segment').appendTo(steps);
-      renderEvaluationTraceEntry(elt, step);
+      const hasStep =  step['step']['tag'] !== 'XSStep' && step['step']['msg'] !== "";
+
+      const info = 
+            hasStep 
+            ? $('<div></div>').addClass('ui segment').appendTo(steps)
+            : $('<span></span>');
+      const crumb = $('<div></div>').addClass('ui breadcrumb').appendTo(info);
+
+      const elt = $('<div></div>').addClass('evaluation-step ui segment').appendTo(steps);      
+      renderEvaluationTraceEntry(crumb, elt, step);
     }
   }
 
