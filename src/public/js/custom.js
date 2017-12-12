@@ -179,7 +179,7 @@ function renderStmt(elt, stmt) {
   console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded',
                   'Pipe', 'Redir', 'Background', 'Subshell',
                   'And', 'Or', 'Not', 'Semi', 'If', 
-                  'While', 'For', 'Case', 'Defun'].includes(stmt['tag']), 
+                  'While', 'For', 'Case', 'Defun', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag %s', stmt['tag']);
 
   elt.addClass('stmt stmt-' + stmt['tag']);
@@ -503,6 +503,11 @@ function renderStmt(elt, stmt) {
       renderStmt(body, stmt['body']);
 
       elt.append(fieldSep + '}');
+
+      break;
+
+    case 'Done':
+      $('<i></i>').addClass('icon check circle outline').appendTo('elt');
 
       break;
 
