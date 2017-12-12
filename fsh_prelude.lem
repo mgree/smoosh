@@ -64,7 +64,7 @@ and entry =
 
 and words = list entry
 
-and stmt = 
+and stmt =
     Command of list (string * words) * words * list redir
   | CommandExpAssign of list (string * expansion_state) * words * list redir
   | CommandExpArgs of list (string * fields) * expansion_state * list redir
@@ -83,6 +83,7 @@ and stmt =
   | For of string * words * stmt
   | Case of words * list (words * stmt)
   | Defun of string * stmt
+  | Done
 
 and redir = 
    | RFile of redir_type * nat * words

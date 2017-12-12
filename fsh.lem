@@ -70,6 +70,7 @@ let rec string_of_stmt c =
   | Case w cs ->
      "case " ^ string_of_words w ^ " in " ^ concat " " (List.map string_of_case cs) ^ " esac"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
+  | Done -> "Done"
   end
 
 and string_of_assign (v,a) = v ^ "=" ^ string_of_words a

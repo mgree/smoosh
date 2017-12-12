@@ -318,7 +318,7 @@ let rec json_of_stmt = function
   | CommandExpArgs (assigns, args, rs) ->
      Assoc [tag "CommandExpArgs"; 
             ("assigns", List (List.map json_of_expanded_assign assigns));
-            ("args", json_of_inprogress_words args);
+            ("args", json_of_expansion_state args);
             ("rs", json_of_redirs rs)]
   | CommandExpanded (assigns, args, rs) -> 
      Assoc [tag "CommandExpanded"; 
@@ -343,6 +343,7 @@ let rec json_of_stmt = function
   | Case (w, cases) -> 
      Assoc [tag "Case"; ("args", json_of_words w); ("cases", List (List.map json_of_case cases))]
   | Defun (f, c) -> Assoc [tag "Defun"; ("name", String f); ("body", json_of_stmt c)]
+  | Done -> Assoc [tag "Done"]
 and obj_lr name l r = Assoc [tag name; ("l", json_of_stmt l); ("r", json_of_stmt r)]
 and obj_crs name c rs = 
   Assoc [tag name; ("c", json_of_stmt c); ("rs", json_of_redirs rs)]
@@ -370,13 +371,10 @@ and json_of_heredoc_type = function
   | XHere -> String "XHere"
 and json_of_redirs rs = List (List.map json_of_redir rs)
 and json_of_assign (x, w) = Assoc [("var", String x); ("w", json_of_words w)]
-and json_of_inprogress_assign (x, f, state, w) = Assoc [("var", String x); ("f", json_of_fields f); ("state", json_of_expansion_state state); ("w", json_of_words w)]
+and json_of_inprogress_assign (x, state) = Assoc [("var", String x); ("state", json_of_expansion_state state)]
 and json_of_expanded_assign (x, f) = Assoc [("var", String x); ("f", json_of_fields f)]
 and json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
 and json_of_words w = List (List.map json_of_entry w)
-and json_of_inprogress_words (f,state,w) = Assoc [("f", json_of_fields f); 
-                                                  ("state", json_of_expansion_state state);
-                                                  ("w", List (List.map json_of_entry w))]
 and json_of_entry = function
   | S s -> obj_v "S" s
   | K k -> Assoc [tag "K"; ("v", json_of_control k)]

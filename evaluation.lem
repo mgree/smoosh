@@ -6,7 +6,7 @@ open import Expansion
 
 val step_assign : ty_os_state -> list (string * expansion_state) ->
                   either (ty_os_state * list (string * fields)) (* Done state *)
-                         (ty_os_state * list (string * expansion_state)) (* In progress or error *)
+                         (ty_os_state * list (string * expansion_state) * evaluation_step) (* In progress *)
 (* Steps the first, non-complete expansion_state and returns.
  * If it reached the base case, they are all complete, so
  *   we return the Left type to continue on the arg expansion. *)
@@ -15,26 +15,24 @@ let rec step_assign s0 assigns =
   | [] -> Left (s0, [])
   | ((x, ExpError f) as error)::assigns' ->
     match step_assign s0 assigns' with
-    | Right (s1, processed) -> Right (s1, error::processed)
+    | Right (s1, processed, step) -> Right (s1, error::processed, step)
     | Left (s1, completed) -> Left (s1, (x, f)::completed)
     end
   | ((x, ExpDone f) as finished)::assigns' ->
     match step_assign s0 assigns' with
-    | Right (s1, processed) -> Right (s1, finished::processed)
+    | Right (s1, processed, step) -> Right (s1, finished::processed, step)
     | Left (s1, completed) -> Left (s1, (x, f)::completed)
     end
   | (x, exp_state)::assigns' ->
-    (* TODO 2017-12-10 do we care about the expansion_step information?
-     *                 if so, should we just run trace_expansion? *)
-    let (s1, next_state, _step) = step_expansion (s0, exp_state) in
-    Right (s1, (x, next_state)::assigns')
+    let (s1, next_state, step) = step_expansion (s0, exp_state) in
+    Right (s1, (x, next_state)::assigns', XSExpand (XSSimple x) step)
   end
 
 (* TODO 2017-12-12 move evaluation_step to end of tuple *)
-val eval_step : ty_os_state -> stmt -> 
+val step_eval : ty_os_state -> stmt -> 
                 either (evaluation_step * ty_os_state) (* error case *)
                        (evaluation_step * ty_os_state * stmt) (* success *)
-let rec eval_step s0 stmt =
+let rec step_eval s0 stmt =
   match stmt with
   | Command assigns ws redirs ->
      (* TODO 2017-12-08 not quite right *)
@@ -54,8 +52,8 @@ let rec eval_step s0 stmt =
       *)
      match step_assign s0 assigns with
      (* Perform an expansion step in an assignment *)
-     | Right (s1, assigns') ->
-         Right (XSSimple "step an assignment",
+     | Right (s1, assigns', exp_step) ->
+         Right (exp_step,
                 s1,
                 CommandExpAssign assigns' ws redirs)
      (* Done, move on to expanding arguments *)
@@ -65,7 +63,7 @@ let rec eval_step s0 stmt =
                 CommandExpArgs fields (ExpStart ws) redirs)
      end
   | CommandExpArgs assigns exp_state redirs ->
-      let (os1,st1,step) = step_expansion (s0, exp_state) in
+      let (os1, st1, step) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError _ ->
             Left (XSSimple "error in argument expansion",
@@ -75,7 +73,7 @@ let rec eval_step s0 stmt =
                    os1,
                    CommandExpanded assigns f redirs)
         | (_ as in_progress) ->
-          Right(XSSimple "step of argument expansion",
+          Right(XSExpand (XSSimple "argument expansion step") step,
                    os1,
                    CommandExpArgs assigns in_progress redirs)
       end
@@ -118,4 +116,17 @@ $ count $(${x? one two three}) four
   | For _var _ws _body -> Left (XSFor "TODO", s0)
   | Case _ws _cases -> Left (XSCase "TODO", s0)
   | Defun _name _body -> Left (XSDefun "TODO", s0)
+  (* This should never come up when called from trace_evaluation or elsewhere *)
+  | Done -> Right(XSSimple "", s0, Done)
+  end
+
+val trace_evaluation : ty_os_state -> stmt -> list (ty_os_state * stmt * evaluation_step)
+let rec trace_evaluation os0 stmt0 =
+  match stmt0 with
+  | Done -> []
+  | _ ->
+      match step_eval os0 stmt0 with
+      | Right (step, os1, stmt1) -> (os1, stmt1, step)::trace_evaluation os1 stmt1
+      | Left (step, os1) -> [(os1, Done, step)]
+      end
   end
