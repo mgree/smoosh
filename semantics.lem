@@ -530,6 +530,7 @@ $ count $(echo ${x?one two three}) four
 $ count $(${x? one two three}) four
 /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
       *)
+  (* TODO 2017-12-22 add a CommandExpRedir to expand all of the redirect targets/heredocs *)
   | CommandExpanded _assigns _ws _redirs ->
      (* TODO
           EVERYTHING is expanded, 
