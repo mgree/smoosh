@@ -1,6 +1,6 @@
 open Test_prelude
 open Fsh
-open Expansion
+open Semantics
 open Printf
 
 (* RErr test_name expected got *)

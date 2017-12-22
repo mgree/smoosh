@@ -1,7 +1,7 @@
 open Test_prelude
 open Shim
 open Fsh
-open Evaluation
+open Semantics
 open Printf
 
 (**********************************************************************)
