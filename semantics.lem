@@ -8,15 +8,6 @@ open import Path
 (* SHARED DECLARATIONS FOR EXPANSION AND EVALUATION *******************)   
 (**********************************************************************)   
 
-val step_expansion : ty_os_state * expansion_state -> ty_os_state * expansion_state * expansion_step
-val step_eval : ty_os_state -> stmt -> 
-                either (ty_os_state * evaluation_step) (* error case *)
-                       (ty_os_state * stmt * evaluation_step) (* success *)
-   
-(**********************************************************************)   
-(* EXPANSION **********************************************************)   
-(**********************************************************************)   
-   
 type string_mode =
     UserString
   | GeneratedString
@@ -25,200 +16,28 @@ type quoting_mode =
     Unquoted
   | Quoted
 
-(*
- * Stage 1 Expansion: Word expansion
- *)
-
-val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
 val expand_control : ty_os_state -> quoting_mode -> control ->
-  either (expansion_step * ty_os_state * expanded_words) (expansion_step * ty_os_state * expanded_words * words)
+                     either (expansion_step * ty_os_state * expanded_words) 
+                            (expansion_step * ty_os_state * expanded_words * words)
 val expand_words : ty_os_state -> quoting_mode -> string_mode -> (expanded_words * words) ->
-  either (expansion_step * ty_os_state * expanded_words) (expansion_step * ty_os_state * expanded_words * words)
-(* Runs expansion all the way, for testing purposes only *)
-val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
+                   either (expansion_step * ty_os_state * expanded_words) 
+                          (expansion_step * ty_os_state * expanded_words * words)
+val step_expansion : ty_os_state * expansion_state -> 
+                     ty_os_state * expansion_state * expansion_step
+val step_assign : ty_os_state -> list (string * expansion_state) ->
+                  either (ty_os_state * list (string * fields)) (* Done state *)
+                         (ty_os_state * list (string * expansion_state) * evaluation_step) (* In progress *)
+val step_eval : ty_os_state -> stmt -> 
+                either (ty_os_state * evaluation_step) (* error case *)
+                       (ty_os_state * stmt * evaluation_step) (* success *)
 
-let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
-  let sympat : symbolic_string = (concat_expanded pat) in
-  let symstr : symbolic_string = symbolic_string_of_fields str in
-  try_match_prefix lc side mode sympat symstr
-
-(* TODO 2017-12-01
- * In an N____ case, when null_string fs is Nothing, the
- * string is entirely symbolic so we need
- * to represent the symbolic result of "it could be either
- * true or false, we don't know". This means we need to branch
- * and allow for both cases to progress.
- *)
-let expand_param s0 _q str f =
-  let value = lookup_param s0 str in
-  match (value, f) with
-  (* NORMAL *)
-  | (Nothing, Normal)     -> [S ""] (* null *)
-  | (Just fs, Normal)     -> words_of_symbolic_string fs
-  (* DEFAULT *)
-  | (Nothing, Default w)  -> w
-  | (Just fs, Default _)  -> words_of_symbolic_string fs
-  | (Nothing, NDefault w) -> w
-  | (Just fs, NDefault w) ->
-     match null_string fs with
-     | Nothing -> words_of_symbolic_string fs
-     | Just true -> w
-     | Just false -> words_of_symbolic_string fs
-     end
-  (* ASSIGN *)
-  | (Nothing, Assign w)  -> [K (LAssign str [] w)]
-  | (Just fs, Assign _)  -> words_of_symbolic_string fs       
-  | (Nothing, NAssign w) -> [K (LAssign str [] w)]
-  | (Just fs, NAssign w) -> 
-     match null_string fs with
-     | Nothing -> words_of_symbolic_string fs
-     | Just true -> [K (LAssign str [] w)]
-     | Just false -> words_of_symbolic_string fs
-     end
-  (* ERROR *)
-  | (Nothing, Error w)  -> [K (LError str [] w)]
-  | (Just fs, Error _)  -> words_of_symbolic_string fs
-  | (Nothing, NError w) -> [K (LError str [] w)]
-  | (Just fs, NError w) -> 
-     match null_string fs with
-     | Nothing -> words_of_symbolic_string fs
-     | Just true -> [K (LError str [] w)]
-     | Just false -> words_of_symbolic_string fs
-     end
-  (* LENGTH *)
-  | (Nothing, Length) -> [S "0"]
-  | (Just fs, Length) ->
-     match try_concrete fs with
-     | Nothing -> (* TODO This should be the length of the symbolic result of fs *) [S "0"]
-     | Just strs -> [S (show (stringLength strs))]
-     end
-  (* ALT *)
-  | (Nothing, Alt _)  -> [S ""]
-  | (Just _, Alt w)  -> w
-  | (Nothing, NAlt _) -> [S ""]
-  | (Just fs, NAlt w) ->
-     match null_string fs with
-     | Nothing -> words_of_symbolic_string fs
-     | Just true -> [S ""]
-     | Just false -> w
-     end
-  (* SUBTRINGS (prefix/suffix) *)
-  | (Nothing, Substring _ _ _) -> [S ""]
-  | (Just fs, Substring s m w) -> [K (LMatch [fs] s m [] w)]
-  end
-
-let rec expand_control s0 q k =
-    match k with
-    | Tilde ->
-       let (msg, dir) = match expand_param s0 Unquoted "HOME" Normal with
-         (* if HOME is unset, results are unspecified---we return "~" 
-            dash:
-              $ unset HOME
-              $ echo ~
-              ~
-              $ HOME=""
-              $ echo ~
-              ~
-              $ HOME="/Users/mgree"
-              $ echo ~
-              /Users/mgree
-
-            bash:
-              $ unset HOME
-              $ echo ~
-              /Users/mgree
-              $ HOME=""
-              $ echo ~
-              
-              $ HOME="/Users/mgree"
-              $ echo ~
-              /Users/mgree            
-
-            lol
-          *)
-         | [S ""] -> ("defaulting to dash behavior for unset HOME (unspec per 2.6.1)", [S "~"])
-         | dir -> ("", dir)
-         end in
-       Right (ESTilde msg, s0, [], dir)
-    | TildeUser usr -> 
-       match get_pwdir s0 usr with
-       | Nothing -> Right (ESTilde "defaulting to dash behavior for failed getpwnam (unspec per 2.6.1)", s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
-       | Just path -> Right (ESTilde "", s0, [], [S path])
-       end
-    | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
-    | LAssign s f [] ->
-        let s1 = set_param s (concat_expanded f) s0 in
-        Right (ESParam "finished assignment", s1, f, [])
-    | LAssign s f w ->
-       match expand_words s0 q GeneratedString ([], w) with
-       | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "assignment") step, s1, [], [K (LAssign s (f ++ f1) w1)])
-       | Left err -> Left err
-       end
-    | LMatch str side mode f [] -> Right (ESParam "finished match", s0, [], words_of_symbolic_string (match_substring s0.sh.locale side mode f str))
-    | LMatch s side mode f w ->
-       match expand_words s0 q GeneratedString ([], w) with
-       | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "match") step, s1, [], [K (LMatch s side mode (f ++ f1) w1)])
-       | Left err -> Left err
-       end
-    | LError str f [] -> Left (ESParam "raising requested error", s0, ExpS (str ^ ": ")::f) (* dash seems to print erroring variable name; TODO should we also have linno? *)
-    | LError str f w ->
-       match expand_words s0 q GeneratedString ([], w) with
-       | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "error") step, s1, [], [K (LError str (f ++ f1) w1)])
-       | Left err -> Left err
-       end
-    (* TODO 2017-12-11 When a subshell errors, it should evaluate to the null string and print its error message *)
-    | Backtick c -> Right (ESCommand "treating commands symbolically", s0, [], [ESym (SymCommand c)]) (* TODO this should create a new bash process, setup pipes *)
-    (* The shell shall expand the command substitution by executing command in a subshell environment (see Shell Execution Environment) and replacing the command substitution (the text of command plus the enclosing "$()" or backquotes) with the standard output of the command, removing sequences of one or more <newline>s at the end of the substitution  POSIX 2.6.3 *)
-    | Arith f [] ->
-        match arith64 s0 (concat_expanded f) with
-        | Right (s1, result) -> Right (ESArith "computed arithmetic result", s1, expanded_words_of_fields result, [])
-        | Left e -> Left (ESArith "arithmetic error", s0, [ExpS e])
-        end
-    | Arith f w ->
-       match expand_words s0 q GeneratedString ([],w) with
-       | Right (step, s1, f1, w1) -> Right (ESNested (ESArith "before arithmetic parsing") step, s1, [], [K (Arith (f ++ f1) w1)])
-       | Left err -> Left err
-       end
-    | Quote w -> 
-       match expand_words s0 Quoted GeneratedString ([],w) with
-       | Right (step, s1, f1, []) -> Right (step, s1, f1, [])
-       | Right (step, s1, f1, w1) -> Right (step, s1, f1, [K (Quote w1)])
-       | Left err -> Left err
-       end
-  end
-
-and expand_words s0 q sm (f,w) =
-  match w with
-    | [] -> Right (ESStep "done", s0, f, w)
-    | (F::ws) -> Right (ESStep "user field separator", s0, f ++ [UsrF], ws)
-    | (S(s)::ws) ->
-        let f1 = match (q, sm) with
-        | (Quoted, _) -> [DQuo s]
-        | (Unquoted, UserString) -> [UsrS s]
-        | (Unquoted, GeneratedString) -> [ExpS s]
-        end in
-        Right (ESStep "plain string", s0, f ++ f1, ws)
-    | (K(k)::ws) ->
-       match expand_control s0 q k with
-       | Right (step, s1, f1, w1) -> Right (step, s1, f++f1, (w1 ++ ws))
-       | Left err -> Left err
-       end
-    | (ESym(c)::ws) -> Right (ESStep "skipping symbolic result", s0, f ++ [EWSym c], ws)
-  end
-
-and control_code_expansion s0 q w =
-  match expand_words s0 q UserString ([],w) with
-  | Right (_step, s1, f1, w1) ->
-     match w1 with
-     | [] -> (s1, f1)
-     | _ -> let (s2, f2) = control_code_expansion s1 q w1 in
-            (s2, (f1 ++ f2))
-     end
-  | Left (_step, s1, err1) -> (s1, err1)
-  end
-
-lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x Normal = [S s]
-
+(**********************************************************************)   
+(* LATE STAGE EXPANSION ***********************************************)   
+(**********************************************************************)
+(* These functions are kept out of the recursive knot of
+   expansion/evaluation, just to keep the file simple. Unfortunately,
+   that means they show up first, out of logical order. Sorry! *)
+   
 (*
  * Stage 2 Expansion: Field Splitting
  *)
@@ -372,11 +191,219 @@ let quote_removal _s0 f =
   let no_quotes = combine_fields (remove_quotes f) in
   finalize_fields no_quotes
 
+(**********************************************************************)   
+(* EXPANSION **********************************************************)   
+(**********************************************************************)   
+   
+(*
+ * Stage 1 Expansion: Word expansion
+ *)
+
+val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
+(* Runs expansion all the way, for testing purposes only *)
+val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
+
+let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
+  let sympat : symbolic_string = (concat_expanded pat) in
+  let symstr : symbolic_string = symbolic_string_of_fields str in
+  try_match_prefix lc side mode sympat symstr
+
+(* TODO 2017-12-01
+ * In an N____ case, when null_string fs is Nothing, the
+ * string is entirely symbolic so we need
+ * to represent the symbolic result of "it could be either
+ * true or false, we don't know". This means we need to branch
+ * and allow for both cases to progress.
+ *)
+let expand_param s0 _q str f =
+  let value = lookup_param s0 str in
+  match (value, f) with
+  (* NORMAL *)
+  | (Nothing, Normal)     -> [S ""] (* null *)
+  | (Just fs, Normal)     -> words_of_symbolic_string fs
+  (* DEFAULT *)
+  | (Nothing, Default w)  -> w
+  | (Just fs, Default _)  -> words_of_symbolic_string fs
+  | (Nothing, NDefault w) -> w
+  | (Just fs, NDefault w) ->
+     match null_string fs with
+     | Nothing -> words_of_symbolic_string fs
+     | Just true -> w
+     | Just false -> words_of_symbolic_string fs
+     end
+  (* ASSIGN *)
+  | (Nothing, Assign w)  -> [K (LAssign str [] w)]
+  | (Just fs, Assign _)  -> words_of_symbolic_string fs       
+  | (Nothing, NAssign w) -> [K (LAssign str [] w)]
+  | (Just fs, NAssign w) -> 
+     match null_string fs with
+     | Nothing -> words_of_symbolic_string fs
+     | Just true -> [K (LAssign str [] w)]
+     | Just false -> words_of_symbolic_string fs
+     end
+  (* ERROR *)
+  | (Nothing, Error w)  -> [K (LError str [] w)]
+  | (Just fs, Error _)  -> words_of_symbolic_string fs
+  | (Nothing, NError w) -> [K (LError str [] w)]
+  | (Just fs, NError w) -> 
+     match null_string fs with
+     | Nothing -> words_of_symbolic_string fs
+     | Just true -> [K (LError str [] w)]
+     | Just false -> words_of_symbolic_string fs
+     end
+  (* LENGTH *)
+  | (Nothing, Length) -> [S "0"]
+  | (Just fs, Length) ->
+     match try_concrete fs with
+     | Nothing -> (* TODO This should be the length of the symbolic result of fs *) [S "0"]
+     | Just strs -> [S (show (stringLength strs))]
+     end
+  (* ALT *)
+  | (Nothing, Alt _)  -> [S ""]
+  | (Just _, Alt w)  -> w
+  | (Nothing, NAlt _) -> [S ""]
+  | (Just fs, NAlt w) ->
+     match null_string fs with
+     | Nothing -> words_of_symbolic_string fs
+     | Just true -> [S ""]
+     | Just false -> w
+     end
+  (* SUBTRINGS (prefix/suffix) *)
+  | (Nothing, Substring _ _ _) -> [S ""]
+  | (Just fs, Substring s m w) -> [K (LMatch [fs] s m [] w)]
+  end
+
+(* TODO 2017-12-22 refactor to have step info last *)
+let rec expand_control s0 q k =
+    match k with
+    | Tilde ->
+       let (msg, dir) = match expand_param s0 Unquoted "HOME" Normal with
+         (* if HOME is unset, results are unspecified---we return "~" 
+            dash:
+              $ unset HOME
+              $ echo ~
+              ~
+              $ HOME=""
+              $ echo ~
+              ~
+              $ HOME="/Users/mgree"
+              $ echo ~
+              /Users/mgree
+
+            bash:
+              $ unset HOME
+              $ echo ~
+              /Users/mgree
+              $ HOME=""
+              $ echo ~
+              
+              $ HOME="/Users/mgree"
+              $ echo ~
+              /Users/mgree            
+
+            lol
+          *)
+         | [S ""] -> ("defaulting to dash behavior for unset HOME (unspec per 2.6.1)", [S "~"])
+         | dir -> ("", dir)
+         end in
+       Right (ESTilde msg, s0, [], dir)
+    | TildeUser usr -> 
+       match get_pwdir s0 usr with
+       | Nothing -> Right (ESTilde "defaulting to dash behavior for failed getpwnam (unspec per 2.6.1)", s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
+       | Just path -> Right (ESTilde "", s0, [], [S path])
+       end
+    | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
+    | LAssign s f [] ->
+        let s1 = set_param s (concat_expanded f) s0 in
+        Right (ESParam "finished assignment", s1, f, [])
+    | LAssign s f w ->
+       match expand_words s0 q GeneratedString ([], w) with
+       | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "assignment") step, s1, [], [K (LAssign s (f ++ f1) w1)])
+       | Left err -> Left err
+       end
+    | LMatch str side mode f [] -> Right (ESParam "finished match", s0, [], words_of_symbolic_string (match_substring s0.sh.locale side mode f str))
+    | LMatch s side mode f w ->
+       match expand_words s0 q GeneratedString ([], w) with
+       | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "match") step, s1, [], [K (LMatch s side mode (f ++ f1) w1)])
+       | Left err -> Left err
+       end
+    | LError str f [] -> Left (ESParam "raising requested error", s0, ExpS (str ^ ": ")::f) (* dash seems to print erroring variable name; TODO should we also have linno? *)
+    | LError str f w ->
+       match expand_words s0 q GeneratedString ([], w) with
+       | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "error") step, s1, [], [K (LError str (f ++ f1) w1)])
+       | Left err -> Left err
+       end
+    | Backtick c ->
+       Right (ESCommand "initializing subshell", s0, [], [K (LBacktick s0.sh c c)]) (* TODO should set up pipes *)
+    | LBacktick subsh corig c0 ->
+       match step_eval <| s0 with sh = subsh |> c0 with
+       (* When a subshell errors, it should evaluate to the null string and print its error message. *)
+       | Left (s1, step) -> Right (ESEval (ESCommand "command exited with error") step, <| s1 with sh = s0.sh |>, [], [])
+       (* The shell shall expand the command substitution by executing
+          command in a subshell environment (see Shell Execution
+          Environment) and replacing the command substitution (the text
+          of command plus the enclosing "$()" or backquotes) with the
+          standard output of the command, removing sequences of one or
+          more <newline>s at the end of the substitution POSIX 2.6.3 
+ 
+          TODO 2017-12-22 read result from pipe, trim newlines
+        *) 
+       | Right (s1, Done, step) -> Right (ESEval (ESCommand "command exited successfully; returning symbolic result") step, <| s1 with sh = s0.sh |>, [EWSym (SymCommand corig)], [])
+       | Right (s1, c1, step) -> Right (ESEval (ESCommand "") step, <| s1 with sh = s0.sh |>, [], [K (LBacktick s1.sh corig c1)])
+       end
+    | Arith f [] ->
+        match arith64 s0 (concat_expanded f) with
+        | Right (s1, result) -> Right (ESArith "computed arithmetic result", s1, expanded_words_of_fields result, [])
+        | Left e -> Left (ESArith "arithmetic error", s0, [ExpS e])
+        end
+    | Arith f w ->
+       match expand_words s0 q GeneratedString ([],w) with
+       | Right (step, s1, f1, w1) -> Right (ESNested (ESArith "before arithmetic parsing") step, s1, [], [K (Arith (f ++ f1) w1)])
+       | Left err -> Left err
+       end
+    | Quote w -> 
+       match expand_words s0 Quoted GeneratedString ([],w) with
+       | Right (step, s1, f1, []) -> Right (step, s1, f1, [])
+       | Right (step, s1, f1, w1) -> Right (step, s1, f1, [K (Quote w1)])
+       | Left err -> Left err
+       end
+  end
+
+and expand_words s0 q sm (f,w) =
+  match w with
+    | [] -> Right (ESStep "done", s0, f, w)
+    | (F::ws) -> Right (ESStep "user field separator", s0, f ++ [UsrF], ws)
+    | (S(s)::ws) ->
+        let f1 = match (q, sm) with
+        | (Quoted, _) -> [DQuo s]
+        | (Unquoted, UserString) -> [UsrS s]
+        | (Unquoted, GeneratedString) -> [ExpS s]
+        end in
+        Right (ESStep "plain string", s0, f ++ f1, ws)
+    | (K(k)::ws) ->
+       match expand_control s0 q k with
+       | Right (step, s1, f1, w1) -> Right (step, s1, f++f1, (w1 ++ ws))
+       | Left err -> Left err
+       end
+    | (ESym(c)::ws) -> Right (ESStep "skipping symbolic result", s0, f ++ [EWSym c], ws)
+  end
+
+and control_code_expansion s0 q w =
+  match expand_words s0 q UserString ([],w) with
+  | Right (_step, s1, f1, w1) ->
+     match w1 with
+     | [] -> (s1, f1)
+     | _ -> let (s2, f2) = control_code_expansion s1 q w1 in
+            (s2, (f1 ++ f2))
+     end
+  | Left (_step, s1, err1) -> (s1, err1)
+  end
+
 (**********************************************************************)
 (* EXPANSION TRANSITIONS **********************************************)
 (**********************************************************************)
 
-let step_expansion (os0,st) =
+and step_expansion (os0,st) =
   match st with
   | ExpStart w0 -> 
      match expand_words os0 Unquoted UserString ([],w0) with
@@ -400,47 +427,14 @@ let step_expansion (os0,st) =
   | ExpDone _ -> (os0, st, ESStep "done in success state")
   end
 
-val run_trace_expansion : ty_os_state * expansion_state -> list (ty_os_state * expansion_state * expansion_step)
-let rec run_trace_expansion (os0,st0) =
-  match st0 with
-  | ExpError _ -> []
-  | ExpDone _ -> []
-  | _ -> 
-     let (os1,st1,step) = step_expansion (os0,st0) in
-     (os1,st1,step)::run_trace_expansion (os1,st1)
-  end
-
-val trace_expansion : ty_os_state -> words -> list (ty_os_state * expansion_state * expansion_step)
-let trace_expansion os0 w0 = 
-  (os0,ExpStart w0, ESStep "")::run_trace_expansion (os0, ExpStart w0)
-
-(* function for testing final expansion results (used in
-   test_expansion.ml)
-
-   this function is a little unfaithful to the expansion semantics
-   because we're not keeping track of whether the result was a message
-   printed to stderr or the actual result of expansion
- *)
-val full_expansion : ty_os_state -> words -> ty_os_state * fields
-let full_expansion s0 w0 =
-  let (s1,f1,_) = last (trace_expansion s0 w0) in
-  match f1 with
-  | ExpError f -> (s1, f)
-  | ExpDone f -> (s1, f)
-  | _ -> (s1, [symbolic_string_of_string "!!! broken invariant"])
-  end
-
 (**********************************************************************)   
 (* EVALUATION *********************************************************)   
 (**********************************************************************)   
    
-val step_assign : ty_os_state -> list (string * expansion_state) ->
-                  either (ty_os_state * list (string * fields)) (* Done state *)
-                         (ty_os_state * list (string * expansion_state) * evaluation_step) (* In progress *)
 (* Steps the first, non-complete expansion_state and returns.
  * If it reached the base case, they are all complete, so
  *   we return the Left type to continue on the arg expansion. *)
-let rec step_assign s0 assigns =
+and step_assign s0 assigns =
   match assigns with
   | [] -> Left (s0, [])
   | ((x, ExpError f) as error)::assigns' ->
@@ -458,7 +452,7 @@ let rec step_assign s0 assigns =
     Right (s1, (x, next_state)::assigns', XSExpand (XSSimple x) step)
   end
 
-let rec step_eval s0 stmt =
+and step_eval s0 stmt =
   match stmt with
   | Command assigns ws redirs ->
      (* TODO 2017-12-08 not quite right *)
@@ -539,6 +533,47 @@ $ count $(${x? one two three}) four
   | Defun _name _body -> Left (s0, XSDefun "TODO")
   (* This should never come up when called from trace_evaluation or elsewhere *)
   | Done -> Right(s0, Done, XSSimple "")
+  end
+
+(**********************************************************************)   
+(* PROPETIES **********************************************************)   
+(**********************************************************************)   
+
+lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x Normal = [S s]
+
+(**********************************************************************)   
+(* TRACING ************************************************************)   
+(**********************************************************************)   
+(* These functions are for testing and the expansion tool. *)
+
+val run_trace_expansion : ty_os_state * expansion_state -> list (ty_os_state * expansion_state * expansion_step)
+let rec run_trace_expansion (os0,st0) =
+  match st0 with
+  | ExpError _ -> []
+  | ExpDone _ -> []
+  | _ -> 
+     let (os1,st1,step) = step_expansion (os0,st0) in
+     (os1,st1,step)::run_trace_expansion (os1,st1)
+  end
+
+val trace_expansion : ty_os_state -> words -> list (ty_os_state * expansion_state * expansion_step)
+let trace_expansion os0 w0 = 
+  (os0,ExpStart w0, ESStep "")::run_trace_expansion (os0, ExpStart w0)
+
+(* function for testing final expansion results (used in
+   test_expansion.ml)
+
+   this function is a little unfaithful to the expansion semantics
+   because we're not keeping track of whether the result was a message
+   printed to stderr or the actual result of expansion
+ *)
+val full_expansion : ty_os_state -> words -> ty_os_state * fields
+let full_expansion s0 w0 =
+  let (s1,f1,_) = last (trace_expansion s0 w0) in
+  match f1 with
+  | ExpError f -> (s1, f)
+  | ExpDone f -> (s1, f)
+  | _ -> (s1, [symbolic_string_of_string "!!! broken invariant"])
   end
 
 val run_trace_evaluation : ty_os_state -> stmt -> list (ty_os_state * stmt * evaluation_step)

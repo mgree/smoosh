@@ -6,6 +6,108 @@ Strings will be whatever lem uses for string
 *)
 
 (**********************************************************************)
+(* LOCALES ************************************************************)
+(**********************************************************************)
+
+type range_char = 
+    RChar of char
+  | RCollating of string
+
+type locale = 
+  <| name : string ;
+     collates : char -> string -> bool ; 
+     equiv : char -> string -> bool ; 
+     charclass : char -> string -> bool ; 
+     range : char -> range_char -> range_char -> bool |>
+
+(* TODO: look at LC_ environment variables, decide what to do *)
+
+(* need functions for various locale operations on, e.g., matching collating elements, equivalence classes, character classes, and ranges *)
+
+let between lo c hi = lo <= c && c <= hi
+
+let rec ambient_charclass c cls = 
+  match cls with     (* TODO expose is_ functions from ctypes into ocaml, just use those *)
+  | "alnum" -> ambient_charclass c "alpha" || ambient_charclass c "digit"
+  | "alpha" -> ambient_charclass c "upper" || ambient_charclass c "lower"
+  | "blank" -> elem c (toCharList " \t")
+  | "cntrl" -> ord c < ord #' ' || ord c = 127 (* del *)
+  | "digit" -> elem c (toCharList "0123456789")
+  | "graph" -> ambient_charclass c "alnum" || ambient_charclass c "punct"
+  | "lower" -> between (ord #'a') (ord c) (ord #'z')
+  | "print" -> ambient_charclass c "graph" || c = #' '
+  | "punct" -> elem c (toCharList "!\"#$%&'()*+,-./:;<=>?@[\\]^_{}~|") || ord c = 200 (* grave accent *)
+  | "space" -> elem c (toCharList " \t\n\r") || ord c = 11 (* VT *) || ord c = 14 (* FF *)
+  | "upper" -> between (ord #'A') (ord c) (ord #'Z')
+  | "xdigit" -> elem c (toCharList "0123456789ABCDEFabcdef")
+  | _ -> false
+  end 
+
+let lc_ambient = 
+  let collates c cls = elem c (toCharList cls) in (* TODO strcoll-ish *)
+  let equiv c cls = elem c (toCharList cls) in (* derp derp *)
+  let rchar (rc:range_char) : maybe char =
+    match rc with
+    | RChar c -> Just c
+    | RCollating s -> 
+       match toCharList s with
+       | [c] -> Just c
+       | _ -> Nothing
+       end
+    end in
+  let range c rlo rhi = 
+    match (rchar rlo, rchar rhi) with
+    | (Just lo, Just hi) -> between (ord lo) (ord c) (ord hi)
+    | _ -> false
+    end in
+  <| name = "ambient" ; collates = collates ; equiv = equiv ; charclass = ambient_charclass ; range = range |>
+
+(**********************************************************************)
+(* FILESYSTEMS ********************************************************)
+(**********************************************************************)
+
+(* Broadly, directories map to contents, which are dir trees or files.
+ * For now, fine, just using for pathname expansion.
+ *
+ * TODO: Ultimately, rely on SibylFS's detailed model *)
+type fs = <|
+  parent: maybe fs;
+  contents: Map.map string file
+|>
+
+and file = File | Dir of fs
+
+val file_exists : fs -> string -> bool
+let file_exists f name = 
+  match Map.lookup name f.contents with
+  | Nothing -> false
+  | Just _ -> true
+  end
+
+val is_dir : fs -> string -> bool
+let is_dir f name = 
+  match Map.lookup name f.contents with
+  | Just File -> false
+  | Just (Dir _) -> true
+  | Nothing -> false (* ??? *)
+  end
+
+val is_file : fs -> string -> bool
+let is_file f name = 
+  match Map.lookup name f.contents with
+  | Just File -> true
+  | Just (Dir _) -> false
+  | Nothing -> false (* ??? *)
+  end
+
+val dotdot : fs -> fs
+let dotdot fs =
+  match fs.parent with
+  | Nothing -> fs
+  | Just fs' -> fs'
+  end
+   
+(**********************************************************************)
 (* Patterns ***********************************************************)
 (**********************************************************************)
 
@@ -53,6 +155,7 @@ and control =
   | LMatch of fields * substring_side * substring_mode * expanded_words * words (* runtime technicality *)
   | LError of string * expanded_words * words (* runtime technicality *)
   | Backtick of stmt
+  | LBacktick of ty_shell_state * stmt (* original stmt *) * stmt (* in progress *)
   | Arith of expanded_words * words
   | Quote of words
 
@@ -144,6 +247,7 @@ and expansion_step =
   | ESQuote of string
   | ESStep of string
   | ESNested of expansion_step * expansion_step
+  | ESEval of expansion_step * evaluation_step
 
 and evaluation_step =
     XSSimple of string
@@ -165,7 +269,39 @@ and evaluation_step =
   | XSExpand of evaluation_step * expansion_step
 
 (**********************************************************************)
-(* SYMBOLIC STRINGS ***************************************************)
+(* SHELL/OS STATE *****************************************************)
+(**********************************************************************)
+
+and ty_shell_state = <|
+    env: Map.map string symbolic_string;
+    cwd: fs;
+    locale: locale
+  |>
+(* From t_fs_spec.lem_cppo line 1187 *)
+and ty_os_state = <|
+    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
+    sh: ty_shell_state;
+    fs_root: fs
+  |>
+
+(* empty FS/OS for testing purposes *)    
+let fs_empty =
+  <| parent = Nothing;
+     contents = Map.empty
+  |>
+
+let os_empty : ty_os_state = <|
+    sh = <|
+      env = Map.empty;
+      cwd = fs_empty;
+      locale = lc_ambient
+  |>;
+    passwd = Map.empty;
+    fs_root = fs_empty
+ |>
+
+(**********************************************************************)
+(* SYMBOLIC STRING FUNCTIONS ******************************************)
 (**********************************************************************)
 
 val null_sym : symbolic -> maybe bool
@@ -320,137 +456,9 @@ val fields_of_expanded_words : expanded_words -> fields
 let fields_of_expanded_words w = [concat_expanded w]
 
 (**********************************************************************)
-(* LOCALES ************************************************************)
+(* SHELL/OS STATE FUNCTIONS *******************************************)
 (**********************************************************************)
-
-type range_char = 
-    RChar of char
-  | RCollating of string
-
-type locale = 
-  <| collates : char -> string -> bool ; 
-     equiv : char -> string -> bool ; 
-     charclass : char -> string -> bool ; 
-     range : char -> range_char -> range_char -> bool |>
-
-(* TODO: look at LC_ environment variables, decide what to do *)
-
-(* need functions for various locale operations on, e.g., matching collating elements, equivalence classes, character classes, and ranges *)
-
-let between lo c hi = lo <= c && c <= hi
-
-let rec ambient_charclass c cls = 
-  match cls with     (* TODO expose is_ functions from ctypes into ocaml, just use those *)
-  | "alnum" -> ambient_charclass c "alpha" || ambient_charclass c "digit"
-  | "alpha" -> ambient_charclass c "upper" || ambient_charclass c "lower"
-  | "blank" -> elem c (toCharList " \t")
-  | "cntrl" -> ord c < ord #' ' || ord c = 127 (* del *)
-  | "digit" -> elem c (toCharList "0123456789")
-  | "graph" -> ambient_charclass c "alnum" || ambient_charclass c "punct"
-  | "lower" -> between (ord #'a') (ord c) (ord #'z')
-  | "print" -> ambient_charclass c "graph" || c = #' '
-  | "punct" -> elem c (toCharList "!\"#$%&'()*+,-./:;<=>?@[\\]^_{}~|") || ord c = 200 (* grave accent *)
-  | "space" -> elem c (toCharList " \t\n\r") || ord c = 11 (* VT *) || ord c = 14 (* FF *)
-  | "upper" -> between (ord #'A') (ord c) (ord #'Z')
-  | "xdigit" -> elem c (toCharList "0123456789ABCDEFabcdef")
-  | _ -> false
-  end 
-
-let lc_ambient = 
-  let collates c cls = elem c (toCharList cls) in (* TODO strcoll-ish *)
-  let equiv c cls = elem c (toCharList cls) in (* derp derp *)
-  let rchar (rc:range_char) : maybe char =
-    match rc with
-    | RChar c -> Just c
-    | RCollating s -> 
-       match toCharList s with
-       | [c] -> Just c
-       | _ -> Nothing
-       end
-    end in
-  let range c rlo rhi = 
-    match (rchar rlo, rchar rhi) with
-    | (Just lo, Just hi) -> between (ord lo) (ord c) (ord hi)
-    | _ -> false
-    end in
-  <| collates = collates ; equiv = equiv ; charclass = ambient_charclass ; range = range |>
-
-(**********************************************************************)
-(* FILESYSTEMS ********************************************************)
-(**********************************************************************)
-
-(* Broadly, directories map to contents, which are dir trees or files.
- * For now, fine, just using for pathname expansion.
- *
- * TODO: Ultimately, rely on SibylFS's detailed model *)
-type fs = <|
-  parent: maybe fs;
-  contents: Map.map string file
-|>
-
-and file = File | Dir of fs
-
-val file_exists : fs -> string -> bool
-let file_exists f name = 
-  match Map.lookup name f.contents with
-  | Nothing -> false
-  | Just _ -> true
-  end
-
-val is_dir : fs -> string -> bool
-let is_dir f name = 
-  match Map.lookup name f.contents with
-  | Just File -> false
-  | Just (Dir _) -> true
-  | Nothing -> false (* ??? *)
-  end
-
-val is_file : fs -> string -> bool
-let is_file f name = 
-  match Map.lookup name f.contents with
-  | Just File -> true
-  | Just (Dir _) -> false
-  | Nothing -> false (* ??? *)
-  end
-
-val dotdot : fs -> fs
-let dotdot fs =
-  match fs.parent with
-  | Nothing -> fs
-  | Just fs' -> fs'
-  end
-
-(**********************************************************************)
-(* SHELL/OS STATE *****************************************************)
-(**********************************************************************)
-
-type ty_shell_state = <|
-    env: Map.map string symbolic_string;
-    cwd: fs;
-    locale: locale
-  |>
-(* From t_fs_spec.lem_cppo line 1187 *)
-type ty_os_state = <|
-    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
-    sh: ty_shell_state;
-    fs_root: fs
-  |>
-
-let fs_empty =
-  <| parent = Nothing;
-     contents = Map.empty
-  |>
-
-let os_empty : ty_os_state = <|
-    sh = <|
-      env = Map.empty;
-      cwd = fs_empty;
-      locale = lc_ambient
-  |>;
-    passwd = Map.empty;
-    fs_root = fs_empty
- |>
-
+   
 val print_shell_env : ty_os_state -> string
 let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ symbolic_string_to_string v ^ ", " ^ s) st.sh.env ""
 

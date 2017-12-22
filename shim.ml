@@ -393,6 +393,10 @@ and json_of_control = function
   | LError (x,f,w) -> Assoc [tag "LError"; ("var", String x);
                              ("f", json_of_expanded_words f); ("w", json_of_words w)]
   | Backtick c -> Assoc [tag "Backtick"; ("stmt", json_of_stmt c)]
+  | LBacktick (subsh, corig, c) -> Assoc [tag "LBacktick"; 
+                                          ("subsh", json_of_shell_state subsh); 
+                                          ("orig", json_of_stmt corig);
+                                          ("stmt", json_of_stmt c)]
   | Arith (f,w) ->  obj_fw "Arith" f w
   | Quote w -> obj_w "Quote" w
 and json_of_format = function
@@ -460,6 +464,7 @@ and json_of_expansion_step = function
   | ESQuote s -> Assoc [tag "ESQuote"; ("msg", String s)]
   | ESStep s -> Assoc [tag "ESStep"; ("msg", String s)]
   | ESNested (outer, inner) -> Assoc [tag "ESNested"; ("inner", json_of_expansion_step inner); ("outer", json_of_expansion_step outer)]
+  | ESEval (exp_step, eval_step) ->  Assoc [tag "ESEval"; ("inner", json_of_evaluation_step eval_step); ("outer", json_of_expansion_step exp_step)]
 
 and json_of_expansion_state = function
   | ExpStart w -> obj_w "ExpStart" w
@@ -495,7 +500,7 @@ and json_of_expansion_trace_entry (os, state, step) =
          ("step", json_of_expansion_step step)]
 
 and json_of_evaluation_trace_entry (os, stmt, step) =
-  Assoc [("env", json_of_env os.sh.env);
+  Assoc [("env", json_of_env os.sh.env); (* 2017-12-22 TODO dump more of the shell state? *)
          ("term", json_of_stmt stmt);
          ("step", json_of_evaluation_step step)]
 
@@ -503,3 +508,10 @@ and json_of_trace t = List (List.map json_of_evaluation_trace_entry t)
 
 and json_of_env (env:(string, symbolic_string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))
+
+and json_of_shell_state (sh:ty_shell_state) : json = 
+  Assoc [("env", json_of_env sh.env);
+         ("cwd", json_of_fs sh.cwd); (* 2017-12-22 TODO just give the path? *)
+         ("locale", String sh.locale.name)]
+
+and json_of_fs (fs:fs) : json = String "TODO"
