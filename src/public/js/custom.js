@@ -828,7 +828,7 @@ function renderControl(info, elt, control) {
   console.assert(typeof control === 'object', 'expected control object, got %o', control);
   console.assert('tag' in control, 'expected tag for control object');
   console.assert(['Tilde', 'TildeUser', 'Param', 'LAssign', 'LMatch',
-                  'LError', 'Backtick', 'Arith', 'Quote'].includes(control['tag']), 
+                  'LError', 'Backtick', 'LBacktick', 'Arith', 'Quote'].includes(control['tag']), 
                  'got weird control tag %s', control['tag']);
 
   elt.addClass('control-' + control['tag']);
@@ -940,6 +940,22 @@ function renderControl(info, elt, control) {
 
       break;
 
+    case 'LBacktick':
+      // | LBacktick (subsh, corig, c) -> Assoc [tag "LBacktick"; 
+      //                                         ("subsh", json_of_shell_state subsh); 
+      //                                         ("orig", json_of_stmt corig);
+      //                                         ("stmt", json_of_stmt c)]
+
+      // 2017-12-22 compare subsh and our current shell, show the difference
+      console.log(control);
+
+      elt.append('$(');
+      var stmt = $('<span></span>').addClass('stmt').appendTo(elt);
+      renderStmt(info, stmt, control['stmt']);
+      elt.append(')');
+
+      break;
+
     case 'Arith':
       // | Arith (f,w) ->  obj_fw "Arith" f w
 
@@ -1042,7 +1058,7 @@ function renderExpansionState(info, elt, step) {
   const icon = $('<i></i>').addClass('icon').appendTo(marker);
   marker.append(stepName[step['tag']]);
   
-  let term = $('<div></div>').addClass('term').appendTo(elt);
+  let term = $('<span></span>').addClass('term').appendTo(elt);
 
   switch (step['tag']) {
     case 'ExpStart':
@@ -1153,7 +1169,7 @@ function renderExpansionStep(info, step) {
   console.assert(typeof step === 'object', 'expected step object, got %o', step);
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['ESTilde', 'ESParam', 'ESCommand', 'ESArith', 'ESSplit', 'ESPath',
-                  'ESQuote', 'ESStep', 'ESNested'].includes(step['tag']),
+                  'ESQuote', 'ESStep', 'ESNested', 'ESEval'].includes(step['tag']),
                  'got weird step tag %o', step['tag']);
 
   switch (step['tag']) {
@@ -1221,6 +1237,15 @@ function renderExpansionStep(info, step) {
       renderExpansionStep(info, step['outer']);
       renderDivider(info);
       renderExpansionStep(info, step['inner']);
+      
+      break;
+
+    case 'ESEval':
+      // | ESEval (exp_step, eval_step) ->  Assoc [tag "ESExpand"; ("inner", json_of_evaluation_step eval_step); ("outer", json_of_expansion_step exp_step)]
+  
+      renderExpansionStep(info, step['outer']);
+      renderDivider(info);
+      renderEvaluationStep(info, step['inner']);
       
       break;
 
