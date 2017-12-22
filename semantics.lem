@@ -454,6 +454,18 @@ and step_assign s0 assigns =
 
 and step_eval s0 stmt =
   match stmt with
+  (* TODO 2017-12-22 plain assignments vs. simple commands are treated differently in both dash and bash:
+$ x=5 y=$((x + 2)) z=3
+$ echo $x $y $z
+5 7 3
+
+but
+
+$ x=5 y=$((x + 2)) z=3 echo $x $y $z
+
+$ echo $x $y $z
+
+*)
   | Command assigns ws redirs ->
      (* TODO 2017-12-08 not quite right *)
      Right (s0,
@@ -462,18 +474,28 @@ and step_eval s0 stmt =
               ws
               redirs,
             XSSimple "begin expansion")
+  (* SPECIAL CASE: plain assignment, no command *)
+  | CommandExpAssign ((x,exp_state0)::assigns) [] redirs ->
+     match step_expansion (s0, exp_state0)  with
+     | (s1, ExpDone f, _step) -> Right (set_param x (symbolic_string_of_fields f) s1, CommandExpAssign assigns [] redirs, XSSimple ("assign " ^ x))
+     | (s1, ExpError f, step) -> Right (s1, CommandExpAssign assigns [] redirs, XSExpand (XSSimple ("error in " ^ x ^ ": " ^ fields_to_string f)) step)
+     | (s1, exp_state1, step) -> Right (s1, CommandExpAssign ((x,exp_state1)::assigns) [] redirs, XSExpand (XSSimple "") step)
+     end
+  | CommandExpAssign [] [] redirs ->
+     Right (s0, CommandExpanded [] [] redirs, XSSimple "assignments complete")
+  (* GENERAL CASE: command with possible assignments, which no longer go in the general environment *)
   | CommandExpAssign assigns ws redirs ->
      match step_assign s0 assigns with
      (* Perform an expansion step in an assignment *)
      | Right (s1, assigns', exp_step) ->
-         Right (s1,
-                CommandExpAssign assigns' ws redirs,
-                exp_step)
+        Right (s1,
+               CommandExpAssign assigns' ws redirs,
+               exp_step)
      (* Done, move on to expanding arguments *)
      | Left (s1, fields) ->
-         Right (s1,
-                CommandExpArgs fields (ExpStart ws) redirs,
-                XSSimple "assignments fully expanded")
+        Right (s1,
+               CommandExpArgs fields (ExpStart ws) redirs,
+               XSSimple "assignments fully expanded")
      end
   | CommandExpArgs assigns exp_state redirs ->
       let (os1, st1, step) = step_expansion (s0, exp_state) in
@@ -490,7 +512,7 @@ and step_eval s0 stmt =
                 CommandExpArgs assigns in_progress redirs,
                 XSExpand (XSSimple "argument expansion step") step)
       end
-     (* assigns are done, check on args 
+  (* assigns are done, check on args 
 
 extremely subtle behavior with errors in expansion:
   an expansion error is NOT a field
