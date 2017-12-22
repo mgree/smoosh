@@ -5,6 +5,15 @@ open import Pattern
 open import Path
 
 (**********************************************************************)   
+(* SHARED DECLARATIONS FOR EXPANSION AND EVALUATION *******************)   
+(**********************************************************************)   
+
+val step_expansion : ty_os_state * expansion_state -> ty_os_state * expansion_state * expansion_step
+val step_eval : ty_os_state -> stmt -> 
+                either (ty_os_state * evaluation_step) (* error case *)
+                       (ty_os_state * stmt * evaluation_step) (* success *)
+   
+(**********************************************************************)   
 (* EXPANSION **********************************************************)   
 (**********************************************************************)   
    
@@ -367,7 +376,6 @@ let quote_removal _s0 f =
 (* EXPANSION TRANSITIONS **********************************************)
 (**********************************************************************)
 
-val step_expansion : ty_os_state * expansion_state -> ty_os_state * expansion_state * expansion_step
 let step_expansion (os0,st) =
   match st with
   | ExpStart w0 -> 
@@ -450,54 +458,43 @@ let rec step_assign s0 assigns =
     Right (s1, (x, next_state)::assigns', XSExpand (XSSimple x) step)
   end
 
-(* TODO 2017-12-12 move evaluation_step to end of tuple *)
-val step_eval : ty_os_state -> stmt -> 
-                either (evaluation_step * ty_os_state) (* error case *)
-                       (evaluation_step * ty_os_state * stmt) (* success *)
 let rec step_eval s0 stmt =
   match stmt with
   | Command assigns ws redirs ->
      (* TODO 2017-12-08 not quite right *)
-     Right (XSSimple "begin expansion",
-            s0,
+     Right (s0,
             CommandExpAssign
               (map (fun (x, w) -> (x, ExpStart w)) assigns)
               ws
-              redirs)
+              redirs,
+            XSSimple "begin expansion")
   | CommandExpAssign assigns ws redirs ->
-     (* TODO 2017-12-01
-        evaluate each of ws step by step 
-
-        need to _carefully_ keep track of expansion status and splitting, etc.
-
-        check on the assigns... if not all in fields, work there
-      *)
      match step_assign s0 assigns with
      (* Perform an expansion step in an assignment *)
      | Right (s1, assigns', exp_step) ->
-         Right (exp_step,
-                s1,
-                CommandExpAssign assigns' ws redirs)
+         Right (s1,
+                CommandExpAssign assigns' ws redirs,
+                exp_step)
      (* Done, move on to expanding arguments *)
      | Left (s1, fields) ->
-         Right (XSSimple "assignments fully expanded",
-                s1,
-                CommandExpArgs fields (ExpStart ws) redirs)
+         Right (s1,
+                CommandExpArgs fields (ExpStart ws) redirs,
+                XSSimple "assignments fully expanded")
      end
   | CommandExpArgs assigns exp_state redirs ->
       let (os1, st1, step) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError _ ->
-            Left (XSSimple "error in argument expansion",
-                  os1)
+           Left (os1,
+                 XSSimple "error in argument expansion")
         | ExpDone f ->
-          Right (XSSimple "arguments fully expanded",
-                   os1,
-                   CommandExpanded assigns f redirs)
+          Right (os1,
+                 CommandExpanded assigns f redirs,
+                 XSSimple "arguments fully expanded")
         | (_ as in_progress) ->
-          Right(XSExpand (XSSimple "argument expansion step") step,
-                   os1,
-                   CommandExpArgs assigns in_progress redirs)
+          Right(os1,
+                CommandExpArgs assigns in_progress redirs,
+                XSExpand (XSSimple "argument expansion step") step)
       end
      (* assigns are done, check on args 
 
@@ -526,22 +523,22 @@ $ count $(${x? one two three}) four
 
           need s0 to be a more robust model of stdin/stdout, exit codes, etc.
       *)
-     Right (XSSimple "evaluate command", s0, Done)
-  | Pipe _bg _stmts -> Left (XSPipe "TODO", s0)
-  | Redir _stmt' _redirs -> Left (XSRedir "TODO", s0)
-  | Background _stmt' _redirs -> Left (XSBackground "TODO", s0)
-  | Subshell _stmt' _redirs -> Left (XSSubshell "TODO", s0)
-  | And _l _r -> Left (XSAnd "TODO", s0)
-  | Or _l _r -> Left (XSOr "TODO", s0)
-  | Not _stmt' -> Left (XSNot "TODO", s0)
-  | Semi _l _r -> Left (XSSemi "TODO", s0)
-  | If _c _t _e -> Left (XSIf "TODO", s0)
-  | While _cond _body -> Left (XSWhile "TODO", s0)
-  | For _var _ws _body -> Left (XSFor "TODO", s0)
-  | Case _ws _cases -> Left (XSCase "TODO", s0)
-  | Defun _name _body -> Left (XSDefun "TODO", s0)
+     Right (s0, Done, XSSimple "evaluate command")
+  | Pipe _bg _stmts -> Left (s0, XSPipe "TODO")
+  | Redir _stmt' _redirs -> Left (s0, XSRedir "TODO")
+  | Background _stmt' _redirs -> Left (s0, XSBackground "TODO")
+  | Subshell _stmt' _redirs -> Left (s0, XSSubshell "TODO")
+  | And _l _r -> Left (s0, XSAnd "TODO")
+  | Or _l _r -> Left (s0, XSOr "TODO")
+  | Not _stmt' -> Left (s0, XSNot "TODO")
+  | Semi _l _r -> Left (s0, XSSemi "TODO")
+  | If _c _t _e -> Left (s0, XSIf "TODO")
+  | While _cond _body -> Left (s0, XSWhile "TODO")
+  | For _var _ws _body -> Left (s0, XSFor "TODO")
+  | Case _ws _cases -> Left (s0, XSCase "TODO")
+  | Defun _name _body -> Left (s0, XSDefun "TODO")
   (* This should never come up when called from trace_evaluation or elsewhere *)
-  | Done -> Right(XSSimple "", s0, Done)
+  | Done -> Right(s0, Done, XSSimple "")
   end
 
 val run_trace_evaluation : ty_os_state -> stmt -> list (ty_os_state * stmt * evaluation_step)
@@ -550,8 +547,8 @@ let rec run_trace_evaluation os0 stmt0 =
   | Done -> []
   | _ ->
       match step_eval os0 stmt0 with
-      | Right (step, os1, stmt1) -> (os1, stmt1, step)::run_trace_evaluation os1 stmt1
-      | Left (step, os1) -> [(os1, Done, step)]
+      | Right (os1, stmt1, step) -> (os1, stmt1, step)::run_trace_evaluation os1 stmt1
+      | Left (os1, step) -> [(os1, Done, step)]
       end
   end
 
