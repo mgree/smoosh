@@ -58,3 +58,9 @@ Handle basic command stepping
   - need FD repr
   - keep everything symbolic for now
 
+### Bugs
+
+Bash
+  - Bug related to variable assignments before built in utilities
+    - "If the command name is a special built-in utility, variable assignments shall affect the current execution environment. Unless the set -a option is on (see set), it is unspecified:"
+    - "x=5 :" should set x=5 in the current shell env, but it does not in Bash (version 4.4.12(1)-release)
