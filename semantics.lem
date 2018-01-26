@@ -467,13 +467,13 @@ $ echo $x $y $z
 
 *)
   | Command assigns ws redirs ->
-     (* TODO 2017-12-08 not quite right *)
      Right (s0,
             CommandExpAssign
               (map (fun (x, w) -> (x, ExpStart w)) assigns)
               ws
               redirs,
             XSSimple "begin expansion")
+
   (* SPECIAL CASE: plain assignment, no command *)
   | CommandExpAssign ((x,exp_state0)::assigns) [] redirs ->
      match step_expansion (s0, exp_state0)  with
@@ -483,6 +483,11 @@ $ echo $x $y $z
      end
   | CommandExpAssign [] [] redirs ->
      Right (s0, CommandExpanded [] [] redirs, XSSimple "assignments complete")
+
+  (* TODO 2018-01-26 special case, special builtins treat the environment specially
+   *   "If the command name is a special built-in utility, variable assignments shall affect the current execution environment."
+   *)
+
   (* GENERAL CASE: command with possible assignments, which no longer go in the general environment *)
   | CommandExpAssign assigns ws redirs ->
      match step_assign s0 assigns with
@@ -545,12 +550,69 @@ $ count $(${x? one two three}) four
   | Redir _stmt' _redirs -> Left (s0, XSRedir "TODO")
   | Background _stmt' _redirs -> Left (s0, XSBackground "TODO")
   | Subshell _stmt' _redirs -> Left (s0, XSSubshell "TODO")
-  | And _l _r -> Left (s0, XSAnd "TODO")
-  | Or _l _r -> Left (s0, XSOr "TODO")
-  | Not _stmt' -> Left (s0, XSNot "TODO")
-  | Semi _l _r -> Left (s0, XSSemi "TODO")
-  | If _c _t _e -> Left (s0, XSIf "TODO")
-  | While _cond _body -> Left (s0, XSWhile "TODO")
+  | And l r ->
+      match step_eval s0 l with
+      | Left e -> Left e
+      | Right (s1, Done, _step) ->
+          match lookup_concrete_param s1 "?" with
+          | Just "0" -> Right (s1, r, XSAnd "exit code was 0, continuing")
+          | Just _ -> Right (s1, Done, XSAnd "exit code was non-zero, short-circuiting")
+          | Nothing -> Left (s1, XSAnd "unset or symbolic exit code")
+          end
+      | Right (s1, l', step) -> Right (s1, And l' r, XSNested (XSAnd "") step)
+      end
+  | Or l r ->
+      match step_eval s0 l with
+      | Left e -> Left e
+      | Right (s1, Done, _step) ->
+          match lookup_concrete_param s1 "?" with
+          | Just "0" -> Right (s1, Done, XSOr "exit code was 0, short-circuiting")
+          | Just _ -> Right (s1, r, XSOr "exit code was non-zero, continuing")
+          | Nothing -> Left (s1, XSOr "unset or symbolic exit code")
+          end
+      | Right (s1, l', step) -> Right (s1, Or l' r, XSNested (XSOr "") step)
+      end
+  | Not stmt' ->
+      match step_eval s0 stmt' with
+      | Left e -> Left e
+      | Right (s1, Done, _step) ->
+          match lookup_concrete_param s1 "?" with
+          | Just "0" -> Right (set_param "?" (symbolic_string_of_string "1") s1, Done, XSNot "0 -> 1")
+          (* Not bothering to check whether the exit code is numeric *)
+          | Just _ -> Right (set_param "?" (symbolic_string_of_string "0") s1, Done, XSNot "_ -> 0")
+          | Nothing -> Left (s1, XSNot "unset or symbolic exit code")
+          end
+      | Right (s1, stmt'', step) -> Right (s1, Not stmt'', XSNested (XSNot "") step)
+      end
+  | Semi l r ->
+      match step_eval s0 l with
+      | Left e -> Left e
+      | Right (s1, Done, _step) -> Right (s1, r, XSSemi "continuing")
+      | Right (s1, l', step) -> Right (s1, Semi l' r, XSNested (XSSemi "") step)
+      end
+  | If c t e ->
+      match step_eval s0 c with
+      | Left e -> Left e
+      | Right (s1, Done, _step) ->
+          match lookup_concrete_param s1 "?" with
+          | Just "0" -> Right (s1, t, XSIf "exit code was 0, taking the true branch")
+          | Just _ -> Right (s1, e, XSIf "exit code was non-zero, taking the false branch")
+          | Nothing -> Left (s1, XSIf "unset or symbolic exit code")
+          end
+      | Right (s1, c', step) -> Right (s1, If c' t e, XSNested (XSIf "") step)
+      end
+  (* TODO 2018-01-26 doesn't support break *)
+  | While c body ->
+      match step_eval s0 c with
+      | Left e -> Left e
+      | Right (s1, Done, _step) ->
+          match lookup_concrete_param s1 "?" with
+          | Just "0" -> Right (s1, Semi body (While c body), XSWhile "exit code was 0, running the loop body")
+          | Just _ -> Right (s1, Done, XSWhile "exit code was non-zero, taking the false branch")
+          | Nothing -> Left (s1, XSWhile "unset or symbolic exit code")
+          end
+      | Right (s1, c', step) -> Right (s1, While c' body, XSNested (XSWhile "") step)
+      end
   | For _var _ws _body -> Left (s0, XSFor "TODO")
   | Case _ws _cases -> Left (s0, XSCase "TODO")
   | Defun _name _body -> Left (s0, XSDefun "TODO")
@@ -559,7 +621,7 @@ $ count $(${x? one two three}) four
   end
 
 (**********************************************************************)   
-(* PROPETIES **********************************************************)   
+(* PROPERTIES *********************************************************)   
 (**********************************************************************)   
 
 lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x Normal = [S s]
@@ -567,6 +629,7 @@ lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x 
 (**********************************************************************)   
 (* TRACING ************************************************************)   
 (**********************************************************************)   
+(* TODO 2018-01-26 limit the amount of trace generated (for while, etc) *)
 (* These functions are for testing and the expansion tool. *)
 
 val run_trace_expansion : ty_os_state * expansion_state -> list (ty_os_state * expansion_state * expansion_step)

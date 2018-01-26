@@ -284,22 +284,6 @@ and ty_os_state = <|
     fs_root: fs
   |>
 
-(* empty FS/OS for testing purposes *)    
-let fs_empty =
-  <| parent = Nothing;
-     contents = Map.empty
-  |>
-
-let os_empty : ty_os_state = <|
-    sh = <|
-      env = Map.empty;
-      cwd = fs_empty;
-      locale = lc_ambient
-  |>;
-    passwd = Map.empty;
-    fs_root = fs_empty
- |>
-
 (**********************************************************************)
 (* SYMBOLIC STRING FUNCTIONS ******************************************)
 (**********************************************************************)
@@ -631,4 +615,24 @@ let int32ToFields n = [symbolic_string_of_string (write n)]
 
 val int64ToFields : int64 -> fields
 let int64ToFields n = [symbolic_string_of_string (write n)]
+
+(**********************************************************************)
+(* DEFAULT SHELL OS STATE *********************************************)
+(**********************************************************************)
+
+(* empty FS/OS for testing purposes *)    
+let fs_empty =
+  <| parent = Nothing;
+     contents = Map.empty
+  |>
+
+let os_empty : ty_os_state = <|
+    sh = <|
+      env = Map.insert "?" (symbolic_string_of_string "0") Map.empty;
+      cwd = fs_empty;
+      locale = lc_ambient
+  |>;
+    passwd = Map.empty;
+    fs_root = fs_empty
+ |>
 
