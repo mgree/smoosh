@@ -452,18 +452,81 @@ and step_assign s0 assigns =
     Right (s1, (x, next_state)::assigns', XSExpand (XSSimple x) step)
   end
 
+(* TODO 2018-01-26 implement builtins 
+
+  BUILTINS IMPLEMENTED BY DASH
+
+     [ / test
+     alias
+     bg
+     cd
+     chdir
+     command
+     echo
+     false
+     fg
+     getopts
+     hash
+     jobs
+     kill
+     local
+     printf
+     pwd
+     read
+     true
+     type
+     ulimit
+     umask
+     unalias
+     wait
+
+   SPECIAL BUILTINS (need particular environment treatment)
+
+     break
+     :
+     continue
+     .
+     eval
+     exec
+     exit
+     export
+     readonly
+     return
+     set
+     shift
+     times
+     trap
+     unset
+ *)
+   
 and step_eval s0 stmt =
   match stmt with
-  (* TODO 2017-12-22 plain assignments vs. simple commands are treated differently in both dash and bash:
-$ x=5 y=$((x + 2)) z=3
-$ echo $x $y $z
-5 7 3
+  (* TODO 2018-01-28 special builtins vs. simple builtins
 
-but
+but:
 
-$ x=5 y=$((x + 2)) z=3 echo $x $y $z
+  y=${x=5} cmd
+  - side-effects of expansion happen in CURRENT env, even if in an assignment for a command
+  - cmd sees y (but not x, because x isn't set for export)
+  - env sees x (but not y, less surprisingly)
 
-$ echo $x $y $z
+  export x
+  y=${x=5} cmd
+  - side effects of expansion happen in CURRENT env
+  - cmd sees x and y
+  - env sees x
+
+  y=${x=5}
+  - side effects of expansion happen in CURRENT env
+  - env sees x and y (just an assignment)
+
+so: how do we implement it?
+  it seems consistent to do all of the expansions in the CURRENT environment, regardless of the kind of command
+    but don't set it in the environment yet
+  each assignment sees the previous ones
+    set manually each time... or manually use a local environment?
+
+  decide at the end whether or not to publish to the current environment
 
 *)
   | Command assigns ws redirs ->
