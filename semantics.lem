@@ -677,8 +677,23 @@ $ count $(${x? one two three}) four
       | Right (s1, c', step) -> Right (s1, While c' body, XSNested (XSWhile "") step)
       end
   | For var ws body -> Right (s0, ForExpArgs var (ExpStart ws) body, XSFor "begin arg expansion")
-  | ForExpArgs var exp_state body -> Left (s0, XSFor "TODO")
-  | ForExpanded var f body -> Left (s0, XSFor "TODO")
+  | ForExpArgs var exp_state body ->
+      let (os1, st1, step) = step_expansion (s0, exp_state) in
+      match st1 with
+        | ExpError _ ->
+           Left (os1,
+                 XSFor "error in argument expansion")
+        | ExpDone f ->
+          Right (os1,
+                 ForExpanded var f body,
+                 XSFor "arguments fully expanded")
+        | (_ as in_progress) ->
+          Right(os1,
+                ForExpArgs var in_progress body,
+                XSExpand (XSFor "argument expansion step") step)
+      end
+  | ForExpanded _var _f _body -> Left (s0, XSFor "TODO")
+  | ForRunning _var _f _body _cur -> Left (s0, XSFor "TODO")
   | Case _ws _cases -> Left (s0, XSCase "TODO")
   | Defun _name _body -> Left (s0, XSDefun "TODO")
   (* This should never come up when called from trace_evaluation or elsewhere *)

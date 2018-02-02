@@ -70,6 +70,7 @@ let rec string_of_stmt c =
      "for " ^ x ^ " in " ^ string_of_words w ^ "; do " ^ string_of_stmt c ^ "; done"
   | ForExpArgs _ _ _ -> "TODO ForExpArgs"
   | ForExpanded _ _ _ -> "TODO ForExpanded"
+  | ForRunning _ _ _ _ -> "TODO ForRunning"
   | Case w cs ->
      "case " ^ string_of_words w ^ " in " ^ concat " " (List.map string_of_case cs) ^ " esac"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"

@@ -186,6 +186,7 @@ and stmt =
   | For of string * words * stmt
   | ForExpArgs of string * expansion_state * stmt
   | ForExpanded of string * fields * stmt
+  | ForRunning of string * fields * stmt (* original *) * stmt (* current iteration *)
   | Case of words * list (words * stmt)
   | Defun of string * stmt
   | Done
