@@ -202,13 +202,33 @@ function stmtBinary(info, elt, name, sym, stmt) {
   renderStmt(info, c2, stmt['r']);
 }
 
+function stmtFor(info, elt, fArgs, stmt) {
+    // | For (x, args, c) -> 
+    //    Assoc [tag "ForExpArgs"; ("var", String x); ("args", ??? args); ("body", json_of_stmt c)]
+    
+    elt.append('for' + fieldSep);
+    $('<span></span>').addClass('for-varname variable').append(stmt['var']).appendTo(elt);
+    elt.append(fieldSep + 'in' + fieldSep);
+    
+    var w = $('<span></span>').addClass('for-args').appendTo(elt);
+    fArgs(info, w, stmt['args']);
+    
+    elt.append(';' + fieldSep + 'do');
+    
+    var body = $('<span></span>').addClass('for-body').appendTo(elt);
+    renderStmt(info, body, stmt['body']);
+    
+    elt.append(';' + fieldSep + 'done');
+}
+
 function renderStmt(info, elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got %o', stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
   console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded',
                   'Pipe', 'Redir', 'Background', 'Subshell',
                   'And', 'Or', 'Not', 'Semi', 'If', 
-                  'While', 'For', 'Case', 'Defun', 'Done'].includes(stmt['tag']), 
+                  'While', 'For', 'ForExpArgs', 'ForExpanded',
+                  'Case', 'Defun', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag %s', stmt['tag']);
 
   elt.addClass('stmt stmt-' + stmt['tag']);
@@ -429,20 +449,21 @@ function renderStmt(info, elt, stmt) {
       // | For (x, w, c) -> 
       //    Assoc [tag "For"; ("var", String x); ("args", json_of_words w); ("body", json_of_stmt c)]
 
-      elt.append('for' + fieldSep);
-      $('<span></span>').addClass('for-varname variable').append(stmt['var']).appendTo(elt);
-      elt.append(fieldSep + 'in' + fieldSep);
+      stmtFor(info, elt, renderWords, stmt);
+      break;
 
-      var w = $('<span></span>').addClass('for-args').appendTo(elt);
-      renderWords(info, w, stmt['args']);
+  case 'ForExpArgs':
+      // | For (x, exp_state, c) -> 
+      //    Assoc [tag "ForExpanded"; ("var", String x); ("args", json_of_expansion_state exp_state); ("body", json_of_stmt c)]
 
-      elt.append(';' + fieldSep + 'do');
-  
-      var body = $('<span></span>').addClass('for-body').appendTo(elt);
-      renderStmt(info, body, stmt['body']);
+      stmtFor(info, elt, renderExpansionState, stmt);
+      break;
 
-      elt.append(';' + fieldSep + 'done');
+  case 'ForExpanded':
+      // | For (x, f, c) -> 
+      //    Assoc [tag "ForExpanded"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt c)]
 
+      stmtFor(info, elt, renderFields, stmt);
       break;
 
     case 'Case':
