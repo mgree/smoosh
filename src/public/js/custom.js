@@ -470,12 +470,12 @@ function renderStmt(info, elt, stmt) {
       // | ForRunning (x, f, body, cur) -> 
       //    Assoc [tag "ForExpanded"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt c); ("cur", json_of_stmt cur)]
 
-      const c1 = $('<span></span>').addClass(name + '-current').appendTo(elt);
+      var c1 = $('<span></span>').addClass(name + '-current').appendTo(elt);
       renderStmt(info, c1, stmt['cur']);
   
       elt.append(fieldSep + ';' + fieldSep);  
 
-      const c2 = $('<span></span>').addClass(name + '-loop').appendTo(elt);
+      var c2 = $('<span></span>').addClass(name + '-loop').appendTo(elt);
       stmtFor(info, c2, renderFields, stmt);
 
     case 'Case':
