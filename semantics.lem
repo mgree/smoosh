@@ -692,8 +692,19 @@ $ count $(${x? one two three}) four
                 ForExpArgs var in_progress body,
                 XSExpand (XSFor "argument expansion step") step)
       end
-  | ForExpanded _var _f _body -> Left (s0, XSFor "TODO")
-  | ForRunning _var _f _body _cur -> Left (s0, XSFor "TODO")
+  (* Special case, no items exit status is zero *)
+  | ForExpanded _var [] _body -> Right (set_param "?" (symbolic_string_of_string "0") s0, Done, XSFor "no items exit code is 0")
+  | ForExpanded var (i::f) body -> Right (set_param var i s0, ForRunning var f body body, XSFor ("starting for loop with " ^ var ^ " = " ^ (string_of_symbolic_string i)))
+  | ForRunning var f body cur ->
+      match step_eval s0 cur with
+      | Left e -> Left e
+      | Right (s1, Done, step) ->
+          match f with
+          | [] -> Right (s1, Done, XSNested (XSFor "finished last iteration") step)
+          | (i::f') -> Right (set_param var i s1, ForRunning var f' body body, XSNested (XSFor ("starting next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step)
+          end
+      | Right (s1, cur', step) -> Right (s1, ForRunning var f body cur', XSNested (XSFor "") step)
+      end
   | Case _ws _cases -> Left (s0, XSCase "TODO")
   | Defun _name _body -> Left (s0, XSDefun "TODO")
   (* This should never come up when called from trace_evaluation or elsewhere *)
