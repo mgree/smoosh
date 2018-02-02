@@ -340,6 +340,10 @@ let rec json_of_stmt = function
      Assoc [tag "While"; ("cond", json_of_stmt c1); ("body", json_of_stmt c2)]
   | For (x, w, c) -> 
      Assoc [tag "For"; ("var", String x); ("args", json_of_words w); ("body", json_of_stmt c)]
+  | ForExpArgs (x, state, c) -> 
+     Assoc [tag "ForExpArgs"; ("var", String x); ("args", json_of_expansion_state  state); ("body", json_of_stmt c)]
+  | ForExpanded (x, f, c) -> 
+     Assoc [tag "For"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt c)]
   | Case (w, cases) -> 
      Assoc [tag "Case"; ("args", json_of_words w); ("cases", List (List.map json_of_case cases))]
   | Defun (f, c) -> Assoc [tag "Defun"; ("name", String f); ("body", json_of_stmt c)]

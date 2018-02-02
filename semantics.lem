@@ -676,7 +676,9 @@ $ count $(${x? one two three}) four
           end
       | Right (s1, c', step) -> Right (s1, While c' body, XSNested (XSWhile "") step)
       end
-  | For _var _ws _body -> Left (s0, XSFor "TODO")
+  | For var ws body -> Right (s0, ForExpArgs var (ExpStart ws) body, XSFor "begin arg expansion")
+  | ForExpArgs var exp_state body -> Left (s0, XSFor "TODO")
+  | ForExpanded var f body -> Left (s0, XSFor "TODO")
   | Case _ws _cases -> Left (s0, XSCase "TODO")
   | Defun _name _body -> Left (s0, XSDefun "TODO")
   (* This should never come up when called from trace_evaluation or elsewhere *)

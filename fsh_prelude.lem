@@ -184,6 +184,8 @@ and stmt =
   | While of stmt * stmt
   (*   | InWhile of stmt (* condition *) * stmt (* original body *) * stmt (* current body *) *)
   | For of string * words * stmt
+  | ForExpArgs of string * expansion_state * stmt
+  | ForExpanded of string * fields * stmt
   | Case of words * list (words * stmt)
   | Defun of string * stmt
   | Done
