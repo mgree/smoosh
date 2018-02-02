@@ -213,7 +213,7 @@ function stmtFor(info, elt, fArgs, stmt) {
     var w = $('<span></span>').addClass('for-args').appendTo(elt);
     fArgs(info, w, stmt['args']);
     
-    elt.append(';' + fieldSep + 'do');
+    elt.append(';' + fieldSep + 'do' + fieldSep);
     
     var body = $('<span></span>').addClass('for-body').appendTo(elt);
     renderStmt(info, body, stmt['body']);
@@ -436,7 +436,7 @@ function renderStmt(info, elt, stmt) {
       var c = $('<span></span>').addClass(kw + '-cond').appendTo(elt);
       renderStmt(info, c, cond);
 
-      elt.append(';' + fieldSep + 'do');
+      elt.append(';' + fieldSep + 'do' + fieldSep);
 
       var body = $('<span></span>').addClass(kw + '-body').appendTo(elt);
       renderStmt(info, body, stmt['body']);
