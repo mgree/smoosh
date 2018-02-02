@@ -227,7 +227,7 @@ function renderStmt(info, elt, stmt) {
   console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded',
                   'Pipe', 'Redir', 'Background', 'Subshell',
                   'And', 'Or', 'Not', 'Semi', 'If', 
-                  'While', 'For', 'ForExpArgs', 'ForExpanded',
+                  'While', 'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
                   'Case', 'Defun', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag %s', stmt['tag']);
 
@@ -452,19 +452,31 @@ function renderStmt(info, elt, stmt) {
       stmtFor(info, elt, renderWords, stmt);
       break;
 
-  case 'ForExpArgs':
-      // | For (x, exp_state, c) -> 
+    case 'ForExpArgs':
+      // | ForExpArgs (x, exp_state, c) -> 
       //    Assoc [tag "ForExpanded"; ("var", String x); ("args", json_of_expansion_state exp_state); ("body", json_of_stmt c)]
 
       stmtFor(info, elt, renderExpansionState, stmt);
       break;
 
-  case 'ForExpanded':
-      // | For (x, f, c) -> 
+    case 'ForExpanded':
+      // | ForExpanded (x, f, c) -> 
       //    Assoc [tag "ForExpanded"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt c)]
 
       stmtFor(info, elt, renderFields, stmt);
       break;
+
+    case 'ForRunning':
+      // | ForRunning (x, f, body, cur) -> 
+      //    Assoc [tag "ForExpanded"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt c); ("cur", json_of_stmt cur)]
+
+      const c1 = $('<span></span>').addClass(name + '-current').appendTo(elt);
+      renderStmt(info, c1, stmt['cur']);
+  
+      elt.append(fieldSep + ';' + fieldSep);  
+
+      const c2 = $('<span></span>').addClass(name + '-loop').appendTo(elt);
+      stmtFor(info, c2, renderFields, stmt);
 
     case 'Case':
       // | Case (w, cases) -> 
