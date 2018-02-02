@@ -125,7 +125,7 @@ type substring_side =
 
 type redir_type = To | Clobber | From | FromTo | Append
 type dup_type = ToFD | FromFD
-type heredoc_type = Here | XHere (* for when in a quote... not sure when this comes up *)
+type heredoc_type = Here (* quoted heredoc name, for when the heredoc shouldn't do any expansion *) | XHere (* unquoted, do expansion *)
 
 (**********************************************************************)
 (* AST ****************************************************************)
