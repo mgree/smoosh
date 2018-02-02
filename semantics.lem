@@ -665,16 +665,23 @@ $ count $(${x? one two three}) four
       | Right (s1, c', step) -> Right (s1, If c' t e, XSNested (XSIf "") step)
       end
   (* TODO 2018-01-26 doesn't support break *)
-  | While c body ->
-      match step_eval s0 c with
+  | While c body -> Right (enter_loop s0, WhileCond c c body, XSWhile "start to evaluate the condtion")
+  | WhileCond c cur body ->
+      match step_eval s0 cur with
       | Left e -> Left e
       | Right (s1, Done, _step) ->
           match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (s1, Semi body (While c body), XSWhile "exit code was 0, running the loop body")
-          | Just _ -> Right (s1, Done, XSWhile "exit code was non-zero, taking the false branch")
+          | Just "0" -> Right (s1, WhileRunning c body body, XSWhile "exit code was 0, running the loop body")
+          | Just _ -> Right (exit_loop s1, Done, XSWhile "exit code was non-zero, taking the false branch")
           | Nothing -> Left (s1, XSWhile "unset or symbolic exit code")
           end
-      | Right (s1, c', step) -> Right (s1, While c' body, XSNested (XSWhile "") step)
+      | Right (s1, cur', step) -> Right (s1, WhileCond c cur' body, XSNested (XSWhile "") step)
+      end
+  | WhileRunning c body cur ->
+      match step_eval s0 cur with
+      | Left e -> Left e
+      | Right (s1, Done, step) -> Right (s1, WhileCond c c body, XSNested (XSWhile "finished iteration of while loop; retesting condition") step)
+      | Right (s1, cur', step) -> Right (s1, WhileRunning c body cur', XSNested (XSWhile "") step)
       end
   | For var ws body -> Right (s0, ForExpArgs var (ExpStart ws) body, XSFor "begin arg expansion")
   | ForExpArgs var exp_state body ->
@@ -694,13 +701,15 @@ $ count $(${x? one two three}) four
       end
   (* Special case, no items exit status is zero *)
   | ForExpanded _var [] _body -> Right (set_param "?" (symbolic_string_of_string "0") s0, Done, XSFor "no items exit code is 0")
-  | ForExpanded var (i::f) body -> Right (set_param var i s0, ForRunning var f body body, XSFor ("starting for loop with " ^ var ^ " = " ^ (string_of_symbolic_string i)))
+  | ForExpanded var (i::f) body ->
+      let s1 = enter_loop s0 in
+      Right (set_param var i s1, ForRunning var f body body, XSFor ("starting for loop with " ^ var ^ " = " ^ (string_of_symbolic_string i)))
   | ForRunning var f body cur ->
       match step_eval s0 cur with
       | Left e -> Left e
       | Right (s1, Done, step) ->
           match f with
-          | [] -> Right (s1, Done, XSNested (XSFor "finished last iteration") step)
+          | [] -> Right (exit_loop s1, Done, XSNested (XSFor "finished last iteration") step)
           | (i::f') -> Right (set_param var i s1, ForRunning var f' body body, XSNested (XSFor ("starting next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step)
           end
       | Right (s1, cur', step) -> Right (s1, ForRunning var f body cur', XSNested (XSFor "") step)
@@ -708,6 +717,9 @@ $ count $(${x? one two three}) four
   | Case _ws _cases -> Left (s0, XSCase "TODO")
   | Defun _name _body -> Left (s0, XSDefun "TODO")
   (* This should never come up when called from trace_evaluation or elsewhere *)
+  | Break _n -> Left (s0, XSSimple "")
+  | Continue _n -> Left (s0, XSSimple "")
+  | Return -> Left (s0, XSSimple "")
   | Done -> Right(s0, Done, XSSimple "")
   end
 

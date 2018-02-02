@@ -338,6 +338,10 @@ let rec json_of_stmt = function
      Assoc [tag "If"; ("c", json_of_stmt c1); ("t", json_of_stmt c2); ("e", json_of_stmt c3)]
   | While (c1, c2) -> 
      Assoc [tag "While"; ("cond", json_of_stmt c1); ("body", json_of_stmt c2)]
+  | WhileCond (c1, c2, c3) -> 
+      Assoc [tag "WhileCond"; ("cond", json_of_stmt c1); ("cur", json_of_stmt c2); ("body", json_of_stmt c2)]
+  | WhileRunning (c1, c2, c3) -> 
+      Assoc [tag "WhileRunning"; ("cond", json_of_stmt c1); ("body", json_of_stmt c2); ("cur", json_of_stmt c3)]
   | For (x, w, c) -> 
      Assoc [tag "For"; ("var", String x); ("args", json_of_words w); ("body", json_of_stmt c)]
   | ForExpArgs (x, state, c) -> 
@@ -349,6 +353,9 @@ let rec json_of_stmt = function
   | Case (w, cases) -> 
      Assoc [tag "Case"; ("args", json_of_words w); ("cases", List (List.map json_of_case cases))]
   | Defun (f, c) -> Assoc [tag "Defun"; ("name", String f); ("body", json_of_stmt c)]
+  | Break n -> Assoc [tag "Break"; ("n", Int n)]
+  | Continue n -> Assoc [tag "Continue"; ("n", Int n)]
+  | Return -> Assoc [tag "Return"]
   | Done -> Assoc [tag "Done"]
 and obj_lr name l r = Assoc [tag name; ("l", json_of_stmt l); ("r", json_of_stmt r)]
 and obj_crs name c rs = 

@@ -66,6 +66,8 @@ let rec string_of_stmt c =
      "until " ^ string_of_stmt c1 ^ "; do " ^ string_of_stmt c2 ^ "; done "
   | While c1 c2 ->
      "while " ^ string_of_stmt c1 ^ "; do " ^ string_of_stmt c2 ^ "; done "
+  | WhileCond _c _cur _body -> "TODO WhileCond"
+  | WhileRunning _c _body _cur -> "TODO WhileRunning"
   | For x w c ->
      "for " ^ x ^ " in " ^ string_of_words w ^ "; do " ^ string_of_stmt c ^ "; done"
   | ForExpArgs _ _ _ -> "TODO ForExpArgs"
@@ -74,6 +76,9 @@ let rec string_of_stmt c =
   | Case w cs ->
      "case " ^ string_of_words w ^ " in " ^ concat " " (List.map string_of_case cs) ^ " esac"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
+  | Break n -> "Break " ^ show n
+  | Continue n -> "Continue " ^ show n
+  | Return -> "Return"
   | Done -> "Done"
   end
 

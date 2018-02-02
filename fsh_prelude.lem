@@ -182,13 +182,17 @@ and stmt =
   | Semi of stmt * stmt
   | If of stmt * stmt * stmt
   | While of stmt * stmt
-  (*   | InWhile of stmt (* condition *) * stmt (* original body *) * stmt (* current body *) *)
+  | WhileCond of stmt (* original cond *) * stmt (* current cond *) * stmt (* original body *)
+  | WhileRunning of stmt (* original cond *) * stmt (* original body *) * stmt (* current body *)
   | For of string * words * stmt
   | ForExpArgs of string * expansion_state * stmt
   | ForExpanded of string * fields * stmt
-  | ForRunning of string * fields * stmt (* original *) * stmt (* current iteration *)
+  | ForRunning of string * fields * stmt (* original body *) * stmt (* current body *)
   | Case of words * list (words * stmt)
   | Defun of string * stmt
+  | Break of int
+  | Continue of int
+  | Return
   | Done
 
 and redir = 
@@ -278,7 +282,8 @@ and evaluation_step =
 and ty_shell_state = <|
     env: Map.map string symbolic_string;
     cwd: fs;
-    locale: locale
+    locale: locale;
+    loop_nest: int
   |>
 (* From t_fs_spec.lem_cppo line 1187 *)
 and ty_os_state = <|
@@ -463,6 +468,12 @@ let lookup_concrete_param s0 str =
 val set_param : string -> symbolic_string -> ty_os_state -> ty_os_state
 let set_param x v os = <| os with sh = <| os.sh with env = Map.insert x v os.sh.env |> |>
 
+val enter_loop : ty_os_state -> ty_os_state
+let enter_loop os = <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest + 1 |> |>
+
+val exit_loop : ty_os_state -> ty_os_state
+let exit_loop os = <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest - 1 |> |>
+
 val get_pwdir : ty_os_state -> string -> maybe string
 let get_pwdir os u = Map.lookup u os.passwd
 
@@ -633,7 +644,8 @@ let os_empty : ty_os_state = <|
     sh = <|
       env = Map.insert "?" (symbolic_string_of_string "0") Map.empty;
       cwd = fs_empty;
-      locale = lc_ambient
+      locale = lc_ambient;
+      loop_nest = 0
   |>;
     passwd = Map.empty;
     fs_root = fs_empty
