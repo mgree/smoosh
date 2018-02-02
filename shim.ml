@@ -347,9 +347,9 @@ let rec json_of_stmt = function
   | ForExpArgs (x, state, c) -> 
      Assoc [tag "ForExpArgs"; ("var", String x); ("args", json_of_expansion_state  state); ("body", json_of_stmt c)]
   | ForExpanded (x, f, c) -> 
-     Assoc [tag "For"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt c)]
+     Assoc [tag "ForExpanded"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt c)]
   | ForRunning (x, f, b, c) -> 
-      Assoc [tag "For"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt b); ("cur", json_of_stmt c)]
+      Assoc [tag "ForRunning"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt b); ("cur", json_of_stmt c)]
   | Case (w, cases) -> 
      Assoc [tag "Case"; ("args", json_of_words w); ("cases", List (List.map json_of_case cases))]
   | Defun (f, c) -> Assoc [tag "Defun"; ("name", String f); ("body", json_of_stmt c)]
