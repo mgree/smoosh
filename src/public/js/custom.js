@@ -73,10 +73,10 @@ function showUnless(def, actual) {
 }
 
 function renderRedir(info, elt, redir) {
-  console.assert(typeof redir === 'object', 'expected redir object, got %o', redir);
+  console.assert(typeof redir === 'object', 'expected redir object, got ' + redir);
   console.assert('tag' in redir, 'expected tag for statement object');
   console.assert(['File', 'Dup', 'Heredoc'].includes(redir['tag']), 
-                 'got weird redir tag %s', redir['tag']);
+                 'got weird redir tag ' + redir['tag']);
 
   const tagClass = 'redir-' + redir['tag']
   const tyClass = tagClass + redir['ty']
@@ -242,7 +242,7 @@ function stmtFor(info, elt, fArgs, stmt) {
 }
 
 function renderStmt(info, elt, stmt) {
-  console.assert(typeof stmt === 'object', 'expected statement object, got %o', stmt);
+  console.assert(typeof stmt === 'object', 'expected statement object, got ' + stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
   console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded',
                   'Pipe', 'Redir', 'Background', 'Subshell',
@@ -251,7 +251,7 @@ function renderStmt(info, elt, stmt) {
                   'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
                   'Case', 'Defun',
                   'Break', 'Continue', 'Return', 'Done'].includes(stmt['tag']), 
-                 'got weird statement tag %s', stmt['tag']);
+                 'got weird statement tag ' + stmt['tag']);
 
   elt.addClass('stmt stmt-' + stmt['tag']);
   
@@ -598,10 +598,10 @@ function renderStmt(info, elt, stmt) {
 /* Symbolic values ****************************************************/
 
 function renderSymbolicChar(info, elt, symbolic) {
-  console.assert(typeof symbolic === 'object', 'expected symbolic character object, got %o', symbolic);
+  console.assert(typeof symbolic === 'object', 'expected symbolic character object, got ' + symbolic);
   console.assert('tag' in symbolic, 'expected tag for symbolic character object');
   console.assert(['SymCommand', 'SymArith', 'SymPat'].includes(symbolic['tag']), 
-                 'got weird symbolic character tag %s', symbolic['tag']);
+                 'got weird symbolic character tag ' + symbolic['tag']);
 
   elt.addClass('symbolic symbolic-' + symbolic['tag']);
 
@@ -662,8 +662,8 @@ function renderSymbolicChar(info, elt, symbolic) {
 };
 
 function renderSymbolicString(info, elt, ss) {
-  console.assert(typeof ss === 'object', 'expected symbolic string list, got %o', ss);
-  console.assert('length' in ss, 'expected length field for symbolic string, got %o', ss);
+  console.assert(typeof ss === 'object', 'expected symbolic string list, got ' + ss);
+  console.assert('length' in ss, 'expected length field for symbolic string, got ' + ss);
 
   for (let i = 0;i < ss.length; i += 1) {
     let c = $('<span></span>').addClass('field-char').appendTo(elt);
@@ -688,7 +688,7 @@ function renderSymbolicString(info, elt, ss) {
 /* Fields, intermediate fields, and expanded words******************************/
 
 function renderFields(info, elt, fields) {
-  console.assert(typeof fields === 'object', 'expected fields list, got %o', fields);
+  console.assert(typeof fields === 'object', 'expected fields list, got ' + fields);
   console.assert('length' in fields, 'expected length field for fields object');
 
   elt.addClass('fields');
@@ -704,7 +704,7 @@ function renderFields(info, elt, fields) {
 };
 
 function renderTmpField(info, elt, tf) {
-  console.assert(typeof tf === 'object', 'expected temp field character, got %o', tf);
+  console.assert(typeof tf === 'object', 'expected temp field character, got ' + tf);
   console.assert('tag' in tf, 'expected tag field in temp field character');
   console.assert(['WFS','FS','Field','QField'].includes(tf['tag']));
 
@@ -748,7 +748,7 @@ function renderTmpField(info, elt, tf) {
 }
 
 function renderIntermediateFields(info, elt, ifs) {
-  console.assert(typeof ifs === 'object', 'expected intermediate field list, got %o', ifs);
+  console.assert(typeof ifs === 'object', 'expected intermediate field list, got ' + ifs);
   console.assert('length' in ifs, 'expected length field for intermediate field list');
   
   elt.addClass('intermediate-fields');
@@ -760,7 +760,7 @@ function renderIntermediateFields(info, elt, ifs) {
 }
 
 function renderExpandedWord(info, elt, w) {
-  console.assert(typeof w === 'object', 'expected expanded word character, got %o', w);
+  console.assert(typeof w === 'object', 'expected expanded word character, got ' + w);
   console.assert('tag' in w, 'expected tag field in expanded word character');
   console.assert(['UsrF','ExpS','DQuo','UsrS','EWSym'].includes(w['tag']));
 
@@ -812,7 +812,7 @@ function renderExpandedWord(info, elt, w) {
 };
 
 function renderExpandedWords(info, elt, w) {
-  console.assert(typeof w === 'object', 'expected expanded word list, got %o', w);
+  console.assert(typeof w === 'object', 'expected expanded word list, got ' + w);
   console.assert('length' in w, 'expected length field for expanded words object');
 
   for (let i = 0; i < w.length; i += 1) {
@@ -824,22 +824,22 @@ function renderExpandedWords(info, elt, w) {
 /* Words and entries: control codes, etc., pre-expansion ***************/
 
 function renderSubstring(side, mode) {
-  console.assert(typeof side === 'string', 'expected string for side, got %o', side);
-  console.assert(typeof mode === 'string', 'expected string for mode, got %o', mode);
-  console.assert(['Prefix', 'Suffix'].includes(side), 'got weird mode %s', mode);
-  console.assert(['Shortest', 'Longest'].includes(mode), 'got weird mode %s', mode);
+  console.assert(typeof side === 'string', 'expected string for side, got ' + side);
+  console.assert(typeof mode === 'string', 'expected string for mode, got ' + mode);
+  console.assert(['Prefix', 'Suffix'].includes(side), 'got weird mode ' + mode);
+  console.assert(['Shortest', 'Longest'].includes(mode), 'got weird mode ' + mode);
 
   var r = side === 'Prefix' ? '#' : '%';
   return mode == 'Shortest' ? r : r + r;
 };
 
 function renderFormatChar(format) {
-  console.assert(typeof format === 'object', 'expected format object, got %o', format);
+  console.assert(typeof format === 'object', 'expected format object, got ' + format);
   console.assert('tag' in format, 'expected tag for format object');
   console.assert(['Normal', 'Length', 'Default', 'NDefault',
                   'Assign', 'NAssign', 'Error', 'NError',
                   'Alt','NAlt','Substring'].includes(format['tag']), 
-                 'got weird format tag %s', format['tag']);
+                 'got weird format tag ' + format['tag']);
 
   switch (format['tag']) {
     case 'Normal':
@@ -870,12 +870,12 @@ function renderFormatChar(format) {
 };
 
 function renderFormat(info, elt, format) {
-  console.assert(typeof format === 'object', 'expected format object, got %o', format);
+  console.assert(typeof format === 'object', 'expected format object, got ' + format);
   console.assert('tag' in format, 'expected tag for format object');
   console.assert(['Normal', 'Length', 'Default', 'NDefault',
                   'Assign', 'NAssign', 'Error', 'NError',
                   'Alt','NAlt','Substring'].includes(format['tag']), 
-                 'got weird format tag %s', format['tag']);
+                 'got weird format tag ' + format['tag']);
 
   elt.append(renderFormatChar(format));
 
@@ -917,11 +917,11 @@ function renderFormat(info, elt, format) {
 };
 
 function renderControl(info, elt, control) {
-  console.assert(typeof control === 'object', 'expected control object, got %o', control);
+  console.assert(typeof control === 'object', 'expected control object, got ' + control);
   console.assert('tag' in control, 'expected tag for control object');
   console.assert(['Tilde', 'TildeUser', 'Param', 'LAssign', 'LMatch',
                   'LError', 'Backtick', 'LBacktick', 'Arith', 'Quote'].includes(control['tag']), 
-                 'got weird control tag %s', control['tag']);
+                 'got weird control tag ' + control['tag']);
 
   elt.addClass('control-' + control['tag']);
   
@@ -1082,10 +1082,10 @@ function renderControl(info, elt, control) {
 };
 
 function renderEntry(info, elt, entry) {
-  console.assert(typeof entry === 'object', 'expected entry object, got %o', entry);
+  console.assert(typeof entry === 'object', 'expected entry object, got ' + entry);
   console.assert('tag' in entry, 'expected tag for entry object');
   console.assert(['S', 'K', 'F', 'ESym'].includes(entry['tag']), 
-                 'got weird entry tag %s', entry['tag']);
+                 'got weird entry tag ' + entry['tag']);
 
   elt.addClass('entry-' + entry['tag']);
 
@@ -1122,8 +1122,8 @@ function renderEntry(info, elt, entry) {
 };
 
 function renderWords(info, elt, words) {
-  console.assert(typeof words === 'object', 'expected words list, got %o', words);
-  console.assert('length' in words, 'expected length field for words object, got %o', words);
+  console.assert(typeof words === 'object', 'expected words list, got ' + words);
+  console.assert('length' in words, 'expected length field for words object, got ' + words);
 
   elt.addClass('words');
 
@@ -1136,12 +1136,12 @@ function renderWords(info, elt, words) {
 /* Top-level step/environment rendering *******************************/
 
 function renderExpansionState(info, elt, step) {
-  console.assert(typeof step === 'object', 'expected step object, got %o', step);
+  console.assert(typeof step === 'object', 'expected step object, got ' + step);
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['ExpStart',
                   'ExpExpand','ExpSplit','ExpPath','ExpQuote',
                   'ExpError','ExpDone'].includes(step['tag']),
-                 'got weird step tag %o', step['tag']);
+                 'got weird step tag ' + step['tag']);
 
   elt.addClass('step-' + step['tag']);
 
@@ -1225,7 +1225,7 @@ function renderExpansionState(info, elt, step) {
 };
 
 function renderEnv(info, elt, env) {
-  console.assert(typeof env === 'object', 'expected environment object, got %o', env);
+  console.assert(typeof env === 'object', 'expected environment object, got ' + env);
 
   let table = $('<table></table>').addClass('ui unstackable compact table').appendTo(elt);
   let header = $(table).append('<tr><th>Variable</th><th>Value</th></tr>');
@@ -1258,11 +1258,11 @@ function renderMessage(info, desc, step) {
 
 
 function renderExpansionStep(info, step) {
-  console.assert(typeof step === 'object', 'expected step object, got %o', step);
+  console.assert(typeof step === 'object', 'expected step object, got ' + step);
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['ESTilde', 'ESParam', 'ESCommand', 'ESArith', 'ESSplit', 'ESPath',
                   'ESQuote', 'ESStep', 'ESNested', 'ESEval'].includes(step['tag']),
-                 'got weird step tag %o', step['tag']);
+                 'got weird step tag ' + step['tag']);
 
   switch (step['tag']) {
     case 'ESTilde':
@@ -1347,7 +1347,7 @@ function renderExpansionStep(info, step) {
 }
 
 function renderExpansionTraceEntry(info, elt, step) {
-  console.assert(typeof step === 'object', 'expected step object, got %o', step);
+  console.assert(typeof step === 'object', 'expected step object, got ' + step);
   console.assert('term' in step, 'expected term for step object');
   console.assert('env' in step, 'expected environment for step object');
   console.assert('step' in step, 'expected step description for step object');
@@ -1364,13 +1364,13 @@ function renderExpansionTraceEntry(info, elt, step) {
 };
 
 function renderEvaluationStep(info, step) {
-  console.assert(typeof step === 'object', 'expected step object, got %o', step);
+  console.assert(typeof step === 'object', 'expected step object, got ' + step);
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
                   'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
                   'XSFor', 'XSCase', 'XSDefun', 
                   'XSStep', 'XSNested', 'XSExpand'].includes(step['tag']),
-                 'got weird step tag %o', step['tag']);
+                 'got weird step tag ' + step['tag']);
 
   switch (step['tag']) {
     case 'XSSimple':
@@ -1486,7 +1486,7 @@ function renderEvaluationStep(info, step) {
 }
 
 function renderEvaluationTraceEntry(info, elt, step) {
-  console.assert(typeof step === 'object', 'expected step object, got %o', step);
+  console.assert(typeof step === 'object', 'expected step object, got ' + step);
   console.assert('term' in step, 'expected term for step object');
   console.assert('env' in step, 'expected environment for step object');
   console.assert('step' in step, 'expected step description for step object');
