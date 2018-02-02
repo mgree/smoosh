@@ -361,7 +361,7 @@ let rec expand_control s0 q k =
        | Right (step, s1, f1, w1) -> Right (ESNested (ESArith "before arithmetic parsing") step, s1, [], [K (Arith (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | Quote w -> 
+    | Quote w -> (* TODO 2018-02-02 properly accumulate quote while running *)
        match expand_words s0 Quoted GeneratedString ([],w) with
        | Right (step, s1, f1, []) -> Right (step, s1, f1, [])
        | Right (step, s1, f1, w1) -> Right (step, s1, f1, [K (Quote w1)])
@@ -608,6 +608,7 @@ $ count $(${x? one two three}) four
 
           need s0 to be a more robust model of stdin/stdout, exit codes, etc.
       *)
+     (* TODO 2018-02-02 implement break/continue *)
      Right (s0, Done, XSSimple "evaluate command")
   | Pipe _bg _stmts -> Left (s0, XSPipe "TODO")
   | Redir _stmt' _redirs -> Left (s0, XSRedir "TODO")
