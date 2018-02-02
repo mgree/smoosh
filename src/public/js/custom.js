@@ -202,6 +202,26 @@ function stmtBinary(info, elt, name, sym, stmt) {
   renderStmt(info, c2, stmt['r']);
 }
 
+function stmtWhile(info, elt, stmt) {
+    // | While (c1, c2) -> 
+    //    Assoc [tag "While"; ("cond", json_of_stmt c1); ("body", json_of_stmt c2)]
+    
+    const kw   = stmt['cond']['tag'] === 'Not' ? 'until' : 'while';
+    const cond = stmt['cond']['tag'] === 'Not' ? stmt['cond']['c'] : stmt['cond'];
+  
+    elt.append(kw + fieldSep);
+      
+    const c = $('<span></span>').addClass(kw + '-cond').appendTo(elt);
+    renderStmt(info, c, cond);
+
+    elt.append(';' + fieldSep + 'do' + fieldSep);
+    
+    const body = $('<span></span>').addClass(kw + '-body').appendTo(elt);
+    renderStmt(info, body, stmt['body']);
+    
+    elt.append(';' + fieldSep + 'done');
+}
+
 function stmtFor(info, elt, fArgs, stmt) {
     // | For (x, args, c) -> 
     //    Assoc [tag "ForExpArgs"; ("var", String x); ("args", ??? args); ("body", json_of_stmt c)]
@@ -227,8 +247,10 @@ function renderStmt(info, elt, stmt) {
   console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded',
                   'Pipe', 'Redir', 'Background', 'Subshell',
                   'And', 'Or', 'Not', 'Semi', 'If', 
-                  'While', 'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
-                  'Case', 'Defun', 'Done'].includes(stmt['tag']), 
+                  'While', 'WhileCond', 'WhileRunning',
+                  'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
+                  'Case', 'Defun',
+                  'Break', 'Continue', 'Return', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag %s', stmt['tag']);
 
   elt.addClass('stmt stmt-' + stmt['tag']);
@@ -425,24 +447,36 @@ function renderStmt(info, elt, stmt) {
       break;
 
     case 'While':
-      // | While (c1, c2) -> 
-      //    Assoc [tag "While"; ("cond", json_of_stmt c1); ("body", json_of_stmt c2)]
+      stmtWhile(info, elt, stmt);
+      break;
 
-      const kw   = stmt['cond']['tag'] === 'Not' ? 'until' : 'while';
-      const cond = stmt['cond']['tag'] === 'Not' ? stmt['cond']['c'] : stmt['cond'];
-  
-      elt.append(kw + fieldSep);
+    case 'WhileCond':
+      elt.append('if' + fieldSep);
       
-      var c = $('<span></span>').addClass(kw + '-cond').appendTo(elt);
-      renderStmt(info, c, cond);
+      var c1 = $('<span></span>').addClass('while-current iteration').appendTo(elt);
+      renderStmt(info, c1, stmt['cur']);
+  
+      elt.append(fieldSep + 'then;' + fieldSep);  
 
-      elt.append(';' + fieldSep + 'do' + fieldSep);
+      var c2 = $('<span></span>').addClass('while-current').appendTo(elt);
+      renderStmt(info, c2, stmt['body']);
 
-      var body = $('<span></span>').addClass(kw + '-body').appendTo(elt);
-      renderStmt(info, body, stmt['body']);
+      elt.append(fieldSep + ';' + fieldSep);  
+      
+      var c3 = $('<span></span>').addClass('while-loop').appendTo(elt);
+      stmtWhile(info, elt, stmt);
 
-      elt.append(';' + fieldSep + 'done');
+      elt.append(fieldSep + ';' + fieldSep + 'fi');
+      break;
 
+  case 'WhileRunning':
+      var c1 = $('<span></span>').addClass('while-current iteration').appendTo(elt);
+      renderStmt(info, c1, stmt['cur']);
+  
+      elt.append(fieldSep + ';' + fieldSep);  
+
+      var c2 = $('<span></span>').addClass('while-loop').appendTo(elt);
+      stmtWhile(info, elt, stmt);
       break;
 
     case 'For':
@@ -470,13 +504,14 @@ function renderStmt(info, elt, stmt) {
       // | ForRunning (x, f, body, cur) -> 
       //    Assoc [tag "ForExpanded"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt c); ("cur", json_of_stmt cur)]
 
-      var c1 = $('<span></span>').addClass(name + '-current').appendTo(elt);
+      var c1 = $('<span></span>').addClass('for-current iteration').appendTo(elt);
       renderStmt(info, c1, stmt['cur']);
   
       elt.append(fieldSep + ';' + fieldSep);  
 
-      var c2 = $('<span></span>').addClass(name + '-loop').appendTo(elt);
+      var c2 = $('<span></span>').addClass('for-loop').appendTo(elt);
       stmtFor(info, c2, renderFields, stmt);
+      break;
 
     case 'Case':
       // | Case (w, cases) -> 
@@ -526,6 +561,30 @@ function renderStmt(info, elt, stmt) {
 
       break;
 
+    case 'Break':
+      $('<i></i>').addClass('icon stop circle outline').appendTo('elt');
+
+      var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
+      cmd.append('break' + fieldSep + stmt['n']);
+      
+      break;
+
+    case 'Continue':
+      $('<i></i>').addClass('icon step forward').appendTo('elt');
+
+      var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
+      cmd.append('continue' + fieldSep + stmt['n']);
+
+      break;
+
+    case 'Return':
+      $('<i></i>').addClass('icon eject').appendTo('elt');
+      
+      var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
+      cmd.append('return');
+      
+      break;
+      
     case 'Done':
       $('<i></i>').addClass('icon check circle outline').appendTo('elt');
 
