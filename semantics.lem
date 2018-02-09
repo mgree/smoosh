@@ -27,9 +27,22 @@ val step_expansion : ty_os_state * expansion_state ->
 val step_assign : ty_os_state -> list (string * expansion_state) ->
                   either (ty_os_state * list (string * fields)) (* Done state *)
                          (ty_os_state * list (string * expansion_state) * evaluation_step) (* In progress *)
+
+val run_command : ty_os_state -> 
+                  symbolic_string (* prog *) -> 
+                  fields (* argv *) ->
+                  env ->
+                  fds ->
+                  ty_os_state * stmt
 val step_eval : ty_os_state -> stmt -> 
                 either (ty_os_state * evaluation_step) (* error case *)
                        (ty_os_state * stmt * evaluation_step) (* success *)
+
+val exit_with : nat -> ty_os_state -> ty_os_state
+let exit_with ec os = set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
+
+val last_pid : nat -> ty_os_state -> ty_os_state
+let last_pid pid os = set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
 
 (**********************************************************************)   
 (* LATE STAGE EXPANSION ***********************************************)   
@@ -498,7 +511,16 @@ and step_assign s0 assigns =
      trap
      unset
  *)
-   
+
+and run_command s0 prog argv env fds =
+  match try_concrete prog with
+  | Just ":" -> (exit_with 0 s0,Done)
+  | _ ->
+     let (s1,pid) = execve s0 prog argv env fds in
+     (* TODO 2018-02-09 actually wait for pid to finish, set exit_code appropriately! *)
+     (last_pid pid (exit_with 0 (* TODO 2018-02-09 FIXME *) s1),Done)
+  end
+
 and step_eval s0 stmt =
   match stmt with
   (* TODO 2018-01-28 special builtins vs. simple builtins
@@ -599,18 +621,42 @@ $ count $(${x? one two three}) four
 /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
       *)
   (* TODO 2017-12-22 add a CommandExpRedir to expand all of the redirect targets/heredocs *)
-  | CommandExpanded _assigns _ws _redirs ->
-     (* TODO
-          EVERYTHING is expanded, 
-            perform assignments
-            setup redirect
-            run command
+  | CommandExpanded assigns (prog::args) redirs ->
+     (* perform assignments *)
+     (* TODO 2018-02-09 check to see if it's a special built-in, in which case assign to GLOBAL env *)
+     let env = 
+       foldr (fun (x,f) env' -> 
+           Map.insert x (symbolic_string_of_fields f) env') 
+         s0.sh.env assigns
+     in
+     (* TODO 2018-02-09 setup redirects *)
+     let fds = s0.sh.fds in
+     (* run command *)
+     let (s1,stmt') = run_command s0 prog args env fds in
+     Right (s1, stmt', XSSimple ("running " ^ string_of_symbolic_string prog))
+  | Pipe _bg stmts -> 
+     (* generate fifos between each statement *)
+     let (s1,pipe_fifos) = mkfifos s0 (length stmts - 1) in
+     (* TODO 2018-02-09 spawn each process with fds set appropriately 
 
-          need s0 to be a more robust model of stdin/stdout, exit codes, etc.
-      *)
-     (* TODO 2018-02-02 implement break/continue *)
-     Right (s0, Done, XSSimple "evaluate command")
-  | Pipe _bg _stmts -> Left (s0, XSPipe "TODO")
+        builds fds1 ... fdsn such that:
+
+        stmt1   STDOUT |-> fifo1    in fds1
+        stmt2   STDOUT |-> fifo2    in fds2
+        ...
+        stmtn-1 STDOUT |-> fifon-1  in fdsn-1
+        stmtn uses ambient          in fdsn
+
+        stmt1 uses ambient          in fds1
+        stmt2   STDIN  |-> fifo1    in fds2
+        stmt3   STDIN  |-> fifo2    in fds3
+        ...
+        stmtn   STDIN  |-> fifon-1  in fdsn
+
+        then spawn each subshell in its own fds
+      *)     
+     (* wait TODO 2018-02-09 depending on bg! *)
+     Right (s1,Done,XSPipe "started pipe")
   | Redir _stmt' _redirs -> Left (s0, XSRedir "TODO")
   | Background _stmt' _redirs -> Left (s0, XSBackground "TODO")
   | Subshell _stmt' _redirs -> Left (s0, XSSubshell "TODO")

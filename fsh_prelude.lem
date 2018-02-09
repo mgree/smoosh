@@ -279,20 +279,41 @@ and evaluation_step =
   | XSExpand of evaluation_step * expansion_step
 
 (**********************************************************************)
-(* SHELL/OS STATE *****************************************************)
+(* SYMBOLIC SHELL/OS STATE ********************************************)
 (**********************************************************************)
 
+(* TODO 2018-02-09 longer term: type class abstracing over OS functions, allowing for ACTUAL OS state *)
+              
+(* FIFO pipes *)             
+and fifo = string
+
+(* File descriptors *)         
+and fd = nat
+
+and fds = Map.map fd nat (* index into global fifo list *)
+       
+(* environments *)       
+and env = Map.map string symbolic_string
+       
 and ty_shell_state = <|
-    env: Map.map string symbolic_string;
+    env: env;
     cwd: fs;
     locale: locale;
-    loop_nest: int
-  |>
+    loop_nest: nat; (* for tracking break/continue *)
+    fds: fds
+ |>
+
+and proc =
+    Execve of symbolic_string (* command *) * list symbolic_string (* args *) * env * fds
+  | Shell of ty_shell_state
+           
 (* From t_fs_spec.lem_cppo line 1187 *)
 and ty_os_state = <|
-    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
+    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir TODO 2018-02-09 move to actual filesystem *)
     sh: ty_shell_state;
-    fs_root: fs
+    fs_root: fs;
+    fifos: list fifo;
+    procs: list proc
   |>
 
 (**********************************************************************)
@@ -453,6 +474,13 @@ let fields_of_expanded_words w = [concat_expanded w]
 (**********************************************************************)
 (* SHELL/OS STATE FUNCTIONS *******************************************)
 (**********************************************************************)
+
+val STDIN : nat
+val STDOUT : nat
+val STDERR : nat
+let STDIN = 0
+let STDOUT = 1
+let STDERR = 2
    
 val print_shell_env : ty_os_state -> string
 let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) st.sh.env ""
@@ -483,6 +511,54 @@ let get_pwdir os u = Map.lookup u os.passwd
 val set_pwdir : string -> string -> ty_os_state -> ty_os_state
 let set_pwdir u d os = <| os with passwd = Map.insert u d (os.passwd) |>
 
+val mkfifo : ty_os_state -> ty_os_state * nat
+let mkfifo os =
+  let fifo_num = length os.fifos in
+  (<| os with fifos = os.fifos ++ [""] |>, fifo_num)
+
+val mkfifos : ty_os_state -> nat -> ty_os_state * list nat 
+let rec mkfifos os0 n =
+  match n with
+  | 0 -> (os0, [])
+  | _ -> let (os1,fifo) = mkfifo os0 in 
+         let (os2,fifos) = mkfifos os1 (n-1) in
+         (os2,fifo::fifos)
+  end
+
+val adjust_nth : forall 'a 'b. list 'a -> nat -> ('a -> 'a * 'b) -> maybe (list 'a * 'b)
+let rec adjust_nth l n f =
+  match (l,n) with
+  | ([],_) -> Nothing
+  | (v::l',0) -> 
+     let (v',res) = f v in
+     Just (v'::l',res)
+  | (v::l',_) ->
+     match adjust_nth l' (n-1) f with
+     | Nothing -> Nothing
+     | Just (l'',res) -> Just (v::l'',res)
+     end
+  end
+  
+val write_fifo : ty_os_state -> nat -> string -> maybe ty_os_state
+let write_fifo os fifo_num s =
+  match adjust_nth os.fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
+  | Nothing -> Nothing
+  | Just (new_fifos,()) -> Just <| os with fifos = new_fifos |>
+  end
+
+val read_fifo : ty_os_state -> nat -> maybe (ty_os_state * string)
+let read_fifo os fifo_num =
+  match adjust_nth os.fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
+  | Nothing -> Nothing
+  | Just (new_fifos,s) -> Just (<| os with fifos = new_fifos |>, s)
+  end
+
+val execve : ty_os_state -> symbolic_string -> list symbolic_string -> env -> fds -> ty_os_state * nat
+let execve os prog argv env fds =
+  (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
+  let proc_num = length os.procs in
+  (<| os with procs = os.procs ++ [Execve prog argv env fds] |>, proc_num)
+                                    
 (*--------------------------------*)
 (* Nat class                      *)
 (*--------------------------------*)
@@ -643,14 +719,25 @@ let fs_empty =
      contents = Map.empty
   |>
 
+let env_default : env = Map.insert "?" (symbolic_string_of_string "0") Map.empty
+
+(* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
+let fds_default : fds = Map.insert STDIN 0 (Map.insert STDOUT 1 (Map.insert STDERR 2 Map.empty))
+    
 let os_empty : ty_os_state = <|
     sh = <|
-      env = Map.insert "?" (symbolic_string_of_string "0") Map.empty;
+      env = env_default;
       cwd = fs_empty;
       locale = lc_ambient;
-      loop_nest = 0
+      loop_nest = 0;
+      fds = fds_default
   |>;
     passwd = Map.empty;
-    fs_root = fs_empty
+    fs_root = fs_empty;
+    fifos = ["" (* STDIN *)
+            ;"" (* STDOUT *)
+            ;"" (* STDERR *)
+            ];
+    procs = []
  |>
 
