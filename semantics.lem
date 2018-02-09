@@ -715,7 +715,47 @@ $ count $(${x? one two three}) four
           end
       | Right (s1, cur', step) -> Right (s1, ForRunning var f body cur', XSNested (XSFor "") step)
       end
-  | Case _ws _cases -> Left (s0, XSCase "TODO")
+  | Case ws cases -> Right (s0, CaseExpArg (ExpStart ws) cases, XSCase "begin arg expansion")
+  | CaseExpArg exp_state cases ->
+      let (os1, st1, step) = step_expansion (s0, exp_state) in
+      match st1 with
+        | ExpError _ ->
+           Left (os1,
+                 XSCase "error in argument expansion")
+        | ExpDone [f] ->
+              Right (os1,
+                     CaseMatch f cases,
+                     XSCase "argument fully expanded")
+        | ExpDone _ -> Left (s0, XSCase "case match element did not expand to a single field")
+        | (_ as in_progress) ->
+          Right(os1,
+                CaseExpArg in_progress cases,
+                XSExpand (XSCase "argument expansion step") step)
+      end
+  | CaseMatch f cases ->
+      match cases with
+        | [] -> Right (s0, Done ,XSCase "no match in case statement")
+        | (pat, cmd)::cases' -> Right (s0, CaseCheckMatch f (ExpStart pat) cmd cases', XSCase "checking pattern match")
+      end
+  | CaseCheckMatch f pat cmd cases ->
+      let (os1, st1, step) = step_expansion (s0, pat) in
+      match st1 with
+        | ExpError _ ->
+           Left (os1,
+                 XSCase "error in case pattern expansion")
+        | ExpDone [pat'] ->
+          (* TODO 2018-02-09 use proper locale and verify substring mode works correctly *)
+          match match_prefix lc_ambient Shortest pat' f with
+          | NoMatch -> Right (os1, CaseMatch f cases, XSCase "case did not match, trying the next")
+          | Match _ -> Right (os1, cmd, XSCase "case matched, evaluating cmd")
+          | Symbolic -> Left (os1, XSCase "TODO, this could match")
+          end
+        | ExpDone _ -> Left (os1, XSCase "case match pattern did not expand to a single field")
+        | (_ as in_progress) ->
+          Right(os1,
+                CaseCheckMatch f in_progress cmd cases,
+                XSExpand (XSCase "pattern expansion step") step)
+      end
   | Defun _name _body -> Left (s0, XSDefun "TODO")
   (* This should never come up when called from trace_evaluation or elsewhere *)
   | Break _n -> Left (s0, XSSimple "")

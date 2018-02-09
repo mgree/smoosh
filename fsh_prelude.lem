@@ -189,6 +189,9 @@ and stmt =
   | ForExpanded of string * fields * stmt
   | ForRunning of string * fields * stmt (* original body *) * stmt (* current body *)
   | Case of words * list (words * stmt)
+  | CaseExpArg of expansion_state * list (words * stmt)
+  | CaseMatch of symbolic_string * list (words * stmt)
+  | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (words * stmt) (* remaining cases *)
   | Defun of string * stmt
   | Break of int
   | Continue of int
