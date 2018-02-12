@@ -193,6 +193,7 @@ and stmt =
   | CaseMatch of symbolic_string * list (words * stmt)
   | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (words * stmt) (* remaining cases *)
   | Defun of string * stmt
+  | Call of nat (* outer loop_nest, to be restored *) * string * stmt (* orig body *) * stmt (* current body *)
   | Break of int
   | Continue of int
   | Return
@@ -294,9 +295,13 @@ and fds = Map.map fd nat (* index into global fifo list *)
        
 (* environments *)       
 and env = Map.map string symbolic_string
-       
+
+(* function definitions *)
+and funcs = Map.map string stmt        
+        
 and ty_shell_state = <|
     env: env;
+    funcs: funcs;                 
     cwd: fs;
     locale: locale;
     loop_nest: nat; (* for tracking break/continue *)
@@ -498,6 +503,12 @@ let lookup_concrete_param s0 str =
 
 val set_param : string -> symbolic_string -> ty_os_state -> ty_os_state
 let set_param x v os = <| os with sh = <| os.sh with env = Map.insert x v os.sh.env |> |>
+
+val defun : string -> stmt -> ty_os_state -> ty_os_state
+let defun name body os = <| os with sh = <| os.sh with funcs = Map.insert name body os.sh.funcs |> |>
+
+val lookup_function : string -> ty_os_state -> maybe stmt
+let lookup_function name os = Map.lookup name os.sh.funcs
 
 val enter_loop : ty_os_state -> ty_os_state
 let enter_loop os = <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest + 1 |> |>
@@ -727,6 +738,7 @@ let fds_default : fds = Map.insert STDIN 0 (Map.insert STDOUT 1 (Map.insert STDE
 let os_empty : ty_os_state = <|
     sh = <|
       env = env_default;
+      funcs = Map.empty;
       cwd = fs_empty;
       locale = lc_ambient;
       loop_nest = 0;

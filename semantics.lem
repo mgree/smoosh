@@ -44,6 +44,83 @@ let exit_with ec os = set_param "?" (symbolic_string_of_string (stringFromNat ec
 val last_pid : nat -> ty_os_state -> ty_os_state
 let last_pid pid os = set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
 
+val is_special_builtin : string -> bool
+let is_special_builtin s =
+  match s with
+  | "break" -> true
+  | ":" -> true
+  | "continue" -> true
+  | "." -> true
+  | "eval" -> true
+  | "exec" -> true
+  | "exit" -> true
+  | "export" -> true
+  | "readonly" -> true
+  | "return" -> true
+  | "set" -> true
+  | "shift" -> true
+  | "times" -> true
+  | "trap" -> true
+  | "unset" -> true
+  | _ -> false
+  end
+
+val is_unspecified_utility : string -> bool
+let is_unspecified_utility s =
+  match s with
+  | "alloc" -> true
+  | "autoload" -> true
+  | "bind" -> true
+  | "bindkey" -> true
+  | "builtin" -> true
+  | "bye" -> true
+  | "caller" -> true
+  | "cap" -> true
+  | "chdir" -> true
+  | "clone" -> true
+  | "comparguments" -> true
+  | "compcall" -> true
+  | "compctl" -> true
+  | "compdescribe" -> true
+  | "compfiles" -> true
+  | "compgen" -> true
+  | "compgroups" -> true
+  | "complete" -> true
+  | "compquote" -> true
+  | "comptags" -> true
+  | "comptry" -> true
+  | "compvalues" -> true
+  | "declare" -> true
+  | "dirs" -> true
+  | "disable" -> true
+  | "disown" -> true
+  | "dosh" -> true
+  | "echotc" -> true
+  | "echoti" -> true
+  | "help" -> true
+  | "history" -> true
+  | "hist" -> true
+  | "let" -> true
+  | "local" -> true
+  | "login" -> true
+  | "logout" -> true
+  | "map" -> true
+  | "mapfile" -> true
+  | "popd" -> true
+  | "print" -> true
+  | "pushd" -> true
+  | "readarray" -> true
+  | "repeat" -> true
+  | "savehistory" -> true
+  | "source" -> true
+  | "shopt" -> true
+  | "stop" -> true
+  | "suspend" -> true
+  | "typeset" -> true
+  | "whence" -> true
+  | _ -> false
+  end
+
 (**********************************************************************)   
 (* LATE STAGE EXPANSION ***********************************************)   
 (**********************************************************************)
@@ -514,8 +591,97 @@ and step_assign s0 assigns =
 
 and run_command s0 prog argv env fds =
   match try_concrete prog with
+  (*  1a. If the command name matches the name of a special built-in utility, that special built-in utility shall be invoked. 
+
+  break
+  continue
+  .
+  eval
+  exec
+  exit
+  export
+  readonly
+  return
+  set
+  shift
+  times
+  trap
+  unset
+*)
+
   | Just ":" -> (exit_with 0 s0,Done)
+  | Just s -> 
+     (* 1b. b. If the command name matches the name of a utility
+        listed in the following table, the results are unspecified. *)
+     if is_unspecified_utility s 
+     then (s0,Done)
+     else 
+       (* 1c. If the command name matches the name of a function known
+          to this shell, the function shall be invoked as described in
+          Function Definition Command. If the implementation has
+          provided a standard utility in the form of a function, it
+          shall not be recognized at this point. It shall be invoked
+          in conjunction with the path search in step 1e. *)
+       match lookup_function s s0 with
+       | Just body ->
+           (* TODO 2018-02-12 set $*, $@, and $0, $1, ... 
+              
+              save pre-existing numerical arguments and $*
+              
+              so: does the shell need to know the maximal positional argument at any given time?
+            *)
+           (s0,Call s0.sh.loop_nest s body body)
+       | Nothing -> 
+           (*   1d. If the command name matches the name [XSI] [Option Start]  of the type or ulimit utility, or [Option End]  of a utility listed in the following table, that utility shall be invoked.
+
+alias
+bg
+cd
+command
+false
+fc
+fg
+getopts
+hash
+jobs
+kill
+newgrp
+pwd
+read
+true
+umask
+unalias
+wait
+*)
+           (s0,Done) (* TODO 2018-02-12 implement these built-ins *)
+       end
   | _ ->
+     
+(*
+Otherwise, the command shall be searched for using the PATH environment variable as described in XBD Environment Variables :
+
+If the search is successful:
+
+If the system has implemented the utility as a regular built-in or as a shell function, it shall be invoked at this point in the path search.
+
+Otherwise, the shell executes the utility in a separate utility environment (see Shell Execution Environment) with actions equivalent to calling the execl() function as defined in the System Interfaces volume of POSIX.1-2008 with the path argument set to the pathname resulting from the search, arg0 set to the command name, and the remaining execl() arguments set to the command arguments (if any) and the null terminator.
+
+If the execl() function fails due to an error equivalent to the [ENOEXEC] error defined in the System Interfaces volume of POSIX.1-2008, the shell shall execute a command equivalent to having a shell invoked with the pathname resulting from the search as its first operand, with any remaining arguments passed to the new shell, except that the value of "$0" in the new shell may be set to the command name. If the executable file is not a text file, the shell may bypass this command execution. In this case, it shall write an error message, and shall return an exit status of 126.
+
+It is unspecified whether environment variables that were passed to the shell when it was invoked, but were not used to initialize shell variables (see Shell Variables) because they had invalid names, are included in the environment passed to execl() and (if execl() fails as described above) to the new shell.
+
+Once a utility has been searched for and found (either as a result of this specific search or as part of an unspecified shell start-up activity), an implementation may remember its location and need not search for the utility again unless the PATH variable has been the subject of an assignment. If the remembered location fails for a subsequent invocation, the shell shall repeat the search to find the new location for the utility, if any.
+
+If the search is unsuccessful, the command shall fail with an exit status of 127 and the shell shall write an error message.
+
+If the command name contains at least one <slash>, the shell shall execute the utility in a separate utility environment with actions equivalent to calling the execl() function defined in the System Interfaces volume of POSIX.1-2008 with the path and arg0 arguments set to the command name, and the remaining execl() arguments set to the command arguments (if any) and the null terminator.
+
+If the execl() function fails due to an error equivalent to the [ENOEXEC] error, the shell shall execute a command equivalent to having a shell invoked with the command name as its first operand, with any remaining arguments passed to the new shell. If the executable file is not a text file, the shell may bypass this command execution. In this case, it shall write an error message and shall return an exit status of 126.
+
+It is unspecified whether environment variables that were passed to the shell when it was invoked, but were not used to initialize shell variables (see Shell Variables) because they had invalid names, are included in the environment passed to execl() and (if execl() fails as described above) to the new shell.
+
+If the utility would be executed with file descriptor 0, 1, or 2 closed, implementations may execute the utility with the file descriptor open to an unspecified file. If a standard utility or a conforming application is executed with file descriptor 0 not open for reading or with file descriptor 1 or 2 not open for writing, the environment in which the utility or application is executed shall be deemed non-conforming, and consequently the utility or application might not behave as described in this standard.
+*)
      let (s1,pid) = execve s0 prog argv env fds in
      (* TODO 2018-02-09 actually wait for pid to finish, set exit_code appropriately! *)
      (last_pid pid (exit_with 0 (* TODO 2018-02-09 FIXME *) s1),Done)
@@ -523,7 +689,52 @@ and run_command s0 prog argv env fds =
 
 and step_eval s0 stmt =
   match stmt with
-  (* TODO 2018-01-28 special builtins vs. simple builtins
+  (* 
+When a given simple command is required to be executed (that is, when any conditional construct such as an AND-OR list or a case statement has not bypassed the simple command), the following expansions, assignments, and redirections shall all be performed from the beginning of the command text to the end:
+
+The words that are recognized as variable assignments or redirections according to Shell Grammar Rules are saved for processing in steps 3 and 4.
+
+The words that are not variable assignments or redirections shall be expanded. If any fields remain following their expansion, the first field shall be considered the command name and remaining fields are the arguments for the command.
+
+Redirections shall be performed as described in Redirection.
+
+Each variable assignment shall be expanded for tilde expansion, parameter expansion, command substitution, arithmetic expansion, and quote removal prior to assigning the value.
+
+In the preceding list, the order of steps 3 and 4 may be reversed if no command name results from step 2 or if the command name matches the name of a special built-in utility; see Special Built-In Utilities.
+
+Variable assignments shall be performed as follows:
+
+If no command name results, variable assignments shall affect the current execution environment.
+
+If the command name is not a special built-in utility or function, the variable assignments shall be exported for the execution environment of the command and shall not affect the current execution environment except as a side-effect of the expansions performed in step 4. In this case it is unspecified:
+
+Whether or not the assignments are visible for subsequent expansions in step 4
+
+Whether variable assignments made as side-effects of these expansions are visible for subsequent expansions in step 4, or in the current shell execution environment, or both
+
+If the command name is a standard utility implemented as a function (see XBD Utility), the effect of variable assignments shall be as if the utility was not implemented as a function.
+
+If the command name is a special built-in utility, variable assignments shall affect the current execution environment. Unless the set -a option is on (see set), it is unspecified:
+
+Whether or not the variables gain the export attribute during the execution of the special built-in utility
+
+Whether or not export attributes gained as a result of the variable assignments persist after the completion of the special built-in utility
+
+If the command name is a function that is not a standard utility implemented as a function, variable assignments shall affect the current execution environment during the execution of the function. It is unspecified:
+
+Whether or not the variable assignments persist after the completion of the function
+
+Whether or not the variables gain the export attribute during the execution of the function
+
+Whether or not export attributes gained as a result of the variable assignments persist after the completion of the function (if variable assignments persist after the completion of the function)
+
+If any of the variable assignments attempt to assign a value to a variable for which the readonly attribute is set in the current shell environment (regardless of whether the assignment is made in that environment), a variable assignment error shall occur. See Consequences of Shell Errors for the consequences of these errors.
+
+If there is no command name, any redirections shall be performed in a subshell environment; it is unspecified whether this subshell environment is the same one as that used for a command substitution within the command. (To affect the current execution environment, see the exec special built-in.) If any of the redirections performed in the current shell execution environment fail, the command shall immediately fail with an exit status greater than zero, and the shell shall write an error message indicating the failure. See Consequences of Shell Errors for the consequences of these failures on interactive and non-interactive shells.
+
+If there is a command name, execution shall continue as described in Command Search and Execution [run_command]. If there is no command name, but the command contained a command substitution, the command shall complete with the exit status of the last command substitution performed. Otherwise, the command shall complete with a zero exit status.
+
+TODO 2018-01-28 special builtins vs. simple builtins
 
 but:
 
@@ -802,7 +1013,10 @@ $ count $(${x? one two three}) four
                 CaseCheckMatch f in_progress cmd cases,
                 XSExpand (XSCase "pattern expansion step") step)
       end
-  | Defun _name _body -> Left (s0, XSDefun "TODO")
+  | Defun name body -> 
+     if is_special_builtin name
+     then Left (s0, XSDefun ("invalid function name " ^ name ^ " (shadows special built-in)"))
+     else Right (defun name body s0,Done,XSDefun ("defined " ^ name))
   (* This should never come up when called from trace_evaluation or elsewhere *)
   | Break _n -> Left (s0, XSSimple "")
   | Continue _n -> Left (s0, XSSimple "")
