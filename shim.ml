@@ -352,10 +352,27 @@ let rec json_of_stmt = function
       Assoc [tag "ForRunning"; ("var", String x); ("args", json_of_fields f); ("body", json_of_stmt b); ("cur", json_of_stmt c)]
   | Case (w, cases) -> 
      Assoc [tag "Case"; ("args", json_of_words w); ("cases", List (List.map json_of_case cases))]
+  | CaseExpArg (w, cases) -> 
+     Assoc [tag "CaseExpArg"; ("args", json_of_expansion_state w); ("cases", List (List.map json_of_case cases))]
+  | CaseMatch (w, cases) -> 
+     Assoc [tag "CaseMatch"; ("args", json_of_symbolic_string w); ("cases", List (List.map json_of_case cases))]
+  | CaseCheckMatch (w, pat, c, cases) -> 
+     Assoc [tag "CaseCheckMatch";
+            ("args", json_of_symbolic_string w);
+            ("pat", json_of_expansion_state pat);
+            ("c", json_of_stmt c);
+            ("cases", List (List.map json_of_case cases))]
   | Defun (f, c) -> Assoc [tag "Defun"; ("name", String f); ("body", json_of_stmt c)]
+  | Call (outer_loop_nest, func, orig, c) ->
+     Assoc [tag "Call";
+            ("loop_nest", Int outer_loop_nest);
+            ("f", String func);
+            ("orig", json_of_stmt orig);
+            ("c", json_of_stmt c)]
   | Break n -> Assoc [tag "Break"; ("n", Int n)]
   | Continue n -> Assoc [tag "Continue"; ("n", Int n)]
   | Return -> Assoc [tag "Return"]
+  | Wait n -> Assoc [tag "Wait"; ("pid", Int n)]
   | Done -> Assoc [tag "Done"]
 and obj_lr name l r = Assoc [tag name; ("l", json_of_stmt l); ("r", json_of_stmt r)]
 and obj_crs name c rs = 
@@ -503,6 +520,9 @@ and json_of_evaluation_step = function
   | XSFor s -> Assoc [tag "XSFor"; ("msg", String s)]
   | XSCase s -> Assoc [tag "XSCase"; ("msg", String s)]
   | XSDefun s -> Assoc [tag "XSDefun"; ("msg", String s)]
+  | XSStack(func, inner) -> Assoc [tag "XSStack";
+                                   ("func", String func);
+                                   ("inner", json_of_evaluation_step inner)]
   | XSStep s -> Assoc [tag "XSStep"; ("msg", String s)]
   | XSNested (outer, inner) -> Assoc [tag "XSNested"; ("inner", json_of_evaluation_step inner); ("outer", json_of_evaluation_step outer)]
   | XSExpand (eval_step, exp_step) -> Assoc [tag "XSExpand"; ("inner", json_of_expansion_step  exp_step); ("outer", json_of_evaluation_step eval_step)]

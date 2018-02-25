@@ -868,6 +868,8 @@ $ count $(${x? one two three}) four
       *)     
      (* wait TODO 2018-02-09 depending on bg! *)
      Right (s1,Done,XSPipe "started pipe")
+  | CommandExpanded _assigns [] _redirs ->
+     Left (s0, XSSimple "!!! broken invariant: got empty commands")
   | Redir _stmt' _redirs -> Left (s0, XSRedir "TODO")
   | Background _stmt' _redirs -> Left (s0, XSBackground "TODO")
   | Subshell _stmt' _redirs -> Left (s0, XSSubshell "TODO")
@@ -1018,9 +1020,20 @@ $ count $(${x? one two three}) four
      then Left (s0, XSDefun ("invalid function name " ^ name ^ " (shadows special built-in)"))
      else Right (defun name body s0,Done,XSDefun ("defined " ^ name))
   (* This should never come up when called from trace_evaluation or elsewhere *)
+  | Call old_loop_nest f orig c ->
+     match step_eval s0 c with
+     | Left e -> Left e
+     | Right (s1, Done, step) ->
+        (* TODO restore positional args *)
+        let s2 = <| s1 with sh = <| s1.sh with loop_nest=old_loop_nest |> |> in
+        Right (s2, Done, XSStack "f (return)" step)
+     | Right (s1, c', step) ->
+        Right (s1, Call old_loop_nest f orig c', XSStack f step)
+     end
   | Break _n -> Left (s0, XSSimple "")
   | Continue _n -> Left (s0, XSSimple "")
   | Return -> Left (s0, XSSimple "")
+  | Wait _n -> Left (s0, XSSimple "")
   | Done -> Right(s0, Done, XSSimple "")
   end
 

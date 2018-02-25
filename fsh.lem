@@ -75,10 +75,15 @@ let rec string_of_stmt c =
   | ForRunning _ _ _ _ -> "TODO ForRunning"
   | Case w cs ->
      "case " ^ string_of_words w ^ " in " ^ concat " " (List.map string_of_case cs) ^ " esac"
+  | CaseExpArg _exp _cs -> "TODO CaseExpArg"
+  | CaseMatch _s _cs -> "TODO CaseMatch"
+  | CaseCheckMatch _s _exp _c _cs -> "TODO CaseCheckMatch"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
+  | Call _loopnest _f _body _c -> "TODO Call"
   | Break n -> "Break " ^ show n
   | Continue n -> "Continue " ^ show n
   | Return -> "Return"
+  | Wait n -> "wait " ^ stringFromNat n
   | Done -> "Done"
   end
 

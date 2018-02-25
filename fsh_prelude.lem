@@ -194,9 +194,10 @@ and stmt =
   | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (words * stmt) (* remaining cases *)
   | Defun of string * stmt
   | Call of nat (* outer loop_nest, to be restored *) * string * stmt (* orig body *) * stmt (* current body *)
-  | Break of int
-  | Continue of int
+  | Break of nat
+  | Continue of nat
   | Return
+  | Wait of nat (* pid *)
   | Done
 
 and redir = 
@@ -275,6 +276,7 @@ and evaluation_step =
   | XSFor of string
   | XSCase of string
   | XSDefun of string
+  | XSStack of string (* function name *) * evaluation_step 
   | XSStep of string
   | XSNested of evaluation_step * evaluation_step
   | XSExpand of evaluation_step * expansion_step
@@ -298,7 +300,8 @@ and env = Map.map string symbolic_string
 
 (* function definitions *)
 and funcs = Map.map string stmt        
-        
+
+(* TODO 2018-02-25 need to track positional arguments separately *)
 and ty_shell_state = <|
     env: env;
     funcs: funcs;                 
