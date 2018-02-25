@@ -241,6 +241,49 @@ function stmtFor(info, elt, fArgs, stmt) {
     elt.append(';' + fieldSep + 'done');
 }
 
+function stmtCase(info, elt, fArgs, stmt) {
+    elt.append('case' + fieldSep);
+
+    var w = $('<span></span>').addClass('case-args').appendTo(elt);
+    fArgs(info, w, stmt['args']);
+  
+    elt.append(fieldSep + 'in' + fieldSep);
+    
+    // json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
+    let cases = $('<span></span>').addClass('case-cases').appendTo(elt);
+
+    // special case for CaseCheckMatch
+    if ('pat' in stmt && 'c' in stmt) {
+        let eCase = $('<span></span>').addClass('case').appendTo(cases);
+
+        let pat = $('<span></span>').addClass('case-pattern').appendTo(eCase);
+        renderExpansionState(info, pat, stmt['pat']);
+
+        eCase.append(')' + fieldSep);
+
+        var body = $('<span></span>').addClass('case-stmt').appendTo(eCase);
+        renderStmt(info, body, c['stmt']);
+
+        eCase.append(fieldSep + ';;');
+    }
+    
+    for (const c of stmt['cases']) {
+        let eCase = $('<span></span>').addClass('case').appendTo(cases);
+        
+        let pat = $('<span></span>').addClass('case-pattern').appendTo(eCase);
+        renderWords(info, pat, c['pat']);
+
+        eCase.append(')' + fieldSep);
+
+        var body = $('<span></span>').addClass('case-stmt').appendTo(eCase);
+        renderStmt(info, body, c['stmt']);
+
+        eCase.append(fieldSep + ';;');
+    }
+  
+    elt.append(fieldSep + ' esac');
+}
+
 function renderStmt(info, elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got ' + stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
@@ -249,8 +292,9 @@ function renderStmt(info, elt, stmt) {
                   'And', 'Or', 'Not', 'Semi', 'If', 
                   'While', 'WhileCond', 'WhileRunning',
                   'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
-                  'Case', 'Defun',
-                  'Break', 'Continue', 'Return', 'Done'].includes(stmt['tag']), 
+                  'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
+                  'Defun', 'Call'
+                  'Break', 'Continue', 'Return', 'Wait', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
 
   elt.addClass('stmt stmt-' + stmt['tag']);
@@ -516,34 +560,34 @@ function renderStmt(info, elt, stmt) {
     case 'Case':
       // | Case (w, cases) -> 
       //    Assoc [tag "Case"; ("args", json_of_words w); ("cases", List (List.map json_of_case cases))]
-
-      elt.append('case' + fieldSep);
-
-      var w = $('<span></span>').addClass('case-args').appendTo(elt);
-      renderWords(info, w, stmt['args']);
-  
-      elt.append(fieldSep + 'in' + fieldSep);
-
-      // json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
-      let cases = $('<span></span>').addClass('case-cases').appendTo(elt);
-      for (const c of stmt['cases']) {
-        let eCase = $('<span></span>').addClass('case').appendTo(cases);
-
-        let pat = $('<span></span>').addClass('case-pattern').appendTo(eCase);
-        renderWords(info, pat, c['pat']);
-
-        eCase.append(')' + fieldSep);
-
-        var body = $('<span></span>').addClass('case-stmt').appendTo(eCase);
-        renderStmt(info, body, c['stmt']);
-
-        eCase.append(fieldSep + ';;');
-      }
-  
-      elt.append(fieldSep + ' esac');
+      stmtCase(info, elt, renderWords, stmt);
 
       break;
 
+    case 'CaseExpArg':
+      //  | CaseExpArg (w, cases) -> 
+      //     Assoc [tag "CaseExpArg"; ("args", json_of_expansion_state w); ("cases", List (List.map json_of_case cases))]
+
+      stmtCase(info, elt, renderExpansionState, stmt);
+
+      break;
+
+    case 'CaseMatch':
+    case 'CaseCheckMatch':
+      //  | CaseMatch (w, cases) -> 
+      //     Assoc [tag "CaseMatch"; ("args", json_of_symbolic_string w); ("cases", List (List.map json_of_case cases))]
+
+      //  | CaseCheckMatch (w, pat, c, cases) -> 
+      //     Assoc [tag "CaseCheckMatch";
+      //            ("args", json_of_symbolic_string w);
+      //            ("pat", json_of_expansion_state pat);
+      //            ("c", json_of_stmt c);
+      //            ("cases", List (List.map json_of_case cases))]
+
+      stmtCase(info, elt, renderSymbolicString, stmt);
+      
+      break;
+      
     case 'Defun':
       // | Defun (f, c) -> Assoc [tag "Defun"; ("name", String f); ("body", json_of_stmt c)]
 
@@ -560,9 +604,25 @@ function renderStmt(info, elt, stmt) {
       elt.append(fieldSep + '}');
 
       break;
+      
+    case 'Call':
+      // | Call (outer_loop_nest, func, orig, c) ->
+      //   Assoc [tag "Call";
+      //          ("loop_nest", Int outer_loop_nest);
+      //          ("f", String func);
+      //          ("orig", json_of_stmt orig);
+      //          ("c", json_of_stmt c)]
 
+      var cmd = $('<span></span>').addClass('function call').appendTo(elt);
+      var comment = $('<span></span>').addClass('comment').appendTo(elt);
+      comment.append('# in call to ' + stmt['f']);
+
+      renderStmt(info, cmd, stmt['c']);
+      
+      break;
+      
     case 'Break':
-      $('<i></i>').addClass('icon stop circle outline').appendTo('elt');
+      $('<i></i>').addClass('icon stop circle outline').appendTo(info);
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
       cmd.append('break' + fieldSep + stmt['n']);
@@ -570,7 +630,7 @@ function renderStmt(info, elt, stmt) {
       break;
 
     case 'Continue':
-      $('<i></i>').addClass('icon step forward').appendTo('elt');
+      $('<i></i>').addClass('icon step forward').appendTo(info);
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
       cmd.append('continue' + fieldSep + stmt['n']);
@@ -578,15 +638,23 @@ function renderStmt(info, elt, stmt) {
       break;
 
     case 'Return':
-      $('<i></i>').addClass('icon eject').appendTo('elt');
+      $('<i></i>').addClass('icon eject').appendTo(info);
       
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
       cmd.append('return');
       
       break;
+
+  case 'Wait':
+      $('<i></i>').addClass('icon wait').appendTo(info);
+
+      var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
+      cmd.append('wait' + fieldSep + Number.toString(stmt['n']);
+
+      break;
       
     case 'Done':
-      $('<i></i>').addClass('icon check circle outline').appendTo('elt');
+      $('<i></i>').addClass('icon check circle outline').appendTo(info);
 
       break;
 
@@ -1368,7 +1436,7 @@ function renderEvaluationStep(info, step) {
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
                   'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
-                  'XSFor', 'XSCase', 'XSDefun', 
+                  'XSFor', 'XSCase', 'XSDefun', 'XSStack',
                   'XSStep', 'XSNested', 'XSExpand'].includes(step['tag']),
                  'got weird step tag ' + step['tag']);
 
@@ -1454,6 +1522,14 @@ function renderEvaluationStep(info, step) {
     case 'XSDefun':
 
       renderMessage(info, 'Function definition', step);
+
+      break;
+
+    case 'XSStack':
+
+      info.append(step['func'])
+      renderDivider(info);
+      renderEvaluationStep(info, step['inner']);
 
       break;
 
