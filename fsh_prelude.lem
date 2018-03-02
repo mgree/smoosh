@@ -506,8 +506,8 @@ let lookup_positional_param num os =
 (* The result is nothing if the parameter is unset, and the empty string null. *)
 val lookup_param : ty_os_state -> string -> maybe symbolic_string
 let lookup_param s0 str =
-  match readInteger 10 0 (toCharList str) with
-  | Right num -> lookup_positional_param (toNat num) s0
+  match readNat (toCharList str) with
+  | Right num -> lookup_positional_param num s0
   | Left _ -> Map.lookup str s0.sh.env
   end
 
