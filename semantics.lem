@@ -928,6 +928,10 @@ $ count $(${x? one two three}) four
   | And l r ->
       match step_eval s0 l with
       | Left e -> Left e
+      | Right (s1, Exit, step) -> Right (s1, Exit, step)
+      | Right (s1, Return, step) -> Right (s1, Return, step)
+      | Right (s1, Break n, step) -> Right (s1, Break n, step)
+      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
       | Right (s1, Done, _step) ->
           match lookup_concrete_param s1 "?" with
           | Just "0" -> Right (s1, r, XSAnd "exit code was 0, continuing")
@@ -939,6 +943,10 @@ $ count $(${x? one two three}) four
   | Or l r ->
       match step_eval s0 l with
       | Left e -> Left e
+      | Right (s1, Exit, step) -> Right (s1, Exit, step)
+      | Right (s1, Return, step) -> Right (s1, Return, step)
+      | Right (s1, Break n, step) -> Right (s1, Break n, step)
+      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
       | Right (s1, Done, _step) ->
           match lookup_concrete_param s1 "?" with
           | Just "0" -> Right (s1, Done, XSOr "exit code was 0, short-circuiting")
@@ -950,6 +958,10 @@ $ count $(${x? one two three}) four
   | Not stmt' ->
       match step_eval s0 stmt' with
       | Left e -> Left e
+      | Right (s1, Exit, step) -> Right (s1, Exit, step)
+      | Right (s1, Return, step) -> Right (s1, Return, step)
+      | Right (s1, Break n, step) -> Right (s1, Break n, step)
+      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
       | Right (s1, Done, _step) ->
           match lookup_concrete_param s1 "?" with
           | Just "0" -> Right (set_param "?" (symbolic_string_of_string "1") s1, Done, XSNot "0 -> 1")
@@ -962,12 +974,20 @@ $ count $(${x? one two three}) four
   | Semi l r ->
       match step_eval s0 l with
       | Left e -> Left e
+      | Right (s1, Exit, step) -> Right (s1, Exit, step)
+      | Right (s1, Return, step) -> Right (s1, Return, step)
+      | Right (s1, Break n, step) -> Right (s1, Break n, step)
+      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
       | Right (s1, Done, step) -> Right (s1, r, XSNested (XSSemi "continuing") step)
       | Right (s1, l', step) -> Right (s1, Semi l' r, XSNested (XSSemi "") step)
       end
   | If c t e ->
       match step_eval s0 c with
       | Left e -> Left e
+      | Right (s1, Exit, step) -> Right (s1, Exit, step)
+      | Right (s1, Return, step) -> Right (s1, Return, step)
+      | Right (s1, Break n, step) -> Right (s1, Break n, step)
+      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
       | Right (s1, Done, _step) ->
           match lookup_concrete_param s1 "?" with
           | Just "0" -> Right (s1, t, XSIf "exit code was 0, taking the true branch")
@@ -976,7 +996,6 @@ $ count $(${x? one two three}) four
           end
       | Right (s1, c', step) -> Right (s1, If c' t e, XSNested (XSIf "") step)
       end
-  (* TODO 2018-01-26 doesn't support break *)
   | While c body -> Right (enter_loop s0, WhileCond c c body, XSWhile "start to evaluate the condtion")
   | WhileCond c cur body ->
       match step_eval s0 cur with
@@ -1092,9 +1111,16 @@ $ count $(${x? one two three}) four
      match step_eval s0 c with
      | Left e -> Left e
      | Right (s1, Done, step) ->
-        (* TODO restore positional args *)
-        let s2 = set_function_params old_loop_nest old_positional_params s1 in
-        Right (s2, Done, XSStack "f (return)" step)
+        Right (set_function_params old_loop_nest old_positional_params s1, Done, XSStack "f (natural return)" step)
+     | Right (s1, Return, step) ->
+        Right (set_function_params old_loop_nest old_positional_params s1, Done, XSStack "f (explicit return)" step)
+     | Right (s1, Exit, step) ->
+        Right (set_function_params old_loop_nest old_positional_params s1, Exit, XSStack "f (exit)" step)
+     (* TODO 2018-03-02 what do we do if there's a break or continue in a call? 
+        
+        break/continue don't seem to ever be lexically enclosed in a loop, so behavior is unspecified.
+        bash supports "non local break", dash doesn't.
+      *)
      | Right (s1, c', step) ->
         Right (s1, Call old_loop_nest old_positional_params f orig c', XSStack f step)
      end
