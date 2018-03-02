@@ -194,7 +194,7 @@ and stmt =
   | CaseMatch of symbolic_string * list (words * stmt)
   | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (words * stmt) (* remaining cases *)
   | Defun of string * stmt
-  | Call of nat (* outer loop_nest, to be restored *) * string (* outer $0 *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
+  | Call of nat (* outer loop_nest, to be restored *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
   | Break of nat
   | Continue of nat
   | Return
@@ -305,7 +305,7 @@ and funcs = Map.map string stmt
 (* TODO 2018-02-25 need to track positional arguments separately *)
 and ty_shell_state = <|
     script_name: string; (* $0 *)
-    positional_params: fields; (* $1, $2, $3, ... *)
+    positional_params: list symbolic_string; (* $1, $2, $3, ... *)
     env: env;
     funcs: funcs;                 
     cwd: fs;
@@ -527,12 +527,11 @@ let defun name body os = <| os with sh = <| os.sh with funcs = Map.insert name b
 val lookup_function : string -> ty_os_state -> maybe stmt
 let lookup_function name os = Map.lookup name os.sh.funcs
 
-val set_function_params : nat -> string -> fields -> ty_os_state -> ty_os_state
-let set_function_params ln name argv os =
+val set_function_params : nat -> fields -> ty_os_state -> ty_os_state
+let set_function_params ln argv os =
   <| os with sh =
     <| os.sh with
       loop_nest = ln;
-      script_name = name;
       positional_params = argv
     |>
   |>

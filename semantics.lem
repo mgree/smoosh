@@ -630,8 +630,8 @@ and run_command s0 prog argv env fds =
               
               so: does the shell need to know the maximal positional argument at any given time?
             *)
-           (set_function_params 0 script_name argv s0,
-           Call s0.sh.loop_nest (get_script_name s0) (get_positional_params s0) script_name body body)
+           (set_function_params 0 argv s0,
+           Call s0.sh.loop_nest (get_positional_params s0) script_name body body)
        | Nothing -> 
            (*   1d. If the command name matches the name [XSI] [Option Start]  of the type or ulimit utility, or [Option End]  of a utility listed in the following table, that utility shall be invoked.
 
@@ -1021,15 +1021,15 @@ $ count $(${x? one two three}) four
      then Left (s0, XSDefun ("invalid function name " ^ name ^ " (shadows special built-in)"))
      else Right (defun name body s0,Done,XSDefun ("defined " ^ name))
   (* This should never come up when called from trace_evaluation or elsewhere *)
-  | Call old_loop_nest old_scipt_name old_positional_params f orig c ->
+  | Call old_loop_nest old_positional_params f orig c ->
      match step_eval s0 c with
      | Left e -> Left e
      | Right (s1, Done, step) ->
         (* TODO restore positional args *)
-        let s2 = set_function_params old_loop_nest old_scipt_name old_positional_params s1 in
+        let s2 = set_function_params old_loop_nest old_positional_params s1 in
         Right (s2, Done, XSStack "f (return)" step)
      | Right (s1, c', step) ->
-        Right (s1, Call old_loop_nest old_scipt_name old_positional_params f orig c', XSStack f step)
+        Right (s1, Call old_loop_nest old_positional_params f orig c', XSStack f step)
      end
   | Break _n -> Left (s0, XSSimple "")
   | Continue _n -> Left (s0, XSSimple "")
