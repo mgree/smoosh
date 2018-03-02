@@ -30,6 +30,10 @@ end
 let is_whitespace c = elem c (toCharList " \n\t")
 let is_digit c = elem c (toCharList "1234567890")
 let is_num_const_char c = elem c (toCharList "1234567890xabcdefABCDEF")
+
+val is_numeric : list char -> bool
+let is_numeric = foldr (fun c ok -> is_num_const_char c && ok) true
+
 let is_alpha c = elem c (toCharList "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 (* Convert uppercase A-F to lowercase and then convert
@@ -75,12 +79,15 @@ let rec readInteger base acc chars =
       else readInteger base (((integerFromNat base) * acc) + (integerFromNat num)) cs
   end
 
+(* only use this for base 10 literals *)
 val readNat : (list char) -> either string nat
 let readNat cs =
-  match readInteger 10 0 cs with
-  | Right n -> Right (toNat n)
-  | Left e -> Left e
-  end
+  if is_numeric cs
+  then match readInteger 10 0 cs with
+       | Right n -> Right (toNat n)
+       | Left e -> Left e
+       end
+  else Left (toString cs ^ " is non-numeric")
 
 val readInt64 : nat -> int64 -> (list char) -> either string int64
 let rec readInt64 base acc chars =

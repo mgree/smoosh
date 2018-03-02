@@ -1,4 +1,5 @@
 include import Pervasives_extra
+include import Fsh_num
 include import Fsh_prelude
 
 (**********************************************************************)
@@ -80,9 +81,10 @@ let rec string_of_stmt c =
   | CaseCheckMatch _s _exp _c _cs -> "TODO CaseCheckMatch"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
   | Call _loopnest _argv _f _body _c -> "TODO Call"
-  | Break n -> "Break " ^ show n
-  | Continue n -> "Continue " ^ show n
-  | Return -> "Return"
+  | Break n -> "break " ^ show n
+  | Continue n -> "continue " ^ show n
+  | Return -> "return"
+  | Exit -> "exit"
   | Wait n -> "wait " ^ stringFromNat n
   | Done -> "Done"
   end

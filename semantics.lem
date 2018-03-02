@@ -33,7 +33,7 @@ val run_command : ty_os_state ->
                   fields (* argv *) ->
                   env ->
                   fds ->
-                  ty_os_state * stmt
+                  either (ty_os_state * string) (ty_os_state * stmt)
 val step_eval : ty_os_state -> stmt -> 
                 either (ty_os_state * evaluation_step) (* error case *)
                        (ty_os_state * stmt * evaluation_step) (* success *)
@@ -593,15 +593,12 @@ and run_command s0 prog argv env fds =
   match try_concrete prog with
   (*  1a. If the command name matches the name of a special built-in utility, that special built-in utility shall be invoked. 
 
-  break
-  continue
   .
   eval
   exec
   exit
   export
   readonly
-  return
   set
   shift
   times
@@ -609,12 +606,56 @@ and run_command s0 prog argv env fds =
   unset
 *)
 
-  | Just ":" -> (exit_with 0 s0,Done)
+  | Just ":" -> Right (exit_with 0 s0,Done)
+  | Just "break" ->
+     match argv with
+     | [] -> Right (s0,Break 1) (* default to just breaking the immediate loop *)
+     | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
+              | Right n -> 
+                 if n < 1
+                 then Left (s0,"break: " ^ write n ^ ": loop count out of range")
+                 else Right (s0,Break (toNat n))
+              | Left _ -> Left (s0,"break: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+     | _ -> Left (s0,"break: too many arguments")
+     end
+  | Just "continue" ->
+     match argv with
+     | [] -> Right (s0,Continue 1) (* default to just continuing the immediate loop *)
+     | [s] -> match readNat (char_list_of_symbolic_string s) with
+              | Right n -> Right (s0,Continue n)
+              | Left _ -> Left (s0,"continue: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+     | _ -> Left (s0,"continue: too many arguments")
+     end
+  | Just "exit" ->
+     match argv with
+     | [] -> Right (s0,Exit) (* default to exit code of last command *)
+     | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
+              | Right n -> 
+                 if n < 1
+                 then Left (s0,"exit: " ^ write n ^ ": illegal number")
+                 else Right (exit_with (toNat n) s0,Exit)
+              | Left _ -> Left (s0,"exit: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+     | _ -> Left (s0,"exit: too many arguments")
+     end
+  | Just "return" ->
+     (* 2018-03-2 the present arrangement yields exit code of 1 on error; bash gives 255 for return; dash does 2.
+        unspecified in POSIX docs *)
+     match argv with
+     | [] -> Right (s0,Return) (* just keep the last command's return status *)
+     | [s] -> match readNat (char_list_of_symbolic_string s) with
+              | Right n -> Right (exit_with n s0,Return)
+              | Left _ -> Left (s0,"return: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+     | _ -> Left (s0,"return: too many arguments")
+     end
   | Just script_name -> 
      (* 1b. b. If the command name matches the name of a utility
         listed in the following table, the results are unspecified. *)
      if is_unspecified_utility script_name  
-     then (s0,Done)
+     then Right (s0,Done)
      else 
        (* 1c. If the command name matches the name of a function known
           to this shell, the function shall be invoked as described in
@@ -630,8 +671,8 @@ and run_command s0 prog argv env fds =
               
               so: does the shell need to know the maximal positional argument at any given time?
             *)
-           (set_function_params 0 argv s0,
-           Call s0.sh.loop_nest (get_positional_params s0) script_name body body)
+           Right (set_function_params 0 argv s0,
+                  Call s0.sh.loop_nest (get_positional_params s0) script_name body body)
        | Nothing -> 
            (*   1d. If the command name matches the name [XSI] [Option Start]  of the type or ulimit utility, or [Option End]  of a utility listed in the following table, that utility shall be invoked.
 
@@ -654,7 +695,7 @@ umask
 unalias
 wait
 *)
-           (s0,Done) (* TODO 2018-02-12 implement these built-ins *)
+           Left (s0,"TODO 2018-02-12 not implemented")
        end
   | _ ->
      
@@ -685,7 +726,7 @@ If the utility would be executed with file descriptor 0, 1, or 2 closed, impleme
 *)
      let (s1,pid) = execve s0 prog argv env fds in
      (* TODO 2018-02-09 actually wait for pid to finish, set exit_code appropriately! *)
-     (last_pid pid (exit_with 0 (* TODO 2018-02-09 FIXME *) s1),Done)
+     Right (last_pid pid (exit_with 0 (* TODO 2018-02-09 FIXME *) s1),Done)
   end
 
 and step_eval s0 stmt =
@@ -845,8 +886,12 @@ $ count $(${x? one two three}) four
      (* TODO 2018-02-09 setup redirects *)
      let fds = s0.sh.fds in
      (* run command *)
-     let (s1,stmt') = run_command s0 prog args env fds in
-     Right (s1, stmt', XSSimple ("running " ^ string_of_symbolic_string prog))
+     match run_command s0 prog args env fds with
+     | Right (s1,stmt') -> Right (s1, stmt', XSSimple ("running " ^ string_of_symbolic_string prog))
+     | Left (s1,msg) -> 
+        (* TODO 2018-03-02 output msg to stderr *)
+        Right (exit_with 1 (print_stderr s1 msg), Done, XSSimple "couldn't run command")
+     end
   | CommandExpanded _assigns [] _redirs ->
      (* TODO 2018-02-09 setup redirects for side effects/file creation
 
@@ -936,6 +981,10 @@ $ count $(${x? one two three}) four
   | WhileCond c cur body ->
       match step_eval s0 cur with
       | Left e -> Left e
+      | Right (s1, Break 1, step) -> Right (exit_loop s1, Done, XSNested (XSWhile "breaking") step)
+      | Right (s1, Break n, step) -> Right (exit_loop s1, Break (n-1), XSNested (XSWhile "breaking to outer loop") step)
+      | Right (s1, Continue 1, step) -> Right (s1, WhileCond c c body, XSNested (XSWhile "continuing loop") step)
+      | Right (s1, Continue n, step) -> Right (exit_loop s1, Continue (n-1), XSNested (XSWhile "continuing to outer loop") step)
       | Right (s1, Done, _step) ->
           match lookup_concrete_param s1 "?" with
           | Just "0" -> Right (s1, WhileRunning c body body, XSWhile "exit code was 0, running the loop body")
@@ -947,6 +996,10 @@ $ count $(${x? one two three}) four
   | WhileRunning c body cur ->
       match step_eval s0 cur with
       | Left e -> Left e
+      | Right (s1, Break 1, step) -> Right (exit_loop s1, Done, XSNested (XSWhile "breaking loop") step)
+      | Right (s1, Break n, step) -> Right (exit_loop s1, Break (n-1), XSNested (XSWhile "breaking to outer loop") step)
+      | Right (s1, Continue 1, step) -> Right (s1, WhileCond c c body, XSNested (XSWhile "continuing loop") step)
+      | Right (s1, Continue n, step) -> Right (exit_loop s1, Continue (n-1), XSNested (XSWhile "continuing to outer loop") step)
       | Right (s1, Done, step) -> Right (s1, WhileCond c c body, XSNested (XSWhile "finished iteration of while loop; retesting condition") step)
       | Right (s1, cur', step) -> Right (s1, WhileRunning c body cur', XSNested (XSWhile "") step)
       end
@@ -974,6 +1027,14 @@ $ count $(${x? one two three}) four
   | ForRunning var f body cur ->
       match step_eval s0 cur with
       | Left e -> Left e
+      | Right (s1, Break 1, step) -> Right (exit_loop s1, Done, XSNested (XSFor "breaking loop") step)
+      | Right (s1, Break n, step) -> Right (exit_loop s1, Break (n-1), XSNested (XSFor "breaking to outer loop") step)
+      | Right (s1, Continue 1, step) ->
+          match f with
+          | [] -> Right (exit_loop s1, Done, XSNested (XSFor "continued at last iteration") step)
+          | (i::f') -> Right (set_param var i s1, ForRunning var f' body body, XSNested (XSFor ("continuing to next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step)
+          end
+      | Right (s1, Continue n, step) -> Right (s1, Continue (n-1), XSNested (XSFor "continuing to outer loop") step)
       | Right (s1, Done, step) ->
           match f with
           | [] -> Right (exit_loop s1, Done, XSNested (XSFor "finished last iteration") step)
@@ -1037,11 +1098,14 @@ $ count $(${x? one two three}) four
      | Right (s1, c', step) ->
         Right (s1, Call old_loop_nest old_positional_params f orig c', XSStack f step)
      end
-  | Break _n -> Left (s0, XSSimple "")
-  | Continue _n -> Left (s0, XSSimple "")
-  | Return -> Left (s0, XSSimple "")
-  | Wait _n -> Left (s0, XSSimple "")
-  | Done -> Right(s0, Done, XSSimple "")
+  | Break _n -> Right (s0, Done, XSSimple "break bottomed out")
+  | Continue _n -> Right (s0, Done, XSSimple "continue bottomed out")
+  | Return -> Right (s0, Done, XSSimple "")
+  | Wait _n -> Left (s0, XSSimple "TODO 2018-03-02 not implemented")
+  | Exit -> 
+     (* TODO 2018-03-02 handle traps *)
+     Right (s0, Done, XSSimple "exited")
+  | Done -> Right (s0, Done, XSSimple "")
   end
 
 (**********************************************************************)   

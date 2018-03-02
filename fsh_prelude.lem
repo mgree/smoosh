@@ -198,6 +198,7 @@ and stmt =
   | Break of nat
   | Continue of nat
   | Return
+  | Exit
   | Wait of nat (* pid *)
   | Done
 
@@ -453,6 +454,14 @@ let symbolic_char_to_string c =
   | Sym sym -> symbolic_to_string sym
   end
 
+val char_list_of_symbolic_string : symbolic_string -> list char
+let rec char_list_of_symbolic_string sym_str =
+  match sym_str with
+  | [] -> []
+  | (C c::cs) -> c::char_list_of_symbolic_string cs
+  | (Sym sym)::cs -> toCharList (symbolic_to_string sym) ++ char_list_of_symbolic_string cs
+  end
+   
 val string_of_symbolic_string : symbolic_string -> string
 let rec string_of_symbolic_string sym_str =
   match sym_str with
@@ -506,9 +515,15 @@ let lookup_positional_param num os =
 (* The result is nothing if the parameter is unset, and the empty string null. *)
 val lookup_param : ty_os_state -> string -> maybe symbolic_string
 let lookup_param s0 str =
-  match readNat (toCharList str) with
-  | Right num -> lookup_positional_param num s0
-  | Left _ -> Map.lookup str s0.sh.env
+  match (readNat (toCharList str),str) with
+  | (Right num,_) -> lookup_positional_param num s0
+  | (Left _,"@") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as fields *)
+  | (Left _,"*") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as a string *)
+  | (Left _,"#") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* number of positional arguments *)
+  | (Left _,"!") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* last pid *)
+  | (Left _,"-") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* current option flags *)
+  | (Left _,"$") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* shell pid *)
+  | (Left _,_) -> Map.lookup str s0.sh.env
   end
 
 val lookup_concrete_param : ty_os_state -> string -> maybe string
@@ -594,6 +609,20 @@ let read_fifo os fifo_num =
   match adjust_nth os.fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
   | Nothing -> Nothing
   | Just (new_fifos,s) -> Just (<| os with fifos = new_fifos |>, s)
+  end
+
+val print_stderr : ty_os_state -> string -> ty_os_state
+let print_stderr os msg = 
+  (* lookup where STDERR is pointing *)
+  match Map.lookup STDERR os.sh.fds with
+  | Just fifo_num -> 
+     match write_fifo os fifo_num msg with
+     (* TODO 2018-03-02 is this the right behavior when STDERR points to a bad fifo? *)
+     | Nothing -> os
+     | Just os -> os
+     end
+  (* TODO 2018-03-02 is this the right behavior when STDERR doesn't exist? *)
+  | Nothing -> os
   end
 
 val execve : ty_os_state -> symbolic_string -> list symbolic_string -> env -> fds -> ty_os_state * nat

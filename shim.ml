@@ -374,6 +374,7 @@ let rec json_of_stmt = function
   | Continue n -> Assoc [tag "Continue"; ("n", Int n)]
   | Return -> Assoc [tag "Return"]
   | Wait n -> Assoc [tag "Wait"; ("pid", Int n)]
+  | Exit -> Assoc [tag "Exit"]
   | Done -> Assoc [tag "Done"]
 and obj_lr name l r = Assoc [tag name; ("l", json_of_stmt l); ("r", json_of_stmt r)]
 and obj_crs name c rs = 
