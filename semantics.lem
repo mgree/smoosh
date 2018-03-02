@@ -779,6 +779,7 @@ so: how do we implement it?
      | (s1, exp_state1, step) -> Right (s1, CommandExpAssign ((x,exp_state1)::assigns) [] redirs, XSExpand (XSSimple "") step)
      end
   | CommandExpAssign [] [] redirs ->
+     (* keep on expanding, since we have to actually expand the redirects no matter what *)
      Right (s0, CommandExpanded [] [] redirs, XSSimple "assignments complete")
 
   (* TODO 2018-01-26 special case, special builtins treat the environment specially
@@ -847,6 +848,11 @@ $ count $(${x? one two three}) four
      let (s1,stmt') = run_command s0 prog args env fds in
      Right (s1, stmt', XSSimple ("running " ^ string_of_symbolic_string prog))
   | CommandExpanded _assigns [] _redirs ->
+     (* TODO 2018-02-09 setup redirects for side effects/file creation
+
+        e.g., unset x y ; x=5 >${y=3}
+              will set x to 5, y to 3, and create an empty file named 3
+      *)
      Right (s0, Done, XSSimple "ran empty command")
   | Pipe _bg stmts -> 
      (* generate fifos between each statement *)
