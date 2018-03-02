@@ -294,7 +294,7 @@ function renderStmt(info, elt, stmt) {
                   'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
                   'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
                   'Defun', 'Call',
-                  'Break', 'Continue', 'Return', 'Wait', 'Done'].includes(stmt['tag']), 
+                  'Break', 'Continue', 'Return', 'Wait', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
 
   elt.addClass('stmt stmt-' + stmt['tag']);
@@ -622,7 +622,7 @@ function renderStmt(info, elt, stmt) {
       break;
       
     case 'Break':
-      $('<i></i>').addClass('icon stop circle outline').appendTo(info);
+      $('<i></i>').addClass('icon external link alternate').appendTo(info);
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
       cmd.append('break' + fieldSep + stmt['n']);
@@ -630,7 +630,7 @@ function renderStmt(info, elt, stmt) {
       break;
 
     case 'Continue':
-      $('<i></i>').addClass('icon step forward').appendTo(info);
+      $('<i></i>').addClass('icon undo alternate').appendTo(info);
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
       cmd.append('continue' + fieldSep + stmt['n']);
@@ -645,11 +645,19 @@ function renderStmt(info, elt, stmt) {
       
       break;
 
-  case 'Wait':
+    case 'Wait':
       $('<i></i>').addClass('icon wait').appendTo(info);
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
       cmd.append('wait' + fieldSep + Number.toString(stmt['n']));
+
+      break;
+
+    case 'Exit':
+      $('<i></i>').addClass('icon power off').appendTo(info);
+
+      var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
+      cmd.append('exit');
 
       break;
       
