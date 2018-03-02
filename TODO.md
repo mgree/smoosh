@@ -21,13 +21,15 @@ Should we write a custom parser?
 
 JS/webpage
   + run expander in a chroot jail
+  + limit trace length
   + use syntax highlighting in editor window
   + fancier output
     - favicon
     - legend on the side, more color-coding
-    - step details (string that comes with each step)
     - cleaner handling of environment, etc.
+      add positional variables
     - presets
+    - way to explore FS
   + use a JS contracts/types library 
   + error handling
   + mkdir for submissions

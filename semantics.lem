@@ -833,7 +833,7 @@ $ count $(${x? one two three}) four
 /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
       *)
   (* TODO 2017-12-22 add a CommandExpRedir to expand all of the redirect targets/heredocs *)
-  | CommandExpanded assigns (prog::args) redirs ->
+  | CommandExpanded assigns (prog::args) _redirs ->
      (* perform assignments *)
      (* TODO 2018-02-09 check to see if it's a special built-in, in which case assign to GLOBAL env *)
      let env = 
@@ -846,9 +846,11 @@ $ count $(${x? one two three}) four
      (* run command *)
      let (s1,stmt') = run_command s0 prog args env fds in
      Right (s1, stmt', XSSimple ("running " ^ string_of_symbolic_string prog))
+  | CommandExpanded _assigns [] _redirs ->
+     Right (s0, Done, XSSimple "ran empty command")
   | Pipe _bg stmts -> 
      (* generate fifos between each statement *)
-     let (s1,pipe_fifos) = mkfifos s0 (length stmts - 1) in
+     let (s1,_pipe_fifos) = mkfifos s0 (length stmts - 1) in
      (* TODO 2018-02-09 spawn each process with fds set appropriately 
 
         builds fds1 ... fdsn such that:
@@ -869,8 +871,6 @@ $ count $(${x? one two three}) four
       *)     
      (* wait TODO 2018-02-09 depending on bg! *)
      Right (s1,Done,XSPipe "started pipe")
-  | CommandExpanded _assigns [] _redirs ->
-     Left (s0, XSSimple "!!! broken invariant: got empty commands")
   | Redir _stmt' _redirs -> Left (s0, XSRedir "TODO")
   | Background _stmt' _redirs -> Left (s0, XSBackground "TODO")
   | Subshell _stmt' _redirs -> Left (s0, XSSubshell "TODO")
@@ -911,7 +911,7 @@ $ count $(${x? one two three}) four
   | Semi l r ->
       match step_eval s0 l with
       | Left e -> Left e
-      | Right (s1, Done, _step) -> Right (s1, r, XSSemi "continuing")
+      | Right (s1, Done, step) -> Right (s1, r, XSNested (XSSemi "continuing") step)
       | Right (s1, l', step) -> Right (s1, Semi l' r, XSNested (XSSemi "") step)
       end
   | If c t e ->
