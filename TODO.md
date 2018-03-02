@@ -1,3 +1,20 @@
+### Last of the shell semantics
+
+- special built-ins
+  + trap
+    need to add to the shell representation
+  + eval (call parser), ./source
+  + exec
+- other built-ins
+- special variables
+  + need to add to the shell representation
+  + need to sort out the difference between $* and $@
+- full pattern matching for cases
+- pipes and redirects
+  + need to boost what FS can do
+- background processes
+  + need to come up with a scheduler
+
 ### Testing
 
 Add test case for appropriated field splitting for generated string (particularly parameters)
@@ -20,6 +37,7 @@ Should we write a custom parser?
 ### Expander tool
 
 JS/webpage
+  + debug weird issues with newlines
   + run expander in a chroot jail
   + limit trace length
   + use syntax highlighting in editor window
@@ -44,21 +62,10 @@ have both read the JSON output
 Monads for parsing etc.
 Clean up to make null more explicit (simplify matches?)
 
-Separate out splitting, quote removal
-
 Error handling
   - parse errors break our libdash shim
 
 No symbolic pathname expansion
-
-### Evaluation
-
-Commands
-
-Handle basic command stepping
-  - need process repr
-  - need FD repr
-  - keep everything symbolic for now
 
 ### Bugs
 

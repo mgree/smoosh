@@ -888,9 +888,7 @@ $ count $(${x? one two three}) four
      (* run command *)
      match run_command s0 prog args env fds with
      | Right (s1,stmt') -> Right (s1, stmt', XSSimple ("running " ^ string_of_symbolic_string prog))
-     | Left (s1,msg) -> 
-        (* TODO 2018-03-02 output msg to stderr *)
-        Right (exit_with 1 (print_stderr s1 msg), Done, XSSimple "couldn't run command")
+     | Left (s1,msg) -> Right (exit_with 1 (print_stderr s1 msg), Done, XSSimple "couldn't run command")
      end
   | CommandExpanded _assigns [] _redirs ->
      (* TODO 2018-02-09 setup redirects for side effects/file creation
@@ -899,7 +897,7 @@ $ count $(${x? one two three}) four
               will set x to 5, y to 3, and create an empty file named 3
       *)
      Right (s0, Done, XSSimple "ran empty command")
-  | Pipe _bg stmts -> 
+  | Pipe bg stmts -> 
      (* generate fifos between each statement *)
      let (s1,_pipe_fifos) = mkfifos s0 (length stmts - 1) in
      (* TODO 2018-02-09 spawn each process with fds set appropriately 
@@ -920,8 +918,8 @@ $ count $(${x? one two three}) four
 
         then spawn each subshell in its own fds
       *)     
-     (* wait TODO 2018-02-09 depending on bg! *)
-     Right (s1,Done,XSPipe "started pipe")
+     let last_pid = 0 in (* TODO 2018-03-02 use actual spawned pid *)
+     Right (s1,if bg then Done else Wait last_pid,XSPipe "started pipe")
   | Redir _stmt' _redirs -> Left (s0, XSRedir "TODO")
   | Background _stmt' _redirs -> Left (s0, XSBackground "TODO")
   | Subshell _stmt' _redirs -> Left (s0, XSSubshell "TODO")
