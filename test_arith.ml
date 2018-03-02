@@ -1,4 +1,5 @@
 open Test_prelude
+open Fsh_num
 open Fsh
 open Arith
 open Printf
@@ -61,7 +62,7 @@ let checker test_fn equal (test_name, input, expected_out) =
   else Err {msg = test_name; expected = expected_out; got = out}
 
 let check_lexer (name, input, expected_out) =
-  checker (lexer instance_Fsh_prelude_Read_Num_integer_dict) (=) (name, Xstring.explode input, expected_out)
+  checker (lexer instance_Fsh_num_Read_Num_integer_dict) (=) (name, Xstring.explode input, expected_out)
 
 let check_parser = checker (either_monad parse_arith_exp) (=)
 
@@ -145,7 +146,7 @@ let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either
 
   ])
 
-let lex_string str = lexer instance_Fsh_prelude_Read_Num_integer_dict (Xstring.explode str)
+let lex_string str = lexer instance_Fsh_num_Read_Num_integer_dict (Xstring.explode str)
 let num n = Num (Nat_big_num.of_int n)
 
 let parser_tests:(string*(string,(Nat_big_num.num arith_token)list)Either.either*(string, Nat_big_num.num arith_exp)Either.either)list=

@@ -1,4 +1,5 @@
 open import Pervasives_extra
+open import Fsh_num
 
 (*
 Strings will be whatever lem uses for string
@@ -193,7 +194,7 @@ and stmt =
   | CaseMatch of symbolic_string * list (words * stmt)
   | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (words * stmt) (* remaining cases *)
   | Defun of string * stmt
-  | Call of nat (* outer loop_nest, to be restored *) * string * stmt (* orig body *) * stmt (* current body *)
+  | Call of nat (* outer loop_nest, to be restored *) * string (* outer $0 *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
   | Break of nat
   | Continue of nat
   | Return
@@ -303,6 +304,8 @@ and funcs = Map.map string stmt
 
 (* TODO 2018-02-25 need to track positional arguments separately *)
 and ty_shell_state = <|
+    script_name: string; (* $0 *)
+    positional_params: fields; (* $1, $2, $3, ... *)
     env: env;
     funcs: funcs;                 
     cwd: fs;
@@ -493,9 +496,20 @@ let STDERR = 2
 val print_shell_env : ty_os_state -> string
 let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) st.sh.env ""
 
+val lookup_positional_param : nat -> ty_os_state -> maybe symbolic_string
+let lookup_positional_param num os =
+  if num = 0
+  then Just (symbolic_string_of_string os.sh.script_name)
+  (* -1 for positional param offset (ie, $0 is stored elsewhere *)
+  else index os.sh.positional_params (num - 1)
+
 (* The result is nothing if the parameter is unset, and the empty string null. *)
 val lookup_param : ty_os_state -> string -> maybe symbolic_string
-let lookup_param s0 str = Map.lookup str s0.sh.env
+let lookup_param s0 str =
+  match readInteger 10 0 (toCharList str) with
+  | Right num -> lookup_positional_param (toNat num) s0
+  | Left _ -> Map.lookup str s0.sh.env
+  end
 
 val lookup_concrete_param : ty_os_state -> string -> maybe string
 let lookup_concrete_param s0 str =
@@ -512,6 +526,22 @@ let defun name body os = <| os with sh = <| os.sh with funcs = Map.insert name b
 
 val lookup_function : string -> ty_os_state -> maybe stmt
 let lookup_function name os = Map.lookup name os.sh.funcs
+
+val set_function_params : nat -> string -> fields -> ty_os_state -> ty_os_state
+let set_function_params ln name argv os =
+  <| os with sh =
+    <| os.sh with
+      loop_nest = ln;
+      script_name = name;
+      positional_params = argv
+    |>
+  |>
+
+val get_script_name : ty_os_state -> string
+let get_script_name os = os.sh.script_name
+
+val get_positional_params : ty_os_state -> fields
+let get_positional_params os = os.sh.positional_params
 
 val enter_loop : ty_os_state -> ty_os_state
 let enter_loop os = <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest + 1 |> |>
@@ -573,146 +603,7 @@ let execve os prog argv env fds =
   let proc_num = length os.procs in
   (<| os with procs = os.procs ++ [Execve prog argv env fds] |>, proc_num)
                                     
-(*--------------------------------*)
-(* Nat class                      *)
-(*--------------------------------*)
-class ( Nat 'a )
-  val fromNat : nat -> 'a
-  val toNat : 'a -> nat
-end
-
-instance (Nat integer)
-  let fromNat = integerFromNat
-  let toNat = natFromInteger
-end
-
-instance (Nat int32)
-  let fromNat = int32FromNat
-  let toNat = natFromInt32
-end
-
-instance (Nat int64)
-  let fromNat = int64FromNat
-  let toNat = natFromInt64
-end
-
-(*--------------------------------*)
-(* Read class                     *)
-(*--------------------------------*)
-
-let is_whitespace c = elem c (toCharList " \n\t")
-let is_digit c = elem c (toCharList "1234567890")
-let is_num_const_char c = elem c (toCharList "1234567890xabcdefABCDEF")
-let is_alpha c = elem c (toCharList "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-(* Convert uppercase A-F to lowercase and then convert
- * lowercase hexdigit to integer 10 to 15. *)
-val hexalpha_to_num : char -> nat
-let hexalpha_to_num c =
-  let num = ord c in
-  if 48 <= num && num <= 57
-  then num - 48
-  else let lowercase = if num >= 65 && num <= 70
-                       then num + 32
-                       else num in
-       9 + (lowercase - 96)
-
-class ( Read 'a )
-  (* Read can fail with an error message by using Left.
-   * Do not use any methods that may throw errors. *)
-  val read : list char -> either string 'a
-  val write : 'a -> string
-end
-
-let readConstant dec hex oct acc chars =
-  match chars with
-  | #'0'::#'x'::cs -> hex acc cs
-  | #'0'::cs -> oct acc cs
-  | _ -> dec acc chars
-  end
-
-let int64Max = ((int64FromNat 2) ** 63) - 1
-let int64Min = ~((int64FromNat 2) ** 63)
-
-let int32Max = ((int32FromNat 2) ** 31) - 1
-let int32Min = ~((int32FromNat 2) ** 31)
-
-val readInteger : nat -> integer -> (list char) -> either string integer
-let rec readInteger base acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-     let num = hexalpha_to_num c in
-      if num > base - 1 || num < 0
-      then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
-      else readInteger base (((integerFromNat base) * acc) + (integerFromNat num)) cs
-  end
-
-val readInt64 : nat -> int64 -> (list char) -> either string int64
-let rec readInt64 base acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-     let num = hexalpha_to_num c in
-      if num > base - 1 || num < 0
-      then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
-      else let acc1 = ((int64FromNat base) * acc) + (int64FromNat num) in
-           if acc1 < 0
-           then Right int64Max
-           else readInt64 base acc1 cs
-  end
-
-val readInt32 : nat -> int32 -> (list char) -> either string int32
-let rec readInt32 base acc chars =
-  match chars with
-  | [] -> Right acc
-  | (c::cs) ->
-     let num = hexalpha_to_num c in
-      if num > base - 1 || num < 0
-      then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
-      else let acc1 = ((int32FromNat base) * acc) + (int32FromNat num) in
-           if acc1 < 0
-           then Right int32Max
-           else readInt32 base acc1 cs
-  end
-
-
-val write_helper : forall 'a. Eq 'a, Nat 'a, NumIntegerDivision 'a, NumRemainder 'a => string -> 'a -> string
-let rec write_helper str n =
-  if n = fromNat 0
-  then str
-  else let ten = fromNat 10 in
-    let next_digit = n mod ten in
-    write_helper ((stringFromNat (toNat next_digit)) ^ str) (n div ten)
-
-val unbounded_write : forall 'a. Eq 'a, Ord 'a, Nat 'a, NumNegate 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a -> string
-let unbounded_write n =
-  if n < fromNat 0
-  then "-" ^ (write_helper "" (~n))
-  else 
-    if n = fromNat 0
-    then "0"
-    else write_helper "" n
-
-val write32 : int32 -> string
-val write64 : int64 -> string
-declare ocaml target_rep function write32 = `Int32.to_string`
-declare ocaml target_rep function write64 = `Int64.to_string`
-
-instance ( Read integer )
-  let read cs = readConstant (readInteger 10) (readInteger 16) (readInteger 8) 0 cs
-  let write = unbounded_write
-end
-
-instance ( Read int64 )
-  let read cs = readConstant (readInt64 10) (readInt64 16) (readInt64 8) (int64FromNat 0) cs
-  let write = write64
-end
-
-instance ( Read int32 )
-  let read cs = readConstant (readInt32 10) (readInt32 16) (readInt32 8) (int32FromNat 0) cs
-  let write = write32
-end
+(* Number type helpers *)
 
 val integerToFields : integer -> fields
 let integerToFields n = [symbolic_string_of_string (write n)]
@@ -740,6 +631,8 @@ let fds_default : fds = Map.insert STDIN 0 (Map.insert STDOUT 1 (Map.insert STDE
     
 let os_empty : ty_os_state = <|
     sh = <|
+      script_name = "fsh"; (* $0 *)
+      positional_params = []; (* $1, $2, $3 ... *)
       env = env_default;
       funcs = Map.empty;
       cwd = fs_empty;

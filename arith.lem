@@ -1,6 +1,7 @@
 (*
  * Parse and evaluate a string representing the arithmetic operation
  *)
+open import Fsh_num
 open import Fsh
 
 type arith_token 'a =

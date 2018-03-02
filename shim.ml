@@ -363,9 +363,11 @@ let rec json_of_stmt = function
             ("c", json_of_stmt c);
             ("cases", List (List.map json_of_case cases))]
   | Defun (f, c) -> Assoc [tag "Defun"; ("name", String f); ("body", json_of_stmt c)]
-  | Call (outer_loop_nest, func, orig, c) ->
+  | Call (outer_loop_nest, outer_script_name, outer_argv, func, orig, c) ->
      Assoc [tag "Call";
             ("loop_nest", Int outer_loop_nest);
+            ("outer_script_name", String outer_script_name);
+            ("outer_argv", json_of_fields outer_argv);
             ("f", String func);
             ("orig", json_of_stmt orig);
             ("c", json_of_stmt c)]

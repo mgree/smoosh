@@ -17,3 +17,4 @@ fsh.ml
 evaluation.ml
 .#*
 semantics.ml
+fsh_num.ml
