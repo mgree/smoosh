@@ -293,7 +293,7 @@ function renderStmt(info, elt, stmt) {
                   'While', 'WhileCond', 'WhileRunning',
                   'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
                   'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
-                  'Defun', 'Call'
+                  'Defun', 'Call',
                   'Break', 'Continue', 'Return', 'Wait', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
 
@@ -649,7 +649,7 @@ function renderStmt(info, elt, stmt) {
       $('<i></i>').addClass('icon wait').appendTo(info);
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
-      cmd.append('wait' + fieldSep + Number.toString(stmt['n']);
+      cmd.append('wait' + fieldSep + Number.toString(stmt['n']));
 
       break;
       
