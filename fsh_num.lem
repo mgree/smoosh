@@ -75,6 +75,13 @@ let rec readInteger base acc chars =
       else readInteger base (((integerFromNat base) * acc) + (integerFromNat num)) cs
   end
 
+val readNat : (list char) -> either string nat
+let readNat cs =
+  match readInteger 10 0 cs with
+  | Right n -> Right (toNat n)
+  | Left e -> Left e
+  end
+
 val readInt64 : nat -> int64 -> (list char) -> either string int64
 let rec readInt64 base acc chars =
   match chars with
