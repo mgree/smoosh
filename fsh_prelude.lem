@@ -519,7 +519,7 @@ let lookup_param s0 str =
   | (Right num,_) -> lookup_positional_param num s0
   | (Left _,"@") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as fields *)
   | (Left _,"*") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as a string *)
-  | (Left _,"#") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* number of positional arguments *)
+  | (Left _,"#") -> Just (symbolic_string_of_string (stringFromNat (length s0.sh.positional_params))) (* number of positional arguments *)
   | (Left _,"!") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* last pid *)
   | (Left _,"-") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* current option flags *)
   | (Left _,"$") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* shell pid *)
