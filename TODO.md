@@ -14,6 +14,12 @@
   + need to boost what FS can do
 - background processes
   + need to come up with a scheduler
+    OR: just schedule opportunistically, i.e.
+        step_eval (s0,Wait n) looks up pid n and steps it
+           or fails with a symbolic result if n|->execve
+        opportunity for deadlock?
+          x=$$ ; wait $x & ; wait $!
+          no: can only wait on child processes
 
 ### Testing
 
