@@ -534,11 +534,9 @@ and run_command s0 prog argv env fds =
   .
   eval
   exec
-  exit
   export
   readonly
   set
-  shift
   times
   trap
   unset
@@ -589,6 +587,21 @@ and run_command s0 prog argv env fds =
               end
      | _ -> Left (s0,"return: too many arguments")
      end
+   | Just "shift" ->
+      let n = match argv with
+        | [] -> Right 1
+        | [s] -> match readNat (char_list_of_symbolic_string s) with
+              | Right n -> Right n
+              | Left _ -> Left ("shift: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+        | _  -> Left ("shift: too many arguments")
+        end in 
+      match n with
+      | Left err -> Left (s0,err)
+      | Right n -> 
+         let s1 = <| s0 with sh = <| s0.sh with positional_params = drop n s0.sh.positional_params |> |> in
+         Right (s1, Done)
+      end
   | Just script_name -> 
      (* 1b. b. If the command name matches the name of a utility
         listed in the following table, the results are unspecified. *)
