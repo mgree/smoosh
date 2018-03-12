@@ -303,7 +303,6 @@ and env = Map.map string symbolic_string
 (* function definitions *)
 and funcs = Map.map string stmt        
 
-(* TODO 2018-02-25 need to track positional arguments separately *)
 and ty_shell_state = <|
     script_name: string; (* $0 *)
     positional_params: list symbolic_string; (* $1, $2, $3, ... *)
@@ -319,7 +318,6 @@ and proc =
     Execve of symbolic_string (* command *) * list symbolic_string (* args *) * env * fds
   | Shell of ty_shell_state
            
-(* From t_fs_spec.lem_cppo line 1187 *)
 and ty_os_state = <|
     passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir TODO 2018-02-09 move to actual filesystem *)
     sh: ty_shell_state;

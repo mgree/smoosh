@@ -158,7 +158,8 @@ let rec insert_field_separators fs =
   | [f] -> [Field (symbolic_string_of_string f)]
   | f::fs' -> Field (symbolic_string_of_string f)::FS::insert_field_separators fs'
   end
-    
+
+(* TODO 2018-03-12 Pathname expansion shall not be performed on the word [that is the target of redirection] by a non-interactive shell; an interactive shell may perform it, but shall do so only when the expansion would result in one word. *)    
 val pathname_expansion : ty_os_state -> intermediate_fields -> intermediate_fields
 
 (* Parameter expansion only happens on unquoted fields *)
