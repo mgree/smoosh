@@ -546,8 +546,8 @@ val set_function_params : nat -> fields -> ty_os_state -> ty_os_state
 let set_function_params ln argv os =
   <| os with sh =
     <| os.sh with
-      loop_nest = ln;
-      positional_params = argv
+       loop_nest = ln;
+       positional_params = argv
     |>
   |>
 
