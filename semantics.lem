@@ -46,80 +46,18 @@ let last_pid pid os = set_param "!" (symbolic_string_of_string (stringFromNat pi
 
 val is_special_builtin : string -> bool
 let is_special_builtin s =
-  match s with
-  | "break" -> true
-  | ":" -> true
-  | "continue" -> true
-  | "." -> true
-  | "eval" -> true
-  | "exec" -> true
-  | "exit" -> true
-  | "export" -> true
-  | "readonly" -> true
-  | "return" -> true
-  | "set" -> true
-  | "shift" -> true
-  | "times" -> true
-  | "trap" -> true
-  | "unset" -> true
-  | _ -> false
-  end
+  elem s ["break";":";"continue";".";"eval";"exec";"exit";"export";"readonly";
+          "return";"set";"shift";"times";"trap";"unset"]
 
 val is_unspecified_utility : string -> bool
 let is_unspecified_utility s =
-  match s with
-  | "alloc" -> true
-  | "autoload" -> true
-  | "bind" -> true
-  | "bindkey" -> true
-  | "builtin" -> true
-  | "bye" -> true
-  | "caller" -> true
-  | "cap" -> true
-  | "chdir" -> true
-  | "clone" -> true
-  | "comparguments" -> true
-  | "compcall" -> true
-  | "compctl" -> true
-  | "compdescribe" -> true
-  | "compfiles" -> true
-  | "compgen" -> true
-  | "compgroups" -> true
-  | "complete" -> true
-  | "compquote" -> true
-  | "comptags" -> true
-  | "comptry" -> true
-  | "compvalues" -> true
-  | "declare" -> true
-  | "dirs" -> true
-  | "disable" -> true
-  | "disown" -> true
-  | "dosh" -> true
-  | "echotc" -> true
-  | "echoti" -> true
-  | "help" -> true
-  | "history" -> true
-  | "hist" -> true
-  | "let" -> true
-  | "local" -> true
-  | "login" -> true
-  | "logout" -> true
-  | "map" -> true
-  | "mapfile" -> true
-  | "popd" -> true
-  | "print" -> true
-  | "pushd" -> true
-  | "readarray" -> true
-  | "repeat" -> true
-  | "savehistory" -> true
-  | "source" -> true
-  | "shopt" -> true
-  | "stop" -> true
-  | "suspend" -> true
-  | "typeset" -> true
-  | "whence" -> true
-  | _ -> false
-  end
+  elem s ["alloc";"autoload";"bind";"bindkey";"builtin";"bye";"caller";"cap";
+          "chdir";"clone";"comparguments";"compcall";"compctl";"compdescribe";
+          "compfiles";"compgen";"compgroups";"complete";"compquote";"comptags";
+          "comptry";"compvalues";"declare";"dirs";"disable";"disown";"dosh";
+          "echotc";"echoti";"help";"history";"hist";"let";"local";"login";
+          "logout";"map";"mapfile";"popd";"print";"pushd";"readarray";"repeat";
+          "savehistory";"source";"shopt";"stop";"suspend";"typeset";"whence"]
 
 (**********************************************************************)   
 (* LATE STAGE EXPANSION ***********************************************)   
