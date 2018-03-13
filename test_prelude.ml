@@ -90,3 +90,7 @@ let fs_complicated : fs_mut =
   fs
 
 let os_complicated_fs = set_fs fs_complicated os_empty
+
+let os_complicated_fs_in_a = 
+  { os_complicated_fs with 
+    sh = { os_complicated_fs.sh with cwd = "/a" } }

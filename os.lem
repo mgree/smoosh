@@ -69,10 +69,18 @@ let dotdot fs =
 
 val resolve_path_cl : fs -> list char -> fs
 let rec resolve_path_cl fs cs =
+  (* just quit if we're done *)
+  if null cs then fs else
+  (* otherwise, split off a slash *)
   let (dir,slash_rest) = splitWhile (fun c -> c <> #'/') cs in
-  let rest = tail slash_rest in
+  let rest = 
+    match slash_rest with
+    | #'/'::rest -> rest
+    | _ -> slash_rest
+    end in
+  (* and try to change directories *)
   match dir with
-  | [] -> fs
+  | [] -> resolve_path_cl fs rest
   | [#'.'] -> resolve_path_cl fs rest
   | [#'.';#'.']-> resolve_path_cl (dotdot fs) rest
   | _ -> 

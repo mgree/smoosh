@@ -45,6 +45,15 @@ let match_path_tests : (string * ty_os_state * string * (string list)) list =
     ("/a/user/*", os_complicated_fs, "/a/user/*", ["/a/user/x"; "/a/user/y"]);
     ("/a/use*/*", os_complicated_fs, "/a/use*/*", ["/a/use/x"; "/a/user/x"; "/a/user/y"]);
 
+    ("* in a",      os_complicated_fs_in_a, "*",      ["use"; "useful"; "user"]);
+    ("../* in a",   os_complicated_fs_in_a, "../*",   ["../a"; "../b"; "../c"]);
+    ("/* in a",     os_complicated_fs_in_a, "/*",     ["/a"; "/b"; "/c"]);
+    ("./* in a",    os_complicated_fs_in_a, "./*",    ["./use"; "./useful"; "./user"]);
+    ("use* in a",   os_complicated_fs_in_a, "use*",   ["use"; "useful"; "user"]);
+    ("use*/ in a",  os_complicated_fs_in_a, "use*/",  ["use/"; "user/"]);
+    ("user/* in a", os_complicated_fs_in_a, "user/*", ["user/x"; "user/y"]);
+    ("use*/* in a", os_complicated_fs_in_a, "use*/*", ["use/x"; "user/x"; "user/y"]);
+
     ("/c/.f*", os_complicated_fs, "/c/.f*", ["/c/.foo"]);
     ("/c/*", os_complicated_fs, "/c/*", []);
 
