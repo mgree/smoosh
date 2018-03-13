@@ -546,7 +546,7 @@ and json_of_env (env:(string, symbolic_string) Pmap.map) : json =
 
 and json_of_shell_state (sh:ty_shell_state) : json = 
   Assoc [("env", json_of_env sh.env);
-         ("cwd", json_of_fs sh.cwd); (* 2017-12-22 TODO just give the path? *)
+         ("cwd", String sh.cwd);
          ("locale", String sh.locale.name)]
 
 and json_of_fs (fs:fs) : json = String "TODO"

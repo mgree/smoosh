@@ -41,7 +41,7 @@ let new_dir (name:string) (parent_dir:fs_mut) : fs_mut =
 
 let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state = 
   let root = freeze fs in
-  { st with fs_root = root; sh = { st.sh with cwd = root } }
+  { st with fs_root = root; sh = { st.sh with cwd = "/" } }
 
 (* File system scaffolding *)
 let fs_simple : fs_mut = 

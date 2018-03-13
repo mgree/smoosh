@@ -836,7 +836,7 @@ $ count $(${x? one two three}) four
          s0.sh.env assigns
      in
      (* TODO 2018-02-09 setup redirects *)
-     let fds = s0.sh.fds in
+     let fds = s0.sh_fds in
      (* run command *)
      match run_command s0 prog args env fds with
      | Right (s1,stmt') -> Right (s1, stmt', XSSimple ("running " ^ string_of_symbolic_string prog))

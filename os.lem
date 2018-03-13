@@ -1,0 +1,250 @@
+open import Fsh_prelude
+
+val STDIN : nat
+val STDOUT : nat
+val STDERR : nat
+let STDIN = 0
+let STDOUT = 1
+let STDERR = 2
+
+(**********************************************************************)
+(* OS CLASS ***********************************************************)
+(**********************************************************************)
+
+(**********************************************************************)
+(* SYMBOLIC OS STATE **************************************************)
+(**********************************************************************)
+
+(* Broadly, directories map to contents, which are dir trees or files.
+ * For now, fine, just using for pathname expansion.
+ *
+ * TODO: Ultimately, rely on SibylFS's detailed model *)
+type fs = <|
+  parent: maybe fs;
+  contents: Map.map string file
+|>
+
+and file = File | Dir of fs
+
+val file_exists : fs -> string -> bool
+let file_exists f name = 
+  match Map.lookup name f.contents with
+  | Nothing -> false
+  | Just _ -> true
+  end
+
+val is_dir : fs -> string -> bool
+let is_dir f name = 
+  match Map.lookup name f.contents with
+  | Just File -> false
+  | Just (Dir _) -> true
+  | Nothing -> false (* ??? *)
+  end
+
+val is_file : fs -> string -> bool
+let is_file f name = 
+  match Map.lookup name f.contents with
+  | Just File -> true
+  | Just (Dir _) -> false
+  | Nothing -> false (* ??? *)
+  end
+
+val dotdot : fs -> fs
+let dotdot fs =
+  match fs.parent with
+  | Nothing -> fs
+  | Just fs' -> fs'
+  end
+
+val resolve_path_cl : fs -> list char -> fs
+let rec resolve_path_cl fs cs =
+  let (dir,slash_rest) = splitWhile (fun c -> c <> #'/') cs in
+  let rest = tail slash_rest in
+  match dir with
+  | [] -> fs
+  | [#'.'] -> resolve_path_cl fs rest
+  | [#'.';#'.']-> resolve_path_cl (dotdot fs) rest
+  | _ -> 
+     match Map.lookup (toString dir) fs.contents with
+     | Just (Dir fs') -> resolve_path_cl fs' rest
+     | _ -> fs (* ??? *)
+     end
+  end
+
+val resolve_path : fs -> string -> fs
+let resolve_path fs path = resolve_path_cl fs (toCharList path)
+  
+
+(* empty FS/OS for testing purposes *)    
+let fs_empty =
+  <| parent = Nothing;
+     contents = Map.empty
+  |>
+
+(* FIFO pipes *)             
+type fifo = string
+
+and fds = Map.map fd nat (* index into global fifo list *)
+
+and proc =
+    Execve of symbolic_string (* command *) * list symbolic_string (* args *) * env * fds
+  | Shell of ty_shell_state * fds
+           
+and symbolic_os_state = <|
+    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir TODO 2018-02-09 move to actual filesystem *)
+    sh: ty_shell_state;
+    sh_fds: fds;
+    fs_root: fs;
+    fifos: list fifo;
+    procs: list proc
+  |>
+
+type ty_os_state = symbolic_os_state (* shim *)
+
+(* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
+let fds_default : fds = Map.insert STDIN 0 (Map.insert STDOUT 1 (Map.insert STDERR 2 Map.empty))
+    
+let os_empty : ty_os_state = <|
+    sh = default_shell_state;
+    sh_fds = fds_default;
+    passwd = Map.empty;
+    fs_root = fs_empty;
+    fifos = ["" (* STDIN *)
+            ;"" (* STDOUT *)
+            ;"" (* STDERR *)
+            ];
+    procs = []
+ |>
+
+(**********************************************************************)
+(* SHELL/OS STATE FUNCTIONS *******************************************)
+(**********************************************************************)
+   
+val print_shell_env : ty_os_state -> string
+let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) st.sh.env ""
+
+val lookup_positional_param : nat -> ty_os_state -> maybe symbolic_string
+let lookup_positional_param num os =
+  if num = 0
+  then Just (symbolic_string_of_string os.sh.script_name)
+  (* -1 for positional param offset (ie, $0 is stored elsewhere *)
+  else index os.sh.positional_params (num - 1)
+
+(* The result is nothing if the parameter is unset, and the empty string null. *)
+val lookup_param : ty_os_state -> string -> maybe symbolic_string
+let lookup_param s0 str =
+  match (readNat (toCharList str),str) with
+  | (Right num,_) -> lookup_positional_param num s0
+  | (Left _,"@") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as fields *)
+  | (Left _,"*") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as a string *)
+  | (Left _,"#") -> Just (symbolic_string_of_string (stringFromNat (length s0.sh.positional_params))) (* number of positional arguments *)
+  | (Left _,"!") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* last pid *)
+  | (Left _,"-") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* current option flags *)
+  | (Left _,"$") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* shell pid *)
+  | (Left _,_) -> Map.lookup str s0.sh.env
+  end
+
+val lookup_concrete_param : ty_os_state -> string -> maybe string
+let lookup_concrete_param s0 str =
+  match Map.lookup str s0.sh.env with
+  | Nothing -> Nothing
+  | Just fs -> try_concrete fs
+  end
+
+val set_param : string -> symbolic_string -> ty_os_state -> ty_os_state
+let set_param x v os = <| os with sh = <| os.sh with env = Map.insert x v os.sh.env |> |>
+
+val defun : string -> stmt -> ty_os_state -> ty_os_state
+let defun name body os = <| os with sh = <| os.sh with funcs = Map.insert name body os.sh.funcs |> |>
+
+val lookup_function : string -> ty_os_state -> maybe stmt
+let lookup_function name os = Map.lookup name os.sh.funcs
+
+val set_function_params : nat -> fields -> ty_os_state -> ty_os_state
+let set_function_params ln argv os =
+  <| os with sh =
+    <| os.sh with
+       loop_nest = ln;
+       positional_params = argv
+    |>
+  |>
+
+val get_script_name : ty_os_state -> string
+let get_script_name os = os.sh.script_name
+
+val get_positional_params : ty_os_state -> fields
+let get_positional_params os = os.sh.positional_params
+
+val enter_loop : ty_os_state -> ty_os_state
+let enter_loop os = <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest + 1 |> |>
+
+val exit_loop : ty_os_state -> ty_os_state
+let exit_loop os = <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest - 1 |> |>
+
+val get_pwdir : ty_os_state -> string -> maybe string
+let get_pwdir os u = Map.lookup u os.passwd
+
+val set_pwdir : string -> string -> ty_os_state -> ty_os_state
+let set_pwdir u d os = <| os with passwd = Map.insert u d (os.passwd) |>
+
+val mkfifo : ty_os_state -> ty_os_state * nat
+let mkfifo os =
+  let fifo_num = length os.fifos in
+  (<| os with fifos = os.fifos ++ [""] |>, fifo_num)
+
+val mkfifos : ty_os_state -> nat -> ty_os_state * list nat 
+let rec mkfifos os0 n =
+  match n with
+  | 0 -> (os0, [])
+  | _ -> let (os1,fifo) = mkfifo os0 in 
+         let (os2,fifos) = mkfifos os1 (n-1) in
+         (os2,fifo::fifos)
+  end
+
+val adjust_nth : forall 'a 'b. list 'a -> nat -> ('a -> 'a * 'b) -> maybe (list 'a * 'b)
+let rec adjust_nth l n f =
+  match (l,n) with
+  | ([],_) -> Nothing
+  | (v::l',0) -> 
+     let (v',res) = f v in
+     Just (v'::l',res)
+  | (v::l',_) ->
+     match adjust_nth l' (n-1) f with
+     | Nothing -> Nothing
+     | Just (l'',res) -> Just (v::l'',res)
+     end
+  end
+  
+val write_fifo : ty_os_state -> nat -> string -> maybe ty_os_state
+let write_fifo os fifo_num s =
+  match adjust_nth os.fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
+  | Nothing -> Nothing
+  | Just (new_fifos,()) -> Just <| os with fifos = new_fifos |>
+  end
+
+val read_fifo : ty_os_state -> nat -> maybe (ty_os_state * string)
+let read_fifo os fifo_num =
+  match adjust_nth os.fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
+  | Nothing -> Nothing
+  | Just (new_fifos,s) -> Just (<| os with fifos = new_fifos |>, s)
+  end
+
+val print_stderr : ty_os_state -> string -> ty_os_state
+let print_stderr os msg = 
+  (* lookup where STDERR is pointing *)
+  match Map.lookup STDERR os.sh_fds with
+  | Just fifo_num -> 
+     match write_fifo os fifo_num msg with
+     (* TODO 2018-03-02 is this the right behavior when STDERR points to a bad fifo? *)
+     | Nothing -> os
+     | Just os -> os
+     end
+  (* TODO 2018-03-02 is this the right behavior when STDERR doesn't exist? *)
+  | Nothing -> os
+  end
+
+val execve : ty_os_state -> symbolic_string -> list symbolic_string -> env -> fds -> ty_os_state * nat
+let execve os prog argv env fds =
+  (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
+  let proc_num = length os.procs in
+  (<| os with procs = os.procs ++ [Execve prog argv env fds] |>, proc_num)

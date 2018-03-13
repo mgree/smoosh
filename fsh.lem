@@ -1,6 +1,5 @@
-include import Pervasives_extra
-include import Fsh_num
 include import Fsh_prelude
+include import Os
 
 (**********************************************************************)
 (* Pretty printing ****************************************************)
