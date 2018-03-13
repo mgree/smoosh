@@ -11,6 +11,17 @@ let STDERR = 2
 (* OS CLASS ***********************************************************)
 (**********************************************************************)
 
+(* TODO 2018-03-12
+
+   define OS class
+     system calls (execve, getpwnam, etc.)
+     FS functionality
+
+     offer _some_ symbolic stuff there, but focus on getting the syscalls going
+
+   need to link w/OCaml FFI?
+ *)
+
 (**********************************************************************)
 (* SYMBOLIC OS STATE **************************************************)
 (**********************************************************************)
