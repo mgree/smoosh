@@ -8,71 +8,88 @@ let STDOUT = 1
 let STDERR = 2
 
 (**********************************************************************)
-(* OS CLASS ***********************************************************)
+(* FS/OS CLASS ********************************************************)
 (**********************************************************************)
 
 (* TODO 2018-03-12
 
    define OS class
-     system calls (execve, getpwnam, etc.)
+     system calls (execve, etc.)
      FS functionality
+       trickiness: no obvious way to embed an existential :(
+       possible solution: always use strings for the fs and then resolve?
 
      offer _some_ symbolic stuff there, but focus on getting the syscalls going
 
    need to link w/OCaml FFI?
  *)
 
+class ( FS 'a )
+  val file_exists : 'a -> string -> bool
+  val is_dir : 'a -> string -> bool
+  val is_file : 'a -> string -> bool
+  val dotdot : 'a -> 'a
+  val subdir : 'a -> string -> maybe 'a
+end
+
 class ( OS 'a )
-    val get_shell_state : 'a -> ty_shell_state
-    val set_shell_state : ty_shell_state -> 'a -> 'a
+  val get_shell_state : 'a -> ty_shell_state
+  val set_shell_state : ty_shell_state -> 'a -> 'a
+  val getpwnam : 'a -> string -> maybe string
 end
 
 (**********************************************************************)
-(* SYMBOLIC OS STATE **************************************************)
+(* SYMBOLIC FS STATE **************************************************)
 (**********************************************************************)
 
 (* Broadly, directories map to contents, which are dir trees or files.
  * For now, fine, just using for pathname expansion.
  *
  * TODO: Ultimately, rely on SibylFS's detailed model *)
-type fs = <|
-  parent: maybe fs;
+type symbolic_fs = <|
+  parent: maybe symbolic_fs;
   contents: Map.map string file
 |>
 
-and file = File | Dir of fs
+and file = File | Dir of symbolic_fs
 
-val file_exists : fs -> string -> bool
-let file_exists f name = 
-  match Map.lookup name f.contents with
-  | Nothing -> false
-  | Just _ -> true
-  end
+type fs = symbolic_fs (* shim *)
 
-val is_dir : fs -> string -> bool
-let is_dir f name = 
-  match Map.lookup name f.contents with
-  | Just File -> false
-  | Just (Dir _) -> true
-  | Nothing -> false (* ??? *)
-  end
+instance (FS symbolic_fs)
+  let file_exists f name = 
+    match Map.lookup name f.contents with
+    | Nothing -> false
+    | Just _ -> true
+    end
 
-val is_file : fs -> string -> bool
-let is_file f name = 
-  match Map.lookup name f.contents with
-  | Just File -> true
-  | Just (Dir _) -> false
-  | Nothing -> false (* ??? *)
-  end
+  let is_dir f name = 
+    match Map.lookup name f.contents with
+    | Just File -> false
+    | Just (Dir _) -> true
+    | Nothing -> false (* ??? *)
+    end
+  
+  let is_file f name = 
+    match Map.lookup name f.contents with
+    | Just File -> true
+    | Just (Dir _) -> false
+    | Nothing -> false (* ??? *)
+    end
 
-val dotdot : fs -> fs
-let dotdot fs =
-  match fs.parent with
-  | Nothing -> fs
-  | Just fs' -> fs'
-  end
+  let dotdot fs =
+    match fs.parent with
+    | Nothing -> fs
+    | Just fs' -> fs'
+    end
 
-val resolve_path_cl : fs -> list char -> fs
+  let subdir fs name = 
+    match Map.lookup name fs.contents with
+    | Just (Dir fs) -> Just fs
+    | _ -> Nothing
+    end
+end
+
+val resolve_path_cl : forall 'a. FS 'a => 'a -> list char -> 'a
 let rec resolve_path_cl fs cs =
   (* just quit if we're done *)
   if null cs then fs else
@@ -89,21 +106,24 @@ let rec resolve_path_cl fs cs =
   | [#'.'] -> resolve_path_cl fs rest
   | [#'.';#'.']-> resolve_path_cl (dotdot fs) rest
   | _ -> 
-     match Map.lookup (toString dir) fs.contents with
-     | Just (Dir fs') -> resolve_path_cl fs' rest
+     match subdir fs (toString dir) with
+     | Just fs' -> resolve_path_cl fs' rest
      | _ -> fs (* ??? *)
      end
   end
 
-val resolve_path : fs -> string -> fs
-let resolve_path fs path = resolve_path_cl fs (toCharList path)
-  
+val resolve_path : forall 'a. FS 'a => 'a -> string -> 'a
+let resolve_path fs path = resolve_path_cl fs (toCharList path)  
 
 (* empty FS/OS for testing purposes *)    
 let fs_empty =
   <| parent = Nothing;
      contents = Map.empty
   |>
+
+(**********************************************************************)
+(* SYMBOLIC OS STATE **************************************************)
+(**********************************************************************)
 
 (* FIFO pipes *)             
 type fifo = string
@@ -205,9 +225,6 @@ let exit_loop os =
   update_shell_state
     (fun sh -> <| sh with loop_nest = sh.loop_nest - 1 |>) os
 
-val get_pwdir : ty_os_state -> string -> maybe string
-let get_pwdir os u = Map.lookup u os.passwd
-
 val set_pwdir : string -> string -> ty_os_state -> ty_os_state
 let set_pwdir u d os = <| os with passwd = Map.insert u d (os.passwd) |>
 
@@ -280,4 +297,5 @@ let execve os prog argv env fds =
 instance (OS symbolic_os_state)
   let get_shell_state os = os.sh
   let set_shell_state new_sh os = <| os with sh = new_sh |>
+  let getpwnam os u = Map.lookup u os.passwd
 end

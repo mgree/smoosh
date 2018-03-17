@@ -337,7 +337,7 @@ let rec expand_control s0 q k =
          end in
        Right (ESTilde msg, s0, [], dir)
     | TildeUser usr -> 
-       match get_pwdir s0 usr with
+       match getpwnam s0 usr with
        | Nothing -> Right (ESTilde "defaulting to dash behavior for failed getpwnam (unspec per 2.6.1)", s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
        | Just path -> Right (ESTilde "", s0, [], [S path])
        end

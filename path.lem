@@ -40,7 +40,7 @@ let has_trailing_slash cs =
   | _ -> false
   end
 
-val parse_path_pattern : ty_os_state -> string -> list string * fs * path_info
+val parse_path_pattern : ty_os_state -> string -> list string * symbolic_fs * path_info
 let parse_path_pattern st pat =
   match toCharList pat with
   | #'/'::pat' -> (map toString (split pat'), st.fs_root, <| path_prefix = "/"; trailing_slash = has_trailing_slash pat' |>)
