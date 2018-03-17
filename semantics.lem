@@ -350,7 +350,7 @@ let rec expand_control s0 q k =
        | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "assignment") step, s1, [], [K (LAssign s (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | LMatch str side mode f [] -> Right (ESParam "finished match", s0, [], words_of_symbolic_string (match_substring s0.sh.locale side mode f str))
+    | LMatch str side mode f [] -> Right (ESParam "finished match", s0, [], words_of_symbolic_string (match_substring (get_shell_state s0).locale side mode f str))
     | LMatch s side mode f w ->
        match expand_words s0 q GeneratedString ([], w) with
        | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "match") step, s1, [], [K (LMatch s side mode (f ++ f1) w1)])
@@ -363,11 +363,11 @@ let rec expand_control s0 q k =
        | Left err -> Left err
        end
     | Backtick c ->
-       Right (ESCommand "initializing subshell", s0, [], [K (LBacktick s0.sh c c)]) (* TODO should set up pipes *)
+       Right (ESCommand "initializing subshell", s0, [], [K (LBacktick (get_shell_state s0) c c)]) (* TODO should set up pipes *)
     | LBacktick subsh corig c0 ->
        match step_eval <| s0 with sh = subsh |> c0 with
        (* When a subshell errors, it should evaluate to the null string and print its error message. *)
-       | Left (s1, step) -> Right (ESEval (ESCommand "command exited with error") step, <| s1 with sh = s0.sh |>, [], [])
+       | Left (s1, step) -> Right (ESEval (ESCommand "command exited with error") step, set_shell_state (get_shell_state s0) s1, [], [])
        (* The shell shall expand the command substitution by executing
           command in a subshell environment (see Shell Execution
           Environment) and replacing the command substitution (the text
@@ -377,8 +377,8 @@ let rec expand_control s0 q k =
  
           TODO 2017-12-22 read result from pipe, trim newlines
         *) 
-       | Right (s1, Done, step) -> Right (ESEval (ESCommand "command exited successfully; returning symbolic result") step, <| s1 with sh = s0.sh |>, [EWSym (SymCommand corig)], [])
-       | Right (s1, c1, step) -> Right (ESEval (ESCommand "") step, <| s1 with sh = s0.sh |>, [], [K (LBacktick s1.sh corig c1)])
+       | Right (s1, Done, step) -> Right (ESEval (ESCommand "command exited successfully; returning symbolic result") step, set_shell_state (get_shell_state s0) s1, [EWSym (SymCommand corig)], [])
+       | Right (s1, c1, step) -> Right (ESEval (ESCommand "") step, set_shell_state (get_shell_state s0) s1, [], [K (LBacktick (get_shell_state s1) corig c1)])
        end
     | Arith f [] ->
         match arith64 s0 (concat_expanded f) with
@@ -600,7 +600,11 @@ and run_command s0 prog argv env fds =
       match n with
       | Left err -> Left (s0,err)
       | Right n -> 
-         let s1 = <| s0 with sh = <| s0.sh with positional_params = drop n s0.sh.positional_params |> |> in
+         let s1 = 
+           update_shell_state 
+             (fun sh -> <| sh with positional_params = drop n sh.positional_params |>)
+             s0
+         in
          Right (s1, Done)
       end
   | Just script_name -> 
@@ -623,8 +627,9 @@ and run_command s0 prog argv env fds =
               
               so: does the shell need to know the maximal positional argument at any given time?
             *)
-           Right (set_function_params 0 argv s0,
-                  Call s0.sh.loop_nest (get_positional_params s0) script_name body body)
+          let sh = get_shell_state s0 in
+          Right (set_function_params 0 argv s0,
+                 Call sh.loop_nest sh.positional_params script_name body body)
        | Nothing -> 
            (*   1d. If the command name matches the name [XSI] [Option Start]  of the type or ulimit utility, or [Option End]  of a utility listed in the following table, that utility shall be invoked.
 
@@ -833,7 +838,7 @@ $ count $(${x? one two three}) four
      let env = 
        foldr (fun (x,f) env' -> 
            Map.insert x (symbolic_string_of_fields f) env') 
-         s0.sh.env assigns
+         (get_shell_state s0).env assigns
      in
      (* TODO 2018-02-09 setup redirects *)
      let fds = s0.sh_fds in

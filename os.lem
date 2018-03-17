@@ -22,6 +22,11 @@ let STDERR = 2
    need to link w/OCaml FFI?
  *)
 
+class ( OS 'a )
+    val get_shell_state : 'a -> ty_shell_state
+    val set_shell_state : ty_shell_state -> 'a -> 'a
+end
+
 (**********************************************************************)
 (* SYMBOLIC OS STATE **************************************************)
 (**********************************************************************)
@@ -176,29 +181,29 @@ let set_param x v os = <| os with sh = <| os.sh with env = Map.insert x v os.sh.
 val defun : string -> stmt -> ty_os_state -> ty_os_state
 let defun name body os = <| os with sh = <| os.sh with funcs = Map.insert name body os.sh.funcs |> |>
 
-val lookup_function : string -> ty_os_state -> maybe stmt
-let lookup_function name os = Map.lookup name os.sh.funcs
+val lookup_function : forall 'a. OS 'a => string -> 'a -> maybe stmt
+let lookup_function name os = Map.lookup name (get_shell_state os).funcs
 
-val set_function_params : nat -> fields -> ty_os_state -> ty_os_state
+val update_shell_state : forall 'a. OS 'a => (ty_shell_state -> ty_shell_state) -> 'a -> 'a
+let update_shell_state update os =
+  set_shell_state (update (get_shell_state os)) os
+
+val set_function_params : forall 'a. OS 'a => nat -> fields -> 'a -> 'a
 let set_function_params ln argv os =
-  <| os with sh =
-    <| os.sh with
-       loop_nest = ln;
-       positional_params = argv
-    |>
-  |>
+  update_shell_state (fun sh -> <| sh with loop_nest = ln; positional_params = argv |>) os
 
-val get_script_name : ty_os_state -> string
-let get_script_name os = os.sh.script_name
+val get_script_name : forall 'a. OS 'a => 'a -> string
+let get_script_name os = (get_shell_state os).script_name
 
-val get_positional_params : ty_os_state -> fields
-let get_positional_params os = os.sh.positional_params
+val enter_loop : forall 'a. OS 'a => 'a -> 'a
+let enter_loop os = 
+  update_shell_state
+    (fun sh -> <| sh with loop_nest = sh.loop_nest + 1 |>) os
 
-val enter_loop : ty_os_state -> ty_os_state
-let enter_loop os = <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest + 1 |> |>
-
-val exit_loop : ty_os_state -> ty_os_state
-let exit_loop os = <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest - 1 |> |>
+val exit_loop : forall 'a. OS 'a => 'a -> 'a
+let exit_loop os = 
+  update_shell_state
+    (fun sh -> <| sh with loop_nest = sh.loop_nest - 1 |>) os
 
 val get_pwdir : ty_os_state -> string -> maybe string
 let get_pwdir os u = Map.lookup u os.passwd
@@ -267,3 +272,12 @@ let execve os prog argv env fds =
   (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
   let proc_num = length os.procs in
   (<| os with procs = os.procs ++ [Execve prog argv env fds] |>, proc_num)
+
+(**********************************************************************)
+(* SYMBOLIC SHELL STATE ***********************************************)
+(**********************************************************************)
+
+instance (OS symbolic_os_state)
+  let get_shell_state os = os.sh
+  let set_shell_state new_sh os = <| os with sh = new_sh |>
+end
