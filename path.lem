@@ -2,9 +2,6 @@ open import Fsh
 
 open import Pattern
 
-val compare_by_first : forall 'a 'b. Ord 'a => ('a * 'b) -> ('a * 'b) -> ordering
-let compare_by_first (a, _) (a', _) = compare a a'
-
 val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
 let rec break p ls =
   match ls with
@@ -50,7 +47,7 @@ let parse_path_pattern st pat =
 (* We use shortest matching because we won't look at the content of the match.
  * We only care whether or not there was a match.
  *)
-val match_pattern_file_list : locale -> fs -> string -> set (string * file)
+val match_pattern_file_list : locale -> fs -> string -> set (string * file fs)
 let match_pattern_file_list lc fs pat =
   Set.filter
     (fun (file, _) -> 
@@ -69,16 +66,15 @@ let stringtoFs fs k set =
   | _ -> set
   end
 
-
-val match_dir : fs -> locale -> string -> set (string * file)
+val match_dir : fs -> locale -> string -> set (string * file fs)
 let match_dir dir lc name =
   match name with
   | "." -> Set.singleton (".", Dir dir)
-  | ".." -> Set.singleton ("..", Dir (dotdot dir))
+  | ".." -> Set.singleton ("..", Dir (fs_dotdot dir))
   | _ -> match_pattern_file_list lc dir name
   end
 
-val walk : (maybe string * fs) -> path_info -> locale -> list string -> set (string * file)
+val walk : (maybe string * fs) -> path_info -> locale -> list string -> set (string * file fs)
 let rec walk (path_so_far, dir) pinfo lc path =
   match path with
   | [] ->

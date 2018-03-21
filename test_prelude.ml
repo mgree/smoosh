@@ -18,7 +18,7 @@ let os_ifs_comma:ty_os_state= add_literal_env_string "IFS" "," os_empty
 (* some worrying coercions we need in order to actually build an interesting filesystem *)
 type fs_mut = {
   mutable parent: fs option;
-  mutable contents: (string, file) Pmap.map
+  mutable contents: (string, symbolic_fs file) Pmap.map
   }
 
 let freeze (fs : fs_mut) : fs = Obj.magic fs

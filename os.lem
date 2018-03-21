@@ -24,18 +24,23 @@ let STDERR = 2
    need to link w/OCaml FFI?
  *)
 
+type file 'a = File | Dir of 'a
+                           
 class ( FS 'a )
-  val file_exists : 'a -> string -> bool
-  val is_dir : 'a -> string -> bool
-  val is_file : 'a -> string -> bool
-  val dotdot : 'a -> 'a
-  val subdir : 'a -> string -> maybe 'a
+  val fs_file_exists : 'a -> string -> bool
+  val fs_is_dir : 'a -> string -> bool
+  val fs_is_file : 'a -> string -> bool
+  val fs_dotdot : 'a -> 'a
+  val fs_subdir : 'a -> string -> maybe 'a
 end
 
 class ( OS 'a )
   val get_shell_state : 'a -> ty_shell_state
   val set_shell_state : ty_shell_state -> 'a -> 'a
   val getpwnam : 'a -> string -> maybe string
+
+  val dotdot : 'a -> string -> string
+  val readdir : 'a -> string -> set (string * file unit)
 end
 
 (**********************************************************************)
@@ -48,41 +53,39 @@ end
  * TODO: Ultimately, rely on SibylFS's detailed model *)
 type symbolic_fs = <|
   parent: maybe symbolic_fs;
-  contents: Map.map string file
+  contents: Map.map string (file symbolic_fs)
 |>
-
-and file = File | Dir of symbolic_fs
 
 type fs = symbolic_fs (* shim *)
 
 instance (FS symbolic_fs)
-  let file_exists f name = 
+  let fs_file_exists f name = 
     match Map.lookup name f.contents with
     | Nothing -> false
     | Just _ -> true
     end
 
-  let is_dir f name = 
+  let fs_is_dir f name = 
     match Map.lookup name f.contents with
     | Just File -> false
     | Just (Dir _) -> true
     | Nothing -> false (* ??? *)
     end
   
-  let is_file f name = 
+  let fs_is_file f name = 
     match Map.lookup name f.contents with
     | Just File -> true
     | Just (Dir _) -> false
     | Nothing -> false (* ??? *)
     end
 
-  let dotdot fs =
+  let fs_dotdot fs =
     match fs.parent with
     | Nothing -> fs
     | Just fs' -> fs'
     end
 
-  let subdir fs name = 
+  let fs_subdir fs name = 
     match Map.lookup name fs.contents with
     | Just (Dir fs) -> Just fs
     | _ -> Nothing
@@ -104,9 +107,9 @@ let rec resolve_path_cl fs cs =
   match dir with
   | [] -> resolve_path_cl fs rest
   | [#'.'] -> resolve_path_cl fs rest
-  | [#'.';#'.']-> resolve_path_cl (dotdot fs) rest
+  | [#'.';#'.']-> resolve_path_cl (fs_dotdot fs) rest
   | _ -> 
-     match subdir fs (toString dir) with
+     match fs_subdir fs (toString dir) with
      | Just fs' -> resolve_path_cl fs' rest
      | _ -> fs (* ??? *)
      end
@@ -294,8 +297,22 @@ let execve os prog argv env fds =
 (* SYMBOLIC SHELL STATE ***********************************************)
 (**********************************************************************)
 
+val compare_by_first : forall 'a 'b. Ord 'a => ('a * 'b) -> ('a * 'b) -> ordering
+let compare_by_first (a, _) (a', _) = compare a a'
+    
 instance (OS symbolic_os_state)
   let get_shell_state os = os.sh
   let set_shell_state new_sh os = <| os with sh = new_sh |>
   let getpwnam os u = Map.lookup u os.passwd
+
+  let dotdot os path = path ^ "/../"
+
+  let readdir os path =
+    Set.map (fun (name,file) ->
+        (path ^ "/" ^ name,
+         match file with
+         | File -> File
+         | Dir _ -> Dir ()
+         end))
+      (toSetBy compare_by_first (resolve_path os.fs_root path).contents)
 end
