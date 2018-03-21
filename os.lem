@@ -34,13 +34,14 @@ class ( FS 'a )
   val fs_subdir : 'a -> string -> maybe 'a
 end
 
+type path = string
+         
 class ( OS 'a )
   val get_shell_state : 'a -> ty_shell_state
   val set_shell_state : ty_shell_state -> 'a -> 'a
   val getpwnam : 'a -> string -> maybe string
 
-  val dotdot : 'a -> string -> string
-  val readdir : 'a -> string -> set (string * file unit)
+  val readdir : 'a -> path -> set (path * file unit)
 end
 
 (**********************************************************************)
@@ -92,6 +93,17 @@ instance (FS symbolic_fs)
     end
 end
 
+val path_dotdot_rev_cl : list char -> list char
+let rec path_dotdot_rev_cl path =
+  match path with
+  | [] -> [#'/'] (* stop at the root *)
+  | #'/'::rest -> rest
+  | _::rest -> path_dotdot_rev_cl rest
+  end
+                            
+val path_dotdot : path -> path
+let path_dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
+   
 val resolve_path_cl : forall 'a. FS 'a => 'a -> list char -> 'a
 let rec resolve_path_cl fs cs =
   (* just quit if we're done *)
@@ -304,15 +316,15 @@ instance (OS symbolic_os_state)
   let get_shell_state os = os.sh
   let set_shell_state new_sh os = <| os with sh = new_sh |>
   let getpwnam os u = Map.lookup u os.passwd
-
-  let dotdot os path = path ^ "/../"
-
+                                   
   let readdir os path =
     Set.map (fun (name,file) ->
-        (path ^ "/" ^ name,
+        (name,
          match file with
          | File -> File
          | Dir _ -> Dir ()
          end))
+      (* Only compare equality for the set based on the keys.
+       * Comparing equality of a non-trivial file system will loop infinitely. *)
       (toSetBy compare_by_first (resolve_path os.fs_root path).contents)
 end

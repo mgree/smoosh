@@ -23,7 +23,7 @@ let checker test_fn equal (test_name, input, expected_out) =
   else Err {msg = test_name; expected = expected_out; got = out}
 
 let check_match_path (name, state, path, expected) =
-  checker (match_path state) (=) (name, path, expected)
+  checker (match_path_symbolic state) (=) (name, path, expected)
 
 let match_path_tests : (string * ty_os_state * string * (string list)) list =
   [
