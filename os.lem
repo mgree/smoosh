@@ -130,7 +130,7 @@ type ty_os_state = symbolic_os_state (* shim *)
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
 let fds_default : fds = Map.insert STDIN 0 (Map.insert STDOUT 1 (Map.insert STDERR 2 Map.empty))
     
-let os_empty : ty_os_state = <|
+let os_empty : symbolic_os_state = <|
     sh = default_shell_state;
     sh_fds = fds_default;
     passwd = Map.empty;
@@ -179,15 +179,15 @@ let lookup_concrete_param os str =
   | Just fs -> try_concrete fs
   end
 
-val defun : string -> stmt -> ty_os_state -> ty_os_state
-let defun name body os = <| os with sh = <| os.sh with funcs = Map.insert name body os.sh.funcs |> |>
-
-val lookup_function : forall 'a. OS 'a => string -> 'a -> maybe stmt
-let lookup_function name os = Map.lookup name (get_shell_state os).funcs
-
 val update_shell_state : forall 'a. OS 'a => (ty_shell_state -> ty_shell_state) -> 'a -> 'a
 let update_shell_state update os =
   set_shell_state (update (get_shell_state os)) os
+   
+val defun : forall 'a. OS 'a => string -> stmt -> 'a -> 'a
+let defun name body os = update_shell_state (fun sh -> <| sh with funcs = Map.insert name body sh.funcs |>) os
+
+val lookup_function : forall 'a. OS 'a => string -> 'a -> maybe stmt
+let lookup_function name os = Map.lookup name (get_shell_state os).funcs
 
 val set_param : forall 'a. OS 'a => string -> symbolic_string -> 'a -> 'a
 let set_param x v os = update_shell_state (fun sh -> <| sh with env = Map.insert x v sh.env |>) os
@@ -208,9 +208,6 @@ val exit_loop : forall 'a. OS 'a => 'a -> 'a
 let exit_loop os = 
   update_shell_state
     (fun sh -> <| sh with loop_nest = sh.loop_nest - 1 |>) os
-
-val set_pwdir : string -> string -> ty_os_state -> ty_os_state
-let set_pwdir u d os = <| os with passwd = Map.insert u d (os.passwd) |>
 
 val mkfifo : ty_os_state -> ty_os_state * nat
 let mkfifo os =
@@ -298,6 +295,9 @@ instance (OS symbolic_os_state)
       (toSetBy compare_by_first (symbolic_fs_resolve_path os.fs_root path).contents)
 end
 
+val set_pwdir : string -> string -> symbolic_os_state -> symbolic_os_state
+let set_pwdir u d os = <| os with passwd = Map.insert u d (os.passwd) |>
+   
 (* specialized functions to avoid manual instantiation of typeclasses in OCaml *)   
 val symbolic_set_param : string -> symbolic_string -> symbolic_os_state -> symbolic_os_state
 let symbolic_set_param = set_param
