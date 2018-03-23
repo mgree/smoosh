@@ -160,7 +160,7 @@ let rec insert_field_separators fs =
   end
 
 (* TODO 2018-03-12 Pathname expansion shall not be performed on the word [that is the target of redirection] by a non-interactive shell; an interactive shell may perform it, but shall do so only when the expansion would result in one word. *)    
-val pathname_expansion : ty_os_state -> intermediate_fields -> intermediate_fields
+val pathname_expansion : forall 'a. OS 'a => 'a -> intermediate_fields -> intermediate_fields
 
 (* Parameter expansion only happens on unquoted fields *)
 let rec pathname_expansion s0 f =
@@ -189,7 +189,7 @@ let rec pathname_expansion s0 f =
 val remove_quotes : intermediate_fields -> intermediate_fields
 val to_fields : intermediate_fields -> fields
 val finalize_fields : intermediate_fields -> fields
-val quote_removal : ty_os_state -> intermediate_fields -> fields
+val quote_removal : intermediate_fields -> fields
 
 let rec remove_quotes f =
   match f with
@@ -216,7 +216,7 @@ let rec finalize_fields f =
   | _ -> to_fields f
   end
 
-let quote_removal _s0 f =
+let quote_removal f =
   let no_quotes = combine_fields (remove_quotes f) in
   finalize_fields no_quotes
 
@@ -450,7 +450,7 @@ and step_expansion (os0,st) =
      end
   | ExpSplit f0 -> (os0, ExpPath (field_splitting os0 f0), ESSplit "")
   | ExpPath ifs0 -> (os0, ExpQuote (pathname_expansion os0 ifs0), ESPath "")
-  | ExpQuote ifs0 -> (os0, ExpDone (quote_removal os0 ifs0), ESQuote "")
+  | ExpQuote ifs0 -> (os0, ExpDone (quote_removal ifs0), ESQuote "")
   (* the following cases should never occur in calls from trace_expansion: *)
   | ExpError _ -> (os0, st, ESStep "done in error state")
   | ExpDone _ -> (os0, st, ESStep "done in success state")
