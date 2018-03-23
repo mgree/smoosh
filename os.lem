@@ -149,30 +149,32 @@ let os_empty : ty_os_state = <|
 val print_shell_env : forall 'a. OS 'a => 'a -> string
 let print_shell_env os = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) (get_shell_state os).env ""
 
-val lookup_positional_param : nat -> ty_os_state -> maybe symbolic_string
+val lookup_positional_param : forall 'a. OS 'a => nat -> 'a -> maybe symbolic_string
 let lookup_positional_param num os =
+  let sh = get_shell_state os in
   if num = 0
-  then Just (symbolic_string_of_string os.sh.script_name)
+  then Just (symbolic_string_of_string sh.script_name)
   (* -1 for positional param offset (ie, $0 is stored elsewhere *)
-  else index os.sh.positional_params (num - 1)
+  else index sh.positional_params (num - 1)
 
 (* The result is nothing if the parameter is unset, and the empty string null. *)
-val lookup_param : ty_os_state -> string -> maybe symbolic_string
-let lookup_param s0 str =
+val lookup_param : forall 'a. OS 'a => 'a -> string -> maybe symbolic_string
+let lookup_param os str =
+  let sh = get_shell_state os in
   match (readNat (toCharList str),str) with
-  | (Right num,_) -> lookup_positional_param num s0
+  | (Right num,_) -> lookup_positional_param num os
   | (Left _,"@") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as fields *)
   | (Left _,"*") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as a string *)
-  | (Left _,"#") -> Just (symbolic_string_of_string (stringFromNat (length s0.sh.positional_params))) (* number of positional arguments *)
+  | (Left _,"#") -> Just (symbolic_string_of_string (stringFromNat (length sh.positional_params))) (* number of positional arguments *)
   | (Left _,"!") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* last pid *)
   | (Left _,"-") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* current option flags *)
   | (Left _,"$") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* shell pid *)
-  | (Left _,_) -> Map.lookup str s0.sh.env
+  | (Left _,_) -> Map.lookup str sh.env
   end
 
-val lookup_concrete_param : ty_os_state -> string -> maybe string
-let lookup_concrete_param s0 str =
-  match Map.lookup str s0.sh.env with
+val lookup_concrete_param : forall 'a. OS 'a => 'a -> string -> maybe string
+let lookup_concrete_param os str =
+  match lookup_param os str with
   | Nothing -> Nothing
   | Just fs -> try_concrete fs
   end
