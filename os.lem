@@ -24,7 +24,18 @@ let STDERR = 2
 type file 'a = File | Dir of 'a
                            
 type path = string
-         
+
+val path_dotdot_rev_cl : list char -> list char
+let rec path_dotdot_rev_cl path =
+  match path with
+  | [] -> [#'/'] (* stop at the root *)
+  | #'/'::rest -> rest
+  | _::rest -> path_dotdot_rev_cl rest
+  end
+                            
+val dotdot : path -> path
+let dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
+          
 class ( OS 'a )
   val get_shell_state : 'a -> ty_shell_state
   val set_shell_state : ty_shell_state -> 'a -> 'a
@@ -59,20 +70,9 @@ let symbolic_fs_subdir fs name =
   | Just (Dir fs) -> Just fs
   | _ -> Nothing
   end
-
-val path_dotdot_rev_cl : list char -> list char
-let rec path_dotdot_rev_cl path =
-  match path with
-  | [] -> [#'/'] (* stop at the root *)
-  | #'/'::rest -> rest
-  | _::rest -> path_dotdot_rev_cl rest
-  end
-                            
-val path_dotdot : path -> path
-let path_dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
    
-val resolve_path_cl : symbolic_fs -> list char -> symbolic_fs
-let rec resolve_path_cl fs cs =
+val symbolic_fs_resolve_path_cl : symbolic_fs -> list char -> symbolic_fs
+let rec symbolic_fs_resolve_path_cl fs cs =
   (* just quit if we're done *)
   if null cs then fs else
   (* otherwise, split off a slash *)
@@ -84,18 +84,18 @@ let rec resolve_path_cl fs cs =
     end in
   (* and try to change directories *)
   match dir with
-  | [] -> resolve_path_cl fs rest
-  | [#'.'] -> resolve_path_cl fs rest
-  | [#'.';#'.']-> resolve_path_cl (symbolic_fs_dotdot fs) rest
+  | [] -> symbolic_fs_resolve_path_cl fs rest
+  | [#'.'] -> symbolic_fs_resolve_path_cl fs rest
+  | [#'.';#'.']-> symbolic_fs_resolve_path_cl (symbolic_fs_dotdot fs) rest
   | _ -> 
      match symbolic_fs_subdir fs (toString dir) with
-     | Just fs' -> resolve_path_cl fs' rest
+     | Just fs' -> symbolic_fs_resolve_path_cl fs' rest
      | _ -> fs (* ??? *)
      end
   end
 
-val resolve_path : symbolic_fs -> string -> symbolic_fs
-let resolve_path fs path = resolve_path_cl fs (toCharList path)  
+val symbolic_fs_resolve_path : symbolic_fs -> string -> symbolic_fs
+let symbolic_fs_resolve_path fs path = symbolic_fs_resolve_path_cl fs (toCharList path)  
 
 (* empty FS/OS for testing purposes *)    
 let fs_empty =
@@ -293,5 +293,5 @@ instance (OS symbolic_os_state)
          end))
       (* Only compare equality for the set based on the keys.
        * Comparing equality of a non-trivial file system will loop infinitely. *)
-      (toSetBy compare_by_first (resolve_path os.fs_root path).contents)
+      (toSetBy compare_by_first (symbolic_fs_resolve_path os.fs_root path).contents)
 end
