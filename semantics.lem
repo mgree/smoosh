@@ -228,7 +228,7 @@ let quote_removal f =
  * Stage 1 Expansion: Word expansion
  *)
 
-val expand_param : ty_os_state -> quoting_mode -> string -> format -> words
+val expand_param : forall 'a. OS 'a => 'a -> quoting_mode -> string -> format -> words
 (* Runs expansion all the way, for testing purposes only *)
 val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
 
