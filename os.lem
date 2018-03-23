@@ -11,13 +11,10 @@ let STDERR = 2
 (* FS/OS CLASS ********************************************************)
 (**********************************************************************)
 
-(* TODO 2018-03-12
+(* TODO 2018-03-23
 
    define OS class
      system calls (execve, etc.)
-     FS functionality
-       trickiness: no obvious way to embed an existential :(
-       possible solution: always use strings for the fs and then resolve?
 
      offer _some_ symbolic stuff there, but focus on getting the syscalls going
 
@@ -26,14 +23,6 @@ let STDERR = 2
 
 type file 'a = File | Dir of 'a
                            
-class ( FS 'a )
-  val fs_file_exists : 'a -> string -> bool
-  val fs_is_dir : 'a -> string -> bool
-  val fs_is_file : 'a -> string -> bool
-  val fs_dotdot : 'a -> 'a
-  val fs_subdir : 'a -> string -> maybe 'a
-end
-
 type path = string
          
 class ( OS 'a )
@@ -59,39 +48,17 @@ type symbolic_fs = <|
 
 type fs = symbolic_fs (* shim *)
 
-instance (FS symbolic_fs)
-  let fs_file_exists f name = 
-    match Map.lookup name f.contents with
-    | Nothing -> false
-    | Just _ -> true
-    end
+let symbolic_fs_dotdot fs =
+  match fs.parent with
+  | Nothing -> fs
+  | Just fs' -> fs'
+  end
 
-  let fs_is_dir f name = 
-    match Map.lookup name f.contents with
-    | Just File -> false
-    | Just (Dir _) -> true
-    | Nothing -> false (* ??? *)
-    end
-  
-  let fs_is_file f name = 
-    match Map.lookup name f.contents with
-    | Just File -> true
-    | Just (Dir _) -> false
-    | Nothing -> false (* ??? *)
-    end
-
-  let fs_dotdot fs =
-    match fs.parent with
-    | Nothing -> fs
-    | Just fs' -> fs'
-    end
-
-  let fs_subdir fs name = 
-    match Map.lookup name fs.contents with
-    | Just (Dir fs) -> Just fs
-    | _ -> Nothing
-    end
-end
+let symbolic_fs_subdir fs name = 
+  match Map.lookup name fs.contents with
+  | Just (Dir fs) -> Just fs
+  | _ -> Nothing
+  end
 
 val path_dotdot_rev_cl : list char -> list char
 let rec path_dotdot_rev_cl path =
@@ -104,7 +71,7 @@ let rec path_dotdot_rev_cl path =
 val path_dotdot : path -> path
 let path_dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
    
-val resolve_path_cl : forall 'a. FS 'a => 'a -> list char -> 'a
+val resolve_path_cl : symbolic_fs -> list char -> symbolic_fs
 let rec resolve_path_cl fs cs =
   (* just quit if we're done *)
   if null cs then fs else
@@ -119,15 +86,15 @@ let rec resolve_path_cl fs cs =
   match dir with
   | [] -> resolve_path_cl fs rest
   | [#'.'] -> resolve_path_cl fs rest
-  | [#'.';#'.']-> resolve_path_cl (fs_dotdot fs) rest
+  | [#'.';#'.']-> resolve_path_cl (symbolic_fs_dotdot fs) rest
   | _ -> 
-     match fs_subdir fs (toString dir) with
+     match symbolic_fs_subdir fs (toString dir) with
      | Just fs' -> resolve_path_cl fs' rest
      | _ -> fs (* ??? *)
      end
   end
 
-val resolve_path : forall 'a. FS 'a => 'a -> string -> 'a
+val resolve_path : symbolic_fs -> string -> symbolic_fs
 let resolve_path fs path = resolve_path_cl fs (toCharList path)  
 
 (* empty FS/OS for testing purposes *)    
