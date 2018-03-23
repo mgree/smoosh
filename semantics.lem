@@ -854,9 +854,72 @@ $ count $(${x? one two three}) four
               will set x to 5, y to 3, and create an empty file named 3
       *)
      Right (s0, Done, XSSimple "ran empty command")
-  | Pipe bg stmts -> 
-     (* generate fifos between each statement *)
-     let (s1,_pipe_fifos) = mkfifos s0 (length stmts - 1) in
+  | Pipe bg _stmts ->
+     (* from dash eval.c
+/*
+ * Evaluate a pipeline.  All the processes in the pipeline are children
+ * of the process creating the pipeline.  (This differs from some versions
+ * of the shell, which make the last process in a pipeline the parent
+ * of all the rest.)
+ */
+
+STATIC int
+evalpipe(union node *n, int flags)
+{
+	struct job *jp;
+	struct nodelist *lp;
+	int pipelen;
+	int prevfd;
+	int pip[2];
+	int status = 0;
+
+	TRACE(("evalpipe(0x%lx) called\n", (long)n));
+	pipelen = 0;
+	for (lp = n->npipe.cmdlist ; lp ; lp = lp->next)
+		pipelen++;
+	flags |= EV_EXIT;
+	INTOFF;
+	jp = makejob(n, pipelen);
+	prevfd = -1;
+	for (lp = n->npipe.cmdlist ; lp ; lp = lp->next) {
+		prehash(lp->n);
+		pip[1] = -1;
+		if (lp->next) {
+			if (pipe(pip) < 0) {
+				close(prevfd);
+				sh_error("Pipe call failed");
+			}
+		}
+		if (forkshell(jp, lp->n, n->npipe.backgnd) == 0) {
+			INTON;
+			if (pip[1] >= 0) {
+				close(pip[0]);
+			}
+			if (prevfd > 0) {
+				dup2(prevfd, 0);
+				close(prevfd);
+			}
+			if (pip[1] > 1) {
+				dup2(pip[1], 1);
+				close(pip[1]);
+			}
+			evaltreenr(lp->n, flags);
+			/* never returns */
+		}
+		if (prevfd >= 0)
+			close(prevfd);
+		prevfd = pip[0];
+		close(pip[1]);
+	}
+	if (n->npipe.backgnd == 0) {
+		status = waitforjob(jp);
+		TRACE(("evalpipe:  job done exit status %d\n", status));
+	}
+	INTON;
+
+	return status;
+}
+      *)
      (* TODO 2018-02-09 spawn each process with fds set appropriately 
 
         builds fds1 ... fdsn such that:
@@ -876,7 +939,7 @@ $ count $(${x? one two three}) four
         then spawn each subshell in its own fds
       *)     
      let last_pid = 0 in (* TODO 2018-03-02 use actual spawned pid *)
-     Right (s1,if bg then Done else Wait last_pid,XSPipe "started pipe")
+     Right (s0,if bg then Done else Wait last_pid,XSPipe "started pipe")
   | Redir _stmt' _redirs -> Left (s0, XSRedir "TODO")
   | Background _stmt' _redirs -> Left (s0, XSBackground "TODO")
   | Subshell _stmt' _redirs -> Left (s0, XSSubshell "TODO")

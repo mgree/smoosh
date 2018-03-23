@@ -22,8 +22,12 @@ let STDERR = 2
  *)
 
 type file 'a = File | Dir of 'a
-                           
+
 type path = string
+
+type fd_tgt = FD of nat | Path of path
+                           
+type fds = Map.map fd fd_tgt
 
 val path_dotdot_rev_cl : list char -> list char
 let rec path_dotdot_rev_cl path =
@@ -39,9 +43,16 @@ let dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList pat
 class ( OS 'a )
   val get_shell_state : 'a -> ty_shell_state
   val set_shell_state : ty_shell_state -> 'a -> 'a
-  val getpwnam : 'a -> string -> maybe string
 
+  (* SYSTEM CALLS *)
+  val getpwnam : 'a -> string -> maybe string
+  val execve : 'a -> symbolic_string -> list symbolic_string -> env -> fds -> 'a * nat
+
+  (* FS CALLS *)
   val readdir : 'a -> path -> set (path * file unit)
+  val write_fd : 'a -> fd -> string -> maybe 'a
+  val read_fd : 'a -> fd -> maybe ('a * string)
+
 end
 
 (**********************************************************************)
@@ -107,11 +118,9 @@ let fs_empty =
 (* SYMBOLIC OS STATE **************************************************)
 (**********************************************************************)
 
-(* FIFO pipes *)             
+(* FIFO pipes for symbolic FDs *)             
 type fifo = string
-
-and fds = Map.map fd nat (* index into global fifo list *)
-
+          
 and proc =
     Execve of symbolic_string (* command *) * list symbolic_string (* args *) * env * fds
   | Shell of ty_shell_state * fds
@@ -128,7 +137,7 @@ and symbolic_os_state = <|
 type ty_os_state = symbolic_os_state (* shim *)
 
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
-let fds_default : fds = Map.insert STDIN 0 (Map.insert STDOUT 1 (Map.insert STDERR 2 Map.empty))
+let fds_default : fds = Map.insert STDIN (FD 0) (Map.insert STDOUT (FD 1) (Map.insert STDERR (FD 2) Map.empty))
     
 let os_empty : symbolic_os_state = <|
     sh = default_shell_state;
@@ -209,19 +218,8 @@ let exit_loop os =
   update_shell_state
     (fun sh -> <| sh with loop_nest = sh.loop_nest - 1 |>) os
 
-val mkfifo : ty_os_state -> ty_os_state * nat
-let mkfifo os =
-  let fifo_num = length os.fifos in
-  (<| os with fifos = os.fifos ++ [""] |>, fifo_num)
-
-val mkfifos : ty_os_state -> nat -> ty_os_state * list nat 
-let rec mkfifos os0 n =
-  match n with
-  | 0 -> (os0, [])
-  | _ -> let (os1,fifo) = mkfifo os0 in 
-         let (os2,fifos) = mkfifos os1 (n-1) in
-         (os2,fifo::fifos)
-  end
+(***********************************************************************)
+(* UNCONVERTED *********************************************************)
 
 val adjust_nth : forall 'a 'b. list 'a -> nat -> ('a -> 'a * 'b) -> maybe (list 'a * 'b)
 let rec adjust_nth l n f =
@@ -237,39 +235,14 @@ let rec adjust_nth l n f =
      end
   end
   
-val write_fifo : ty_os_state -> nat -> string -> maybe ty_os_state
-let write_fifo os fifo_num s =
-  match adjust_nth os.fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
-  | Nothing -> Nothing
-  | Just (new_fifos,()) -> Just <| os with fifos = new_fifos |>
-  end
-
-val read_fifo : ty_os_state -> nat -> maybe (ty_os_state * string)
-let read_fifo os fifo_num =
-  match adjust_nth os.fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
-  | Nothing -> Nothing
-  | Just (new_fifos,s) -> Just (<| os with fifos = new_fifos |>, s)
-  end
-
-val print_stderr : ty_os_state -> string -> ty_os_state
+val print_stderr : forall 'a. OS 'a => 'a -> string -> 'a
 let print_stderr os msg = 
   (* lookup where STDERR is pointing *)
-  match Map.lookup STDERR os.sh_fds with
-  | Just fifo_num -> 
-     match write_fifo os fifo_num msg with
+  match write_fd os STDERR msg with
      (* TODO 2018-03-02 is this the right behavior when STDERR points to a bad fifo? *)
      | Nothing -> os
      | Just os -> os
-     end
-  (* TODO 2018-03-02 is this the right behavior when STDERR doesn't exist? *)
-  | Nothing -> os
   end
-
-val execve : ty_os_state -> symbolic_string -> list symbolic_string -> env -> fds -> ty_os_state * nat
-let execve os prog argv env fds =
-  (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
-  let proc_num = length os.procs in
-  (<| os with procs = os.procs ++ [Execve prog argv env fds] |>, proc_num)
 
 (**********************************************************************)
 (* SYMBOLIC SHELL STATE ***********************************************)
@@ -277,11 +250,25 @@ let execve os prog argv env fds =
 
 val compare_by_first : forall 'a 'b. Ord 'a => ('a * 'b) -> ('a * 'b) -> ordering
 let compare_by_first (a, _) (a', _) = compare a a'
+
+val symbolic_resolve_fd : symbolic_os_state -> fd -> maybe nat
+let symbolic_resolve_fd os fd =
+  match Map.lookup fd os.sh_fds with
+  | Just (FD fifo_num) -> Just fifo_num
+  (* TODO 2018-03-23 is this the right behavior when fd points to a file? *)   
+  (* TODO 2018-03-02 is this the right behavior when fd doesn't exist? *)
+  | _ -> Nothing
+  end
     
 instance (OS symbolic_os_state)
   let get_shell_state os = os.sh
   let set_shell_state new_sh os = <| os with sh = new_sh |>
   let getpwnam os u = Map.lookup u os.passwd
+
+  let execve os prog argv env fds =
+    (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
+    let proc_num = length os.procs in
+    (<| os with procs = os.procs ++ [Execve prog argv env fds] |>, proc_num)
                                    
   let readdir os path =
     Set.map (fun (name,file) ->
@@ -293,10 +280,45 @@ instance (OS symbolic_os_state)
       (* Only compare equality for the set based on the keys.
        * Comparing equality of a non-trivial file system will loop infinitely. *)
       (toSetBy compare_by_first (symbolic_fs_resolve_path os.fs_root path).contents)
+
+  let write_fd os fd s =
+    match symbolic_resolve_fd os fd with
+    | Just fifo_num ->
+      match adjust_nth os.fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
+      | Nothing -> Nothing
+      | Just (new_fifos,()) -> Just <| os with fifos = new_fifos |>
+      end
+    | Nothing -> Nothing
+    end
+  
+  let read_fd os fd =
+    match symbolic_resolve_fd os fd with
+    | Just fifo_num ->
+      match adjust_nth os.fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
+      | Nothing -> Nothing
+      | Just (new_fifos,s) -> Just (<| os with fifos = new_fifos |>, s)
+      end
+    | Nothing -> Nothing
+  end
+
 end
 
 val set_pwdir : string -> string -> symbolic_os_state -> symbolic_os_state
 let set_pwdir u d os = <| os with passwd = Map.insert u d (os.passwd) |>
+
+val mkfifo : symbolic_os_state -> symbolic_os_state * nat  
+let mkfifo os =
+  let fifo_num = length os.fifos in
+  (<| os with fifos = os.fifos ++ [""] |>, fifo_num)
+
+val mkfifos : symbolic_os_state -> nat -> symbolic_os_state * list nat 
+let rec mkfifos os0 n =
+  match n with
+  | 0 -> (os0, [])
+  | _ -> let (os1,fifo) = mkfifo os0 in 
+         let (os2,fifos) = mkfifos os1 (n-1) in
+         (os2,fifo::fifos)
+  end
    
 (* specialized functions to avoid manual instantiation of typeclasses in OCaml *)   
 val symbolic_set_param : string -> symbolic_string -> symbolic_os_state -> symbolic_os_state
