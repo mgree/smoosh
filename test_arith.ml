@@ -73,15 +73,15 @@ let eval_equals out expected =
   | _ -> false
 
 let check_eval_big_num (name, state, input, expected_out) =
-  checker (arith_big_num state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
+  checker (symbolic_arith_big_num state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
     either_monad (fun (st, n) -> Right (st, integerToFields n)) expected_out)
 
 let check_eval_int32 (name, state, input, expected_out) =
-  checker (arith32 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
+  checker (symbolic_arith32 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
     either_monad (fun (st, n) -> Right (st, int32ToFields n)) expected_out)
 
 let check_eval_int64 (name, state, input, expected_out) =
-  checker (arith64 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
+  checker (symbolic_arith64 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
     either_monad (fun (st, n) -> Right (st, int64ToFields n)) expected_out)
 
 let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either.either)list=

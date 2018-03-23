@@ -243,8 +243,6 @@ and evaluation_step =
 (* SHELL STATE ********************************************************)
 (**********************************************************************)
 
-(* TODO 2018-02-09 longer term: type class abstracing over OS functions, allowing for ACTUAL OS state *)
-              
 (* File descriptors *)         
 and fd = nat
       

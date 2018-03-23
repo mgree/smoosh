@@ -16,32 +16,38 @@ type quoting_mode =
     Unquoted
   | Quoted
 
-val expand_control : ty_os_state -> quoting_mode -> control ->
-                     either (expansion_step * ty_os_state * expanded_words) 
-                            (expansion_step * ty_os_state * expanded_words * words)
-val expand_words : ty_os_state -> quoting_mode -> string_mode -> (expanded_words * words) ->
-                   either (expansion_step * ty_os_state * expanded_words) 
-                          (expansion_step * ty_os_state * expanded_words * words)
-val step_expansion : ty_os_state * expansion_state -> 
-                     ty_os_state * expansion_state * expansion_step
-val step_assign : ty_os_state -> list (string * expansion_state) ->
-                  either (ty_os_state * list (string * fields)) (* Done state *)
-                         (ty_os_state * list (string * expansion_state) * evaluation_step) (* In progress *)
+val expand_control : forall 'a. OS 'a => 
+                     'a -> quoting_mode -> control ->
+                     either (expansion_step * 'a * expanded_words) 
+                            (expansion_step * 'a * expanded_words * words) 
+val expand_words : forall 'a. OS 'a => 
+                   'a -> quoting_mode -> string_mode -> (expanded_words * words) ->
+                   either (expansion_step * 'a * expanded_words) 
+                          (expansion_step * 'a * expanded_words * words) 
+val step_expansion : forall 'a. OS 'a =>
+                     'a * expansion_state -> 
+                     'a * expansion_state * expansion_step 
+val step_assign : forall 'a. OS 'a => 
+                  'a -> list (string * expansion_state) ->
+                  either ('a * list (string * fields)) (* Done state *)
+                         ('a * list (string * expansion_state) * evaluation_step) 
 
-val run_command : ty_os_state -> 
+val run_command : forall 'a. OS 'a => 
+                  'a -> 
                   symbolic_string (* prog *) -> 
                   fields (* argv *) ->
                   env ->
                   fds ->
-                  either (ty_os_state * string) (ty_os_state * stmt)
-val step_eval : ty_os_state -> stmt -> 
-                either (ty_os_state * evaluation_step) (* error case *)
-                       (ty_os_state * stmt * evaluation_step) (* success *)
+                  either ('a * string) ('a * stmt)
+val step_eval : forall 'a. OS 'a =>
+                'a -> stmt -> 
+                either ('a * evaluation_step) (* error case *)
+                       ('a * stmt * evaluation_step) (* success *)
 
-val exit_with : nat -> ty_os_state -> ty_os_state
+val exit_with : forall 'a. OS 'a => nat -> 'a -> 'a
 let exit_with ec os = set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
 
-val last_pid : nat -> ty_os_state -> ty_os_state
+val last_pid : forall 'a. OS 'a => nat -> 'a -> 'a
 let last_pid pid os = set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
 
 val is_special_builtin : string -> bool
@@ -230,7 +236,7 @@ let quote_removal f =
 
 val expand_param : forall 'a. OS 'a => 'a -> quoting_mode -> string -> format -> words
 (* Runs expansion all the way, for testing purposes only *)
-val control_code_expansion : ty_os_state -> quoting_mode -> words -> (ty_os_state * expanded_words)
+val control_code_expansion : forall 'a. OS 'a => 'a -> quoting_mode -> words -> ('a * expanded_words)
 
 let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
   let sympat : symbolic_string = (concat_expanded pat) in
@@ -365,7 +371,7 @@ let rec expand_control s0 q k =
     | Backtick c ->
        Right (ESCommand "initializing subshell", s0, [], [K (LBacktick (get_shell_state s0) c c)]) (* TODO should set up pipes *)
     | LBacktick subsh corig c0 ->
-       match step_eval <| s0 with sh = subsh |> c0 with
+       match step_eval (set_shell_state subsh s0) c0 with
        (* When a subshell errors, it should evaluate to the null string and print its error message. *)
        | Left (s1, step) -> Right (ESEval (ESCommand "command exited with error") step, set_shell_state (get_shell_state s0) s1, [], [])
        (* The shell shall expand the command substitution by executing
@@ -840,8 +846,8 @@ $ count $(${x? one two three}) four
            Map.insert x (symbolic_string_of_fields f) env') 
          (get_shell_state s0).env assigns
      in
-     (* TODO 2018-02-09 setup redirects *)
-     let fds = s0.sh_fds in
+     (* TODO 2018-02-09 setup redirects using current shell state *)
+     let fds = fds_default in
      (* run command *)
      match run_command s0 prog args env fds with
      | Right (s1,stmt') -> Right (s1, stmt', XSSimple ("running " ^ string_of_symbolic_string prog))
@@ -1164,7 +1170,7 @@ lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x 
 (* TODO 2018-01-26 limit the amount of trace generated (for while, etc) *)
 (* These functions are for testing and the expansion tool. *)
 
-val run_trace_expansion : ty_os_state * expansion_state -> list (ty_os_state * expansion_state * expansion_step)
+val run_trace_expansion : symbolic_os_state * expansion_state -> list (symbolic_os_state * expansion_state * expansion_step)
 let rec run_trace_expansion (os0,st0) =
   match st0 with
   | ExpError _ -> []
@@ -1174,7 +1180,7 @@ let rec run_trace_expansion (os0,st0) =
      (os1,st1,step)::run_trace_expansion (os1,st1)
   end
 
-val trace_expansion : ty_os_state -> words -> list (ty_os_state * expansion_state * expansion_step)
+val trace_expansion : symbolic_os_state -> words -> list (symbolic_os_state * expansion_state * expansion_step)
 let trace_expansion os0 w0 = 
   (os0,ExpStart w0, ESStep "")::run_trace_expansion (os0, ExpStart w0)
 
@@ -1185,7 +1191,7 @@ let trace_expansion os0 w0 =
    because we're not keeping track of whether the result was a message
    printed to stderr or the actual result of expansion
  *)
-val full_expansion : ty_os_state -> words -> ty_os_state * fields
+val full_expansion : symbolic_os_state -> words -> symbolic_os_state * fields
 let full_expansion s0 w0 =
   let (s1,f1,_) = last (trace_expansion s0 w0) in
   match f1 with
@@ -1194,7 +1200,7 @@ let full_expansion s0 w0 =
   | _ -> (s1, [symbolic_string_of_string "!!! broken invariant"])
   end
 
-val run_trace_evaluation : ty_os_state -> stmt -> list (ty_os_state * stmt * evaluation_step)
+val run_trace_evaluation : symbolic_os_state -> stmt -> list (symbolic_os_state * stmt * evaluation_step)
 let rec run_trace_evaluation os0 stmt0 =
   match stmt0 with
   | Done -> []
@@ -1205,10 +1211,10 @@ let rec run_trace_evaluation os0 stmt0 =
       end
   end
 
-val trace_evaluation : ty_os_state -> stmt -> list (ty_os_state * stmt * evaluation_step)
+val trace_evaluation : symbolic_os_state -> stmt -> list (symbolic_os_state * stmt * evaluation_step)
 let trace_evaluation os0 stmt0 = (os0,stmt0,XSStep "")::run_trace_evaluation os0 stmt0
 
-val trace_evaluation_multi : ty_os_state -> list stmt -> list (ty_os_state * stmt * evaluation_step)
+val trace_evaluation_multi : symbolic_os_state -> list stmt -> list (symbolic_os_state * stmt * evaluation_step)
 let rec trace_evaluation_multi os0 stmts =
   match stmts with
   | [] -> []
