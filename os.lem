@@ -25,8 +25,8 @@ type file 'a = File | Dir of 'a
 
 type path = string
 
+(* data structures for managing redirections (will translate to close/dup2/pipe calls) *)
 type fd_tgt = FD of nat | Path of path
-                           
 type fds = Map.map fd fd_tgt
 
 val path_dotdot_rev_cl : list char -> list char
