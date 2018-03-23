@@ -76,7 +76,7 @@ let test_part name checker stringOfExpected tests count failed =
 let run_tests () =
   let failed = ref 0 in
   let test_count = ref 0 in
-  let prnt = fun (s, n) -> ("<| " ^ (print_shell_env s) ^ "; " ^ (Fsh.fields_to_string n) ^ " |>") in
+  let prnt = fun (s, n) -> ("<| " ^ (symbolic_print_shell_env s) ^ "; " ^ (Fsh.fields_to_string n) ^ " |>") in
   print_endline "\n=== Running path/fs tests...";
   (* core path matching tests *)
   test_part "Match path" check_match_path show_list match_path_tests test_count failed;

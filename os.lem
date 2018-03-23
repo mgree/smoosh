@@ -146,8 +146,8 @@ let os_empty : ty_os_state = <|
 (* SHELL/OS STATE FUNCTIONS *******************************************)
 (**********************************************************************)
    
-val print_shell_env : ty_os_state -> string
-let print_shell_env st = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) st.sh.env ""
+val print_shell_env : forall 'a. OS 'a => 'a -> string
+let print_shell_env os = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) (get_shell_state os).env ""
 
 val lookup_positional_param : nat -> ty_os_state -> maybe symbolic_string
 let lookup_positional_param num os =
@@ -296,5 +296,9 @@ instance (OS symbolic_os_state)
       (toSetBy compare_by_first (symbolic_fs_resolve_path os.fs_root path).contents)
 end
 
+(* specialized functions to avoid manual instantiation of typeclasses in OCaml *)   
 val symbolic_set_param : string -> symbolic_string -> symbolic_os_state -> symbolic_os_state
 let symbolic_set_param = set_param
+
+val symbolic_print_shell_env : symbolic_os_state -> string
+let symbolic_print_shell_env os = print_shell_env os
