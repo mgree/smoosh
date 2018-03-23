@@ -177,9 +177,6 @@ let lookup_concrete_param s0 str =
   | Just fs -> try_concrete fs
   end
 
-val set_param : string -> symbolic_string -> ty_os_state -> ty_os_state
-let set_param x v os = <| os with sh = <| os.sh with env = Map.insert x v os.sh.env |> |>
-
 val defun : string -> stmt -> ty_os_state -> ty_os_state
 let defun name body os = <| os with sh = <| os.sh with funcs = Map.insert name body os.sh.funcs |> |>
 
@@ -190,6 +187,9 @@ val update_shell_state : forall 'a. OS 'a => (ty_shell_state -> ty_shell_state) 
 let update_shell_state update os =
   set_shell_state (update (get_shell_state os)) os
 
+val set_param : forall 'a. OS 'a => string -> symbolic_string -> 'a -> 'a
+let set_param x v os = update_shell_state (fun sh -> <| sh with env = Map.insert x v sh.env |>) os
+  
 val set_function_params : forall 'a. OS 'a => nat -> fields -> 'a -> 'a
 let set_function_params ln argv os =
   update_shell_state (fun sh -> <| sh with loop_nest = ln; positional_params = argv |>) os
@@ -295,3 +295,6 @@ instance (OS symbolic_os_state)
        * Comparing equality of a non-trivial file system will loop infinitely. *)
       (toSetBy compare_by_first (symbolic_fs_resolve_path os.fs_root path).contents)
 end
+
+val symbolic_set_param : string -> symbolic_string -> symbolic_os_state -> symbolic_os_state
+let symbolic_set_param = set_param
