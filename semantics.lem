@@ -75,9 +75,9 @@ val collect_non_ifs : list char -> list char -> (list char) * (list char)
 (*val collect_ifs_whitespace : list char -> list char -> list char*)
 val split_expstring : list char -> list char -> intermediate_fields
 val split_word : list char -> (intermediate_fields * expanded_words) -> (intermediate_fields * expanded_words)
-val split_fields : ty_os_state -> expanded_words -> intermediate_fields
+val split_fields : forall 'a. OS 'a => 'a -> expanded_words -> intermediate_fields
 val clean_fields : intermediate_fields -> intermediate_fields
-val field_splitting: ty_os_state -> expanded_words -> intermediate_fields
+val field_splitting : forall 'a. OS 'a => 'a -> expanded_words -> intermediate_fields
 
 let is_ws c = elem c (toCharList " \n\t")
 
