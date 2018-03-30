@@ -11,9 +11,15 @@ open Printf
 let version = "0.1"
 
 let verbose = ref false
+let gas = ref 500
 let input_src : string option ref = ref None
 let initial_os_state : ty_os_state ref = ref os_empty
-                                             
+
+let set_gas n =
+  if n <= 0
+  then eprintf "Number of steps must be a positive number (given %d; will use %d)" n !gas
+  else gas := n
+                                       
 let set_input_src () =
   match !input_src with
   | None -> Dash.setinputtostdin ()
@@ -65,6 +71,7 @@ let load_dirs (f:string) =
 let parse_args () =
   Arg.parse
     ["-v",Arg.Set verbose,"verbose mode";
+     "-c",Arg.Int set_gas,"maximum number of steps in trace (default 500)";
      "-env-file",Arg.String load_env,"file containing environment (one var=value per line; no need for quotes)";
      "-env-ambient",Arg.Unit ambient_env,"use the ambient environment";
      "-user-file",Arg.String load_dirs,"file containing username/directory pairings for tilde expansion (one username=dir per line)"
@@ -93,7 +100,7 @@ let main () =
   set_input_src ();
   let ns = Dash.parse_all () in
   let cs = List.map Shim.of_node ns in
-  show_trace (trace_evaluation_multi 500 !initial_os_state cs);;
+  show_trace (trace_evaluation_multi !gas !initial_os_state cs);;
 
 main ()
 
