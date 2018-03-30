@@ -1170,56 +1170,79 @@ lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x 
 (* TODO 2018-01-26 limit the amount of trace generated (for while, etc) *)
 (* These functions are for testing and the expansion tool. *)
 
-val run_trace_expansion : symbolic_os_state * expansion_state -> list (symbolic_os_state * expansion_state * expansion_step)
-let rec run_trace_expansion (os0,st0) =
-  match st0 with
+(* Expansion **********************************************************)
+   
+val run_trace_expansion : nat -> symbolic_os_state * expansion_state -> list (symbolic_os_state * expansion_state * expansion_step)
+let rec run_trace_expansion gas (os0,st0) =
+  if gas <= 0
+  then [(os0,st0,ESStep "out of gas")]
+  else match st0 with
   | ExpError _ -> []
   | ExpDone _ -> []
   | _ -> 
      let (os1,st1,step) = step_expansion (os0,st0) in
-     (os1,st1,step)::run_trace_expansion (os1,st1)
+     (os1,st1,step)::run_trace_expansion (gas-1) (os1,st1)
   end
+  
+val trace_expansion : nat -> symbolic_os_state -> words -> list (symbolic_os_state * expansion_state * expansion_step)
+let trace_expansion gas os0 w0 = 
+  (os0,ExpStart w0, ESStep "")::run_trace_expansion gas (os0, ExpStart w0)
 
-val trace_expansion : symbolic_os_state -> words -> list (symbolic_os_state * expansion_state * expansion_step)
-let trace_expansion os0 w0 = 
-  (os0,ExpStart w0, ESStep "")::run_trace_expansion (os0, ExpStart w0)
-
-(* function for testing final expansion results (used in
+(* unbounded functions for testing final expansion results (used in
    test_expansion.ml)
 
    this function is a little unfaithful to the expansion semantics
    because we're not keeping track of whether the result was a message
    printed to stderr or the actual result of expansion
  *)
+val run_trace_expansion_unbounded : symbolic_os_state * expansion_state -> list (symbolic_os_state * expansion_state * expansion_step)
+let rec run_trace_expansion_unbounded (os0,st0) =
+  match st0 with
+  | ExpError _ -> []
+  | ExpDone _ -> []
+  | _ -> 
+     let (os1,st1,step) = step_expansion (os0,st0) in
+     (os1,st1,step)::run_trace_expansion_unbounded (os1,st1)
+  end
+
+val trace_expansion_unbounded : symbolic_os_state -> words -> list (symbolic_os_state * expansion_state * expansion_step)
+let trace_expansion_unbounded os0 w0 = 
+  (os0,ExpStart w0, ESStep "")::run_trace_expansion_unbounded (os0, ExpStart w0)
+
 val full_expansion : symbolic_os_state -> words -> symbolic_os_state * fields
 let full_expansion s0 w0 =
-  let (s1,f1,_) = last (trace_expansion s0 w0) in
+  let (s1,f1,_) = last (trace_expansion_unbounded s0 w0) in
   match f1 with
   | ExpError f -> (s1, f)
   | ExpDone f -> (s1, f)
   | _ -> (s1, [symbolic_string_of_string "!!! broken invariant"])
   end
 
-val run_trace_evaluation : symbolic_os_state -> stmt -> list (symbolic_os_state * stmt * evaluation_step)
-let rec run_trace_evaluation os0 stmt0 =
-  match stmt0 with
+(* Evaluation **********************************************************)
+   
+val run_trace_evaluation : nat -> symbolic_os_state -> stmt -> list (symbolic_os_state * stmt * evaluation_step)
+let rec run_trace_evaluation gas os0 stmt0 =
+  if gas <= 0
+  then [(os0,stmt0,XSStep "out of gas")]
+  else match stmt0 with
   | Done -> []
   | _ ->
       match step_eval os0 stmt0 with
-      | Right (os1, stmt1, step) -> (os1, stmt1, step)::run_trace_evaluation os1 stmt1
+      | Right (os1, stmt1, step) -> (os1, stmt1, step)::run_trace_evaluation (gas-1) os1 stmt1
       | Left (os1, step) -> [(os1, Done, step)]
       end
   end
 
-val trace_evaluation : symbolic_os_state -> stmt -> list (symbolic_os_state * stmt * evaluation_step)
-let trace_evaluation os0 stmt0 = (os0,stmt0,XSStep "")::run_trace_evaluation os0 stmt0
+val trace_evaluation : nat -> symbolic_os_state -> stmt -> list (symbolic_os_state * stmt * evaluation_step)
+let trace_evaluation gas os0 stmt0 = (os0,stmt0,XSStep "")::run_trace_evaluation gas os0 stmt0
 
-val trace_evaluation_multi : symbolic_os_state -> list stmt -> list (symbolic_os_state * stmt * evaluation_step)
-let rec trace_evaluation_multi os0 stmts =
+(* TODO 2018-03-30 cleverer use of gas/limit number of commands *)
+val trace_evaluation_multi : nat -> symbolic_os_state -> list stmt -> list (symbolic_os_state * stmt * evaluation_step)
+let rec trace_evaluation_multi gas os0 stmts =
   match stmts with
   | [] -> []
   | (stmt::stmts') -> 
-     let trace = trace_evaluation os0 stmt in
+     let trace = trace_evaluation gas os0 stmt in
      let (os1,_,_) = last trace in
-     trace ++ trace_evaluation_multi os1 stmts'
+     trace ++ trace_evaluation_multi (gas-1) os1 stmts'
   end

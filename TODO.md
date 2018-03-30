@@ -45,7 +45,6 @@ Should we write a custom parser?
 JS/webpage
   + debug weird issues with newlines
   + run expander in a chroot jail
-  + limit trace length
   + use syntax highlighting in editor window
   + fancier output
     - favicon

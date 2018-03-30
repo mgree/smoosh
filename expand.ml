@@ -93,7 +93,7 @@ let main () =
   set_input_src ();
   let ns = Dash.parse_all () in
   let cs = List.map Shim.of_node ns in
-  show_trace (trace_evaluation_multi !initial_os_state cs);;
+  show_trace (trace_evaluation_multi 500 !initial_os_state cs);;
 
 main ()
 
