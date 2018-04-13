@@ -1,3 +1,19 @@
 .words {
-    background-color: gray;
+    background-color: silver;
+}
+
+span.expanded-word {
+    border: 1px dotted fuchsia;
+}
+
+span.field, span.tmp-field {
+    border: 1px solid red;
+}
+
+span.tmp-field {
+    border-style: dashed;
+}
+
+span.field-separator::after, span.tmp-field-FS::after {
+    content: "␣ "
 }

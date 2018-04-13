@@ -1,6 +1,6 @@
 <div class="ui horizontal divider"></div>
 
-<div class="ui relaxed grid container">
+<div class="ui container">
 
   <div class="row">
     <div class="ui segment">
@@ -12,38 +12,66 @@
     </div>
   </div>
 
-  <div class="ui form">
-    <form id="expansionForm" method="post" action="/expand/submit">
-      <div class="sixteen wide field">
-        <label>Shell code to expand</label>
-        <textarea name="shell" rows="10" cols="84">echo ${x=5} $((x+1))</textarea>
-      </div>
-    
-      <div class="two fields">
-        <div class="eight wide field">
-          <label>Environment</label>
-          <textarea name="env" rows="4" cols="40">{"PATH": "/usr/bin", "HOME": "/Users/mgree"}</textarea>
+  <div class="ui basic segment">
+    <div class="ui form relaxed grid">
+      <form id="expansionForm" method="post" action="/expand/submit">
+        <div class="sixteen wide field">
+          <label>Shell code to expand</label>
+          <textarea name="shell" rows="10" cols="84">echo ${x=5} $((x+1))</textarea>
         </div>
-        
-        <div class="eight wide field">
-          <label>Home directories</label>
-          <textarea name="users" rows="4" cols="40">{"mgree": "/Users/mgree", "root": "/var/root"}</textarea>
+      
+        <div class="two fields">
+          <div class="eight wide field">
+            <label>Environment</label>
+            <textarea name="env" rows="4" cols="40">{"PATH": "/usr/bin", "HOME": "/Users/mgree"}</textarea>
+          </div>
+          
+          <div class="eight wide field">
+            <label>Home directories</label>
+            <textarea name="users" rows="4" cols="40">{"mgree": "/Users/mgree", "root": "/var/root"}</textarea>
+          </div>
         </div>
-      </div>
-    
-      <div class="row">
-        <button class="ui primary labeled button icon" type="submit">
-          <i class="play icon"></i>
-          Expand shell code
-        </button>
-        <button class="ui labeled button icon" id="clear" type="button">
-          <i class="erase icon"></i>
-          Clear results
-        </button>
-      </div>
-    </form>
+      
+        <div class="row">
+          <button class="ui primary labeled button icon" type="submit">
+            <i class="play icon"></i>
+            Expand shell code
+          </button>
+          <button class="ui labeled button icon" id="clear" type="button">
+            <i class="erase icon"></i>
+            Clear results
+          </button>
+        </div>
+      </form>
+      <div class="ui segment compact secondary right floated">
+        <h3 class="ui header">Legend</h1>
+
+        <table class="ui very basic collapsing celled table">
+          <tbody>
+            <tr>
+              <td><span class="words">unexpanded words</span></td>
+              <td>initial state</td>
+            </tr>
+            <tr>
+              <td><span class="expanded-word">expanded words</span></td>
+              <td>before field splitting</td>
+            </tr>
+      
+            <tr>
+              <td><span class="tmp-field">temporary field</span></td>
+              <td>before pathname expansion</td>
+            </tr>
+      
+            <tr>
+              <td><span class="field">fully expanded field</span></td>
+              <td>final state</td>
+            </tr>
+          </tbody>
+        </table>
+       </div>
+
+    </div>
   </div>
-  
 </div>
 
 <div class="ui horizontal divider"></div>
