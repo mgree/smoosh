@@ -529,15 +529,17 @@ and json_of_evaluation_step = function
   | XSNested (outer, inner) -> Assoc [tag "XSNested"; ("inner", json_of_evaluation_step inner); ("outer", json_of_evaluation_step outer)]
   | XSExpand (eval_step, exp_step) -> Assoc [tag "XSExpand"; ("inner", json_of_expansion_step  exp_step); ("outer", json_of_evaluation_step eval_step)]
 
-and json_of_expansion_trace_entry (os, state, step) =
-  Assoc [("env", json_of_env os.sh.env);
-         ("term", json_of_expansion_state state);
-         ("step", json_of_expansion_step step)]
+and json_of_expansion_trace_entry (step, os, state) =
+  Assoc [("step", json_of_expansion_step step)
+        ;("env", json_of_env os.sh.env)
+        ;("term", json_of_expansion_state state)
+        ]
 
-and json_of_evaluation_trace_entry (os, stmt, step) =
-  Assoc [("env", json_of_env os.sh.env); (* 2017-12-22 TODO dump more of the shell state? *)
-         ("term", json_of_stmt stmt);
-         ("step", json_of_evaluation_step step)]
+and json_of_evaluation_trace_entry (step, os, stmt) =
+  Assoc [("step", json_of_evaluation_step step)
+        ;("env", json_of_env os.sh.env) (* 2017-12-22 TODO dump more of the shell state? *)
+        ;("term", json_of_stmt stmt)
+        ]
 
 and json_of_trace t = List (List.map json_of_evaluation_trace_entry t)
 

@@ -26,11 +26,11 @@ val expand_words : forall 'a. OS 'a =>
                           (expansion_step * 'a * expanded_words * words) 
 val step_expansion : forall 'a. OS 'a =>
                      'a * expansion_state -> 
-                     'a * expansion_state * expansion_step 
+                     expansion_step * 'a * expansion_state 
 val step_assign : forall 'a. OS 'a => 
                   'a -> list (string * expansion_state) ->
                   either ('a * list (string * fields)) (* Done state *)
-                         ('a * list (string * expansion_state) * evaluation_step) 
+                         (evaluation_step * 'a * list (string * expansion_state)) 
 
 val run_command : forall 'a. OS 'a => 
                   'a -> 
@@ -41,8 +41,8 @@ val run_command : forall 'a. OS 'a =>
                   either ('a * string) ('a * stmt)
 val step_eval : forall 'a. OS 'a =>
                 'a -> stmt -> 
-                either ('a * evaluation_step) (* error case *)
-                       ('a * stmt * evaluation_step) (* success *)
+                either (evaluation_step * 'a) (* error case *)
+                       (evaluation_step * 'a * stmt) (* success *)
 
 val exit_with : forall 'a. OS 'a => nat -> 'a -> 'a
 let exit_with ec os = set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
@@ -308,7 +308,6 @@ let expand_param s0 _q str f =
   | (Just fs, Substring s m w) -> [K (LMatch [fs] s m [] w)]
   end
 
-(* TODO 2017-12-22 refactor to have step info last *)
 let rec expand_control s0 q k =
     match k with
     | Tilde ->
@@ -373,7 +372,7 @@ let rec expand_control s0 q k =
     | LBacktick subsh corig c0 ->
        match step_eval (set_shell_state subsh s0) c0 with
        (* When a subshell errors, it should evaluate to the null string and print its error message. *)
-       | Left (s1, step) -> Right (ESEval (ESCommand "command exited with error") step, set_shell_state (get_shell_state s0) s1, [], [])
+       | Left (step, s1) -> Right (ESEval (ESCommand "command exited with error") step, set_shell_state (get_shell_state s0) s1, [], [])
        (* The shell shall expand the command substitution by executing
           command in a subshell environment (see Shell Execution
           Environment) and replacing the command substitution (the text
@@ -383,8 +382,8 @@ let rec expand_control s0 q k =
  
           TODO 2017-12-22 read result from pipe, trim newlines
         *) 
-       | Right (s1, Done, step) -> Right (ESEval (ESCommand "command exited successfully; returning symbolic result") step, set_shell_state (get_shell_state s0) s1, [EWSym (SymCommand corig)], [])
-       | Right (s1, c1, step) -> Right (ESEval (ESCommand "") step, set_shell_state (get_shell_state s0) s1, [], [K (LBacktick (get_shell_state s1) corig c1)])
+       | Right (step, s1, Done) -> Right (ESEval (ESCommand "command exited successfully; returning symbolic result") step, set_shell_state (get_shell_state s0) s1, [EWSym (SymCommand corig)], [])
+       | Right (step, s1, c1) -> Right (ESEval (ESCommand "") step, set_shell_state (get_shell_state s0) s1, [], [K (LBacktick (get_shell_state s1) corig c1)])
        end
     | Arith f [] ->
         match arith64 s0 (concat_expanded f) with
@@ -442,24 +441,24 @@ and step_expansion (os0,st) =
   match st with
   | ExpStart w0 -> 
      match expand_words os0 Unquoted UserString ([],w0) with
-     | Right (step, os1, f1, w1) -> (os1, ExpExpand f1 w1, step)
-     | Left (step, os1, f1) -> (os1, ExpError (fields_of_expanded_words f1), step)
+     | Right (step, os1, f1, w1) -> (step, os1, ExpExpand f1 w1)
+     | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
   | ExpExpand f0 w0 -> 
      match expand_words os0 Unquoted UserString (f0,w0) with
      | Right (step, os1, f1, w1) ->
         match w1 with
-        | [] -> (os1, ExpSplit f1, step)
-        | _ ->  (os1, ExpExpand f1 w1, step)
+        | [] -> (step, os1, ExpSplit f1)
+        | _ ->  (step, os1, ExpExpand f1 w1)
         end
-     | Left (step, os1, f1) -> (os1, ExpError (fields_of_expanded_words f1), step)
+     | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
-  | ExpSplit f0 -> (os0, ExpPath (field_splitting os0 f0), ESSplit "")
-  | ExpPath ifs0 -> (os0, ExpQuote (pathname_expansion os0 ifs0), ESPath "")
-  | ExpQuote ifs0 -> (os0, ExpDone (quote_removal ifs0), ESQuote "")
+  | ExpSplit f0 -> (ESSplit "", os0, ExpPath (field_splitting os0 f0))
+  | ExpPath ifs0 -> (ESPath "", os0, ExpQuote (pathname_expansion os0 ifs0))
+  | ExpQuote ifs0 -> (ESQuote "", os0, ExpDone (quote_removal ifs0))
   (* the following cases should never occur in calls from trace_expansion: *)
-  | ExpError _ -> (os0, st, ESStep "done in error state")
-  | ExpDone _ -> (os0, st, ESStep "done in success state")
+  | ExpError _ -> (ESStep "done in error state", os0, st)
+  | ExpDone _ -> (ESStep "done in success state", os0, st)
   end
 
 (**********************************************************************)   
@@ -474,17 +473,17 @@ and step_assign s0 assigns =
   | [] -> Left (s0, [])
   | ((x, ExpError f) as error)::assigns' ->
     match step_assign s0 assigns' with
-    | Right (s1, processed, step) -> Right (s1, error::processed, step)
+    | Right (step, s1, processed) -> Right (step, s1, error::processed)
     | Left (s1, completed) -> Left (s1, (x, f)::completed)
     end
   | ((x, ExpDone f) as finished)::assigns' ->
     match step_assign s0 assigns' with
-    | Right (s1, processed, step) -> Right (s1, finished::processed, step)
+    | Right (step, s1, processed) -> Right (step, s1, finished::processed)
     | Left (s1, completed) -> Left (s1, (x, f)::completed)
     end
   | (x, exp_state)::assigns' ->
-    let (s1, next_state, step) = step_expansion (s0, exp_state) in
-    Right (s1, (x, next_state)::assigns', XSExpand (XSSimple x) step)
+    let (step, s1, next_state) = step_expansion (s0, exp_state) in
+    Right (XSExpand (XSSimple x) step, s1, (x, next_state)::assigns')
   end
 
 (* TODO 2018-01-26 implement builtins 
@@ -768,23 +767,26 @@ so: how do we implement it?
 
 *)
   | Command assigns ws redirs ->
-     Right (s0,
+     Right (XSSimple "begin expansion",
+            s0,
             CommandExpAssign
               (map (fun (x, w) -> (x, ExpStart w)) assigns)
               ws
-              redirs,
-            XSSimple "begin expansion")
+              redirs)
 
   (* SPECIAL CASE: plain assignment, no command *)
   | CommandExpAssign ((x,exp_state0)::assigns) [] redirs ->
      match step_expansion (s0, exp_state0)  with
-     | (s1, ExpDone f, _step) -> Right (set_param x (symbolic_string_of_fields f) s1, CommandExpAssign assigns [] redirs, XSSimple ("assign " ^ x))
-     | (s1, ExpError f, step) -> Right (s1, CommandExpAssign assigns [] redirs, XSExpand (XSSimple ("error in " ^ x ^ ": " ^ fields_to_string f)) step)
-     | (s1, exp_state1, step) -> Right (s1, CommandExpAssign ((x,exp_state1)::assigns) [] redirs, XSExpand (XSSimple "") step)
+     | (_step, s1, ExpDone f) -> Right (XSSimple ("assign " ^ x),
+                                        set_param x (symbolic_string_of_fields f) s1, CommandExpAssign assigns [] redirs)
+     | (step, s1, ExpError f) -> Right (XSExpand (XSSimple ("error in " ^ x ^ ": " ^ fields_to_string f)) step,
+                                        s1, CommandExpAssign assigns [] redirs)
+     | (step, s1, exp_state1) -> Right (XSExpand (XSSimple "") step,
+                                        s1, CommandExpAssign ((x,exp_state1)::assigns) [] redirs)
      end
   | CommandExpAssign [] [] redirs ->
      (* keep on expanding, since we have to actually expand the redirects no matter what *)
-     Right (s0, CommandExpanded [] [] redirs, XSSimple "assignments complete")
+     Right (XSSimple "assignments complete", s0, CommandExpanded [] [] redirs)
 
   (* TODO 2018-01-26 special case, special builtins treat the environment specially
    *   "If the command name is a special built-in utility, variable assignments shall affect the current execution environment."
@@ -794,30 +796,30 @@ so: how do we implement it?
   | CommandExpAssign assigns ws redirs ->
      match step_assign s0 assigns with
      (* Perform an expansion step in an assignment *)
-     | Right (s1, assigns', exp_step) ->
-        Right (s1,
-               CommandExpAssign assigns' ws redirs,
-               exp_step)
+     | Right (exp_step, s1, assigns') ->
+        Right (exp_step,
+               s1,
+               CommandExpAssign assigns' ws redirs)
      (* Done, move on to expanding arguments *)
      | Left (s1, fields) ->
-        Right (s1,
-               CommandExpArgs fields (ExpStart ws) redirs,
-               XSSimple "assignments fully expanded")
+        Right (XSSimple "assignments fully expanded",
+               s1,
+               CommandExpArgs fields (ExpStart ws) redirs)
      end
   | CommandExpArgs assigns exp_state redirs ->
-      let (os1, st1, step) = step_expansion (s0, exp_state) in
+      let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError _ ->
-           Left (os1,
-                 XSSimple "error in argument expansion")
+           Left (XSSimple "error in argument expansion",
+                 os1)
         | ExpDone f ->
-          Right (os1,
-                 CommandExpanded assigns f redirs,
-                 XSSimple "arguments fully expanded")
+           Right (XSSimple "arguments fully expanded",
+                  os1,
+                  CommandExpanded assigns f redirs)
         | (_ as in_progress) ->
-          Right(os1,
-                CommandExpArgs assigns in_progress redirs,
-                XSExpand (XSSimple "argument expansion step") step)
+           Right(XSExpand (XSSimple "argument expansion step") step,
+                 os1,
+                 CommandExpArgs assigns in_progress redirs)
       end
   (* assigns are done, check on args 
 
@@ -850,8 +852,8 @@ $ count $(${x? one two three}) four
      let fds = fds_default in
      (* run command *)
      match run_command s0 prog args env fds with
-     | Right (s1,stmt') -> Right (s1, stmt', XSSimple ("running " ^ string_of_symbolic_string prog))
-     | Left (s1,msg) -> Right (exit_with 1 (print_stderr s1 msg), Done, XSSimple "couldn't run command")
+     | Right (s1,stmt') -> Right (XSSimple ("running " ^ string_of_symbolic_string prog), s1, stmt')
+     | Left (s1,msg) -> Right (XSSimple "couldn't run command", exit_with 1 (print_stderr s1 msg), Done)
      end
   | CommandExpanded _assigns [] _redirs ->
      (* TODO 2018-02-09 setup redirects for side effects/file creation
@@ -859,7 +861,7 @@ $ count $(${x? one two three}) four
         e.g., unset x y ; x=5 >${y=3}
               will set x to 5, y to 3, and create an empty file named 3
       *)
-     Right (s0, Done, XSSimple "ran empty command")
+     Right (XSSimple "ran empty command", s0, Done)
   | Pipe bg _stmts ->
      (* from dash eval.c
 /*
@@ -945,217 +947,224 @@ evalpipe(union node *n, int flags)
         then spawn each subshell in its own fds
       *)     
      let last_pid = 0 in (* TODO 2018-03-02 use actual spawned pid *)
-     Right (s0,if bg then Done else Wait last_pid,XSPipe "started pipe")
-  | Redir _stmt' _redirs -> Left (s0, XSRedir "TODO")
-  | Background _stmt' _redirs -> Left (s0, XSBackground "TODO")
-  | Subshell _stmt' _redirs -> Left (s0, XSSubshell "TODO")
+     Right (XSPipe "started pipe",s0,if bg then Done else Wait last_pid)
+  | Redir _stmt' _redirs -> Left (XSRedir "TODO", s0)
+  | Background _stmt' _redirs -> Left (XSBackground "TODO", s0)
+  | Subshell _stmt' _redirs -> Left (XSSubshell "TODO", s0)
   | And l r ->
       match step_eval s0 l with
       | Left e -> Left e
-      | Right (s1, Exit, step) -> Right (s1, Exit, step)
-      | Right (s1, Return, step) -> Right (s1, Return, step)
-      | Right (s1, Break n, step) -> Right (s1, Break n, step)
-      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
-      | Right (s1, Done, _step) ->
+      | Right (step, s1, Exit) -> Right (step, s1, Exit)
+      | Right (step, s1, Return) -> Right (step, s1, Return)
+      | Right (step, s1, Break n) -> Right (step, s1, Break n)
+      | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
+      | Right (_step, s1, Done) ->
           match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (s1, r, XSAnd "exit code was 0, continuing")
-          | Just _ -> Right (s1, Done, XSAnd "exit code was non-zero, short-circuiting")
-          | Nothing -> Left (s1, XSAnd "unset or symbolic exit code")
+          | Just "0" -> Right (XSAnd "exit code was 0, continuing", s1, r)
+          | Just _ -> Right (XSAnd "exit code was non-zero, short-circuiting", s1, Done)
+          | Nothing -> Left (XSAnd "unset or symbolic exit code", s1)
           end
-      | Right (s1, l', step) -> Right (s1, And l' r, XSNested (XSAnd "") step)
+      | Right (step, s1, l') -> Right (XSNested (XSAnd "") step, s1, And l' r)
       end
   | Or l r ->
       match step_eval s0 l with
       | Left e -> Left e
-      | Right (s1, Exit, step) -> Right (s1, Exit, step)
-      | Right (s1, Return, step) -> Right (s1, Return, step)
-      | Right (s1, Break n, step) -> Right (s1, Break n, step)
-      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
-      | Right (s1, Done, _step) ->
+      | Right (step, s1, Exit) -> Right (step, s1, Exit)
+      | Right (step, s1, Return) -> Right (step, s1, Return)
+      | Right (step, s1, Break n) -> Right (step, s1, Break n)
+      | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
+      | Right (_step, s1, Done) ->
           match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (s1, Done, XSOr "exit code was 0, short-circuiting")
-          | Just _ -> Right (s1, r, XSOr "exit code was non-zero, continuing")
-          | Nothing -> Left (s1, XSOr "unset or symbolic exit code")
+          | Just "0" -> Right (XSOr "exit code was 0, short-circuiting", s1, Done)
+          | Just _ -> Right (XSOr "exit code was non-zero, continuing", s1, r)
+          | Nothing -> Left (XSOr "unset or symbolic exit code", s1)
           end
-      | Right (s1, l', step) -> Right (s1, Or l' r, XSNested (XSOr "") step)
+      | Right (step, s1, l') -> Right (XSNested (XSOr "") step, s1, Or l' r)
       end
   | Not stmt' ->
       match step_eval s0 stmt' with
       | Left e -> Left e
-      | Right (s1, Exit, step) -> Right (s1, Exit, step)
-      | Right (s1, Return, step) -> Right (s1, Return, step)
-      | Right (s1, Break n, step) -> Right (s1, Break n, step)
-      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
-      | Right (s1, Done, _step) ->
+      | Right (step, s1, Exit) -> Right (step, s1, Exit)
+      | Right (step, s1, Return) -> Right (step, s1, Return)
+      | Right (step, s1, Break n) -> Right (step, s1, Break n)
+      | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
+      | Right (_step, s1, Done) ->
           match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (set_param "?" (symbolic_string_of_string "1") s1, Done, XSNot "0 -> 1")
+          | Just "0" -> Right (XSNot "0 -> 1", set_param "?" (symbolic_string_of_string "1") s1, Done)
           (* Not bothering to check whether the exit code is numeric *)
-          | Just _ -> Right (set_param "?" (symbolic_string_of_string "0") s1, Done, XSNot "_ -> 0")
-          | Nothing -> Left (s1, XSNot "unset or symbolic exit code")
+          | Just _ -> Right ((XSNot "_ -> 0"), set_param "?" (symbolic_string_of_string "0") s1, Done)
+          | Nothing -> Left (XSNot "unset or symbolic exit code", s1)
           end
-      | Right (s1, stmt'', step) -> Right (s1, Not stmt'', XSNested (XSNot "") step)
+      | Right (step, s1, stmt'') -> Right (XSNested (XSNot "") step, s1, Not stmt'')
       end
   | Semi l r ->
       match step_eval s0 l with
       | Left e -> Left e
-      | Right (s1, Exit, step) -> Right (s1, Exit, step)
-      | Right (s1, Return, step) -> Right (s1, Return, step)
-      | Right (s1, Break n, step) -> Right (s1, Break n, step)
-      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
-      | Right (s1, Done, step) -> Right (s1, r, XSNested (XSSemi "continuing") step)
-      | Right (s1, l', step) -> Right (s1, Semi l' r, XSNested (XSSemi "") step)
+      | Right (step, s1, Exit) -> Right (step, s1, Exit)
+      | Right (step, s1, Return) -> Right (step, s1, Return)
+      | Right (step, s1, Break n) -> Right (step, s1, Break n)
+      | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
+      | Right (step, s1, Done) -> Right (XSNested (XSSemi "continuing") step, s1, r)
+      | Right (step, s1, l') -> Right (XSNested (XSSemi "") step, s1, Semi l' r)
       end
   | If c t e ->
       match step_eval s0 c with
       | Left e -> Left e
-      | Right (s1, Exit, step) -> Right (s1, Exit, step)
-      | Right (s1, Return, step) -> Right (s1, Return, step)
-      | Right (s1, Break n, step) -> Right (s1, Break n, step)
-      | Right (s1, Continue n, step) -> Right (s1, Continue n, step)
-      | Right (s1, Done, _step) ->
+      | Right (step, s1, Exit) -> Right (step, s1, Exit)
+      | Right (step, s1, Return) -> Right (step, s1, Return)
+      | Right (step, s1, Break n) -> Right (step, s1, Break n)
+      | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
+      | Right (_step, s1, Done) ->
           match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (s1, t, XSIf "exit code was 0, taking the true branch")
-          | Just _ -> Right (s1, e, XSIf "exit code was non-zero, taking the false branch")
-          | Nothing -> Left (s1, XSIf "unset or symbolic exit code")
+          | Just "0" -> Right (XSIf "exit code was 0, taking the true branch", s1, t)
+          | Just _ -> Right (XSIf "exit code was non-zero, taking the false branch", s1, e)
+          | Nothing -> Left (XSIf "unset or symbolic exit code", s1)
           end
-      | Right (s1, c', step) -> Right (s1, If c' t e, XSNested (XSIf "") step)
+      | Right (step, s1, c') -> Right (XSNested (XSIf "") step, s1, If c' t e)
       end
-  | While c body -> Right (enter_loop s0, WhileCond c c body, XSWhile "start to evaluate the condtion")
+  | While c body -> Right (XSWhile "start to evaluate the condtion", enter_loop s0, WhileCond c c body)
   | WhileCond c cur body ->
       match step_eval s0 cur with
       | Left e -> Left e
-      | Right (s1, Break 1, step) -> Right (exit_loop s1, Done, XSNested (XSWhile "breaking") step)
-      | Right (s1, Break n, step) -> Right (exit_loop s1, Break (n-1), XSNested (XSWhile "breaking to outer loop") step)
-      | Right (s1, Continue 1, step) -> Right (s1, WhileCond c c body, XSNested (XSWhile "continuing loop") step)
-      | Right (s1, Continue n, step) -> Right (exit_loop s1, Continue (n-1), XSNested (XSWhile "continuing to outer loop") step)
-      | Right (s1, Done, _step) ->
+      | Right (step, s1, Break 1) -> Right (XSNested (XSWhile "breaking") step, exit_loop s1, Done)
+      | Right (step, s1, Break n) -> Right (XSNested (XSWhile "breaking to outer loop") step, exit_loop s1, Break (n-1))
+      | Right (step, s1, Continue 1) -> Right (XSNested (XSWhile "continuing loop") step, s1, WhileCond c c body)
+      | Right (step, s1, Continue n) -> Right (XSNested (XSWhile "continuing to outer loop") step, exit_loop s1, Continue (n-1))
+      | Right (_step, s1, Done) ->
           match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (s1, WhileRunning c body body, XSWhile "exit code was 0, running the loop body")
-          | Just _ -> Right (exit_loop s1, Done, XSWhile "exit code was non-zero, taking the false branch")
-          | Nothing -> Left (s1, XSWhile "unset or symbolic exit code")
+          | Just "0" -> Right (XSWhile "exit code was 0, running the loop body", s1, WhileRunning c body body)
+          | Just _ -> Right (XSWhile "exit code was non-zero, taking the false branch", exit_loop s1, Done)
+          | Nothing -> Left (XSWhile "unset or symbolic exit code", s1)
           end
-      | Right (s1, cur', step) -> Right (s1, WhileCond c cur' body, XSNested (XSWhile "") step)
+      | Right (step, s1, cur') -> Right (XSNested (XSWhile "") step, s1, WhileCond c cur' body)
       end
   | WhileRunning c body cur ->
       match step_eval s0 cur with
       | Left e -> Left e
-      | Right (s1, Break 1, step) -> Right (exit_loop s1, Done, XSNested (XSWhile "breaking loop") step)
-      | Right (s1, Break n, step) -> Right (exit_loop s1, Break (n-1), XSNested (XSWhile "breaking to outer loop") step)
-      | Right (s1, Continue 1, step) -> Right (s1, WhileCond c c body, XSNested (XSWhile "continuing loop") step)
-      | Right (s1, Continue n, step) -> Right (exit_loop s1, Continue (n-1), XSNested (XSWhile "continuing to outer loop") step)
-      | Right (s1, Done, step) -> Right (s1, WhileCond c c body, XSNested (XSWhile "finished iteration of while loop; retesting condition") step)
-      | Right (s1, cur', step) -> Right (s1, WhileRunning c body cur', XSNested (XSWhile "") step)
+      | Right (step, s1, Break 1) -> Right (XSNested (XSWhile "breaking loop") step, exit_loop s1, Done)
+      | Right (step, s1, Break n) -> Right (XSNested (XSWhile "breaking to outer loop") step, exit_loop s1, Break (n-1))
+      | Right (step, s1, Continue 1) -> Right (XSNested (XSWhile "continuing loop") step, s1, WhileCond c c body)
+      | Right (step, s1, Continue n) -> Right (XSNested (XSWhile "continuing to outer loop") step, exit_loop s1, Continue (n-1))
+      | Right (step, s1, Done) -> Right (XSNested (XSWhile "finished iteration of while loop; retesting condition") step, s1, WhileCond c c body)
+      | Right (step, s1, cur') -> Right (XSNested (XSWhile "") step, s1, WhileRunning c body cur')
       end
-  | For var ws body -> Right (s0, ForExpArgs var (ExpStart ws) body, XSFor "begin arg expansion")
+  | For var ws body -> Right (XSFor "begin arg expansion", s0, ForExpArgs var (ExpStart ws) body)
   | ForExpArgs var exp_state body ->
-      let (os1, st1, step) = step_expansion (s0, exp_state) in
+      let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError _ ->
-           Left (os1,
-                 XSFor "error in argument expansion")
+           Left (XSFor "error in argument expansion", os1)
         | ExpDone f ->
-          Right (os1,
-                 ForExpanded var f body,
-                 XSFor "arguments fully expanded")
+           Right (XSFor "arguments fully expanded",
+                  os1,
+                  ForExpanded var f body)
         | (_ as in_progress) ->
-          Right(os1,
-                ForExpArgs var in_progress body,
-                XSExpand (XSFor "argument expansion step") step)
+           Right (XSExpand (XSFor "argument expansion step") step,
+                  os1,
+                  ForExpArgs var in_progress body)
       end
   (* Special case, no items exit status is zero *)
-  | ForExpanded _var [] _body -> Right (set_param "?" (symbolic_string_of_string "0") s0, Done, XSFor "no items exit code is 0")
+  | ForExpanded _var [] _body -> Right (XSFor "no items, exit code is 0", set_param "?" (symbolic_string_of_string "0") s0, Done)
   | ForExpanded var (i::f) body ->
       let s1 = enter_loop s0 in
-      Right (set_param var i s1, ForRunning var f body body, XSFor ("starting for loop with " ^ var ^ " = " ^ (string_of_symbolic_string i)))
+      Right (XSFor ("starting for loop with " ^ var ^ " = " ^ (string_of_symbolic_string i)), set_param var i s1, ForRunning var f body body)
   | ForRunning var f body cur ->
       match step_eval s0 cur with
       | Left e -> Left e
-      | Right (s1, Break 1, step) -> Right (exit_loop s1, Done, XSNested (XSFor "breaking loop") step)
-      | Right (s1, Break n, step) -> Right (exit_loop s1, Break (n-1), XSNested (XSFor "breaking to outer loop") step)
-      | Right (s1, Continue 1, step) ->
+      | Right (step, s1, Break 1) -> Right (XSNested (XSFor "breaking loop") step, exit_loop s1, Done)
+      | Right (step, s1, Break n) -> Right (XSNested (XSFor "breaking to outer loop") step, exit_loop s1, Break (n-1))
+      | Right (step, s1, Continue 1) ->
           match f with
-          | [] -> Right (exit_loop s1, Done, XSNested (XSFor "continued at last iteration") step)
-          | (i::f') -> Right (set_param var i s1, ForRunning var f' body body, XSNested (XSFor ("continuing to next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step)
+          | [] -> Right (XSNested (XSFor "continued at last iteration") step, exit_loop s1, Done)
+          | (i::f') -> Right (XSNested (XSFor ("continuing to next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step,
+                              set_param var i s1,
+                              ForRunning var f' body body)
           end
-      | Right (s1, Continue n, step) -> Right (s1, Continue (n-1), XSNested (XSFor "continuing to outer loop") step)
-      | Right (s1, Done, step) ->
+      | Right (step, s1, Continue n) -> Right (XSNested (XSFor "continuing to outer loop") step, s1, Continue (n-1))
+      | Right (step, s1, Done) ->
           match f with
-          | [] -> Right (exit_loop s1, Done, XSNested (XSFor "finished last iteration") step)
-          | (i::f') -> Right (set_param var i s1, ForRunning var f' body body, XSNested (XSFor ("starting next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step)
+          | [] -> Right (XSNested (XSFor "finished last iteration") step, exit_loop s1, Done)
+          | (i::f') -> Right (XSNested (XSFor ("starting next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step,
+                              set_param var i s1,
+                              ForRunning var f' body body)
           end
-      | Right (s1, cur', step) -> Right (s1, ForRunning var f body cur', XSNested (XSFor "") step)
+      | Right (step, s1, cur') -> Right (XSNested (XSFor "") step, s1, ForRunning var f body cur')
       end
-  | Case ws cases -> Right (s0, CaseExpArg (ExpStart ws) cases, XSCase "begin arg expansion")
+  | Case ws cases -> Right (XSCase "begin arg expansion", s0, CaseExpArg (ExpStart ws) cases)
   | CaseExpArg exp_state cases ->
-      let (os1, st1, step) = step_expansion (s0, exp_state) in
+      let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError _ ->
-           Left (os1,
-                 XSCase "error in argument expansion")
+           Left (XSCase "error in argument expansion", os1)
         | ExpDone [f] ->
-              Right (os1,
-                     CaseMatch f cases,
-                     XSCase "argument fully expanded")
-        | ExpDone _ -> Left (s0, XSCase "case match element did not expand to a single field")
+           Right (XSCase "argument fully expanded", os1, CaseMatch f cases)
+        | ExpDone _ ->
+           Left (XSCase "case match element did not expand to a single field", s0)
         | (_ as in_progress) ->
-          Right(os1,
-                CaseExpArg in_progress cases,
-                XSExpand (XSCase "argument expansion step") step)
+           Right(XSExpand (XSCase "argument expansion step") step,
+                 os1,
+                 CaseExpArg in_progress cases)
       end
   | CaseMatch f cases ->
       match cases with
-        | [] -> Right (s0, Done ,XSCase "no match in case statement")
-        | (pat, cmd)::cases' -> Right (s0, CaseCheckMatch f (ExpStart pat) cmd cases', XSCase "checking pattern match")
+        | [] -> Right (XSCase "no match in case statement", s0, Done)
+        | (pat, cmd)::cases' -> Right (XSCase "checking pattern match", s0, CaseCheckMatch f (ExpStart pat) cmd cases')
       end
   | CaseCheckMatch f pat cmd cases ->
-      let (os1, st1, step) = step_expansion (s0, pat) in
+      let (step, os1, st1) = step_expansion (s0, pat) in
       match st1 with
         | ExpError _ ->
-           Left (os1,
-                 XSCase "error in case pattern expansion")
+           Left (XSExpand (XSCase "error in case pattern expansion") step, os1)
         | ExpDone [pat'] ->
           (* TODO 2018-02-09 use proper locale and verify substring mode works correctly *)
           match match_prefix lc_ambient Shortest pat' f with
-          | NoMatch -> Right (os1, CaseMatch f cases, XSCase "case did not match, trying the next")
-          | Match _ -> Right (os1, cmd, XSCase "case matched, evaluating cmd")
-          | Symbolic -> Left (os1, XSCase "TODO, this could match")
+          | NoMatch -> Right (XSCase "case did not match, trying the next", os1, CaseMatch f cases)
+          | Match _ -> Right (XSCase "case matched, evaluating cmd", os1, cmd)
+          | Symbolic -> Left (XSCase "TODO symbolic value, could match", os1)
           end
-        | ExpDone _ -> Left (os1, XSCase "case match pattern did not expand to a single field")
+        | ExpDone _ -> Left (XSCase "case match pattern did not expand to a single field", os1)
         | (_ as in_progress) ->
-          Right(os1,
-                CaseCheckMatch f in_progress cmd cases,
-                XSExpand (XSCase "pattern expansion step") step)
+           Right(XSExpand (XSCase "pattern expansion step") step,
+                 os1,
+                 CaseCheckMatch f in_progress cmd cases)
       end
   | Defun name body -> 
      if is_special_builtin name
-     then Left (s0, XSDefun ("invalid function name " ^ name ^ " (shadows special built-in)"))
-     else Right (defun name body s0,Done,XSDefun ("defined " ^ name))
-  (* This should never come up when called from trace_evaluation or elsewhere *)
+     then Left (XSDefun ("invalid function name " ^ name ^ " (shadows special built-in)"), s0)
+     else Right (XSDefun ("defined " ^ name), defun name body s0, Done)
   | Call old_loop_nest old_positional_params f orig c ->
      match step_eval s0 c with
      | Left e -> Left e
-     | Right (s1, Done, step) ->
-        Right (set_function_params old_loop_nest old_positional_params s1, Done, XSStack "f (natural return)" step)
-     | Right (s1, Return, step) ->
-        Right (set_function_params old_loop_nest old_positional_params s1, Done, XSStack "f (explicit return)" step)
-     | Right (s1, Exit, step) ->
-        Right (set_function_params old_loop_nest old_positional_params s1, Exit, XSStack "f (exit)" step)
+     | Right (step, s1, Done) ->
+        Right (XSStack (f ^ ": implicit return") step,
+               set_function_params old_loop_nest old_positional_params s1,
+               Done)
+     | Right (step, s1, Return) ->
+        Right (XSStack (f ^ ": explicit return") step,
+               set_function_params old_loop_nest old_positional_params s1,
+               Done)
+     | Right (step, s1, Exit) ->
+        Right (XSStack (f ^ ": exit") step,
+               set_function_params old_loop_nest old_positional_params s1,
+               Exit)
      (* TODO 2018-03-02 what do we do if there's a break or continue in a call? 
         
         break/continue don't seem to ever be lexically enclosed in a loop, so behavior is unspecified.
         bash supports "non local break", dash doesn't.
       *)
-     | Right (s1, c', step) ->
-        Right (s1, Call old_loop_nest old_positional_params f orig c', XSStack f step)
+     | Right (step, s1, c') ->
+        Right (XSStack f step,
+               s1,
+               Call old_loop_nest old_positional_params f orig c')
      end
-  | Break _n -> Right (s0, Done, XSSimple "break bottomed out")
-  | Continue _n -> Right (s0, Done, XSSimple "continue bottomed out")
-  | Return -> Right (s0, Done, XSSimple "")
-  | Wait _n -> Left (s0, XSSimple "TODO 2018-03-02 not implemented")
+  | Break _n -> Right (XSSimple "break bottomed out", s0, Done)
+  | Continue _n -> Right (XSSimple "continue bottomed out", s0, Done)
+  | Return -> Right (XSSimple "return bottomed out", s0, Done)
+  | Wait _n -> Left (XSSimple "TODO 2018-03-02 not implemented", s0)
   | Exit -> 
      (* TODO 2018-03-02 handle traps *)
-     Right (s0, Done, XSSimple "exited")
-  | Done -> Right (s0, Done, XSSimple "")
+     Right (XSSimple "exited", s0, Done)
+  | Done -> Right (XSSimple "", s0, Done)
   end
 
 (**********************************************************************)   
@@ -1172,21 +1181,21 @@ lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x 
 
 (* Expansion **********************************************************)
    
-val run_trace_expansion : nat -> symbolic_os_state * expansion_state -> list (symbolic_os_state * expansion_state * expansion_step)
+val run_trace_expansion : nat -> symbolic_os_state * expansion_state -> list (expansion_step * symbolic_os_state * expansion_state)
 let rec run_trace_expansion gas (os0,st0) =
   if gas <= 0
-  then [(os0,st0,ESStep "out of gas")]
+  then [(ESStep "out of gas",os0,st0)]
   else match st0 with
   | ExpError _ -> []
   | ExpDone _ -> []
   | _ -> 
-     let (os1,st1,step) = step_expansion (os0,st0) in
-     (os1,st1,step)::run_trace_expansion (gas-1) (os1,st1)
+     let (step,os1,st1) = step_expansion (os0,st0) in
+     (step,os1,st1)::run_trace_expansion (gas-1) (os1,st1)
   end
   
-val trace_expansion : nat -> symbolic_os_state -> words -> list (symbolic_os_state * expansion_state * expansion_step)
+val trace_expansion : nat -> symbolic_os_state -> words -> list (expansion_step * symbolic_os_state * expansion_state)
 let trace_expansion gas os0 w0 = 
-  (os0,ExpStart w0, ESStep "")::run_trace_expansion gas (os0, ExpStart w0)
+  (ESStep "",os0,ExpStart w0)::run_trace_expansion gas (os0, ExpStart w0)
 
 (* unbounded functions for testing final expansion results (used in
    test_expansion.ml)
@@ -1195,23 +1204,23 @@ let trace_expansion gas os0 w0 =
    because we're not keeping track of whether the result was a message
    printed to stderr or the actual result of expansion
  *)
-val run_trace_expansion_unbounded : symbolic_os_state * expansion_state -> list (symbolic_os_state * expansion_state * expansion_step)
+val run_trace_expansion_unbounded : symbolic_os_state * expansion_state -> list (expansion_step * symbolic_os_state * expansion_state)
 let rec run_trace_expansion_unbounded (os0,st0) =
   match st0 with
   | ExpError _ -> []
   | ExpDone _ -> []
   | _ -> 
-     let (os1,st1,step) = step_expansion (os0,st0) in
-     (os1,st1,step)::run_trace_expansion_unbounded (os1,st1)
+     let (step,os1,st1) = step_expansion (os0,st0) in
+     (step,os1,st1)::run_trace_expansion_unbounded (os1,st1)
   end
 
-val trace_expansion_unbounded : symbolic_os_state -> words -> list (symbolic_os_state * expansion_state * expansion_step)
+val trace_expansion_unbounded : symbolic_os_state -> words -> list (expansion_step * symbolic_os_state * expansion_state)
 let trace_expansion_unbounded os0 w0 = 
-  (os0,ExpStart w0, ESStep "")::run_trace_expansion_unbounded (os0, ExpStart w0)
+  (ESStep "",os0,ExpStart w0)::run_trace_expansion_unbounded (os0, ExpStart w0)
 
 val full_expansion : symbolic_os_state -> words -> symbolic_os_state * fields
 let full_expansion s0 w0 =
-  let (s1,f1,_) = last (trace_expansion_unbounded s0 w0) in
+  let (_,s1,f1) = last (trace_expansion_unbounded s0 w0) in
   match f1 with
   | ExpError f -> (s1, f)
   | ExpDone f -> (s1, f)
@@ -1220,29 +1229,29 @@ let full_expansion s0 w0 =
 
 (* Evaluation **********************************************************)
    
-val run_trace_evaluation : nat -> symbolic_os_state -> stmt -> list (symbolic_os_state * stmt * evaluation_step)
+val run_trace_evaluation : nat -> symbolic_os_state -> stmt -> list (evaluation_step * symbolic_os_state * stmt)
 let rec run_trace_evaluation gas os0 stmt0 =
   if gas <= 0
-  then [(os0,stmt0,XSStep "out of gas")]
+  then [(XSStep "out of gas",os0,stmt0)]
   else match stmt0 with
   | Done -> []
   | _ ->
       match step_eval os0 stmt0 with
-      | Right (os1, stmt1, step) -> (os1, stmt1, step)::run_trace_evaluation (gas-1) os1 stmt1
-      | Left (os1, step) -> [(os1, Done, step)]
+      | Right (step, os1, stmt1) -> (step, os1, stmt1)::run_trace_evaluation (gas-1) os1 stmt1
+      | Left (step, os1) -> [(step, os1, Done)]
       end
   end
 
-val trace_evaluation : nat -> symbolic_os_state -> stmt -> list (symbolic_os_state * stmt * evaluation_step)
-let trace_evaluation gas os0 stmt0 = (os0,stmt0,XSStep "")::run_trace_evaluation gas os0 stmt0
+val trace_evaluation : nat -> symbolic_os_state -> stmt -> list (evaluation_step * symbolic_os_state * stmt)
+let trace_evaluation gas os0 stmt0 = (XSStep "",os0,stmt0)::run_trace_evaluation gas os0 stmt0
 
 (* TODO 2018-03-30 cleverer use of gas/limit number of commands *)
-val trace_evaluation_multi : nat -> symbolic_os_state -> list stmt -> list (symbolic_os_state * stmt * evaluation_step)
+val trace_evaluation_multi : nat -> symbolic_os_state -> list stmt -> list (evaluation_step * symbolic_os_state * stmt)
 let rec trace_evaluation_multi gas os0 stmts =
   match stmts with
   | [] -> []
   | (stmt::stmts') -> 
      let trace = trace_evaluation gas os0 stmt in
-     let (os1,_,_) = last trace in
+     let (_,os1,_) = last trace in
      trace ++ trace_evaluation_multi (gas-1) os1 stmts'
   end
