@@ -860,10 +860,11 @@ function renderExpandedWord(info, elt, w) {
 
     case 'DQuo':
       // | DQuo s -> obj_v "DQuo" s
-
+      
       elt.addClass('quoted');
       elt.append('"');
-      elt.append(w['v']);
+      const f = $('<span></span>').appendTo(elt);
+      renderSymbolicString(info, f, w['s']);
       elt.append('"');
 
       break;
@@ -1140,11 +1141,14 @@ function renderControl(info, elt, control) {
       break;
 
     case 'Quote':
-      // | Quote w -> obj_w "Quote" w
+      // | Quote f w -> obj_fw "Quote" f w
 
       elt.addClass('quoted');
       elt.append('"');
-                 
+
+      var f = $('<span></span>').appendTo(elt);
+      renderExpandedWords(info, f, control['f']);
+      
       var w = $('<span></span>').appendTo(elt);
       renderWords(info, w, control['w']);
 
