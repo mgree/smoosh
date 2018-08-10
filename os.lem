@@ -52,9 +52,22 @@ class ( OS 'a )
   val readdir : 'a -> path -> set (path * file unit)
   val write_fd : 'a -> fd -> string -> maybe 'a
   val read_fd : 'a -> fd -> maybe ('a * string)
-
 end
 
+val try_write_fd : forall 'a. OS 'a => fd -> string -> 'a -> 'a
+let try_write_fd fd s os =
+  (* TODO 2018-03-02 is this the right behavior when an fd points to a bad fifo, e.g., STDERR is closed? *)
+  match write_fd os fd s with
+  | Just os' -> os'
+  | Nothing -> os
+  end
+   
+val write_stdout : forall 'a. OS 'a => string -> 'a -> 'a
+let write_stdout = try_write_fd STDOUT
+
+val write_stderr : forall 'a. OS 'a => string -> 'a -> 'a
+let write_stderr = try_write_fd STDERR
+   
 (**********************************************************************)
 (* SYMBOLIC FS STATE **************************************************)
 (**********************************************************************)
@@ -235,15 +248,6 @@ let rec adjust_nth l n f =
      end
   end
   
-val print_stderr : forall 'a. OS 'a => 'a -> string -> 'a
-let print_stderr os msg = 
-  (* lookup where STDERR is pointing *)
-  match write_fd os STDERR msg with
-     (* TODO 2018-03-02 is this the right behavior when STDERR points to a bad fifo? *)
-     | Nothing -> os
-     | Just os -> os
-  end
-
 (**********************************************************************)
 (* SYMBOLIC SHELL STATE ***********************************************)
 (**********************************************************************)

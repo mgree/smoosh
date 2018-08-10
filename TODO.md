@@ -20,6 +20,17 @@
         opportunity for deadlock?
           x=$$ ; wait $x & ; wait $!
           no: can only wait on child processes
+- shell flags
+  interactive, etc.
+- non-special shell variables
+  LINENO
+  ENV (interactive only)
+  PPID
+  PS1-4
+  PWD
+  
+  HISTFILE?
+- shell history
 
 ### Long-term
 

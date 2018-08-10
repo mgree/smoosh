@@ -1,16 +1,59 @@
 open Fsh
+   
+(***********************************************************************)
+(* TEST SCAFFOLDING ****************************************************)
+(***********************************************************************)
+
+(* test_name expected got *)
+type 'a result = Ok | Err of 'a err
+and 'a err = { msg : string;  expected : 'a; got : 'a }
+
+let checker (test_fn : 'a -> 'b) (equal : 'b -> 'c -> bool)
+            ((test_name, input, expected_out) : string * 'a * 'b) : 'b result =
+  let out = test_fn input in
+  if equal out expected_out
+  then Ok
+  else Err {msg = test_name; expected = expected_out; got = out}
+
+let test_part name checker stringOfExpected tests count failed =
+  List.iter
+    (fun t ->
+      match checker t with
+      | Ok -> incr count
+      | Err e ->
+         Printf.printf "%s test: %s failed: expected '%s' got '%s'\n"
+                name e.msg (stringOfExpected e.expected) (stringOfExpected e.got);
+         incr count; incr failed)
+    tests
+
+(***********************************************************************)
+(* OS UTILITY FUNCTIONS ************************************************)
+(***********************************************************************)
 
 let add_literal_env_string k v s0 = symbolic_set_param k (Fsh.symbolic_string_of_string v) s0
+                                  
+let os_var_x_null : ty_os_state = add_literal_env_string "x" "" os_empty
+let os_var_x_set : ty_os_state = add_literal_env_string "x" "bar" os_empty
+let os_var_x_set_three : ty_os_state = add_literal_env_string "x" "\"this is three\"" os_empty
 
-let os_var_x_null:ty_os_state= add_literal_env_string "x" "" os_empty
-let os_var_x_set:ty_os_state = add_literal_env_string "x" "bar" os_empty
-let os_var_x_set_three:ty_os_state= add_literal_env_string "x" "\"this is three\"" os_empty
+let os_var_x_five : ty_os_state = add_literal_env_string "x" "5" os_empty
 
-let os_var_x_five:ty_os_state= add_literal_env_string "x" "5" os_empty
+let os_ifs_spaceandcomma : ty_os_state = add_literal_env_string "IFS" " ," os_empty
+let os_ifs_comma : ty_os_state = add_literal_env_string "IFS" "," os_empty
 
-let os_ifs_spaceandcomma:ty_os_state= add_literal_env_string "IFS" " ," os_empty
-let os_ifs_comma:ty_os_state= add_literal_env_string "IFS" "," os_empty
+(***********************************************************************)
+(* OCAML UTILITY FUNCTIONS *********************************************)
+(***********************************************************************)
 
+let rec intercalate sep ss = 
+  match ss with
+  | [] -> ""
+  | [s] -> s
+  | s::ss' -> s ^ sep ^ intercalate sep ss'
+
+let show_list set =
+  "[" ^ intercalate "," set ^ "]"  
+                            
 (***********************************************************************)
 (* FILESYSTEM SCAFFOLDING **********************************************)
 (***********************************************************************)
@@ -39,7 +82,7 @@ let new_dir (name:string) (parent_dir:fs_mut) : fs_mut =
   dir.parent <- Some (freeze parent_dir);
   dir
 
-let set_fs (fs:fs_mut) (st:ty_os_state) : ty_os_state = 
+let set_fs (fs:fs_mut) (st : ty_os_state) : ty_os_state = 
   let root = freeze fs in
   { st with fs_root = root; sh = { st.sh with cwd = "/" } }
 

@@ -3,22 +3,19 @@ open Fsh
 open Semantics
 open Printf
 
-(* RErr test_name expected got *)
-type result = Ok | RErr of string * fields * fields
-
-let check_expansion (test_name, s0, w_in, f_expected):result=
-  (let (s1, f_out) = (full_expansion s0 w_in) in
+let check_expansion (test_name, s0, w_in, f_expected) : fields result =
+  let (s1, f_out) = (full_expansion s0 w_in) in
   if (listEqualBy (=) f_out f_expected)
   then Ok
-  else RErr( test_name, f_expected, f_out))
+  else Err { msg = test_name; expected = f_expected; got = f_out }
 
 let concrete = List.map (fun x -> List.map (fun c -> Fsh.C c) (Xstring.explode x))
 
 let symcommand : symbolic_char = Sym (SymCommand (Command ([], [S "command"], [])))
-let os_var_x_foofoobarbar:ty_os_state = add_literal_env_string "x" "foofoobarbar" os_empty
+let os_var_x_foofoobarbar : ty_os_state = add_literal_env_string "x" "foofoobarbar" os_empty
 let os_var_x_foocommand : ty_os_state = symbolic_set_param "x" ((symbolic_string_of_string "foo") @ [symcommand]) os_empty
 
-let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
+let expansion_tests : (string*ty_os_state*(entry)list*fields)list=
  ([
     ("plain string foo", os_empty, [S "foo"], concrete ["foo"]);
     ("expand tilde without username", add_literal_env_string "HOME" "/home/testuser" os_empty, [K Tilde], concrete ["/home/testuser"]);
@@ -58,7 +55,7 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
       [K (Param("x", (Default [S "a b c"])))], concrete ["a"; "b"; "c"]);
 
     ("Field splitting parameter expansions, quoted", os_empty,
-      [K (Param("x", Default [K (Quote [S "a b c"])]))], concrete ["a b c"]);
+      [K (Param("x", Default [K (Quote([],[S "a b c"]))]))], concrete ["a b c"]);
 
     ("Field splitting w/ IFS set to ' ,'; commas force field separation", os_ifs_spaceandcomma,
       [K (Param("x", (Assign [S ",b,c"])))], concrete [""; "b"; "c"]);
@@ -86,22 +83,22 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
       [S "\"this is three\""], concrete ["\"this is three\""]);
 
     ("String inside control quote does not field split", os_empty,
-      [K (Quote [S "a b c"])], concrete ["a b c"]);
+      [K (Quote([],[S "a b c"]))], concrete ["a b c"]);
 
     ("Quoted paramter expansion does not field split", os_var_x_set_three,
-      [K (Quote [K (Param("x", Normal))])], concrete ["\"this is three\""]);
+      [K (Quote([],[K (Param("x", Normal))]))], concrete ["\"this is three\""]);
 
     ("Quoted field is combined with adjacent fields when there is no ifs separators", os_var_x_set_three,
-      [S "foo"; K (Quote [K (Param("x", Normal))]); S "bar"], concrete ["foo\"this is three\"bar"]);
+      [S "foo"; K (Quote([],[K (Param("x", Normal))])); S "bar"], concrete ["foo\"this is three\"bar"]);
 
     ("Quoted field is combined with adjacent fields when ifs separators are inside the quoted section", os_var_x_set_three,
-      [S "foo"; K (Quote [S " "; K (Param("x", Normal)); S " "]); S "bar"], concrete ["foo \"this is three\" bar"]);
+      [S "foo"; K (Quote([],[S " "; K (Param("x", Normal)); S " "])); S "bar"], concrete ["foo \"this is three\" bar"]);
 
     ("Quoted field is a separate field when ifs separators are outside the quoted section", os_var_x_set_three,
-      [S "foo"; F; K (Quote [K (Param("x", Normal))]); F; S "bar"], concrete ["foo"; "\"this is three\""; "bar"]);
+      [S "foo"; F; K (Quote([],[K (Param("x", Normal))])); F; S "bar"], concrete ["foo"; "\"this is three\""; "bar"]);
 
     ("Quoted field is a separate field when ifs separators are outside the quoted section", os_var_x_set_three,
-      [K (Param("y", Default [S "foo "])); K (Quote [K (Param("x", Normal))]); K (Param("y", Default [S " bar"]))], concrete ["foo"; "\"this is three\""; "bar"]);
+      [K (Param("y", Default [S "foo "])); K (Quote([],[K (Param("x", Normal))])); K (Param("y", Default [S " bar"]))], concrete ["foo"; "\"this is three\""; "bar"]);
 
     ("Simple arith test", os_empty,
       [K (Arith ([], [S "5 + 5"]))], concrete ["10"]);
@@ -188,9 +185,9 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
     ("/a/* in a/use/ a/useful a/user/", os_complicated_fs,
      [S "/a/*"], concrete ["/a/use";"/a/useful";"/a/user"]);
     ("\"a/*\" in a/use/ a/useful a/user/", os_complicated_fs,
-     [K (Quote [S "a/*"])], concrete ["a/*"]);
+     [K (Quote([],[S "a/*"]))], concrete ["a/*"]);
     ("\"${x=a/*}\" in a/use a/useful a/user/", os_complicated_fs,
-     [K (Quote [K (Param("x",Assign [S "a/*"]))])], concrete ["a/*"]);
+     [K (Quote([],[K (Param("x",Assign [S "a/*"]))]))], concrete ["a/*"]);
     ("\"${x=a}/*\" in a/use a/useful a/user/", os_complicated_fs,
      [K (Param("x",Assign [S "a"])); S "/*"], concrete ["a/use";"a/useful";"a/user"]);
 
@@ -200,15 +197,8 @@ let expansion_tests:(string*ty_os_state*(entry)list*fields)list=
   ])
 
 let run_tests () =
+  let count = ref 0 in
   let failed = ref 0 in
   print_endline "\n=== Running word expansion tests...";
-  List.iter
-    (fun t ->
-      match check_expansion t with
-      | Ok -> ()
-      | RErr(name,expected,got) ->
-         printf "%s failed: expected '%s' got '%s'\n"
-                name (fields_to_string expected) (fields_to_string got);
-         incr failed)
-    expansion_tests;
+  test_part "word expansion" check_expansion fields_to_string expansion_tests count failed;
   printf "=== ...ran %d word expansion tests with %d failures.\n\n" (List.length expansion_tests) !failed

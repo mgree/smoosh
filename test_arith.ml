@@ -49,17 +49,7 @@ let rec token_list_to_string = function
   | [t] -> string_of_token t
   | t::ts -> (string_of_token t) ^ " " ^ (token_list_to_string ts)
 
-let rec string_of_aexp aexp : string = "Aexp"
-
-(* test_name expected got *)
-type 'a result = Ok | Err of 'a err
-  and 'a err = { msg : string;  expected : 'a; got : 'a }
-
-let checker test_fn equal (test_name, input, expected_out) =
-  let out = test_fn input in
-  if equal out expected_out
-  then Ok
-  else Err {msg = test_name; expected = expected_out; got = out}
+let rec string_of_aexp aexp : string = "Aexp" (* TODO 2018-08-10 fixme *)
 
 let check_lexer (name, input, expected_out) =
   checker (lexer instance_Fsh_num_Read_Num_integer_dict) (=) (name, Xstring.explode input, expected_out)
@@ -297,16 +287,9 @@ let eval_int32_tests ofNumLiteral mul : (string * ty_os_state * string * (string
     ("right shift uses arithmetic shift", os_empty, "(15 << -1) >> 1", Right (os_empty, Int32.div int32Min (ofNumLiteral 2)));
   ]
 
-let test_part name checker stringOfExpected tests count failed =
-  List.iter
-    (fun t ->
-      match checker t with
-      | Ok -> incr count
-      | Err e ->
-         printf "%s test: %s failed: expected '%s' got '%s'\n"
-                name e.msg (stringOfExpected e.expected) (stringOfExpected e.got);
-         incr count; incr failed)
-    tests
+(***********************************************************************)
+(* DRIVER **************************************************************)
+(***********************************************************************)
 
 let run_tests () =
   let failed = ref 0 in

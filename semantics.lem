@@ -83,10 +83,10 @@ val split_expstring : list char -> list char -> intermediate_fields
 val split_word : list char -> (intermediate_fields * expanded_words) -> (intermediate_fields * expanded_words)
 val split_fields : forall 'a. OS 'a => 'a -> expanded_words -> intermediate_fields
 val clean_fields : intermediate_fields -> intermediate_fields
-val field_splitting : forall 'a. OS 'a => 'a -> expanded_words -> intermediate_fields
-
+val field_splitting : forall 'a. OS 'a => 'a -> expanded_words -> intermediate_fields  
+  
 let is_ws c = elem c (toCharList " \n\t")
-
+           
 let rec collect_non_ifs ifs ls =
   match ls with
   | [] -> ([], [])
@@ -116,7 +116,7 @@ let rec split_word ifs p =
       let new_fields = split_expstring ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
   | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (symbolic_string_of_string s)], wrds)
-  | (f, DQuo(s)::wrds) -> split_word ifs (f ++ [QField (symbolic_string_of_string s)], wrds)
+  | (f, DQuo(ss)::wrds) -> split_word ifs (f ++ [QField ss], wrds)
   | (f, EWSym sym::wrds) -> split_word ifs (f ++ [Field [Sym sym]], wrds)
   end
 
@@ -394,11 +394,12 @@ let rec expand_control s0 q k =
        match expand_words s0 q GeneratedString ([],w) with
        | Right (step, s1, f1, w1) -> Right (ESNested (ESArith "before arithmetic parsing") step, s1, [], [K (Arith (f ++ f1) w1)])
        | Left err -> Left err
-       end
-    | Quote w -> (* TODO 2018-02-02 properly accumulate quote while running *)
+        end
+   | Quote f [] ->
+      Right (ESQuote "finished quote expansion", s0, [DQuo (concat_expanded f)], [])
+   | Quote f w -> 
        match expand_words s0 Quoted GeneratedString ([],w) with
-       | Right (step, s1, f1, []) -> Right (step, s1, f1, [])
-       | Right (step, s1, f1, w1) -> Right (step, s1, f1, [K (Quote w1)])
+       | Right (step, s1, f1, w1) -> Right (step, s1, [], [K (Quote (f ++ f1) w1)])
        | Left err -> Left err
        end
   end
@@ -408,11 +409,11 @@ and expand_words s0 q sm (f,w) =
     | [] -> Right (ESStep "done", s0, f, w)
     | (F::ws) -> Right (ESStep "user field separator", s0, f ++ [UsrF], ws)
     | (S(s)::ws) ->
-        let f1 = match (q, sm) with
-        | (Quoted, _) -> [DQuo s]
-        | (Unquoted, UserString) -> [UsrS s]
-        | (Unquoted, GeneratedString) -> [ExpS s]
-        end in
+       let f1 = match (q, sm) with
+         | (Quoted, _) -> [DQuo (symbolic_string_of_string s)]
+         | (Unquoted, UserString) -> [UsrS s]
+         | (Unquoted, GeneratedString) -> [ExpS s]
+       end in
         Right (ESStep "plain string", s0, f ++ f1, ws)
     | (K(k)::ws) ->
        match expand_control s0 q k with
@@ -575,7 +576,7 @@ and run_command s0 prog argv env fds =
      | [] -> Right (s0,Exit) (* default to exit code of last command *)
      | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
               | Right n -> 
-                 if n < 1
+                 if n < 1 || n > 255
                  then Left (s0,"exit: " ^ write n ^ ": illegal number")
                  else Right (exit_with (toNat n) s0,Exit)
               | Left _ -> Left (s0,"exit: " ^ string_of_symbolic_string s ^ ": numeric argument required")
@@ -642,7 +643,6 @@ alias
 bg
 cd
 command
-false
 fc
 fg
 getopts
@@ -650,14 +650,19 @@ hash
 jobs
 kill
 newgrp
-pwd
 read
-true
 umask
 unalias
 wait
-*)
-           Left (s0,"TODO 2018-02-12 not implemented")
+            *)
+          match script_name with
+          | "false" -> Right (exit_with 1 s0, Done)
+          | "true" -> Right (exit_with 0 s0, Done)
+          | "pwd" -> (* TODO 2018-08-10 support -L [allow links, no . or ..] and -P [resolve symbolic links] options *)
+             let pwd = (get_shell_state s0).cwd ^ "\n" in
+             Right (write_stdout pwd s0, Done)
+          | _ -> Left (s0,"TODO 2018-02-12 not implemented")
+          end
        end
   | _ ->
      
@@ -805,7 +810,13 @@ so: how do we implement it?
         Right (XSSimple "assignments fully expanded",
                s1,
                CommandExpArgs fields (ExpStart ws) redirs)
-     end
+    end
+   (* FIXME TODO 2018-08-10 bug in variables that are just whitespace 
+
+    x="  " ; echo $x
+
+    we should get arguments to echo!
+    *)
   | CommandExpArgs assigns exp_state redirs ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
@@ -813,7 +824,9 @@ so: how do we implement it?
            Left (XSSimple "error in argument expansion",
                  os1)
         | ExpDone f ->
-           Right (XSSimple "arguments fully expanded",
+           let count_args = length f in
+           let argword = if count_args = 1 then "argument" else "arguments" in
+           Right (XSSimple (show (length f) ^ " " ^ argword ^ " fully expanded"),
                   os1,
                   CommandExpanded assigns f redirs)
         | (_ as in_progress) ->
@@ -853,7 +866,7 @@ $ count $(${x? one two three}) four
      (* run command *)
      match run_command s0 prog args env fds with
      | Right (s1,stmt') -> Right (XSSimple ("running " ^ string_of_symbolic_string prog), s1, stmt')
-     | Left (s1,msg) -> Right (XSSimple "couldn't run command", exit_with 1 (print_stderr s1 msg), Done)
+     | Left (s1,msg) -> Right (XSSimple "couldn't run command", exit_with 1 (write_stderr msg s1), Done)
      end
   | CommandExpanded _assigns [] _redirs ->
      (* TODO 2018-02-09 setup redirects for side effects/file creation
@@ -1026,6 +1039,8 @@ evalpipe(union node *n, int flags)
   | WhileCond c cur body ->
       match step_eval s0 cur with
       | Left e -> Left e
+      | Right (step, s1, Exit) -> Right (XSNested (XSWhile "exiting") step, s1, Exit)                                      
+      | Right (step, s1, Return) -> Right (XSNested (XSWhile "returning") step, s1, Return)
       | Right (step, s1, Break 1) -> Right (XSNested (XSWhile "breaking") step, exit_loop s1, Done)
       | Right (step, s1, Break n) -> Right (XSNested (XSWhile "breaking to outer loop") step, exit_loop s1, Break (n-1))
       | Right (step, s1, Continue 1) -> Right (XSNested (XSWhile "continuing loop") step, s1, WhileCond c c body)
@@ -1041,6 +1056,8 @@ evalpipe(union node *n, int flags)
   | WhileRunning c body cur ->
       match step_eval s0 cur with
       | Left e -> Left e
+      | Right (step, s1, Exit) -> Right (XSNested (XSWhile "exiting") step, s1, Exit)
+      | Right (step, s1, Return) -> Right (XSNested (XSWhile "returning") step, s1, Return) 
       | Right (step, s1, Break 1) -> Right (XSNested (XSWhile "breaking loop") step, exit_loop s1, Done)
       | Right (step, s1, Break n) -> Right (XSNested (XSWhile "breaking to outer loop") step, exit_loop s1, Break (n-1))
       | Right (step, s1, Continue 1) -> Right (XSNested (XSWhile "continuing loop") step, s1, WhileCond c c body)
@@ -1071,6 +1088,8 @@ evalpipe(union node *n, int flags)
   | ForRunning var f body cur ->
       match step_eval s0 cur with
       | Left e -> Left e
+      | Right (step, s1, Exit) -> Right (XSNested (XSFor "exiting") step, s1, Exit)
+      | Right (step, s1, Return) -> Right (XSNested (XSFor "returning") step, s1, Return)
       | Right (step, s1, Break 1) -> Right (XSNested (XSFor "breaking loop") step, exit_loop s1, Done)
       | Right (step, s1, Break n) -> Right (XSNested (XSFor "breaking to outer loop") step, exit_loop s1, Break (n-1))
       | Right (step, s1, Continue 1) ->
@@ -1254,4 +1273,21 @@ let rec trace_evaluation_multi gas os0 stmts =
      let trace = trace_evaluation gas os0 stmt in
      let (_,os1,_) = last trace in
      trace ++ trace_evaluation_multi (gas-1) os1 stmts'
+end
+
+val full_evaluation : symbolic_os_state -> stmt -> symbolic_os_state
+let rec full_evaluation os0 stmt0 =
+  match stmt0 with
+  | Done -> os0
+  | _ -> match step_eval os0 stmt0 with
+         | Right (_step, os1, stmt1) -> full_evaluation os1 stmt1
+         | Left (_step, os1) -> os1
+         end
+  end
+  
+val full_evaluation_multi : symbolic_os_state -> list stmt -> symbolic_os_state
+let rec full_evaluation_multi os0 stmts =
+  match stmts with
+  | [] -> os0
+  | (stmt::stmts') -> full_evaluation_multi (full_evaluation os0 stmt) stmts'
   end

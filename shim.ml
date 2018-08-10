@@ -202,7 +202,7 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
   | '\136'::s,_ ->
      let a,s,bqlist,stack' = parse_arg s bqlist (`CTLQuo::stack) in
      assert (stack' = stack);
-     arg_char (K (Quote a)) s bqlist stack'
+     arg_char (K (Quote ([],a))) s bqlist stack'
   (* tildes *)
   | '~'::s,stack ->
      let uname,s' = parse_tilde [] s in
@@ -267,6 +267,10 @@ and to_args (n : node union ptr) : words list =
         let n = n @-> node_narg in
         to_arg n::to_args (getf n narg_next))
 
+(************************************************************************)
+(* JSON rendering *******************************************************)
+(************************************************************************)
+  
 (* we don't need anything else, I think---just a tiny bit of JSON *)
 type json = String of string
           | Bool of bool
@@ -430,7 +434,7 @@ and json_of_control = function
                                           ("orig", json_of_stmt corig);
                                           ("stmt", json_of_stmt c)]
   | Arith (f,w) ->  obj_fw "Arith" f w
-  | Quote w -> obj_w "Quote" w
+  | Quote (f,w) -> obj_fw "Quote" f w
 and json_of_format = function
   | Normal -> obj "Normal"
   | Length -> obj "Length"
@@ -456,7 +460,7 @@ and json_of_expanded_words f = List (List.map json_of_expanded_word f)
 and json_of_expanded_word = function
   | UsrF -> obj "UsrF"
   | ExpS s -> obj_v "ExpS" s
-  | DQuo s -> obj_v "DQuo" s
+  | DQuo s -> Assoc [tag "DQuo"; ("s", json_of_symbolic_string s)]
   | UsrS s -> obj_v "UsrS" s
   | EWSym sym -> Assoc [tag "EWSym"; ("s", json_of_symbolic sym)]
 and json_of_fields ss = List (List.map json_of_symbolic_string ss)
