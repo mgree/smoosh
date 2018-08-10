@@ -21,9 +21,13 @@
           x=$$ ; wait $x & ; wait $!
           no: can only wait on child processes
 
+### Long-term
+
+- support for nondeterminism (move to K?)
+
 ### Testing
 
-Add test case for appropriated field splitting for generated string (particularly parameters)
+Add test case for appropriate field splitting for generated string (particularly parameters)
 
 Unify testing helpers
 
