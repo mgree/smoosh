@@ -21,7 +21,7 @@ let test_part name checker stringOfExpected tests count failed =
       match checker t with
       | Ok -> incr count
       | Err e ->
-         Printf.printf "%s test: %s failed: expected '%s' got '%s'\n"
+         Printf.printf "%s test '%s' failed: expected '%s' got '%s'\n"
                 name e.msg (stringOfExpected e.expected) (stringOfExpected e.got);
          incr count; incr failed)
     tests

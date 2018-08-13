@@ -811,12 +811,6 @@ so: how do we implement it?
                s1,
                CommandExpArgs fields (ExpStart ws) redirs)
     end
-   (* FIXME TODO 2018-08-10 bug in variables that are just whitespace 
-
-    x="  " ; echo $x
-
-    we should get arguments to echo!
-    *)
   | CommandExpArgs assigns exp_state redirs ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with

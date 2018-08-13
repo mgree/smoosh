@@ -406,7 +406,7 @@ let rec string_of_symbolic_string sym_str =
 val fields_to_string : fields -> string
 let rec fields_to_string fs = 
   match fs with
-  | [] -> "f"
+  | [] -> ""
   | [f] -> string_of_symbolic_string f
   | f::fs' -> string_of_symbolic_string f ^ "<<FB>>" ^ fields_to_string fs'
   end

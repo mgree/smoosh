@@ -194,11 +194,13 @@ let expansion_tests : (string*ty_os_state*(entry)list*fields)list=
     ("\"${x:?a*}\" in error output shouldn't expand", os_complicated_fs,
      [K (Param("x", Error [S "a*"]))], concrete ["x: a*"]);
 
+    ("whitespace variable assignment is field split to nothing", os_empty,
+     [K (Param("x", Assign [S "  "]))], [])
   ])
 
 let run_tests () =
   let count = ref 0 in
   let failed = ref 0 in
   print_endline "\n=== Running word expansion tests...";
-  test_part "word expansion" check_expansion fields_to_string expansion_tests count failed;
+  test_part "Word expansion" check_expansion fields_to_string expansion_tests count failed;
   printf "=== ...ran %d word expansion tests with %d failures.\n\n" (List.length expansion_tests) !failed

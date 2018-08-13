@@ -284,6 +284,7 @@ let rec write_json (buf : Buffer.t) =
     | [x] -> op x
     | x::xs -> op x; sep (); intercalate op sep xs in
   let comma () = Buffer.add_char buf ',' in
+  let comma_nl () = (Buffer.add_char buf ','; Buffer.add_char buf '\n') in
   function
   | String s -> 
      Buffer.add_char buf '"';
@@ -295,7 +296,7 @@ let rec write_json (buf : Buffer.t) =
      Buffer.add_string buf (string_of_int n)
   | List l ->
      Buffer.add_char buf '[';
-     intercalate (write_json buf) comma l;
+     intercalate (write_json buf) comma_nl l;
      Buffer.add_char buf ']'
   | Assoc m ->
      Buffer.add_char buf '{';
