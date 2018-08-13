@@ -49,6 +49,11 @@ let exit_code_tests : (string * ty_os_state * int) list =
   (* for loop with no args should exit 0 *)
   ; ("for x in; do exit 1; done", os_empty, 0)
   ; ("for x in \"\"; do exit 1; done", os_empty, 1)
+
+  ; ("case abc in ab) true;; abc) false;; esac", os_empty, 1)
+  ; ("case abc in ab|ab*) true;; abc) false;; esac", os_empty, 0)
+  ; ("case abc in *) true;; abc) false;; esac", os_empty, 0)
+  ; ("x=hello ; case $x in *el*) true;; *) false;; esac", os_empty, 0)
   ]
 
 (***********************************************************************)

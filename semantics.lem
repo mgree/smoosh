@@ -820,7 +820,7 @@ so: how do we implement it?
         | ExpDone f ->
            let count_args = length f in
            let argword = if count_args = 1 then "argument" else "arguments" in
-           Right (XSSimple (show (length f) ^ " " ^ argword ^ " fully expanded"),
+           Right (XSSimple (show (length f) ^ " " ^ argword ^ " fully expanded (count includes command)"),
                   os1,
                   CommandExpanded assigns f redirs)
         | (_ as in_progress) ->
@@ -1121,7 +1121,14 @@ evalpipe(union node *n, int flags)
   | CaseMatch f cases ->
       match cases with
         | [] -> Right (XSCase "no match in case statement", s0, Done)
-        | (pat, cmd)::cases' -> Right (XSCase "checking pattern match", s0, CaseCheckMatch f (ExpStart pat) cmd cases')
+        | ([], _cmd)::cases' ->
+           Right (XSCase "exhausted patterns, checking next case",
+                  s0,
+                  CaseMatch f cases')
+        | (pat::pats', cmd)::cases' ->
+           Right (XSCase "checking pattern match",
+                  s0,
+                  CaseCheckMatch f (ExpStart pat) cmd ((pats',cmd)::cases'))
       end
   | CaseCheckMatch f pat cmd cases ->
       let (step, os1, st1) = step_expansion (s0, pat) in
@@ -1130,9 +1137,11 @@ evalpipe(union node *n, int flags)
            Left (XSExpand (XSCase "error in case pattern expansion") step, os1)
         | ExpDone [pat'] ->
           (* TODO 2018-02-09 use proper locale and verify substring mode works correctly *)
-          match match_prefix lc_ambient Shortest pat' f with
-          | NoMatch -> Right (XSCase "case did not match, trying the next", os1, CaseMatch f cases)
-          | Match _ -> Right (XSCase "case matched, evaluating cmd", os1, cmd)
+          match match_prefix lc_ambient Exact pat' f with
+          | NoMatch -> Right (XSCase "case did not match, trying the next",
+                              os1, CaseMatch f cases)
+          | Match _ -> Right (XSCase "case matched, evaluating cmd",
+                              os1, cmd)
           | Symbolic -> Left (XSCase "TODO symbolic value, could match", os1)
           end
         | ExpDone _ -> Left (XSCase "case match pattern did not expand to a single field", os1)

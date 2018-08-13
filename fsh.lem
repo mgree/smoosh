@@ -9,6 +9,13 @@ val string_of_stmt : stmt -> string
 val string_of_words : words -> string
 val string_of_entry : entry -> string
 
+let rec intercalate sep ss = 
+  match ss with
+  | [] -> ""
+  | [s] -> s
+  | s::ss' -> s ^ sep ^ intercalate sep ss'
+  end
+      
 let parens s = "( " ^ s ^ " )"
   
 let braces s = "{ " ^ s ^ " ; }"
@@ -102,7 +109,7 @@ and string_of_if c t e =
    end)
 
 and string_of_case (w,c) =
-  string_of_words w ^ ") " ^ string_of_stmt c ^ ";;"
+  intercalate "|" (List.map string_of_words w) ^ ") " ^ string_of_stmt c ^ ";;"
 
 and string_of_redir r = 
   match r with

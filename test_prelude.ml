@@ -45,12 +45,6 @@ let os_ifs_comma : ty_os_state = add_literal_env_string "IFS" "," os_empty
 (* OCAML UTILITY FUNCTIONS *********************************************)
 (***********************************************************************)
 
-let rec intercalate sep ss = 
-  match ss with
-  | [] -> ""
-  | [s] -> s
-  | s::ss' -> s ^ sep ^ intercalate sep ss'
-
 let show_list set =
   "[" ^ intercalate "," set ^ "]"  
                             

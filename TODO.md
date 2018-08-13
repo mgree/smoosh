@@ -9,7 +9,6 @@
 - special variables
   + need to add to the shell representation
   + need to sort out the difference between $* and $@
-- full pattern matching for cases
 - pipes and redirects
   + need to boost what FS can do
 - background processes
@@ -38,9 +37,10 @@
 
 ### Testing
 
-Add test case for appropriate field splitting for generated string (particularly parameters)
+- Appropriate field splitting for generated strings (particularly parameters)
 
-Unify testing helpers
+- VM for POSIX testing
+  run on dash, bash
 
 ### Organizational issues
 

@@ -71,6 +71,7 @@ let lc_ambient =
 type substring_mode =
   Shortest
 | Longest
+| Exact
 
 type substring_side =
   Prefix
@@ -146,10 +147,10 @@ and stmt =
   | ForExpArgs of string * expansion_state * stmt
   | ForExpanded of string * fields * stmt
   | ForRunning of string * fields * stmt (* original body *) * stmt (* current body *)
-  | Case of words * list (words * stmt)
-  | CaseExpArg of expansion_state * list (words * stmt)
-  | CaseMatch of symbolic_string * list (words * stmt)
-  | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (words * stmt) (* remaining cases *)
+  | Case of words * list (list words * stmt)
+  | CaseExpArg of expansion_state * list (list words * stmt)
+  | CaseMatch of symbolic_string * list (list words * stmt)
+  | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (list words * stmt) (* remaining cases *)
   | Defun of string * stmt
   | Call of nat (* outer loop_nest, to be restored *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
   | Break of nat

@@ -79,7 +79,7 @@ let rec of_node (n : node union ptr) : stmt =
      let n = n @-> node_ncase in
      Case (to_arg (getf n ncase_expr @-> node_narg),
            List.map
-             (fun (pattern,body) -> (to_arg (pattern @-> node_narg), of_node body))
+             (fun (pattern,body) -> (to_args pattern, of_node body))
              (caselist (getf n ncase_cases)))
   (* NDEFUN *)
   | 14 ->
@@ -410,7 +410,8 @@ and json_of_redirs rs = List (List.map json_of_redir rs)
 and json_of_assign (x, w) = Assoc [("var", String x); ("value", json_of_words w)]
 and json_of_inprogress_assign (x, state) = Assoc [("var", String x); ("value", json_of_expansion_state state)]
 and json_of_expanded_assign (x, f) = Assoc [("var", String x); ("value", json_of_fields f)]
-and json_of_case (w, c) = Assoc [("pat", json_of_words w); ("stmt", json_of_stmt c)]
+and json_of_case (ws, c) = Assoc [("pats", List (List.map json_of_words ws));
+                                  ("stmt", json_of_stmt c)]
 and json_of_words w = List (List.map json_of_entry w)
 and json_of_entry = function
   | S s -> obj_v "S" s
@@ -454,6 +455,7 @@ and json_of_format = function
 and json_of_substring_mode = function
   | Shortest -> String "Shortest"
   | Longest -> String "Longest"
+  | Exact -> String "Exact"
 and json_of_substring_side = function
   | Prefix -> String "Prefix"
   | Suffix -> String "Suffix"

@@ -1,5 +1,5 @@
 open import Fsh
-
+   
 type match_result 'a =
   NoMatch
 | Symbolic
@@ -180,7 +180,13 @@ let rec match_prefix (lc:locale) (m:substring_mode) (pat:symbolic_string) (s:sym
   match (pat,s) with
 
   (* empty pattern *)
-  | ([]       ,       s) -> Match s
+  | ([]       ,      []) -> Match []
+  | ([]       ,       s) ->
+     match m with
+     | Exact -> NoMatch
+     | Shortest -> Match s
+     | Longest -> Match s
+     end
 
   (* question-mark expressions *)
   | (C(#'?')::_   ,     []) -> NoMatch
@@ -197,6 +203,12 @@ let rec match_prefix (lc:locale) (m:substring_mode) (pat:symbolic_string) (s:sym
         | Match s' -> Match s'                       (*   ...success; we have our answer *)
         end
      | Shortest ->
+        match (match_prefix lc m pat' (c::s')) with    (* try matching empty first *)
+        | NoMatch -> match_prefix lc m (C(#'*')::pat') s' (*   ...no dice; skip a character and go on *)
+        | Symbolic -> Symbolic
+        | Match s' -> Match s'                        (*   ...success; we have our answer *)
+        end
+     | Exact -> (* SAME AS SHORTEST *)
         match (match_prefix lc m pat' (c::s')) with    (* try matching empty first *)
         | NoMatch -> match_prefix lc m (C(#'*')::pat') s' (*   ...no dice; skip a character and go on *)
         | Symbolic -> Symbolic
