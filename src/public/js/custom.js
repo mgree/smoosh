@@ -241,6 +241,19 @@ function stmtFor(info, elt, fArgs, stmt) {
     elt.append(';' + fieldSep + 'done');
 }
 
+function renderPatterns(info, elt, patterns) {
+    for (let i = 0; i < patterns.length; i += 1) {
+        const pat = $('<span></span>').appendTo(elt);
+        renderWords(info, pat, patterns[i]);
+        
+        if (i !== patterns.length - 1) {
+            pat.append(fieldSep);
+            pat.append("|");
+            pat.append(fieldSep);
+        }
+    }
+}
+
 function stmtCase(info, elt, fArgs, stmt) {
     elt.append('case' + fieldSep);
 
@@ -253,6 +266,7 @@ function stmtCase(info, elt, fArgs, stmt) {
     let cases = $('<span></span>').addClass('case-cases').appendTo(elt);
 
     // special case for CaseCheckMatch
+    // slightly breaks rendering since we peel off each pattern one-by-one, so case numbers will change if | is used heavily
     if ('pat' in stmt && 'c' in stmt) {
         let eCase = $('<span></span>').addClass('case').appendTo(cases);
 
@@ -262,16 +276,16 @@ function stmtCase(info, elt, fArgs, stmt) {
         eCase.append(')' + fieldSep);
 
         var body = $('<span></span>').addClass('case-stmt').appendTo(eCase);
-        renderStmt(info, body, c['stmt']);
+        renderStmt(info, body, stmt['c']);
 
         eCase.append(fieldSep + ';;');
     }
     
     for (const c of stmt['cases']) {
         let eCase = $('<span></span>').addClass('case').appendTo(cases);
-        
-        let pat = $('<span></span>').addClass('case-pattern').appendTo(eCase);
-        renderWords(info, pat, c['pat']);
+
+        let pats = $('<span></span>').addClass('case-pattern').appendTo(eCase);
+        renderPatterns(info, pats, c['pats']);
 
         eCase.append(')' + fieldSep);
 
@@ -904,10 +918,11 @@ function renderSubstring(side, mode) {
   console.assert(typeof side === 'string', 'expected string for side, got ' + side);
   console.assert(typeof mode === 'string', 'expected string for mode, got ' + mode);
   console.assert(['Prefix', 'Suffix'].includes(side), 'got weird mode ' + mode);
-  console.assert(['Shortest', 'Longest'].includes(mode), 'got weird mode ' + mode);
+  console.assert(['Shortest', 'Longest', 'Exact'].includes(mode), 'got weird mode ' + mode);
 
   var r = side === 'Prefix' ? '#' : '%';
-  return mode == 'Shortest' ? r : r + r;
+  // by rights, 'Exact' shouldn't really come up here---it's used for case statements. but: safety first!
+  return ['Shortest', 'Exact'].includes(mode) ? r : r + r;
 };
 
 function renderFormatChar(format) {
