@@ -3,7 +3,9 @@
 - special built-ins
   + trap
     need to add to the shell representation
-  + eval (call parser), ./source
+  + eval (call parser)
+    need to properly handle errors in parser
+  + ./source
   + exec
 - other built-ins
 - special variables
