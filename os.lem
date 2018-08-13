@@ -231,6 +231,12 @@ let exit_loop os =
   update_shell_state
     (fun sh -> <| sh with loop_nest = sh.loop_nest - 1 |>) os
 
+val exit_with : forall 'a. OS 'a => nat -> 'a -> 'a
+let exit_with ec os = set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
+
+val set_last_pid : forall 'a. OS 'a => nat -> 'a -> 'a
+let set_last_pid pid os = set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
+  
 (***********************************************************************)
 (* UNCONVERTED *********************************************************)
 

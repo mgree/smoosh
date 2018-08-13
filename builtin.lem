@@ -1,0 +1,234 @@
+open import Fsh
+
+val run_command : forall 'a. OS 'a => 
+                  'a -> 
+                  symbolic_string (* prog *) -> 
+                  fields (* argv *) ->
+                  env ->
+                  fds ->
+                  either ('a * string) ('a * stmt)
+   
+val is_special_builtin : string -> bool
+let is_special_builtin s =
+  elem s ["break";":";"continue";".";"eval";"exec";"exit";"export";"readonly";
+          "return";"set";"shift";"times";"trap";"unset"]
+
+val is_unspecified_utility : string -> bool
+let is_unspecified_utility s =
+  elem s ["alloc";"autoload";"bind";"bindkey";"builtin";"bye";"caller";"cap";
+          "chdir";"clone";"comparguments";"compcall";"compctl";"compdescribe";
+          "compfiles";"compgen";"compgroups";"complete";"compquote";"comptags";
+          "comptry";"compvalues";"declare";"dirs";"disable";"disown";"dosh";
+          "echotc";"echoti";"help";"history";"hist";"let";"local";"login";
+          "logout";"map";"mapfile";"popd";"print";"pushd";"readarray";"repeat";
+          "savehistory";"source";"shopt";"stop";"suspend";"typeset";"whence"]
+       
+(* TODO 2018-01-26 implement builtins 
+
+  BUILTINS IMPLEMENTED BY DASH
+
+     [ / test
+     alias
+     bg
+     cd
+     chdir
+     command
+     echo
+     false
+     fg
+     getopts
+     hash
+     jobs
+     kill
+     local
+     printf
+     pwd
+     read
+     true
+     type
+     ulimit
+     umask
+     unalias
+     wait
+
+   SPECIAL BUILTINS (need particular environment treatment)
+
+     break
+     :
+     continue
+     .
+     eval
+     exec
+     exit
+     export
+     readonly
+     return
+     set
+     shift
+     times
+     trap
+     unset
+ *)
+
+let run_command s0 prog argv env fds =
+  match try_concrete prog with
+  (*  1a. If the command name matches the name of a special built-in utility, that special built-in utility shall be invoked. 
+
+  .
+  eval
+  exec
+  export
+  readonly
+  set
+  times
+  trap
+  unset
+*)
+
+  | Just ":" -> Right (exit_with 0 s0,Done)
+  | Just "break" ->
+     match argv with
+     | [] -> Right (s0,Break 1) (* default to just breaking the immediate loop *)
+     | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
+              | Right n -> 
+                 if n < 1
+                 then Left (s0,"break: " ^ write n ^ ": loop count out of range")
+                 else Right (s0,Break (toNat n))
+              | Left _ -> Left (s0,"break: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+     | _ -> Left (s0,"break: too many arguments")
+     end
+  | Just "continue" ->
+     match argv with
+     | [] -> Right (s0,Continue 1) (* default to just continuing the immediate loop *)
+     | [s] -> match readNat (char_list_of_symbolic_string s) with
+              | Right n -> Right (s0,Continue n)
+              | Left _ -> Left (s0,"continue: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+     | _ -> Left (s0,"continue: too many arguments")
+     end
+  | Just "exit" ->
+     match argv with
+     | [] -> Right (s0,Exit) (* default to exit code of last command *)
+     | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
+              | Right n -> 
+                 if n < 1 || n > 255
+                 then Left (s0,"exit: " ^ write n ^ ": illegal number")
+                 else Right (exit_with (toNat n) s0,Exit)
+              | Left _ -> Left (s0,"exit: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+     | _ -> Left (s0,"exit: too many arguments")
+     end
+  | Just "return" ->
+     (* 2018-03-2 the present arrangement yields exit code of 1 on error; bash gives 255 for return; dash does 2.
+        unspecified in POSIX docs *)
+     match argv with
+     | [] -> Right (s0,Return) (* just keep the last command's return status *)
+     | [s] -> match readNat (char_list_of_symbolic_string s) with
+              | Right n -> Right (exit_with n s0,Return)
+              | Left _ -> Left (s0,"return: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+     | _ -> Left (s0,"return: too many arguments")
+     end
+   | Just "shift" ->
+      let n = match argv with
+        | [] -> Right 1
+        | [s] -> match readNat (char_list_of_symbolic_string s) with
+              | Right n -> Right n
+              | Left _ -> Left ("shift: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+              end
+        | _  -> Left ("shift: too many arguments")
+        end in 
+      match n with
+      | Left err -> Left (s0,err)
+      | Right n -> 
+         let s1 = 
+           update_shell_state 
+             (fun sh -> <| sh with positional_params = drop n sh.positional_params |>)
+             s0
+         in
+         Right (s1, Done)
+      end
+  | Just script_name -> 
+     (* 1b. b. If the command name matches the name of a utility
+        listed in the following table, the results are unspecified. *)
+     if is_unspecified_utility script_name  
+     then Right (s0,Done)
+     else 
+       (* 1c. If the command name matches the name of a function known
+          to this shell, the function shall be invoked as described in
+          Function Definition Command. If the implementation has
+          provided a standard utility in the form of a function, it
+          shall not be recognized at this point. It shall be invoked
+          in conjunction with the path search in step 1e. *)
+       match lookup_function script_name s0 with
+       | Just body ->
+           (* TODO 2018-02-12 set $*, $@, and $0, $1, ... 
+              
+              save pre-existing numerical arguments, $@, and $*
+              
+              so: does the shell need to know the maximal positional argument at any given time?
+            *)
+          let sh = get_shell_state s0 in
+          Right (set_function_params 0 argv s0,
+                 Call sh.loop_nest sh.positional_params script_name body body)
+       | Nothing -> 
+           (*   1d. If the command name matches the name [XSI] [Option Start]  of the type or ulimit utility, or [Option End]  of a utility listed in the following table, that utility shall be invoked.
+
+alias
+bg
+cd
+command
+fc
+fg
+getopts
+hash
+jobs
+kill
+newgrp
+read
+umask
+unalias
+wait
+            *)
+          match script_name with
+          | "false" -> Right (exit_with 1 s0, Done)
+          | "true" -> Right (exit_with 0 s0, Done)
+          | "pwd" -> (* TODO 2018-08-10 support -L [allow links, no . or ..] and -P [resolve symbolic links] options *)
+             let pwd = (get_shell_state s0).cwd ^ "\n" in
+             Right (write_stdout pwd s0, Done)
+          | _ -> Left (s0,"TODO 2018-02-12 not implemented")
+          end
+       end
+  | _ ->
+     
+(*
+Otherwise, the command shall be searched for using the PATH environment variable as described in XBD Environment Variables :
+
+If the search is successful:
+
+If the system has implemented the utility as a regular built-in or as a shell function, it shall be invoked at this point in the path search.
+
+Otherwise, the shell executes the utility in a separate utility environment (see Shell Execution Environment) with actions equivalent to calling the execl() function as defined in the System Interfaces volume of POSIX.1-2008 with the path argument set to the pathname resulting from the search, arg0 set to the command name, and the remaining execl() arguments set to the command arguments (if any) and the null terminator.
+
+If the execl() function fails due to an error equivalent to the [ENOEXEC] error defined in the System Interfaces volume of POSIX.1-2008, the shell shall execute a command equivalent to having a shell invoked with the pathname resulting from the search as its first operand, with any remaining arguments passed to the new shell, except that the value of "$0" in the new shell may be set to the command name. If the executable file is not a text file, the shell may bypass this command execution. In this case, it shall write an error message, and shall return an exit status of 126.
+
+It is unspecified whether environment variables that were passed to the shell when it was invoked, but were not used to initialize shell variables (see Shell Variables) because they had invalid names, are included in the environment passed to execl() and (if execl() fails as described above) to the new shell.
+
+Once a utility has been searched for and found (either as a result of this specific search or as part of an unspecified shell start-up activity), an implementation may remember its location and need not search for the utility again unless the PATH variable has been the subject of an assignment. If the remembered location fails for a subsequent invocation, the shell shall repeat the search to find the new location for the utility, if any.
+
+If the search is unsuccessful, the command shall fail with an exit status of 127 and the shell shall write an error message.
+
+If the command name contains at least one <slash>, the shell shall execute the utility in a separate utility environment with actions equivalent to calling the execl() function defined in the System Interfaces volume of POSIX.1-2008 with the path and arg0 arguments set to the command name, and the remaining execl() arguments set to the command arguments (if any) and the null terminator.
+
+If the execl() function fails due to an error equivalent to the [ENOEXEC] error, the shell shall execute a command equivalent to having a shell invoked with the command name as its first operand, with any remaining arguments passed to the new shell. If the executable file is not a text file, the shell may bypass this command execution. In this case, it shall write an error message and shall return an exit status of 126.
+
+It is unspecified whether environment variables that were passed to the shell when it was invoked, but were not used to initialize shell variables (see Shell Variables) because they had invalid names, are included in the environment passed to execl() and (if execl() fails as described above) to the new shell.
+
+If the utility would be executed with file descriptor 0, 1, or 2 closed, implementations may execute the utility with the file descriptor open to an unspecified file. If a standard utility or a conforming application is executed with file descriptor 0 not open for reading or with file descriptor 1 or 2 not open for writing, the environment in which the utility or application is executed shall be deemed non-conforming, and consequently the utility or application might not behave as described in this standard.
+*)
+     let (s1,pid) = execve s0 prog argv env fds in
+     (* TODO 2018-02-09 actually wait for pid to finish, set exit_code appropriately! *)
+     Right (set_last_pid pid (exit_with 0 (* TODO 2018-02-09 FIXME *) s1),Done)
+  end
+    
