@@ -725,7 +725,9 @@ evalpipe(union node *n, int flags)
         but shall do so only when the expansion would result in one
         word. *)    
      Left (XSRedir "TODO", s0)
-  | Background _stmt' _redirs -> Left (XSBackground "TODO", s0)
+  | Background _stmt' _redirs -> 
+     (* PICKUPHERE 2018-08-15 add a notion of fork_and_subshell; choose to wait or not *)
+     Left (XSBackground "TODO", s0)
   | Subshell _stmt' _redirs -> Left (XSSubshell "TODO", s0)
   | And l r ->
       match step_eval s0 l with
