@@ -37,7 +37,7 @@ let prepare_command () : string list (* positional args *) =
   match !input_mode with
   | NoFlag -> 
      begin match !args with
-     | [] -> Dash.setinputtostdin (); [] 
+     | [] -> interactive := true; Dash.setinputtostdin (); [] 
      | cmd::args -> Dash.setinputfile cmd; cmd::args
      end
   | SFlag -> Dash.setinputtostdin (); Sys.argv.(0)::!args 
@@ -101,5 +101,6 @@ let main () =
   if !interactive
   then repl s0
   else run_cmds s0
+;;
 
-  
+main ()
