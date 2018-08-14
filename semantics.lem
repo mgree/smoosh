@@ -138,7 +138,6 @@ let rec insert_field_separators fs =
   | f::fs' -> Field (symbolic_string_of_string f)::FS::insert_field_separators fs'
   end
 
-(* TODO 2018-03-12 Pathname expansion shall not be performed on the word [that is the target of redirection] by a non-interactive shell; an interactive shell may perform it, but shall do so only when the expansion would result in one word. *)    
 val pathname_expansion : forall 'a. OS 'a => 'a -> intermediate_fields -> intermediate_fields
 
 (* Parameter expansion only happens on unquoted fields *)
@@ -719,7 +718,13 @@ evalpipe(union node *n, int flags)
       *)     
      let last_pid = 0 in (* TODO 2018-03-02 use actual spawned pid *)
      Right (XSPipe "started pipe",s0,if bg then Done else Wait last_pid)
-  | Redir _stmt' _redirs -> Left (XSRedir "TODO", s0)
+  | Redir _stmt' _redirs ->
+     (* TODO 2018-03-12 Pathname expansion shall not be performed on
+        the word [that is the target of redirection] by a
+        non-interactive shell; an interactive shell may perform it,
+        but shall do so only when the expansion would result in one
+        word. *)    
+     Left (XSRedir "TODO", s0)
   | Background _stmt' _redirs -> Left (XSBackground "TODO", s0)
   | Subshell _stmt' _redirs -> Left (XSSubshell "TODO", s0)
   | And l r ->
@@ -946,7 +951,17 @@ evalpipe(union node *n, int flags)
   | Break _n -> Right (XSSimple "break bottomed out", s0, Done)
   | Continue _n -> Right (XSSimple "continue bottomed out", s0, Done)
   | Return -> Right (XSSimple "return bottomed out", s0, Done)
-  | Wait _n -> Left (XSSimple "TODO 2018-03-02 not implemented", s0)
+  | Wait n -> 
+     match waitpid s0 n with
+     | (s1, Nothing) -> 
+        (* TODO 2018-08-14 
+           when executing symbolically, see if n exists, force it to step *)
+        Right (XSSimple ("waiting on " ^ stringFromNat n), s1, Wait n)
+     | (s1, Just code) ->
+        Right (XSSimple ("process with pid " ^ stringFromNat n ^ "completed"),
+               exit_with code s1,
+               Done)
+     end               
   | Exit -> 
      (* TODO 2018-03-02 handle traps *)
      Right (XSSimple "exited", s0, Done)

@@ -13,8 +13,17 @@ let real_fork_and_execve
   match Unix.fork () with
   | 0 -> 
      (* TODO 2018-08-14 take and manipulate fds; need to update os.lem accordingly when done *)
-     Unix.execve cmd (Array.of_list argv) (Array.of_list environ)
-  | pid -> pid
+     Unix.execve cmd (Array.of_list (cmd::argv)) (Array.of_list environ)
+  | pid ->   
+     Printf.eprintf "%s %s" cmd (List.fold_right (fun arg s -> arg ^ " " ^ s) argv "");
+     pid
+
+let real_waitpid (pid : int) : int = 
+  try match Unix.waitpid [] pid with
+  | (_,Unix.WEXITED code) -> code
+  | (_,Unix.WSIGNALED signal) -> 130 (* bash, dash behavior *)
+  | (_,Unix.WSTOPPED signal) -> 146 (* bash, dash behavior *)
+  with Unix.Unix_error(EINTR,_,_) -> 130
 
 (* NB on Unix systems, the abstract type `file_descriptor` is just an int *)
 let fd_of_int : int -> Unix.file_descr = Obj.magic

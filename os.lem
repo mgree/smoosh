@@ -41,6 +41,7 @@ class ( OS 'a )
   (* SYSTEM CALLS *)
   val getpwnam : 'a -> string -> maybe string
   val fork_and_execve : 'a -> symbolic_string -> list symbolic_string -> env -> fds -> 'a * nat
+  val waitpid : 'a -> nat -> 'a * maybe nat
 
   (* FS CALLS *)
   val readdir : 'a -> path -> set (path * file unit)
@@ -273,6 +274,12 @@ instance (OS symbolic_os_state)
     (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
     let proc_num = length os.procs in
     (<| os with procs = os.procs ++ [Execve prog argv env fds] |>, proc_num)
+
+  let waitpid os pid =
+    (* TODO 2018-08-14 look through processes, see if pid is valid
+       if so, set a bit saying to step that one next
+     *)
+    (os,Nothing)
                                    
   let readdir os path =
     Set.map (fun (name,file) ->
@@ -360,6 +367,9 @@ declare ocaml target_rep function real_readdir = `System.real_readdir`
 val real_fork_and_execve : string -> list string -> list string -> nat
 declare ocaml target_rep function real_fork_and_execve = `System.real_fork_and_execve`
 
+val real_waitpid : nat -> nat
+declare ocaml target_rep function real_waitpid = `System.real_waitpid`
+
 val real_write_fd : nat -> string -> bool
 declare ocaml target_rep function real_write_fd = `System.real_write_fd`
 
@@ -397,6 +407,10 @@ instance (OS real_os_state)
     | Nothing -> Nothing
     | Just s -> Just (os,s)
     end
+
+  let waitpid os pid =
+    let code = real_waitpid pid in
+    (os,Just code)
 end
 
 val real_lookup_concrete_param : real_os_state -> string -> maybe string

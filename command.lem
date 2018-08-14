@@ -33,12 +33,12 @@ let builtin_colon s0 _argv _env _fds = Right (exit_with 0 s0,Done)
              
 let builtin_break s0 argv _env _fds =
   match argv with
-  | [] -> Right (s0,Break 1) (* default to just breaking the immediate loop *)
+  | [] -> Right (exit_with 0 s0,Break 1) (* default to just breaking the immediate loop *)
   | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 1
               then Left (s0,"break: " ^ write n ^ ": loop count out of range")
-              else Right (s0,Break (toNat n))
+              else Right (exit_with 0 s0,Break (toNat n))
            | Left _ -> Left (s0,"break: " ^ string_of_symbolic_string s ^ ": numeric argument required")
            end
   | _ -> Left (s0,"break: too many arguments")
@@ -46,9 +46,9 @@ let builtin_break s0 argv _env _fds =
 
 let builtin_continue s0 argv _env _fds =
   match argv with
-  | [] -> Right (s0,Continue 1) (* default to just continuing the immediate loop *)
+  | [] -> Right (exit_with 0 s0,Continue 1) (* default to just continuing the immediate loop *)
   | [s] -> match readNat (char_list_of_symbolic_string s) with
-           | Right n -> Right (s0,Continue n)
+           | Right n -> Right (exit_with 0 s0,Continue n)
            | Left _ -> Left (s0,"continue: " ^ string_of_symbolic_string s ^ ": numeric argument required")
            end
   | _ -> Left (s0,"continue: too many arguments")
@@ -91,12 +91,14 @@ let builtin_shift s0 argv _env _fds =
   match n with
   | Left err -> Left (s0,err)
   | Right n -> 
-     let s1 = 
-       update_shell_state 
-         (fun sh -> <| sh with positional_params = drop n sh.positional_params |>)
-         s0
-     in
-     Right (s1, Done)
+     if n >= length (get_shell_state s0).positional_params
+     then Left (exit_with 1 s0,"shift: can't shift that many")
+     else
+       let s1 = 
+         update_shell_state 
+           (fun sh -> <| sh with positional_params = drop n sh.positional_params |>)
+           s0 in
+       Right (exit_with 0 s1, Done)
   end
 
 (* TODO 2018-08-13 *)
@@ -143,7 +145,7 @@ let builtin_false s0 _argv _env _fds = Right (exit_with 1 s0, Done)
 let builtin_pwd s0 _argv _env _fds =
   (* TODO 2018-08-10 support -L [allow links, no . or ..] and -P [resolve symbolic links] options *)
   let pwd = (get_shell_state s0).cwd ^ "\n" in
-  Right (write_stdout pwd s0, Done)
+  Right (exit_with 0 (write_stdout pwd s0), Done)
 
 (* TODO 2018-08-13 *)
 let builtin_alias = builtin_unimplemented
@@ -329,7 +331,7 @@ let run_command s0 prog_name argv env fds =
                 (* TODO 2018-02-09 
                    actually wait for pid to finish
                    set exit_code appropriately! *)
-                Right (set_last_pid pid (exit_with 0 (* TODO 2018-02-09 FIXME *) s1),Done)
+                Right (set_last_pid pid s1,Wait pid)
              end
           end
      end

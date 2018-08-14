@@ -10,6 +10,13 @@ MLFILES=config.ml system.ml $(LEMFILES:.lem=.ml) shim.ml test_prelude.ml test_ar
 
 OCAMLARGS=$(OCAMLOPTS) $(OCAMLINCLUDES) $(OCAMLLIBS) $(OCAMLGENLIBS) dash.cmxa
 
+.PHONY : all clean test
+
+all : expand shell runtest
+
+test : runtest
+	./runtest
+
 expand : $(MLFILES) expand.ml
 	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
 
@@ -18,9 +25,6 @@ shell : $(MLFILES) shell.ml
 
 runtest : $(MLFILES) runtest.ml
 	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
-
-test : runtest
-	./runtest
 
 ../libdash/dash.cmxa :
 	make -C ../libdash dash.cmxa
