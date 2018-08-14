@@ -3,7 +3,7 @@ open import Fsh
 open import Arith
 open import Pattern
 open import Path
-open import Builtin
+open import Command
 
 (**********************************************************************)   
 (* SHARED DECLARATIONS FOR EXPANSION AND EVALUATION *******************)   

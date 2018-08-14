@@ -197,7 +197,7 @@ let builtins =
     ; ("unalias", builtin_unalias)
     ; ("wait", builtin_wait)
     ]
-  
+
 let run_command s0 prog_name argv env fds =
   match try_concrete prog_name with
   | Nothing -> Left (s0,"can't run symbolic command")
@@ -325,7 +325,7 @@ let run_command s0 prog_name argv env fds =
                    consequently the utility or application might not
                    behave as described in this standard.  *)
                 (* TODO 2018-08-13 path resolution of program *)
-                let (s1,pid) = execve s0 (symbolic_string_of_string prog) argv env fds in
+                let (s1,pid) = fork_and_execve s0 (symbolic_string_of_string prog) argv env fds in
                 (* TODO 2018-02-09 
                    actually wait for pid to finish
                    set exit_code appropriately! *)
@@ -334,3 +334,4 @@ let run_command s0 prog_name argv env fds =
           end
      end
    end
+  
