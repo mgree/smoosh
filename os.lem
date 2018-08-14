@@ -138,7 +138,8 @@ type fifo = string
 and proc =
     Execve of symbolic_string (* command *) * list symbolic_string (* args *) * env * fds
   | Shell of ty_shell_state * fds
-           
+
+(* TODO 2018-08-14 rename these fields to have `symbolic_` at the front *)
 and symbolic_os_state = <|
     passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
     sh: ty_shell_state;
@@ -254,7 +255,7 @@ let rec adjust_nth l n f =
   end
   
 (**********************************************************************)
-(* SYMBOLIC SHELL STATE ***********************************************)
+(* SYMBOLIC OS STATE INSTANCE *****************************************)
 (**********************************************************************)
 
 val compare_by_first : forall 'a 'b. Ord 'a => ('a * 'b) -> ('a * 'b) -> ordering
@@ -270,6 +271,7 @@ let symbolic_resolve_fd os fd =
   end
     
 instance (OS symbolic_os_state)
+   
   let get_shell_state os = os.sh
   let set_shell_state new_sh os = <| os with sh = new_sh |>
   let getpwnam os u = Map.lookup u os.passwd
@@ -337,5 +339,25 @@ val symbolic_print_shell_env : symbolic_os_state -> string
 let symbolic_print_shell_env os = print_shell_env os
 
 (**********************************************************************)
-(* REAL SHELL STATE ***************************************************)
+(* REAL OS STATE INSTANCE *********************************************)
 (**********************************************************************)
+
+type real_os_state = <|
+    real_sh: ty_shell_state;
+    real_sh_fds: fds;
+  |>
+
+val real_getpwnam : string -> maybe string
+declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
+    
+instance (OS real_os_state)
+  let get_shell_state os = os.real_sh
+  let set_shell_state new_sh os = <| os with real_sh = new_sh |>
+
+  let getpwnam _os nam = real_getpwnam nam
+
+  let execve os _prog _argv _env _fds = (os,0)
+  let readdir _os _path = Set.empty
+  let write_fd _os _fd _s = Nothing
+  let read_fd _os _fd = Nothing
+end
