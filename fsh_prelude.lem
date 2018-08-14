@@ -255,6 +255,7 @@ and funcs = Map.map string stmt
 
 and ty_shell_state = <|
     script_name: string; (* $0 *)
+    (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $1, $2, $3, ... *)
     env: env;
     funcs: funcs;                 

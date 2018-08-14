@@ -7,7 +7,7 @@ open Printf
 (* EXIT CODE TESTS *****************************************************)
 (***********************************************************************)
 
-let get_exit_code (os : ty_os_state) =
+let get_exit_code (os : symbolic_os_state) =
   match lookup_concrete_param instance_Os_OS_Os_symbolic_os_state_dict os "?" with
   | Some(digits) ->
      begin try int_of_string digits
@@ -15,7 +15,7 @@ let get_exit_code (os : ty_os_state) =
      end
   | None -> 258
    
-let run_cmd_for_exit_code (cmd : string) (os0 : ty_os_state) : int =
+let run_cmd_for_exit_code (cmd : string) (os0 : symbolic_os_state) : int =
   Dash.setinputstring cmd;
   let ns = Dash.parse_all () in
   let cs = List.map Shim.of_node ns in
@@ -25,7 +25,7 @@ let run_cmd_for_exit_code (cmd : string) (os0 : ty_os_state) : int =
 let check_exit_code (cmd, state, expected) =
   checker (run_cmd_for_exit_code cmd) (=) (cmd, state, expected)
   
-let exit_code_tests : (string * ty_os_state * int) list =
+let exit_code_tests : (string * symbolic_os_state * int) list =
   (* basic logic *)
   [ ("true", os_empty, 0)
   ; ("false", os_empty, 1)

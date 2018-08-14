@@ -32,14 +32,14 @@ let test_part name checker stringOfExpected tests count failed =
 
 let add_literal_env_string k v s0 = symbolic_set_param k (Fsh.symbolic_string_of_string v) s0
                                   
-let os_var_x_null : ty_os_state = add_literal_env_string "x" "" os_empty
-let os_var_x_set : ty_os_state = add_literal_env_string "x" "bar" os_empty
-let os_var_x_set_three : ty_os_state = add_literal_env_string "x" "\"this is three\"" os_empty
+let os_var_x_null : symbolic_os_state = add_literal_env_string "x" "" os_empty
+let os_var_x_set : symbolic_os_state = add_literal_env_string "x" "bar" os_empty
+let os_var_x_set_three : symbolic_os_state = add_literal_env_string "x" "\"this is three\"" os_empty
 
-let os_var_x_five : ty_os_state = add_literal_env_string "x" "5" os_empty
+let os_var_x_five : symbolic_os_state = add_literal_env_string "x" "5" os_empty
 
-let os_ifs_spaceandcomma : ty_os_state = add_literal_env_string "IFS" " ," os_empty
-let os_ifs_comma : ty_os_state = add_literal_env_string "IFS" "," os_empty
+let os_ifs_spaceandcomma : symbolic_os_state = add_literal_env_string "IFS" " ," os_empty
+let os_ifs_comma : symbolic_os_state = add_literal_env_string "IFS" "," os_empty
 
 (***********************************************************************)
 (* OCAML UTILITY FUNCTIONS *********************************************)
@@ -76,7 +76,7 @@ let new_dir (name:string) (parent_dir:fs_mut) : fs_mut =
   dir.parent <- Some (freeze parent_dir);
   dir
 
-let set_fs (fs:fs_mut) (st : ty_os_state) : ty_os_state = 
+let set_fs (fs:fs_mut) (st : symbolic_os_state) : symbolic_os_state = 
   let root = freeze fs in
   { st with fs_root = root; sh = { st.sh with cwd = "/" } }
 

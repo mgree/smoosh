@@ -6,7 +6,7 @@ open Printf
 let check_match_path (name, state, path, expected) =
   checker (match_path_symbolic state) (=) (name, path, expected)
 
-let match_path_tests : (string * ty_os_state * string * (string list)) list =
+let match_path_tests : (string * symbolic_os_state * string * (string list)) list =
   [
     ("/ in empty", os_empty, "/", ["/"]);
 

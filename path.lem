@@ -116,5 +116,6 @@ let match_path os path =
   let (pat,start,pinfo) = parse_path_pattern os path in
   Set_extra.toOrderedList (Set.map fst (walk os (Nothing, start) pinfo (get_shell_state os).locale pat))
 
-val match_path_symbolic : ty_os_state -> string -> list path
+(* instantiated version for testing from OCaml *)
+val match_path_symbolic : symbolic_os_state -> string -> list path
 let match_path_symbolic = match_path                                                     

@@ -13,7 +13,7 @@ let version = "0.1"
 let verbose = ref false
 let gas = ref 500
 let input_src : string option ref = ref None
-let initial_os_state : ty_os_state ref = ref os_empty
+let initial_os_state : symbolic_os_state ref = ref os_empty
 
 let set_gas n =
   if n <= 0

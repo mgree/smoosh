@@ -21,6 +21,7 @@ let STDERR = 2
    need to link w/OCaml FFI?
  *)
 
+(* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)           
 type file 'a = File | Dir of 'a
 
 type path = string
@@ -139,15 +140,13 @@ and proc =
   | Shell of ty_shell_state * fds
            
 and symbolic_os_state = <|
-    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir TODO 2018-02-09 move to actual filesystem *)
+    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
     sh: ty_shell_state;
     sh_fds: fds;
     fs_root: fs;
     fifos: list fifo;
     procs: list proc
   |>
-
-type ty_os_state = symbolic_os_state (* shim *)
 
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
 let fds_default : fds = Map.insert STDIN (FD 0) (Map.insert STDOUT (FD 1) (Map.insert STDERR (FD 2) Map.empty))
@@ -336,3 +335,7 @@ let symbolic_set_param = set_param
 
 val symbolic_print_shell_env : symbolic_os_state -> string
 let symbolic_print_shell_env os = print_shell_env os
+
+(**********************************************************************)
+(* REAL SHELL STATE ***************************************************)
+(**********************************************************************)
