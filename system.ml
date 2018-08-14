@@ -16,3 +16,22 @@ let real_fork_and_execve
      Unix.execve cmd (Array.of_list argv) (Array.of_list environ)
   | pid -> pid
 
+(* NB on Unix systems, the abstract type `file_descriptor` is just an int *)
+let fd_of_int : int -> Unix.file_descr = Obj.magic
+let int_of_fd : Unix.file_descr -> int = Obj.magic
+
+let real_write_fd (fd:int) (s:string) : bool =
+  let buff = Bytes.of_string s in
+  let len = Bytes.length buff in
+  let written = Unix.write (fd_of_int fd) buff 0 len in
+  written = len
+
+let real_read_fd (fd:int) : string option =
+  (* allocate each time... may not be necessary with OCaml's model of shared memory *)
+  let buff = Bytes.make 1024 (Char.chr 0) in
+  let read = Unix.read (fd_of_int fd) buff 0 1024 in
+  if read = 0
+  then Some ""
+  else if read > 0
+  then Some (Bytes.sub_string buff 0 read)
+  else None

@@ -11,16 +11,6 @@ let STDERR = 2
 (* FS/OS CLASS ********************************************************)
 (**********************************************************************)
 
-(* TODO 2018-03-23
-
-   define OS class
-     system calls (execve, etc.)
-
-     offer _some_ symbolic stuff there, but focus on getting the syscalls going
-
-   need to link w/OCaml FFI?
- *)
-
 (* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)           
 type file 'a = File | Dir of 'a
 
@@ -369,6 +359,12 @@ declare ocaml target_rep function real_readdir = `System.real_readdir`
 
 val real_fork_and_execve : string -> list string -> list string -> nat
 declare ocaml target_rep function real_fork_and_execve = `System.real_fork_and_execve`
+
+val real_write_fd : nat -> string -> bool
+declare ocaml target_rep function real_write_fd = `System.real_write_fd`
+
+val real_read_fd : nat -> maybe string
+declare ocaml target_rep function real_read_fd = `System.real_read_fd`
     
 instance (OS real_os_state)
   let get_shell_state os = os.real_sh
@@ -391,6 +387,14 @@ instance (OS real_os_state)
     let convert (f,is_dir) = (f,if is_dir then Dir () else File) in
     Set.fromList (map convert contents)
 
-  let write_fd _os _fd _s = Nothing
-  let read_fd _os _fd = Nothing
+  let write_fd os fd s =
+    if real_write_fd fd s
+    then Just os
+    else Nothing
+
+  let read_fd os fd =
+    match real_read_fd fd with
+    | Nothing -> Nothing
+    | Just s -> Just (os,s)
+    end
 end
