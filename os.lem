@@ -398,3 +398,6 @@ instance (OS real_os_state)
     | Just s -> Just (os,s)
     end
 end
+
+val real_lookup_concrete_param : real_os_state -> string -> maybe string
+let real_lookup_concrete_param = lookup_concrete_param

@@ -20,3 +20,4 @@ semantics.ml
 fsh_num.ml
 os.ml
 command.ml
+shell

@@ -6,13 +6,18 @@ OCAMLINCLUDES=-I ocaml-lib -I ocaml-lib/dependencies/zarith -I ../libdash -I $(O
 OCAMLLIBS=unix.cmxa bigarray.cmxa str.cmxa ctypes.cmxa ctypes-foreign-base.cmxa ctypes-foreign-unthreaded.cmxa
 OCAMLGENLIBS=zarith.cmxa nums.cmxa extract.cmxa
 
-MLFILES=system.ml $(LEMFILES:.lem=.ml) shim.ml test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_evaluation.ml
+MLFILES=config.ml system.ml $(LEMFILES:.lem=.ml) shim.ml test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_evaluation.ml
+
+OCAMLARGS=$(OCAMLOPTS) $(OCAMLINCLUDES) $(OCAMLLIBS) $(OCAMLGENLIBS) dash.cmxa
 
 expand : $(MLFILES) expand.ml
-	ocamlopt.opt $(OCAMLOPTS) $(OCAMLINCLUDES) $(OCAMLLIBS) $(OCAMLGENLIBS) dash.cmxa $^ -o $@ 
+	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
+
+shell : $(MLFILES) shell.ml
+	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
 
 runtest : $(MLFILES) runtest.ml
-	ocamlopt.opt $(OCAMLOPTS) $(OCAMLINCLUDES) $(OCAMLLIBS) $(OCAMLGENLIBS) dash.cmxa $^ -o $@ 
+	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
 
 test : runtest
 	./runtest

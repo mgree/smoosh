@@ -1,3 +1,4 @@
+open Config
 open Test_prelude
 open Shim
 open Fsh
@@ -5,11 +6,9 @@ open Semantics
 open Printf
 
 (**********************************************************************)
-(* config/arg parsing *************************************************)       
+(* ARGUMENT PARSING ***************************************************)       
 (**********************************************************************)
        
-let version = "0.1"
-
 let verbose = ref false
 let gas = ref 500
 let input_src : string option ref = ref None

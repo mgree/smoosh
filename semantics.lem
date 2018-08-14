@@ -1042,7 +1042,7 @@ let rec trace_evaluation_multi gas os0 stmts =
      trace ++ trace_evaluation_multi (gas-1) os1 stmts'
 end
 
-val full_evaluation : symbolic_os_state -> stmt -> symbolic_os_state
+val full_evaluation : forall 'a. OS 'a => 'a -> stmt -> 'a
 let rec full_evaluation os0 stmt0 =
   match stmt0 with
   | Done -> os0
@@ -1058,3 +1058,7 @@ let rec full_evaluation_multi os0 stmts =
   | [] -> os0
   | (stmt::stmts') -> full_evaluation_multi (full_evaluation os0 stmt) stmts'
   end
+
+(* convenience function for shell *)
+val real_eval : real_os_state -> stmt -> real_os_state
+let real_eval os c = full_evaluation os c
