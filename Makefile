@@ -1,4 +1,4 @@
-LEMFILES=fsh_num.lem fsh_prelude.lem os.lem fsh.lem arith.lem pattern.lem path.lem builtin.lem semantics.lem
+LEMFILES=fsh_num.lem fsh_prelude.lem os.lem fsh.lem arith.lem pattern.lem path.lem command.lem semantics.lem
 
 OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48
 OCAMLLIB=$(shell opam config var lib)

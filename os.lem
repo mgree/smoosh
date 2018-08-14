@@ -28,6 +28,9 @@ type path = string
 
 (* data structures for managing redirections (will translate to close/dup2/pipe calls) *)
 type fd_tgt = FD of nat | Path of path
+(* TODO 2018-08-14 needs to be a list, since order matters! 
+   perhaps use a stack-based approach, like dash does?
+ *)
 type fds = Map.map fd fd_tgt
 
 val path_dotdot_rev_cl : list char -> list char
@@ -47,7 +50,7 @@ class ( OS 'a )
 
   (* SYSTEM CALLS *)
   val getpwnam : 'a -> string -> maybe string
-  val execve : 'a -> symbolic_string -> list symbolic_string -> env -> fds -> 'a * nat
+  val fork_and_execve : 'a -> symbolic_string -> list symbolic_string -> env -> fds -> 'a * nat
 
   (* FS CALLS *)
   val readdir : 'a -> path -> set (path * file unit)
@@ -276,7 +279,7 @@ instance (OS symbolic_os_state)
   let set_shell_state new_sh os = <| os with sh = new_sh |>
   let getpwnam os u = Map.lookup u os.passwd
 
-  let execve os prog argv env fds =
+  let fork_and_execve os prog argv env fds =
     (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
     let proc_num = length os.procs in
     (<| os with procs = os.procs ++ [Execve prog argv env fds] |>, proc_num)
@@ -347,8 +350,25 @@ type real_os_state = <|
     real_sh_fds: fds;
   |>
 
+let force_concrete ss =
+  match try_concrete ss with
+  | Just s -> s
+  | Nothing -> 
+     failwith ("Couldn't convert symbolic string, aborting:\n\n" ^ string_of_symbolic_string ss)
+  end
+
+(* generate an 'environ'-style string given an env *)
+let environ (env : env) : list string =
+  Map_extra.fold (fun x v l -> (x ^ "=" ^ force_concrete v) :: l) env []
+
 val real_getpwnam : string -> maybe string
 declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
+
+val real_readdir : string -> list (string * bool)
+declare ocaml target_rep function real_readdir = `System.real_readdir`
+
+val real_fork_and_execve : string -> list string -> list string -> nat
+declare ocaml target_rep function real_fork_and_execve = `System.real_fork_and_execve`
     
 instance (OS real_os_state)
   let get_shell_state os = os.real_sh
@@ -356,8 +376,21 @@ instance (OS real_os_state)
 
   let getpwnam _os nam = real_getpwnam nam
 
-  let execve os _prog _argv _env _fds = (os,0)
-  let readdir _os _path = Set.empty
+  let fork_and_execve os prog argv env fds = 
+    let pid = 
+      real_fork_and_execve 
+        (force_concrete prog)
+        (map force_concrete argv) 
+        (environ env) 
+        (* need fds or some other solution; see note in system.ml *)
+        in
+    (os, pid)
+
+  let readdir _os path = 
+    let contents = real_readdir path in
+    let convert (f,is_dir) = (f,if is_dir then Dir () else File) in
+    Set.fromList (map convert contents)
+
   let write_fd _os _fd _s = Nothing
   let read_fd _os _fd = Nothing
 end
