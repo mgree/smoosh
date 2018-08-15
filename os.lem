@@ -141,29 +141,28 @@ and proc =
   | Shell of stmt * ty_shell_state * fds
   | Zombie of nat (* exit code *)
 
-(* TODO 2018-08-14 rename these fields to have `symbolic_` at the front *)
 and symbolic_os_state = <|
-    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
-    sh: ty_shell_state;
-    sh_fds: fds;
-    fs_root: fs;
-    fifos: list fifo;
-    procs: list proc
+    symbolic_passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
+    symbolic_sh: ty_shell_state;
+    symbolic_sh_fds: fds;
+    symbolic_fs_root: fs;
+    symbolic_fifos: list fifo;
+    symbolic_procs: list proc
   |>
 
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
 let fds_default : fds = Map.insert STDIN (FD 0) (Map.insert STDOUT (FD 1) (Map.insert STDERR (FD 2) Map.empty))
     
 let os_empty : symbolic_os_state = <|
-    sh = default_shell_state;
-    sh_fds = fds_default;
-    passwd = Map.empty;
-    fs_root = fs_empty;
-    fifos = ["" (* STDIN *)
-            ;"" (* STDOUT *)
-            ;"" (* STDERR *)
-            ];
-    procs = []
+    symbolic_sh = default_shell_state;
+    symbolic_sh_fds = fds_default;
+    symbolic_passwd = Map.empty;
+    symbolic_fs_root = fs_empty;
+    symbolic_fifos = ["" (* STDIN *)
+                     ;"" (* STDOUT *)
+                     ;"" (* STDERR *)
+                     ];
+    symbolic_procs = []
  |>
 
 (**********************************************************************)
@@ -276,7 +275,7 @@ let compare_by_first (a, _) (a', _) = compare a a'
 
 val symbolic_resolve_fd : symbolic_os_state -> fd -> maybe nat
 let symbolic_resolve_fd os fd =
-  match Map.lookup fd os.sh_fds with
+  match Map.lookup fd os.symbolic_sh_fds with
   | Just (FD fifo_num) -> Just fifo_num
   (* TODO 2018-03-23 is this the right behavior when fd points to a file? *)   
   (* TODO 2018-03-02 is this the right behavior when fd doesn't exist? *)
@@ -285,33 +284,35 @@ let symbolic_resolve_fd os fd =
     
 instance (OS symbolic_os_state)
    
-  let get_shell_state os = os.sh
-  let set_shell_state new_sh os = <| os with sh = new_sh |>
-  let getpwnam os u = Map.lookup u os.passwd
+  let get_shell_state os = os.symbolic_sh
+  let set_shell_state new_sh os = <| os with symbolic_sh = new_sh |>
+  let getpwnam os u = Map.lookup u os.symbolic_passwd
 
   let fork_and_execve os prog argv env fds =
     (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
-    let proc_num = length os.procs in
-    (<| os with procs = os.procs ++ [Execve prog argv env fds] |>, proc_num)
+    let proc_num = length os.symbolic_procs in
+    (<| os with symbolic_procs = os.symbolic_procs ++ [Execve prog argv env fds] |>, 
+     proc_num)
 
   let fork_and_subshell _eval os stmt fds =
-    let proc_num = length os.procs in
-    (<| os with procs = os.procs ++ [Shell stmt os.sh fds] |>, proc_num)
+    let proc_num = length os.symbolic_procs in
+    (<| os with symbolic_procs = os.symbolic_procs ++ [Shell stmt os.symbolic_sh fds] |>, 
+     proc_num)
 
   let waitpid step_eval os0 pid =
-    match index os0.procs pid with
+    match index os0.symbolic_procs pid with
     | Nothing -> (os0, Nothing)
     | Just (Execve _ _ _ _) -> (os0, Nothing)
     | Just (Zombie ec) -> (os0, Just (Right ec))
     | Just (Shell stmt sh' fds') ->
-       let os1 = <| os0 with sh = sh'; sh_fds = fds' |> in
+       let os1 = <| os0 with symbolic_sh = sh'; symbolic_sh_fds = fds' |> in
        match step_eval os1 stmt with
        | Left (_step, os2) -> (os2, Just (Right 1)) (* errored, signal with code *)
        | Right (_step, os2, Done) ->
           (* terminated! grab the code, update everything *)
           let ec = (* can't use get_last_exit_code because we're DEFINING the type class... 
                       TODO 2018-08-15 report bug in Lem? *)
-            match Map.lookup "?" os2.sh.env with
+            match Map.lookup "?" os2.symbolic_sh.env with
             | Nothing -> 255
             | Just ss -> 
                match try_concrete ss with
@@ -323,12 +324,16 @@ instance (OS symbolic_os_state)
                   end
                end
             end in
-          (<| os2 with sh = os0.sh; sh_fds = os0.sh_fds;
-                       procs = update os2.procs pid (Zombie ec) |>,
+          (<| os2 with symbolic_sh = os0.symbolic_sh; 
+                       symbolic_sh_fds = os0.symbolic_sh_fds;
+                       symbolic_procs = update os2.symbolic_procs pid (Zombie ec) |>,
            Just (Right ec))
        | Right (step, os2, stmt') ->
-          (<| os2 with sh = os0.sh; sh_fds = os0.sh_fds;
-                       procs = update os2.procs pid (Shell stmt' os2.sh os2.sh_fds) |>,
+          (<| os2 with symbolic_sh = os0.symbolic_sh; 
+                       symbolic_sh_fds = os0.symbolic_sh_fds;
+                       symbolic_procs = 
+                         update os2.symbolic_procs pid 
+                           (Shell stmt' os2.symbolic_sh os2.symbolic_sh_fds) |>,
            Just (Left step))
        end
     end
@@ -342,14 +347,14 @@ instance (OS symbolic_os_state)
          end))
       (* Only compare equality for the set based on the keys.
        * Comparing equality of a non-trivial file system will loop infinitely. *)
-      (toSetBy compare_by_first (symbolic_fs_resolve_path os.fs_root path).contents)
+      (toSetBy compare_by_first (symbolic_fs_resolve_path os.symbolic_fs_root path).contents)
 
   let write_fd os fd s =
     match symbolic_resolve_fd os fd with
     | Just fifo_num ->
-      match adjust_nth os.fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
+      match adjust_nth os.symbolic_fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
       | Nothing -> Nothing
-      | Just (new_fifos,()) -> Just <| os with fifos = new_fifos |>
+      | Just (new_fifos,()) -> Just <| os with symbolic_fifos = new_fifos |>
       end
     | Nothing -> Nothing
     end
@@ -357,9 +362,9 @@ instance (OS symbolic_os_state)
   let read_fd os fd =
     match symbolic_resolve_fd os fd with
     | Just fifo_num ->
-      match adjust_nth os.fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
+      match adjust_nth os.symbolic_fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
       | Nothing -> Nothing
-      | Just (new_fifos,s) -> Just (<| os with fifos = new_fifos |>, s)
+      | Just (new_fifos,s) -> Just (<| os with symbolic_fifos = new_fifos |>, s)
       end
     | Nothing -> Nothing
   end
@@ -367,12 +372,12 @@ instance (OS symbolic_os_state)
 end
 
 val set_pwdir : string -> string -> symbolic_os_state -> symbolic_os_state
-let set_pwdir u d os = <| os with passwd = Map.insert u d (os.passwd) |>
+let set_pwdir u d os = <| os with symbolic_passwd = Map.insert u d (os.symbolic_passwd) |>
 
 val mkfifo : symbolic_os_state -> symbolic_os_state * nat  
 let mkfifo os =
-  let fifo_num = length os.fifos in
-  (<| os with fifos = os.fifos ++ [""] |>, fifo_num)
+  let fifo_num = length os.symbolic_fifos in
+  (<| os with symbolic_fifos = os.symbolic_fifos ++ [""] |>, fifo_num)
 
 val mkfifos : symbolic_os_state -> nat -> symbolic_os_state * list nat 
 let rec mkfifos os0 n =

@@ -58,7 +58,7 @@ let check_parser = checker (either_monad parse_arith_exp) (=)
 
 let eval_equals out expected =
   match (out, expected) with
-  | (Either.Right (s1, n1), Either.Right (s2, n2)) -> n1 = n2 && (Pmap.equal (=) s1.sh.env s2.sh.env)
+  | (Either.Right (s1, n1), Either.Right (s2, n2)) -> n1 = n2 && (Pmap.equal (=) s1.symbolic_sh.env s2.symbolic_sh.env)
   | (Either.Left e1, Either.Left e2) -> e1 = e2
   | _ -> false
 

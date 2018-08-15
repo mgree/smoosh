@@ -78,7 +78,7 @@ let new_dir (name:string) (parent_dir:fs_mut) : fs_mut =
 
 let set_fs (fs:fs_mut) (st : symbolic_os_state) : symbolic_os_state = 
   let root = freeze fs in
-  { st with fs_root = root; sh = { st.sh with cwd = "/" } }
+  { st with symbolic_fs_root = root; symbolic_sh = { st.symbolic_sh with cwd = "/" } }
 
 (* File system scaffolding *)
 let fs_simple : fs_mut = 
@@ -130,4 +130,4 @@ let os_complicated_fs = set_fs fs_complicated os_empty
 
 let os_complicated_fs_in_a = 
   { os_complicated_fs with 
-    sh = { os_complicated_fs.sh with cwd = "/a" } }
+    symbolic_sh = { os_complicated_fs.symbolic_sh with cwd = "/a" } }
