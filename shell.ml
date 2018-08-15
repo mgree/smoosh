@@ -64,6 +64,9 @@ let run_cmds s0 =
 let rec repl s0 =
   (* TODO 2018-08-14 all kinds of interactive nonsense here *)
   print_string "$ "; flush stdout;
+  (* TODO 2018-08-15 to get appropriate prompting, we need to set
+     dash's actual environment up correctly, since the parser makes
+     reference to ps1val, etc. *)
   match Dash.parse_next () with
   | `Done -> finish_up s0
   | `Null -> repl s0

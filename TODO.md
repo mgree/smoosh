@@ -1,28 +1,18 @@
 ### Last of the shell semantics
 
+- pipes and redirects
+  + need to boost what FS can do
 - special built-ins
   + trap
     need to add to the shell representation
   + eval (call parser)
     need to properly handle errors in parser
-  + ./source
+  + . a/k/a source
   + exec
 - other built-ins
-- special variables
+- special variables and shell flags
   + need to add to the shell representation
   + need to sort out the difference between $* and $@
-- pipes and redirects
-  + need to boost what FS can do
-- background processes
-  + need to come up with a scheduler
-    OR: just schedule opportunistically, i.e.
-        step_eval (s0,Wait n) looks up pid n and steps it
-           or fails with a symbolic result if n|->execve
-        opportunity for deadlock?
-          x=$$ ; wait $x & ; wait $!
-          no: can only wait on child processes
-- shell flags
-  interactive, etc.
 - non-special shell variables
   LINENO
   ENV (interactive only)
@@ -46,8 +36,11 @@
 
 ### Organizational issues
 
-create a fork of kernel.org's dash, track it
-but remove main, have proper handler abort
+- libdash
+  + create a fork of kernel.org's dash, track it
+  + remove main, have proper handler abort
+  + offer ocaml bindings
+  + clearer shim, with more functions for poking dash internals (e.g., env, aliases, etc.)
 
 copy install instructions into top-level readme
 
