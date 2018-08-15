@@ -38,6 +38,8 @@ val step_eval : forall 'a. OS 'a =>
                 either (evaluation_step * 'a) (* error case *)
                        (evaluation_step * 'a * stmt) (* success *)
 
+val full_evaluation : forall 'a. OS 'a => 'a -> stmt -> 'a
+
 (**********************************************************************)   
 (* LATE STAGE EXPANSION ***********************************************)   
 (**********************************************************************)
@@ -612,7 +614,7 @@ $ count $(${x? one two three}) four
   (* TODO 2017-12-22 add a CommandExpRedir to expand all of the redirect targets/heredocs *)
   | CommandExpanded assigns (prog::args) _redirs ->
      (* perform assignments *)
-     (* TODO 2018-02-09 check to see if it's a special built-in, in which case assign to GLOBAL env *)
+     (* TODO 2018-02-09 check to see if prog is a special built-in, in which case assign to GLOBAL env *)
      let env = 
        foldr (fun (x,f) env' -> 
            Map.insert x (symbolic_string_of_fields f) env') 
@@ -725,10 +727,21 @@ evalpipe(union node *n, int flags)
         but shall do so only when the expansion would result in one
         word. *)    
      Left (XSRedir "TODO", s0)
-  | Background _stmt' _redirs -> 
-     (* PICKUPHERE 2018-08-15 add a notion of fork_and_subshell; choose to wait or not *)
-     Left (XSBackground "TODO", s0)
-  | Subshell _stmt' _redirs -> Left (XSSubshell "TODO", s0)
+  | Background stmt' _redirs -> 
+     (* TODO 2018-08-15 set up fds using redirs *)
+     let fds = fds_default in
+     let (s1,pid) = fork_and_subshell full_evaluation s0 stmt' fds in
+     let s2 = set_last_pid pid s1 in
+     Right (XSBackground ("started background process with pid " ^ (stringFromNat pid)), 
+            s2, 
+            Done)
+  | Subshell stmt' _redirs ->
+     (* TODO 2018-08-15 set up fds using redirs *)
+     let fds = fds_default in
+     let (s1,pid) = fork_and_subshell full_evaluation s0 stmt' fds in
+     Right (XSSubshell ("started subshell with pid " ^ (stringFromNat pid)), 
+            s1, 
+            Wait pid)
   | And l r ->
       match step_eval s0 l with
       | Left e -> Left e
@@ -970,11 +983,16 @@ evalpipe(union node *n, int flags)
   | Done -> Right (XSSimple "", s0, Done)
   end
 
-(**********************************************************************)   
-(* PROPERTIES *********************************************************)   
-(**********************************************************************)   
+(* Evaluation **********************************************************)
 
-lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x Normal = [S s]
+and full_evaluation os0 stmt0 =
+  match stmt0 with
+  | Done -> os0
+  | _ -> match step_eval os0 stmt0 with
+         | Right (_step, os1, stmt1) -> full_evaluation os1 stmt1
+         | Left (_step, os1) -> os1
+         end
+  end
 
 (**********************************************************************)   
 (* TRACING ************************************************************)   
@@ -1029,8 +1047,6 @@ let full_expansion s0 w0 =
   | ExpDone f -> (s1, f)
   | _ -> (s1, [symbolic_string_of_string "!!! broken invariant"])
   end
-
-(* Evaluation **********************************************************)
    
 val run_trace_evaluation : nat -> symbolic_os_state -> stmt -> list (evaluation_step * symbolic_os_state * stmt)
 let rec run_trace_evaluation gas os0 stmt0 =
@@ -1058,16 +1074,6 @@ let rec trace_evaluation_multi gas os0 stmts =
      let (_,os1,_) = last trace in
      trace ++ trace_evaluation_multi (gas-1) os1 stmts'
 end
-
-val full_evaluation : forall 'a. OS 'a => 'a -> stmt -> 'a
-let rec full_evaluation os0 stmt0 =
-  match stmt0 with
-  | Done -> os0
-  | _ -> match step_eval os0 stmt0 with
-         | Right (_step, os1, stmt1) -> full_evaluation os1 stmt1
-         | Left (_step, os1) -> os1
-         end
-  end
   
 val full_evaluation_multi : symbolic_os_state -> list stmt -> symbolic_os_state
 let rec full_evaluation_multi os0 stmts =
@@ -1079,3 +1085,9 @@ let rec full_evaluation_multi os0 stmts =
 (* convenience function for shell *)
 val real_eval : real_os_state -> stmt -> real_os_state
 let real_eval os c = full_evaluation os c
+
+(**********************************************************************)   
+(* PROPERTIES *********************************************************)   
+(**********************************************************************)   
+
+lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x Normal = [S s]

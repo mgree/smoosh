@@ -7,16 +7,19 @@ let real_readdir (path : string) : (string * bool) list =
   let dir_info file = (file, Sys.is_directory (Filename.concat path file)) in
   Array.to_list (Array.map dir_info contents)
 
-let real_fork_and_execve 
-      (cmd : string) (argv : string list) 
-      (environ : string list) : int =
+let real_fork_and_execve (cmd : string) (argv : string list) (environ : string list) : int =
   match Unix.fork () with
   | 0 -> 
      (* TODO 2018-08-14 take and manipulate fds; need to update os.lem accordingly when done *)
      Unix.execve cmd (Array.of_list (cmd::argv)) (Array.of_list environ)
-  | pid ->   
-     Printf.eprintf "%s %s" cmd (List.fold_right (fun arg s -> arg ^ " " ^ s) argv "");
-     pid
+  | pid -> pid
+
+let real_fork_and_call (f : 'a -> 'b) (v : 'a) : int =
+  match Unix.fork () with
+  | 0 -> 
+     (* TODO 2018-08-14 take and manipulate fds; need to update os.lem accordingly when done *)
+     begin f v; 0 end
+  | pid -> pid
 
 let real_waitpid (pid : int) : int = 
   try match Unix.waitpid [] pid with

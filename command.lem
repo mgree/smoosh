@@ -147,13 +147,30 @@ let builtin_pwd s0 _argv _env _fds =
   let pwd = (get_shell_state s0).cwd ^ "\n" in
   Right (exit_with 0 (write_stdout pwd s0), Done)
 
+let rec write_many_stdout ss s0 =
+  match ss with
+  | [] -> s0
+  | [s] -> write_stdout (string_of_symbolic_string s) s0
+  | s::ss' -> 
+     let s1 = write_stdout (string_of_symbolic_string s ^ " ") s0 in
+     write_many_stdout ss' s1
+  end
+
+let builtin_echo s0 argv _env _fds = 
+  let (terminator, ss) = match argv with
+    | [C #'-'; C #'n']::argv' -> ("", argv')
+    | _ -> ("\n", argv)
+    end in
+  let s1 = write_many_stdout ss s0 in
+  let s2 = write_stdout terminator s1 in
+  Right (exit_with 0 s2, Done)
+
 (* TODO 2018-08-13 *)
 let builtin_alias = builtin_unimplemented
 let builtin_bg = builtin_unimplemented
 let builtin_cd = builtin_unimplemented
 let builtin_chdir = builtin_unimplemented
 let builtin_command = builtin_unimplemented
-let builtin_echo = builtin_unimplemented
 let builtin_fg = builtin_unimplemented
 let builtin_getopts = builtin_unimplemented
 let builtin_hash = builtin_unimplemented
@@ -328,10 +345,7 @@ let run_command s0 prog_name argv env fds =
                    behave as described in this standard.  *)
                 (* TODO 2018-08-13 path resolution of program *)
                 let (s1,pid) = fork_and_execve s0 (symbolic_string_of_string prog) argv env fds in
-                (* TODO 2018-02-09 
-                   actually wait for pid to finish
-                   set exit_code appropriately! *)
-                Right (set_last_pid pid s1,Wait pid)
+                Right (s1,Wait pid)
              end
           end
      end
