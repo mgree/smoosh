@@ -310,8 +310,7 @@ instance (OS symbolic_os_state)
        | Left (_step, os2) -> (os2, Just (Right 1)) (* errored, signal with code *)
        | Right (_step, os2, Done) ->
           (* terminated! grab the code, update everything *)
-          let ec = (* can't use get_last_exit_code because we're DEFINING the type class... 
-                      TODO 2018-08-15 report bug in Lem? *)
+          let ec = (* can't use get_last_exit_code because we're DEFINING the type class *)
             match Map.lookup "?" os2.symbolic_sh.env with
             | Nothing -> 255
             | Just ss -> 
