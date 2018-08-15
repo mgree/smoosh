@@ -40,6 +40,10 @@ let exit_code_tests : (string * symbolic_os_state * int) list =
   ; ("! { true ; false ; }", os_empty, 0)
   ; ("! { false ; true ; }", os_empty, 1)
 
+  (* expansion *)
+  ; ("x=5 ; echo ${x?erp}", os_empty, 0)
+  ; ("echo ${x?erp}", os_empty, 1)
+
   (* exit *)
   ; ("exit", os_empty, 0)
   ; ("exit 2", os_empty, 2)

@@ -45,7 +45,10 @@ class ( OS 'a )
     (* need to be passed eval to close the recursive knot for the real OS *)
     ('a -> stmt -> nat) ->
     'a -> stmt -> fds -> 'a * nat
-  val waitpid : 'a -> nat -> 'a * maybe nat
+  val waitpid : 
+    (* need to be passed step_eval to close recursive knot for the symbolic OS *)
+    ('a -> stmt -> either (evaluation_step * 'a) (evaluation_step * 'a * stmt)) ->
+    'a -> nat -> 'a * maybe (either evaluation_step nat)
 
   (* FS CALLS *)
   val readdir : 'a -> path -> set (path * file unit)
@@ -136,6 +139,7 @@ type fifo = string
 and proc =
     Execve of symbolic_string (* command *) * list symbolic_string (* args *) * env * fds
   | Shell of stmt * ty_shell_state * fds
+  | Zombie of nat (* exit code *)
 
 (* TODO 2018-08-14 rename these fields to have `symbolic_` at the front *)
 and symbolic_os_state = <|
@@ -294,11 +298,40 @@ instance (OS symbolic_os_state)
     let proc_num = length os.procs in
     (<| os with procs = os.procs ++ [Shell stmt os.sh fds] |>, proc_num)
 
-  let waitpid os pid =
-    (* TODO 2018-08-14 look through processes, see if pid is valid
-       if so, set a bit saying to step that one next
-     *)
-    (os,Nothing)
+  let waitpid step_eval os0 pid =
+    match index os0.procs pid with
+    | Nothing -> (os0, Nothing)
+    | Just (Execve _ _ _ _) -> (os0, Nothing)
+    | Just (Zombie ec) -> (os0, Just (Right ec))
+    | Just (Shell stmt sh' fds') ->
+       let os1 = <| os0 with sh = sh'; sh_fds = fds' |> in
+       match step_eval os1 stmt with
+       | Left (_step, os2) -> (os2, Just (Right 1)) (* errored, signal with code *)
+       | Right (_step, os2, Done) ->
+          (* terminated! grab the code, update everything *)
+          let ec = (* can't use get_last_exit_code because we're DEFINING the type class... 
+                      TODO 2018-08-15 report bug in Lem? *)
+            match Map.lookup "?" os2.sh.env with
+            | Nothing -> 255
+            | Just ss -> 
+               match try_concrete ss with
+               | Nothing -> 255
+               | Just s -> 
+                  match readNat (toCharList s) with
+                  | Right n -> n
+                  | Left _err -> 255
+                  end
+               end
+            end in
+          (<| os2 with sh = os0.sh; sh_fds = os0.sh_fds;
+                       procs = update os2.procs pid (Zombie ec) |>,
+           Just (Right ec))
+       | Right (step, os2, stmt') ->
+          (<| os2 with sh = os0.sh; sh_fds = os0.sh_fds;
+                       procs = update os2.procs pid (Shell stmt' os2.sh os2.sh_fds) |>,
+           Just (Left step))
+       end
+    end
                                    
   let readdir os path =
     Set.map (fun (name,file) ->
@@ -437,9 +470,9 @@ instance (OS real_os_state)
     | Just s -> Just (os,s)
     end
 
-  let waitpid os pid =
+  let waitpid _step_eval os pid =
     let code = real_waitpid pid in
-    (os,Just code)
+    (os,Just (Right code))
 end
 
 val real_lookup_concrete_param : real_os_state -> string -> maybe string

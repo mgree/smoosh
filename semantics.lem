@@ -971,13 +971,18 @@ evalpipe(union node *n, int flags)
   | Continue _n -> Right (XSSimple "continue bottomed out", s0, Done)
   | Return -> Right (XSSimple "return bottomed out", s0, Done)
   | Wait n -> 
-     match waitpid s0 n with
+     match waitpid step_eval s0 n with
      | (s1, Nothing) -> 
-        (* TODO 2018-08-14 
-           when executing symbolically, see if n exists, force it to step *)
-        Right (XSSimple ("waiting on " ^ stringFromNat n), s1, Wait n)
-     | (s1, Just code) ->
-        Right (XSSimple ("process with pid " ^ stringFromNat n ^ "completed"),
+        Right (XSSimple ("couldn't step process with pid " ^ stringFromNat n), 
+               write_stderr ("wait: pid " ^ stringFromNat n ^ " is not a child of this shell") s1, 
+               Done)
+     | (s1, Just (Left step)) ->
+        Right (XSNested (XSSimple ("process with pid " ^ stringFromNat n ^ " stepped")) 
+                        step,
+               s1,
+               Wait n)
+     | (s1, Just (Right code)) ->
+        Right (XSSimple ("process with pid " ^ stringFromNat n ^ " completed"),
                exit_with code s1,
                Done)
      end               
