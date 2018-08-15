@@ -582,9 +582,11 @@ so: how do we implement it?
   | CommandExpArgs assigns exp_state redirs ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
-        | ExpError _ ->
-           Left (XSSimple "error in argument expansion",
-                 os1)
+        | ExpError err ->
+           let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
+           Right (XSSimple "error in argument expansion",
+                  exit_with 1 (write_stderr msg os1),
+                  Done)
         | ExpDone f ->
            let count_args = length f in
            let argword = if count_args = 1 then "argument" else "arguments" in
