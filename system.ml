@@ -18,10 +18,12 @@ let real_fork_and_call (f : 'a -> 'b) (v : 'a) : int =
   match Unix.fork () with
   | 0 -> 
      (* TODO 2018-08-14 take and manipulate fds; need to update os.lem accordingly when done *)
-     begin f v; 0 end
+     let status = f v in 
+     exit status
   | pid -> pid
 
 let real_waitpid (pid : int) : int = 
+  Printf.eprintf "wait (pid %d)" pid;
   try match Unix.waitpid [] pid with
   | (_,Unix.WEXITED code) -> code
   | (_,Unix.WSIGNALED signal) -> 130 (* bash, dash behavior *)

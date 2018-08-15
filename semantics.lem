@@ -5,6 +5,8 @@ open import Pattern
 open import Path
 open import Command
 
+import Debug
+
 (**********************************************************************)   
 (* SHARED DECLARATIONS FOR EXPANSION AND EVALUATION *******************)   
 (**********************************************************************)   
@@ -39,6 +41,7 @@ val step_eval : forall 'a. OS 'a =>
                        (evaluation_step * 'a * stmt) (* success *)
 
 val full_evaluation : forall 'a. OS 'a => 'a -> stmt -> 'a
+val eval : forall 'a. OS 'a => 'a -> stmt -> nat
 
 (**********************************************************************)   
 (* LATE STAGE EXPANSION ***********************************************)   
@@ -730,7 +733,7 @@ evalpipe(union node *n, int flags)
   | Background stmt' _redirs -> 
      (* TODO 2018-08-15 set up fds using redirs *)
      let fds = fds_default in
-     let (s1,pid) = fork_and_subshell full_evaluation s0 stmt' fds in
+     let (s1,pid) = fork_and_subshell eval s0 stmt' fds in
      let s2 = set_last_pid pid s1 in
      Right (XSBackground ("started background process with pid " ^ (stringFromNat pid)), 
             s2, 
@@ -738,8 +741,8 @@ evalpipe(union node *n, int flags)
   | Subshell stmt' _redirs ->
      (* TODO 2018-08-15 set up fds using redirs *)
      let fds = fds_default in
-     let (s1,pid) = fork_and_subshell full_evaluation s0 stmt' fds in
-     Right (XSSubshell ("started subshell with pid " ^ (stringFromNat pid)), 
+     let (s1,pid) = fork_and_subshell eval s0 stmt' fds in
+     Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
             s1, 
             Wait pid)
   | And l r ->
@@ -750,8 +753,8 @@ evalpipe(union node *n, int flags)
       | Right (step, s1, Break n) -> Right (step, s1, Break n)
       | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
       | Right (_step, s1, Done) ->
-          match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (XSAnd "exit code was 0, continuing", s1, r)
+          match get_last_exit_code s1 with
+          | Just 0 -> Right (XSAnd "exit code was 0, continuing", s1, r)
           | Just _ -> Right (XSAnd "exit code was non-zero, short-circuiting", s1, Done)
           | Nothing -> Left (XSAnd "unset or symbolic exit code", s1)
           end
@@ -765,8 +768,8 @@ evalpipe(union node *n, int flags)
       | Right (step, s1, Break n) -> Right (step, s1, Break n)
       | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
       | Right (_step, s1, Done) ->
-          match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (XSOr "exit code was 0, short-circuiting", s1, Done)
+          match get_last_exit_code s1 with
+          | Just 0 -> Right (XSOr "exit code was 0, short-circuiting", s1, Done)
           | Just _ -> Right (XSOr "exit code was non-zero, continuing", s1, r)
           | Nothing -> Left (XSOr "unset or symbolic exit code", s1)
           end
@@ -780,10 +783,11 @@ evalpipe(union node *n, int flags)
       | Right (step, s1, Break n) -> Right (step, s1, Break n)
       | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
       | Right (_step, s1, Done) ->
-          match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (XSNot "0 -> 1", set_param "?" (symbolic_string_of_string "1") s1, Done)
-          (* Not bothering to check whether the exit code is numeric *)
-          | Just _ -> Right ((XSNot "_ -> 0"), set_param "?" (symbolic_string_of_string "0") s1, Done)
+          match get_last_exit_code s1 with
+          | Just 0 -> 
+             Right (XSNot "0 -> 1", set_param "?" (symbolic_string_of_string "1") s1, Done)
+          | Just _ -> 
+             Right ((XSNot "_ -> 0"), set_param "?" (symbolic_string_of_string "0") s1, Done)
           | Nothing -> Left (XSNot "unset or symbolic exit code", s1)
           end
       | Right (step, s1, stmt'') -> Right (XSNested (XSNot "") step, s1, Not stmt'')
@@ -795,7 +799,7 @@ evalpipe(union node *n, int flags)
       | Right (step, s1, Return) -> Right (step, s1, Return)
       | Right (step, s1, Break n) -> Right (step, s1, Break n)
       | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
-      | Right (step, s1, Done) -> Right (XSNested (XSSemi "continuing") step, s1, r)
+      | Right (step, s1, Done) -> Right (XSNested (XSSemi "done with LHS") step, s1, r)
       | Right (step, s1, l') -> Right (XSNested (XSSemi "") step, s1, Semi l' r)
       end
   | If c t e ->
@@ -806,8 +810,8 @@ evalpipe(union node *n, int flags)
       | Right (step, s1, Break n) -> Right (step, s1, Break n)
       | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
       | Right (_step, s1, Done) ->
-          match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (XSIf "exit code was 0, taking the true branch", s1, t)
+          match get_last_exit_code s1 with
+          | Just 0 -> Right (XSIf "exit code was 0, taking the true branch", s1, t)
           | Just _ -> Right (XSIf "exit code was non-zero, taking the false branch", s1, e)
           | Nothing -> Left (XSIf "unset or symbolic exit code", s1)
           end
@@ -824,8 +828,8 @@ evalpipe(union node *n, int flags)
       | Right (step, s1, Continue 1) -> Right (XSNested (XSWhile "continuing loop") step, s1, WhileCond c c body)
       | Right (step, s1, Continue n) -> Right (XSNested (XSWhile "continuing to outer loop") step, exit_loop s1, Continue (n-1))
       | Right (_step, s1, Done) ->
-          match lookup_concrete_param s1 "?" with
-          | Just "0" -> Right (XSWhile "exit code was 0, running the loop body", s1, WhileRunning c body body)
+          match get_last_exit_code s1 with
+          | Just 0 -> Right (XSWhile "exit code was 0, running the loop body", s1, WhileRunning c body body)
           | Just _ -> Right (XSWhile "exit code was non-zero, taking the false branch", exit_loop s1, Done)
           | Nothing -> Left (XSWhile "unset or symbolic exit code", s1)
           end
@@ -992,6 +996,13 @@ and full_evaluation os0 stmt0 =
          | Right (_step, os1, stmt1) -> full_evaluation os1 stmt1
          | Left (_step, os1) -> os1
          end
+  end
+
+and eval os0 stmt0 =
+  let os1 = full_evaluation os0 stmt0 in
+  match get_last_exit_code os1 with
+  | Nothing -> 255 (* symbolic or missing exit code *)
+  | Just n -> n
   end
 
 (**********************************************************************)   
