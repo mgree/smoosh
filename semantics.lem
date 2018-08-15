@@ -853,8 +853,11 @@ evalpipe(union node *n, int flags)
   | ForExpArgs var exp_state body ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
-        | ExpError _ ->
-           Left (XSFor "error in argument expansion", os1)
+        | ExpError err ->
+           let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
+           Right (XSFor "error in argument expansion",
+                  exit_with 1 (write_stderr msg os1),
+                  Done)
         | ExpDone f ->
            Right (XSFor "arguments fully expanded",
                   os1,
@@ -897,8 +900,11 @@ evalpipe(union node *n, int flags)
   | CaseExpArg exp_state cases ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
-        | ExpError _ ->
-           Left (XSCase "error in argument expansion", os1)
+        | ExpError err ->
+           let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
+           Right (XSCase "error in argument expansion",
+                  exit_with 1 (write_stderr msg os1),
+                  Done)
         | ExpDone [f] ->
            Right (XSCase "argument fully expanded", os1, CaseMatch f cases)
         | ExpDone _ ->
@@ -923,8 +929,11 @@ evalpipe(union node *n, int flags)
   | CaseCheckMatch f pat cmd cases ->
       let (step, os1, st1) = step_expansion (s0, pat) in
       match st1 with
-        | ExpError _ ->
-           Left (XSExpand (XSCase "error in case pattern expansion") step, os1)
+        | ExpError err ->
+           let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
+           Right (XSCase "error in argument expansion",
+                  exit_with 1 (write_stderr msg os1),
+                  Done)
         | ExpDone [pat'] ->
           (* TODO 2018-02-09 use proper locale and verify substring mode works correctly *)
           match match_prefix lc_ambient Exact pat' f with

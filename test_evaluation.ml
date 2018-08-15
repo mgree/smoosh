@@ -43,6 +43,10 @@ let exit_code_tests : (string * symbolic_os_state * int) list =
   (* expansion *)
   ; ("x=5 ; echo ${x?erp}", os_empty, 0)
   ; ("echo ${x?erp}", os_empty, 1)
+  ; ("for y in ${x?oh no}; do exit 5; done", os_empty, 1)
+  ; ("x=5 ; for y in ${x?oh no}; do exit $y; done", os_empty, 5)
+  ; ("case ${x?alas} in *) true;; esac", os_empty, 1)
+  ; ("x=7 ; case ${x?alas} in *) exit $x;; esac", os_empty, 7)
 
   (* exit *)
   ; ("exit", os_empty, 0)
@@ -59,7 +63,7 @@ let exit_code_tests : (string * symbolic_os_state * int) list =
   ; ("case abc in ab|ab*) true;; abc) false;; esac", os_empty, 0)
   ; ("case abc in *) true;; abc) false;; esac", os_empty, 0)
   ; ("x=hello ; case $x in *el*) true;; *) false;; esac", os_empty, 0)
-  ; ("case \"no one is home\" in esac",os_empty,0)
+  ; ("case \"no one is home\" in esac", os_empty, 0)
   ]
 
 (***********************************************************************)
