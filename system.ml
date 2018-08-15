@@ -2,11 +2,6 @@ let real_getpwnam (nam : string) : string option =
   try Some ((Unix.getpwnam nam).pw_dir)
   with Not_found -> None
 
-let real_readdir (path : string) : (string * bool) list =
-  let contents = Sys.readdir path in
-  let dir_info file = (file, Sys.is_directory (Filename.concat path file)) in
-  Array.to_list (Array.map dir_info contents)
-
 let real_fork_and_execve (cmd : string) (argv : string list) (environ : string list) : int =
   match Unix.fork () with
   | 0 -> 
@@ -23,12 +18,20 @@ let real_fork_and_call (f : 'a -> 'b) (v : 'a) : int =
   | pid -> pid
 
 let real_waitpid (pid : int) : int = 
-  Printf.eprintf "wait (pid %d)" pid;
   try match Unix.waitpid [] pid with
   | (_,Unix.WEXITED code) -> code
   | (_,Unix.WSIGNALED signal) -> 130 (* bash, dash behavior *)
   | (_,Unix.WSTOPPED signal) -> 146 (* bash, dash behavior *)
   with Unix.Unix_error(EINTR,_,_) -> 130
+
+let real_readdir (path : string) : (string * bool) list =
+  let contents = Sys.readdir path in
+  let dir_info file = (file, Sys.file_exists (Filename.concat path file) && Sys.is_directory (Filename.concat path file)) in
+  Array.to_list (Array.map dir_info contents)
+
+let real_chdir (path : string) : string option =
+  try Unix.chdir path; None
+  with Unix.Unix_error(e,_,_) -> Some (Unix.error_message e)
 
 (* NB on Unix systems, the abstract type `file_descriptor` is just an int *)
 let fd_of_int : int -> Unix.file_descr = Obj.magic

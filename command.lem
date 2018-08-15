@@ -1,5 +1,7 @@
 open import Fsh
 
+import Debug
+
 val run_command : forall 'a. OS 'a => 
                   'a -> 
                   symbolic_string (* prog *) -> 
@@ -24,6 +26,41 @@ let is_unspecified_utility s =
           "savehistory";"source";"shopt";"stop";"suspend";"typeset";"whence"]
        
 let builtin_unimplemented s0 _argv _env _fds = Left (s0,"unimplemented")
+
+val getopt : list char -> fields -> maybe (char * fields)
+let rec getopt opts fields =
+  match fields with
+  | [] -> Nothing
+  | arg::fields' ->
+     match try_concrete arg with
+     | Nothing -> Nothing
+     | Just s -> 
+        match toCharList s with
+        | #'-'::c::cs -> 
+           if elem c opts
+           then 
+             (* try to support -LP, constructions *)
+             let argrest = 
+               match cs with
+               | [] -> fields'
+               | _ -> ((C #'-')::map C cs)::fields'
+               end in
+             Just (c,argrest)
+           else Nothing
+        | _ -> Nothing
+        end
+     end
+   end
+
+val getopts : list char -> fields -> list char * fields
+let rec getopts opts fields = 
+  match getopt opts fields with
+  | Nothing -> ([],fields)
+  | Just (opt,fields') -> 
+     let (opts,fields'') = getopts opts fields' in
+     (* store in reverse order so we can process the list without needing an accumulator *)
+     (opts ++ [opt],fields'')
+  end
 
 (**********************************************************************)
 (* SPECIAL BUILTINS ***************************************************)
@@ -142,8 +179,21 @@ let special_builtins =
 let builtin_true s0 _argv _env _fds = Right (exit_with 0 s0, Done)
 let builtin_false s0 _argv _env _fds = Right (exit_with 1 s0, Done)
 
-let builtin_pwd s0 _argv _env _fds =
+type path_mode = Link | Physical
+
+val path_mode : list char -> path_mode
+let rec path_mode opts =
+  match opts with
+  | [] -> Link
+  | #'P'::_ -> Physical
+  | #'L'::_ -> Link
+  | _::opts -> path_mode opts
+  end 
+
+let builtin_pwd s0 argv _env _fds =
   (* TODO 2018-08-10 support -L [allow links, no . or ..] and -P [resolve symbolic links] options *)
+  let (opts,_argv') = getopts [#'L';#'P'] argv in
+  let _mode = path_mode opts in
   let pwd = (get_shell_state s0).cwd ^ "\n" in
   Right (exit_with 0 (write_stdout pwd s0), Done)
 
@@ -165,10 +215,109 @@ let builtin_echo s0 argv _env _fds =
   let s2 = write_stdout terminator s1 in
   Right (exit_with 0 s2, Done)
 
+let do_cd s0 mode dir =   
+  let curpath =
+    if first_is_slash dir
+    then
+      (* 3. If the directory operand begins with a <slash> character,
+         set curpath to the operand and proceed to step 7. *)
+      dir
+    else if dir = "." || dir = ".." || 
+            toString (take 2 (toCharList dir)) = "./" || 
+            toString (take 3 (toCharList dir)) = "../"
+    then 
+      (* 4. If the first component of the directory operand is dot or
+         dot-dot, proceed to step 6. *)
+      (* 6. Set curpath to the directory operand. *)
+      (* onward! *)
+      dir
+    else
+      (* TODO 2018-08-15 use CDPATH:
+
+         5. Starting with the first pathname in the <colon>-separated
+         pathnames of CDPATH (see the ENVIRONMENT VARIABLES section) if the
+         pathname is non-null, test if the concatenation of that pathname, a
+         <slash> character if that pathname did not end with a <slash>
+         character, and the directory operand names a directory. If the
+         pathname is null, test if the concatenation of dot, a <slash>
+         character, and the operand names a directory. In either case, if
+         the resulting string names an existing directory, set curpath to
+         that string and proceed to step 7. Otherwise, repeat this step with
+         the next pathname in CDPATH until all pathnames have been
+         tested. *)
+       dir
+  in
+  (* 7. If the -P option is in effect, proceed to step 10. If
+     curpath does not begin with a <slash> character, set curpath to
+     the string formed by the concatenation of the value of PWD, a
+     <slash> character if the value of PWD did not end with a
+     <slash> character, and curpath. *)
+  let curpath' = 
+    match mode with
+    | Physical -> curpath
+    | Link -> 
+       let curpath'' = 
+         if first_is_slash curpath
+         then curpath 
+         else 
+           let pwd = (get_shell_state s0).cwd in
+           pwd ^ (if last_is_slash pwd then "" else "/") ^ curpath in
+       (* 8. The curpath value shall then be converted to canonical form
+          as follows, considering each component from beginning to end,
+          in sequence: ... *)
+       canonicalize_path s0 curpath''
+    end in
+  let old = (get_shell_state s0).cwd in
+  let _ = Debug.print_endline ("going to " ^ curpath' ^ " from " ^ old) in
+  let (s1,res) = chdir s0 curpath' in
+  match res with
+  | Nothing -> 
+     let s2 = set_param "PWD" (symbolic_string_of_string curpath') s1 in
+     let s3 = set_param "OLDPWD" (symbolic_string_of_string old) s2 in
+     Right (exit_with 0 s3, Done)
+  | Just err -> Left (s1, err)
+  end
+
+let builtin_cd s0 argv _env _fds = 
+  let (opts,argv') = getopts [#'L';#'P'] argv in
+  let mode = path_mode opts in
+  match argv' with
+  | [] ->
+    match lookup_concrete_param s0 "HOME" with
+    | Nothing -> 
+       (* 1. If no directory operand is given and the HOME environment
+          variable is empty or undefined, the default behavior is
+          implementation-defined and no further steps shall be
+          taken. *)
+       Left (s0, "HOME unset")
+    | Just homedir -> 
+       (* 2. If no directory operand is given and the HOME environment
+          variable is set to a non-empty value, the cd utility shall
+          behave as if the directory named in the HOME environment
+          variable was specified as the directory operand. *)
+       do_cd s0 mode homedir
+    end
+  | (C #'-'::[])::_ -> 
+     (* equivalent to `cd $OLDPWD && pwd` *)
+     match lookup_concrete_param s0 "OLDPWD" with
+     | Nothing -> Left (s0, "can't move back to missing OLDPWD")
+     | Just path -> 
+        match do_cd s0 mode path with
+        | Left (s1,msg) -> Left (s1,msg)
+        | Right (s1, _stmt (* should be Done *)) -> Right (write_stdout path s1, Done)
+        end
+     end
+  | path::_ -> (* just ignore extra args *) 
+     match try_concrete path with
+     | Nothing -> Left (s0, "can't cd to symbolic path")
+     | Just path -> do_cd s0 mode path
+     end
+  end
+
+
 (* TODO 2018-08-13 *)
 let builtin_alias = builtin_unimplemented
 let builtin_bg = builtin_unimplemented
-let builtin_cd = builtin_unimplemented
 let builtin_chdir = builtin_unimplemented
 let builtin_command = builtin_unimplemented
 let builtin_fg = builtin_unimplemented

@@ -51,6 +51,7 @@ class ( OS 'a )
     'a -> nat -> 'a * maybe (either evaluation_step nat)
 
   (* FS CALLS *)
+  val chdir : 'a -> path -> 'a * maybe string
   val readdir : 'a -> path -> set (path * file unit)
   val write_fd : 'a -> fd -> string -> maybe 'a
   val read_fd : 'a -> fd -> maybe ('a * string)
@@ -69,7 +70,18 @@ let write_stdout = try_write_fd STDOUT
 
 val write_stderr : forall 'a. OS 'a => string -> 'a -> 'a
 let write_stderr = try_write_fd STDERR
-   
+
+val first_is_slash : path -> bool
+let first_is_slash path = 
+  path <> "" && nth path 0 = #'/'
+
+val last_is_slash : path -> bool
+let last_is_slash path = 
+  path <> "" && nth path (stringLength path - 1) = #'/'
+
+val canonicalize_path : forall 'a. OS 'a => 'a -> path -> path 
+let canonicalize_path _os path = path (* TODO 2018-08-15 implement *)
+
 (**********************************************************************)
 (* SYMBOLIC FS STATE **************************************************)
 (**********************************************************************)
@@ -348,6 +360,10 @@ instance (OS symbolic_os_state)
        * Comparing equality of a non-trivial file system will loop infinitely. *)
       (toSetBy compare_by_first (symbolic_fs_resolve_path os.symbolic_fs_root path).contents)
 
+  let chdir os path =
+    (* TODO 2018-08-15 try to resolve path, give an error if no dice *)
+    (<| os with symbolic_sh = <| os.symbolic_sh with cwd = path |> |>, Nothing)
+
   let write_fd os fd s =
     match symbolic_resolve_fd os fd with
     | Just fifo_num ->
@@ -417,9 +433,6 @@ let environ (env : env) : list string =
 val real_getpwnam : string -> maybe string
 declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
 
-val real_readdir : string -> list (string * bool)
-declare ocaml target_rep function real_readdir = `System.real_readdir`
-
 val real_fork_and_execve : string -> list string -> list string -> nat
 declare ocaml target_rep function real_fork_and_execve = `System.real_fork_and_execve`
 
@@ -428,6 +441,12 @@ declare ocaml target_rep function real_fork_and_call = `System.real_fork_and_cal
 
 val real_waitpid : nat -> nat
 declare ocaml target_rep function real_waitpid = `System.real_waitpid`
+
+val real_chdir : path -> maybe string
+declare ocaml target_rep function real_chdir = `System.real_chdir`
+
+val real_readdir : string -> list (string * bool)
+declare ocaml target_rep function real_readdir = `System.real_readdir`
 
 val real_write_fd : nat -> string -> bool
 declare ocaml target_rep function real_write_fd = `System.real_write_fd`
@@ -458,6 +477,9 @@ instance (OS real_os_state)
       in
     (os, pid)
 
+  let chdir os path =
+    (<| os with real_sh = <| os.real_sh with cwd = path |> |>, real_chdir path)
+      
   let readdir _os path = 
     let contents = real_readdir path in
     let convert (f,is_dir) = (f,if is_dir then Dir () else File) in
