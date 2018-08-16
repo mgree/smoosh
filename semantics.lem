@@ -640,7 +640,7 @@ $ count $(${x? one two three}) four
       *)
      Right (XSSimple "ran empty command", s0, Done)
   | Pipe bg _stmts ->
-     (* from dash eval.c
+     (* from dash/src/eval.c:
 /*
  * Evaluate a pipeline.  All the processes in the pipeline are children
  * of the process creating the pipeline.  (This differs from some versions
@@ -730,7 +730,24 @@ evalpipe(union node *n, int flags)
         the word [that is the target of redirection] by a
         non-interactive shell; an interactive shell may perform it,
         but shall do so only when the expansion would result in one
-        word. *)    
+        word. 
+
+      General order of events (from dash/src/redir.c):
+
+      redirect():
+        for each redir in the list
+          - open the descriptor for the given redirect [openredirect]
+          - go through everything in the list and decide what to save [redirtab]:
+            + some things were clsoed and still are (REALLY_CLOSED)
+            + some things are unused (EMPTY)
+            + some things are opened for redir and need to be closed later (CLOSED)
+          - actually dup the opened fd to an appropriate fd number [dupredirect]
+
+      openredirect: needs FS calls (uses open64, stat64, pipe, etc.)
+        calls openhere: spins up a process to write things to the pipe if more than 4096b
+      dupredirect: wrapper around dup2
+        
+     *)    
      Left (XSRedir "TODO", s0)
   | Background stmt' _redirs -> 
      (* TODO 2018-08-15 set up fds using redirs *)
