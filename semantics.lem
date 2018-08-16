@@ -561,10 +561,6 @@ so: how do we implement it?
      (* keep on expanding, since we have to actually expand the redirects no matter what *)
      Right (XSSimple "assignments complete", s0, CommandExpanded [] [] redirs)
 
-  (* TODO 2018-01-26 special case, special builtins treat the environment specially
-   *   "If the command name is a special built-in utility, variable assignments shall affect the current execution environment."
-   *)
-
   (* GENERAL CASE: command with possible assignments, which no longer go in the general environment *)
   | CommandExpAssign assigns ws redirs ->
      match step_assign s0 assigns with
@@ -604,7 +600,9 @@ extremely subtle behavior with errors in expansion:
   an expansion error is NOT a field
 
 $ count() { echo $# ; }
-$ count $(echo ${x?one two three})
+$ count ${x?one two three}                            # never runs count
+/Users/mgree/fsh/dash/src/dash: 2: x: one two three
+$ count $(echo ${x?one two three})                    # subshell fails, but count will run!
 /Users/mgree/fsh/dash/src/dash: 2: x: one two three
 0
 $ count $(echo ${x?one two three} four)
@@ -619,18 +617,34 @@ $ count $(${x? one two three}) four
   (* TODO 2017-12-22 add a CommandExpRedir to expand all of the redirect targets/heredocs *)
   | CommandExpanded assigns (prog::args) _redirs ->
      (* perform assignments *)
-     (* TODO 2018-02-09 check to see if prog is a special built-in, in which case assign to GLOBAL env *)
+     let sh = get_shell_state s0 in
      let env = 
        foldr (fun (x,f) env' -> 
            Map.insert x (symbolic_string_of_fields f) env') 
-         (get_shell_state s0).env assigns
+         sh.env assigns
      in
+     (* "If the command name is a special built-in utility, variable
+        assignments shall affect the current execution environment."
+        *)
+     let s1 = 
+       match try_concrete prog with
+       | Just prog_name -> if is_special_builtin prog_name
+                           then set_shell_state <| sh with env = env |> s0
+                           else s0
+       | Nothing -> s0 
+       end in
      (* TODO 2018-02-09 setup redirects using current shell state *)
      let fds = fds_default in
      (* run command *)
-     match run_command s0 prog args env fds with
-     | Right (s1,stmt') -> Right (XSSimple ("running " ^ string_of_symbolic_string prog), s1, stmt')
-     | Left (s1,msg) -> Right (XSSimple "couldn't run command", exit_with 1 (write_stderr msg s1), Done)
+     match run_command s1 prog args env fds with
+     | Right (s2,stmt') -> 
+        Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
+               s2, 
+               stmt')
+     | Left (s2,msg) -> 
+        Right (XSSimple "couldn't run command", 
+               exit_with 1 (write_stderr msg s2), 
+               Done)
      end
   | CommandExpanded _assigns [] _redirs ->
      (* TODO 2018-02-09 setup redirects for side effects/file creation
