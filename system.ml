@@ -54,6 +54,11 @@ let real_read_fd (fd:int) : string option =
   else None
 
 let real_savefd (fd:int) : (string,int) Either.either =
+  (* dash is careful to get a new fd>10 by using an explicit fcntl call.
+     we don't have access to fcntl in Unix.cmx;
+     ocaml-unix-fcntl doesn't seeem to offer the fd functions
+     so: we'll just take the fd that we get. it'll be fresh, in any case
+   *)
   try
     let newfd = Unix.dup ~cloexec:true (fd_of_int fd) in
     Right (int_of_fd newfd)
