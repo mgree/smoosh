@@ -117,7 +117,6 @@ and control =
   | Arith of expanded_words (* runtime technicality *) * words
   | Quote of expanded_words (* runtime technicality *) * words
 
-
 and entry =
     S of string
   | K of control
@@ -237,6 +236,7 @@ and evaluation_step =
   | XSDefun of string
   | XSStack of string (* function name *) * evaluation_step 
   | XSStep of string
+  | XSWait of string
   | XSNested of evaluation_step * evaluation_step
   | XSExpand of evaluation_step * expansion_step
 
@@ -246,7 +246,20 @@ and evaluation_step =
 
 (* File descriptors *)         
 and fd = nat
-      
+
+(* Paths *)
+and path = string
+
+(* Information for saved FDs during redirect: put in a list to indicate each FD
+   e.g., [Closed;SavedFD 31;ReallyClosed;Empty;Closed] says that:
+     - STDIN was opened for a redirect and should be closed
+     - that STDOUT was saved as fd 31 
+     - STDERR was closed before and should stay closed
+     - there never was an fd 3
+     - fd 4 was opened for the redirect but should be closed
+ *)
+and saved_fd = Empty | SavedFD of nat | Close | ReallyClosed (* TODO 2018-08-16 may be unnec. *)
+
 (* environments *)       
 and env = Map.map string symbolic_string
 
@@ -254,15 +267,22 @@ and env = Map.map string symbolic_string
 and funcs = Map.map string stmt        
 
 and ty_shell_state = <|
-    script_name: string; (* $0 *)
     (* no explicit stack of params... we use Call stmt as a stack frame *)
-    positional_params: list symbolic_string; (* $1, $2, $3, ... *)
+    positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
     funcs: funcs;                 
     cwd: string;
     locale: locale;
-    loop_nest: nat (* for tracking break/continue *)
+    loop_nest: nat (* for tracking break/continue *);
+    saved_fds : list (list saved_fd) (* stack of saved fd lists *)
  |>
+
+val STDIN : nat
+val STDOUT : nat
+val STDERR : nat
+let STDIN = 0
+let STDOUT = 1
+let STDERR = 2
 
 (**********************************************************************)
 (* SYMBOLIC STRING FUNCTIONS ******************************************)
@@ -446,12 +466,12 @@ let int64ToFields n = [symbolic_string_of_string (write n)]
 let env_default : env = Map.insert "?" (symbolic_string_of_string "0") Map.empty
 
 let default_shell_state = <|
-      script_name = "fsh"; (* $0 *)
-      positional_params = []; (* $1, $2, $3 ... *)
+      positional_params = []; (* $0, $1, $2, $3 ... *)
       env = env_default;
       funcs = Map.empty;
       cwd = "/";
       locale = lc_ambient;
-      loop_nest = 0
+      loop_nest = 0;
+      saved_fds = []
   |>
 

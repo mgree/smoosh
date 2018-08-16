@@ -99,8 +99,7 @@ let main () =
   *)
   let positional = prepare_command () in
   let sym_positional = List.map symbolic_string_of_string positional in
-  let s0 = { Os.real_sh = { default_shell_state with positional_params = sym_positional }
-           ; Os.real_sh_fds = fds_default } in
+  let s0 = { Os.real_sh = { default_shell_state with positional_params = sym_positional } } in
   if !interactive
   then repl s0
   else run_cmds s0

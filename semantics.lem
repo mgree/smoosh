@@ -737,12 +737,11 @@ evalpipe(union node *n, int flags)
       redirect():
         for each redir in the list
           - open the descriptor for the given redirect [openredirect]
-          - go through everything in the list and decide what to save [redirtab]:
-            + some things were clsoed and still are (REALLY_CLOSED)
+          - go through everything in the list and decide what to save [redirtab: only fds <10!]:
+            + some things were closed and still are (REALLY_CLOSED)
             + some things are unused (EMPTY)
             + some things are opened for redir and need to be closed later (CLOSED)
           - actually dup the opened fd to an appropriate fd number [dupredirect]
-
       openredirect: needs FS calls (uses open64, stat64, pipe, etc.)
         calls openhere: spins up a process to write things to the pipe if more than 4096b
       dupredirect: wrapper around dup2
@@ -1001,16 +1000,16 @@ evalpipe(union node *n, int flags)
   | Wait n -> 
      match waitpid step_eval s0 n with
      | (s1, Nothing) -> 
-        Right (XSSimple ("couldn't step process with pid " ^ stringFromNat n), 
+        Right (XSWait ("couldn't step process with pid " ^ stringFromNat n), 
                write_stderr ("wait: pid " ^ stringFromNat n ^ " is not a child of this shell") s1, 
                Done)
      | (s1, Just (Left step)) ->
-        Right (XSNested (XSSimple ("process with pid " ^ stringFromNat n ^ " stepped")) 
+        Right (XSNested (XSWait ("process with pid " ^ stringFromNat n ^ " stepped")) 
                         step,
                s1,
                Wait n)
      | (s1, Just (Right code)) ->
-        Right (XSSimple ("process with pid " ^ stringFromNat n ^ " completed"),
+        Right (XSWait ("process with pid " ^ stringFromNat n ^ " completed"),
                exit_with code s1,
                Done)
      end               

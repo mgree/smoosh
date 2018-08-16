@@ -1,12 +1,5 @@
 open import Fsh_prelude
 
-val STDIN : nat
-val STDOUT : nat
-val STDERR : nat
-let STDIN = 0
-let STDOUT = 1
-let STDERR = 2
-
 (**********************************************************************)
 (* FS/OS CLASS ********************************************************)
 (**********************************************************************)
@@ -14,13 +7,10 @@ let STDERR = 2
 (* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)           
 type file 'a = File | Dir of 'a
 
-type path = string
-
-(* data structures for managing redirections (will translate to close/dup2/pipe calls) *)
+(* Data structures for symbolic FDs *)
 type fd_tgt = FD of nat | Path of path
-(* TODO 2018-08-14 needs to be a list, since order matters! 
-   perhaps use a stack-based approach, like dash does?
- *)
+
+(* Mapping of FDs numbers *)
 type fds = Map.map fd fd_tgt
 
 val path_dotdot_rev_cl : list char -> list char
@@ -88,8 +78,8 @@ let canonicalize_path _os path = path (* TODO 2018-08-15 implement *)
 
 (* Broadly, directories map to contents, which are dir trees or files.
  * For now, fine, just using for pathname expansion.
- *
  * TODO: Ultimately, rely on SibylFS's detailed model *)
+
 type symbolic_fs = <|
   parent: maybe symbolic_fs;
   contents: Map.map string (file symbolic_fs)
@@ -161,10 +151,10 @@ and symbolic_os_state = <|
     symbolic_fifos: list fifo;
     symbolic_procs: list proc
   |>
-
+    
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
 let fds_default : fds = Map.insert STDIN (FD 0) (Map.insert STDOUT (FD 1) (Map.insert STDERR (FD 2) Map.empty))
-    
+
 let os_empty : symbolic_os_state = <|
     symbolic_sh = default_shell_state;
     symbolic_sh_fds = fds_default;
@@ -187,10 +177,7 @@ let print_shell_env os = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_sym
 val lookup_positional_param : forall 'a. OS 'a => nat -> 'a -> maybe symbolic_string
 let lookup_positional_param num os =
   let sh = get_shell_state os in
-  if num = 0
-  then Just (symbolic_string_of_string sh.script_name)
-  (* -1 for positional param offset (ie, $0 is stored elsewhere *)
-  else index sh.positional_params (num - 1)
+  index sh.positional_params (num - 1)
 
 (* The result is nothing if the parameter is unset, and the empty string null. *)
 val lookup_param : forall 'a. OS 'a => 'a -> string -> maybe symbolic_string
@@ -200,7 +187,9 @@ let lookup_param os str =
   | (Right num,_) -> lookup_positional_param num os
   | (Left _,"@") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as fields *)
   | (Left _,"*") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as a string *)
-  | (Left _,"#") -> Just (symbolic_string_of_string (stringFromNat (length sh.positional_params))) (* number of positional arguments *)
+  | (Left _,"#") -> 
+     let num_params = length sh.positional_params in
+     Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1)))) (* number of positional arguments excluding $0 *)
   | (Left _,"!") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* last bg pid *)
   | (Left _,"-") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* current option flags *)
   | (Left _,"$") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* shell pid *)
@@ -230,9 +219,6 @@ let set_param x v os = update_shell_state (fun sh -> <| sh with env = Map.insert
 val set_function_params : forall 'a. OS 'a => nat -> fields -> 'a -> 'a
 let set_function_params ln argv os =
   update_shell_state (fun sh -> <| sh with loop_nest = ln; positional_params = argv |>) os
-
-val get_script_name : forall 'a. OS 'a => 'a -> string
-let get_script_name os = (get_shell_state os).script_name
 
 val enter_loop : forall 'a. OS 'a => 'a -> 'a
 let enter_loop os = 
@@ -414,10 +400,7 @@ let symbolic_print_shell_env os = print_shell_env os
 (* REAL OS STATE INSTANCE *********************************************)
 (**********************************************************************)
 
-type real_os_state = <|
-    real_sh: ty_shell_state;
-    real_sh_fds: fds;
-  |>
+type real_os_state = <| real_sh: ty_shell_state |>
 
 let force_concrete ss =
   match try_concrete ss with

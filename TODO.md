@@ -32,6 +32,7 @@
 ### Long-term
 
 - refactor shell state so that OS is subsidiary, keep common in common
+  tricky: shell states need to show up for subshells in LBacktick, forces parameter through :(
 - use monads (better parsing, etc.)
 - support for nondeterminism (move to K?)
 
