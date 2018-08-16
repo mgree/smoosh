@@ -23,8 +23,16 @@
   HISTFILE?
 - shell history
 
+- expansion: make null more explicit... simplify matches?
+
+- parse errors break our libdash shim
+
+- symbolic pathname expansion
+
 ### Long-term
 
+- refactor shell state so that OS is subsidiary, keep common in common
+- use monads (better parsing, etc.)
 - support for nondeterminism (move to K?)
 
 ### Testing
@@ -68,19 +76,9 @@ JS/webpage
   + mkdir for submissions
   + docker container, provision shell.cs.pomona.edu
 CLI
+  + pretty printer for JSON output
 
-have both read the JSON output
-  include ENTIRE shell info in JSON output
-
-### Expansion.lem
-
-Monads for parsing etc.
-Clean up to make null more explicit (simplify matches?)
-
-Error handling
-  - parse errors break our libdash shim
-
-No symbolic pathname expansion
+include ENTIRE shell info in JSON output
 
 ### Bugs
 
@@ -88,8 +86,11 @@ Bash
   - Bug related to variable assignments before built in utilities
     - "If the command name is a special built-in utility, variable assignments shall affect the current execution environment. Unless the set -a option is on (see set), it is unspecified:"
     - "x=5 :" should set x=5 in the current shell env, but it does not in Bash (version 4.4.12(1)-release)
+    
+    not REALLY a bug---there's an obscure flag to turn on the POSIX behavior
 
 Dash
+  - Found (and fixed) arithmetic bug
   - Are EXP_VARTILDE and EXP_VARTILDE2 necessary? 
     it seems to me that the parser is properly separating things out...
     test it!
