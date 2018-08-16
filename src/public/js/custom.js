@@ -1464,7 +1464,7 @@ function renderEvaluationStep(info, step) {
   console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
                   'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
                   'XSFor', 'XSCase', 'XSDefun', 'XSStack',
-                  'XSStep', 'XSNested', 'XSExpand'].includes(step['tag']),
+                  'XSStep', 'XSWait', 'XSNested', 'XSExpand'].includes(step['tag']),
                  'got weird step tag ' + step['tag']);
 
   switch (step['tag']) {
@@ -1564,6 +1564,11 @@ function renderEvaluationStep(info, step) {
       if (step['msg'] !== '') {
         renderMessage(info, 'Evaluation step', step);
       }
+
+      break;
+
+    case 'XSWait':
+      renderMessage(info, 'Wait', step);
 
       break;
 
