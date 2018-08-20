@@ -26,6 +26,12 @@ let real_waitpid (pid : int) : int =
 
 let real_exists (path : string) : bool = Sys.file_exists path
 
+let real_isexec (path : string) : bool =
+  try if Sys.file_exists path 
+      then (Unix.access path [Unix.F_OK; Unix.X_OK]; true)
+      else false
+  with Unix.Unix_error(_,_,_) -> false
+
 let real_isdir (path : string) : bool = Sys.file_exists path && Sys.is_directory path
 
 let real_readdir (path : string) : (string * bool) list =

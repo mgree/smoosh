@@ -45,6 +45,7 @@ class ( OS 'a )
   val chdir : 'a -> path -> 'a * maybe string
   val file_exists : 'a -> path -> bool
   val isdir : 'a -> path -> bool
+  val isexec : 'a -> path -> bool
   val readdir : 'a -> path -> set (path * file unit)
   val write_fd : 'a -> fd -> string -> maybe 'a
   val read_fd : 'a -> fd -> maybe ('a * string)
@@ -391,6 +392,10 @@ instance (OS symbolic_os_state)
     (* TODO 2018-08-20 need to revise resolve_ symbolic_fs *)
     true
 
+  let isexec os path =
+    (* TODO 2018-08-20 need to revise resolve_ symbolic_fs *)
+    true
+
   let write_fd os fd s =
     match symbolic_resolve_fd os fd with
     | Just fifo_num ->
@@ -475,6 +480,9 @@ declare ocaml target_rep function real_exists = `System.real_exists`
 val real_isdir : path -> bool
 declare ocaml target_rep function real_isdir = `System.real_isdir`
 
+val real_isexec : path -> bool
+declare ocaml target_rep function real_isexec = `System.real_isexec`
+
 val real_readdir : string -> list (string * bool)
 declare ocaml target_rep function real_readdir = `System.real_readdir`
 
@@ -515,6 +523,7 @@ instance (OS real_os_state)
       
   let file_exists _os path = real_exists path
   let isdir _os path = real_isdir path
+  let isexec _os path = real_isexec path
 
   let readdir _os path = 
     let contents = real_readdir path in

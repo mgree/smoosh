@@ -215,28 +215,17 @@ let builtin_echo s0 argv _env _fds =
   let s2 = write_stdout terminator s1 in
   Right (exit_with 0 s2, Done)
 
-val resolve_cdpath : forall 'a. OS 'a => 'a -> list string -> string -> string
-let rec resolve_cdpath s0 cdpath dir = 
-  (* 5. Starting with the first pathname in the <colon>-separated
-     pathnames of CDPATH (see the ENVIRONMENT VARIABLES section) if
-     the pathname is non-null, test if the concatenation of that
-     pathname, a <slash> character if that pathname did not end with a
-     <slash> character, and the directory operand names a
-     directory. If the pathname is null, test if the concatenation of
-     dot, a <slash> character, and the operand names a directory. In
-     either case, if the resulting string names an existing directory,
-     set curpath to that string and proceed to step 7. Otherwise,
-     repeat this step with the next pathname in CDPATH until all
-     pathnames have been tested. *)
-  let attempt altered cdpath' = 
-     if isdir s0 altered
-     then altered
-     else resolve_cdpath s0 cdpath' dir
+val resolve_path_with : (path -> bool) -> list path -> string -> maybe path
+let rec resolve_path_with ok path name = 
+  let attempt altered path' = 
+     if ok altered
+     then Just altered
+     else resolve_path_with ok path' name
   in
-  match cdpath with
-  | [] -> dir
-  | ""::cdpath' -> attempt ("./" ^ dir) cdpath'
-  | pwd::cdpath' -> attempt (pwd ^ (if last_is_slash pwd then "" else "/") ^ dir) cdpath'
+  match path with
+  | [] -> Nothing
+  | ""::path' -> attempt ("./" ^ name) path' (* 'legacy feature' in PATH per 8.3 *)
+  | pwd::path' -> attempt (pwd ^ (if last_is_slash pwd then "" else "/") ^ name) path'
   end
 
 let do_cd s0 mode dir =   
@@ -255,12 +244,26 @@ let do_cd s0 mode dir =
       (* 6. Set curpath to the directory operand. *)
       (* onward! *)
       dir
-    else
+    else 
+  (* 5. Starting with the first pathname in the <colon>-separated
+     pathnames of CDPATH (see the ENVIRONMENT VARIABLES section) if
+     the pathname is non-null, test if the concatenation of that
+     pathname, a <slash> character if that pathname did not end with a
+     <slash> character, and the directory operand names a
+     directory. If the pathname is null, test if the concatenation of
+     dot, a <slash> character, and the operand names a directory. In
+     either case, if the resulting string names an existing directory,
+     set curpath to that string and proceed to step 7. Otherwise,
+     repeat this step with the next pathname in CDPATH until all
+     pathnames have been tested. *)
       match lookup_concrete_param s0 "CDPATH" with
       | Nothing -> dir
       | Just cdpath -> 
-        let cdpaths = split_string_on true (* escapable *) #':' cdpath in
-        resolve_cdpath s0 cdpaths dir
+         let cdpaths = split_string_on true (* escapable *) #':' cdpath in
+         match resolve_path_with (isdir s0) cdpaths dir with
+         | Nothing -> dir
+         | Just dir' -> dir'
+         end
       end
   in
   (* 7. If the -P option is in effect, proceed to step 10. If
@@ -512,9 +515,32 @@ let run_command s0 prog_name argv env fds =
                    executed shall be deemed non-conforming, and
                    consequently the utility or application might not
                    behave as described in this standard.  *)
-                (* TODO 2018-08-13 path resolution of program *)
-                let (s1,pid) = fork_and_execve s0 (symbolic_string_of_string prog) argv env fds in
-                Right (s1,Wait pid)
+                let prog_path = 
+                  match lookup_concrete_param s0 "PATH" with
+                  | Nothing -> Just prog
+                  | Just path -> 
+                     let paths = split_string_on true (* escapable *) #':' path in
+                     resolve_path_with (file_exists s0) paths prog
+                  end in
+                match prog_path with
+                | Nothing -> 
+                   let s1 = write_stderr (prog ^ ": command not found") s0 in
+                   Right (exit_with 127 s1, Done)
+                | Just executable ->
+                   if isexec s0 executable
+                   then 
+                     let (s1,pid) = fork_and_execve 
+                                      s0 
+                                      (symbolic_string_of_string executable) 
+                                      argv 
+                                      env 
+                                      fds 
+                     in
+                     Right (s1,Wait pid)
+                   else (* TODO 2018-08-20 test for text file? *)
+                     let s1 = write_stderr (executable ^ ": command not executable") s0 in
+                     Right (exit_with 126 s1,Done)
+                end
              end
           end
      end
