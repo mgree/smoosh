@@ -2,23 +2,8 @@ open import Fsh
 
 open import Pattern
 
-val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
-let rec break p ls =
-  match ls with
-  | [] -> ([], [])
-  | x::xs ->
-    if p x
-    then ([], xs)
-    else let (xs', xs'') = break p xs in (x::xs', xs'')
-  end
-
-val split : list char -> list (list char)
-let rec split cs =
-  match break ((=) #'/') cs with
-  | ([], []) -> []
-  | (cs', []) -> [cs']
-  | (cs', cs'') -> cs'::(split cs'')
-  end
+val split_on_slash : list char -> list (list char)
+let split_on_slash = split_on false (* not escapable *) #'/'
 
 type path_info = <| path_prefix : string
                   ; trailing_slash : bool
@@ -40,8 +25,8 @@ let has_trailing_slash cs =
 val parse_path_pattern : forall 'a. OS 'a => 'a -> string -> list string * path * path_info
 let parse_path_pattern os pat =
   match toCharList pat with
-  | #'/'::pat' -> (map toString (split pat'), "/", <| path_prefix = "/"; trailing_slash = has_trailing_slash pat' |>)
-  | chars -> (map toString (split chars), (get_shell_state os).cwd, <| path_prefix = ""; trailing_slash = has_trailing_slash chars |>)
+  | #'/'::pat' -> (map toString (split_on_slash pat'), "/", <| path_prefix = "/"; trailing_slash = has_trailing_slash pat' |>)
+  | chars -> (map toString (split_on_slash chars), (get_shell_state os).cwd, <| path_prefix = ""; trailing_slash = has_trailing_slash chars |>)
   end
 
 (* We use shortest matching because we won't look at the content of the match.
