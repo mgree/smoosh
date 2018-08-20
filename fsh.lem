@@ -2,53 +2,6 @@ include import Fsh_prelude
 include import Os
 
 (**********************************************************************)
-(* UTILITY FUNCTIONS **************************************************)
-(**********************************************************************)
-
-val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
-let rec break p ls =
-  match ls with
-  | [] -> ([], [])
-  | x::xs ->
-    if p x
-    then ([], xs)
-    else let (xs', xs'') = break p xs in (x::xs', xs'')
-  end
-
-let rec intercalate sep ss = 
-  match ss with
-  | [] -> ""
-  | [s] -> s
-  | s::ss' -> s ^ sep ^ intercalate sep ss'
-  end
-
-val break_on_esc : bool -> char -> list char -> (list char) * (list char)
-let rec break_on_esc escapable sep ls =
-  match (escapable,ls) with
-  | (_,[]) -> ([], [])
-  | (true,#'\\'::c::cs) ->
-     let (cs', cs'') = break_on_esc escapable sep cs in 
-     (#'\\'::c::cs', cs'')
-  | (_,c::cs) ->
-    if sep = c
-    then ([], cs)
-    else let (cs', cs'') = break_on_esc escapable sep cs in 
-         (c::cs', cs'')
-  end
-
-val split_on : bool -> char -> list char -> list (list char)
-let rec split_on escapable sep cs =
-  match break_on_esc escapable sep cs with
-  | ([], []) -> []
-  | (cs', []) -> [cs']
-  | (cs', cs'') -> cs'::(split_on escapable sep cs'')
-  end
-
-val split_string_on : bool -> char -> string -> list string
-let split_string_on escapable sep s =
-  map toString (split_on escapable sep (toCharList s))
-
-(**********************************************************************)
 (* PRETTY PRINTING ****************************************************)
 (**********************************************************************)
 

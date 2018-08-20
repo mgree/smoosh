@@ -270,7 +270,7 @@ let do_cd s0 mode dir =
      <slash> character, and curpath. *)
   let curpath' = 
     match mode with
-    | Physical -> curpath
+    | Physical -> Just curpath
     | Link -> 
        let curpath'' = 
          if first_is_slash curpath
@@ -283,15 +283,19 @@ let do_cd s0 mode dir =
           in sequence: ... *)
        canonicalize_path s0 curpath''
     end in
-  let old = (get_shell_state s0).cwd in
-  let _ = Debug.print_endline ("going to " ^ curpath' ^ " from " ^ old) in
-  let (s1,res) = chdir s0 curpath' in
-  match res with
-  | Nothing -> 
-     let s2 = set_param "PWD" (symbolic_string_of_string curpath') s1 in
-     let s3 = set_param "OLDPWD" (symbolic_string_of_string old) s2 in
-     Right (exit_with 0 s3, Done)
-  | Just err -> Left (s1, err)
+  match curpath' with
+  | Nothing -> Left (s0, "illegal path " ^ curpath)
+  | Just curpath'' ->
+     let old = (get_shell_state s0).cwd in
+     let _ = Debug.print_endline ("going to " ^ curpath'' ^ " from " ^ old) in
+     let (s1,res) = chdir s0 curpath'' in
+     match res with
+     | Nothing -> 
+        let s2 = set_param "PWD" (symbolic_string_of_string curpath'') s1 in
+        let s3 = set_param "OLDPWD" (symbolic_string_of_string old) s2 in
+        Right (exit_with 0 s3, Done)
+     | Just err -> Left (s1, err)
+     end
   end
 
 let builtin_cd s0 argv _env _fds = 

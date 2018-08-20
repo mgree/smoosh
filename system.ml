@@ -34,7 +34,9 @@ let real_readdir (path : string) : (string * bool) list =
   Array.to_list (Array.map dir_info contents)
 
 let real_chdir (path : string) : string option =
-  try Unix.chdir path; None
+  try if real_isdir path 
+      then (Unix.chdir path; None)
+      else Some ("no such directory " ^ path)
   with Unix.Unix_error(e,_,_) -> Some (Unix.error_message e)
 
 (* NB on Unix systems, the abstract type `file_descriptor` is just an int *)

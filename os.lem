@@ -17,6 +17,7 @@ val path_dotdot_rev_cl : list char -> list char
 let rec path_dotdot_rev_cl path =
   match path with
   | [] -> [#'/'] (* stop at the root *)
+  | [#'/'] -> [#'/'] (* stop at the root *)
   | #'/'::rest -> rest
   | _::rest -> path_dotdot_rev_cl rest
   end
@@ -71,8 +72,37 @@ val last_is_slash : path -> bool
 let last_is_slash path = 
   path <> "" && nth path (stringLength path - 1) = #'/'
 
-val canonicalize_path : forall 'a. OS 'a => 'a -> path -> path 
-let canonicalize_path _os path = path (* TODO 2018-08-15 implement *)
+val canonicalize_split_path : forall 'a. OS 'a => 'a -> path -> list string -> maybe string
+let rec canonicalize_split_path os path components =
+  match components with
+  | [] -> Just path
+  | ""::components' -> canonicalize_split_path os path components' (* result of // *)
+  | "."::components' -> canonicalize_split_path os path components'
+  | ".."::components' -> 
+     if isdir os path
+     then canonicalize_split_path os (dotdot path) components'
+     else Nothing
+  | dir::components' -> canonicalize_split_path os (path ^ "/" ^ dir) components'
+  end
+
+import Debug
+
+val canonicalize_path : forall 'a. OS 'a => 'a -> path -> maybe path 
+let canonicalize_path os path = 
+  let _ = Debug.print_endline ("canonicalizing " ^ path) in
+  let (initial,path') =
+    match (toCharList path) with
+    | #'/'::#'/'::path' -> 
+       ("//",toString path') (* save initial double slash---the rest will go *)
+    | #'/'::path' -> ("/",toString path')
+    | _ -> ("/",path)
+    end
+  in
+  let components = split_string_on false (* not escapable *) #'/' path' in
+  match components with
+  | [] -> Just initial
+  | topdir::components' -> canonicalize_split_path os (initial ^ topdir) components'
+  end
 
 (**********************************************************************)
 (* SYMBOLIC FS STATE **************************************************)
@@ -478,7 +508,10 @@ instance (OS real_os_state)
     (os, pid)
 
   let chdir os path =
-    (<| os with real_sh = <| os.real_sh with cwd = path |> |>, real_chdir path)
+    match real_chdir path with
+    | Nothing -> (<| os with real_sh = <| os.real_sh with cwd = path |> |>, Nothing)
+    | Just err -> (os, Just err)
+    end
       
   let file_exists _os path = real_exists path
   let isdir _os path = real_isdir path
