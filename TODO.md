@@ -50,6 +50,8 @@
   PWD
   
   HISTFILE?
+- faithful handling of PATH_MAX
+
 - shell history
 
 - expansion: make null more explicit... simplify matches?

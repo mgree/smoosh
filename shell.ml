@@ -47,6 +47,17 @@ let prepare_command () : string list (* positional args *) =
      | cmd::args' -> Dash.setinputstring cmd; args'
      end
 
+(* initialize's Dash env (for correct PS2, etc.); yields initial env *)
+let initialize_env s0 : real_os_state =
+  (* will bork if we have privileges *)
+  let environ = System.real_environment () in
+  let set (x,v) os = 
+    Dash.setvar x v;
+    Os.real_set_param os x v
+  in
+  let s1 = List.fold_right set environ s0 in
+  { s1 with real_sh = { s1.real_sh with cwd = Unix.getcwd () } }
+
 let finish_up s0 =
   (* TODO 2018-08-14 trap on EXIT etc. goes here? *)
   match Os.real_lookup_concrete_param s0 "?" with
@@ -70,7 +81,16 @@ let rec repl s0 =
   match Dash.parse_next () with
   | `Done -> finish_up s0
   | `Null -> repl s0
-  | `Parsed n -> repl (real_eval s0 (Shim.of_node n))
+  | `Parsed n -> 
+     let s1 = real_eval s0 (Shim.of_node n) in
+     let set x v = 
+       match (x,try_concrete v) with
+       | ("?",_) -> ()
+       | (_,None) -> ()
+       | (_,Some s) -> Dash.setvar x s
+     in
+     Pmap.iter set s1.real_sh.env;
+     repl s1
 
 (* TODO lots of special casing at http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sh.html *)
 let main () =
@@ -99,10 +119,12 @@ let main () =
   *)
   let positional = prepare_command () in
   let sym_positional = List.map symbolic_string_of_string positional in
-  let s0 = { Os.real_sh = { default_shell_state with positional_params = sym_positional } } in
+  let s0 = { Os.real_sh = { default_shell_state with 
+                            positional_params = sym_positional } } in
+  let s1 = initialize_env s0 in
   if !interactive
-  then repl s0
-  else run_cmds s0
+  then repl s1
+  else run_cmds s1
 ;;
 
 main ()

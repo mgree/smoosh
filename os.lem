@@ -88,6 +88,7 @@ let rec canonicalize_split_path os path components =
 
 import Debug
 
+(* TODO 2018-08-20 bug when moving from .. from /, leads to /.. as canonical path *)
 val canonicalize_path : forall 'a. OS 'a => 'a -> path -> maybe path 
 let canonicalize_path os path = 
   let _ = Debug.print_endline ("canonicalizing " ^ path) in
@@ -548,3 +549,6 @@ end
 
 val real_lookup_concrete_param : real_os_state -> string -> maybe string
 let real_lookup_concrete_param = lookup_concrete_param
+
+val real_set_param : real_os_state -> string -> string -> real_os_state
+let real_set_param os x v = set_param x (symbolic_string_of_string v) os

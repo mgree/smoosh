@@ -24,14 +24,8 @@ let set_input_src () =
   | None -> Dash.setinputtostdin ()
   | Some f -> Dash.setinputfile f
 
-let parse_keqv s = 
-  let eq = String.index s '=' in
-  let k = String.sub s 0 eq in
-  let v = String.sub s (eq+1) (String.length s - eq - 1) in
-  (k,v)
-
 let parse_entry (unescape:bool) (s:string) =
-  let (name,value) = parse_keqv s in
+  let (name,value) = System.parse_keqv s in
   try
     let escaped =
       try if unescape then Scanf.unescaped value else value
@@ -54,7 +48,7 @@ let ambient_env () =
 
 let parse_user (s:string) =
   try
-    let (name,value) = parse_keqv s in
+    let (name,value) = System.parse_keqv s in
     initial_os_state := set_pwdir name value !initial_os_state
   with Not_found -> eprintf "Environment parse error: couldn't find an '=' in %s" s
 

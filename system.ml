@@ -1,3 +1,13 @@
+let parse_keqv s = 
+  let eq = String.index s '=' in
+  let k = String.sub s 0 eq in
+  let v = String.sub s (eq+1) (String.length s - eq - 1) in
+  (k,v)
+
+let real_environment () : (string * string) list =
+  let environ = Unix.environment () in
+  Array.to_list (Array.map parse_keqv environ)
+
 let real_getpwnam (nam : string) : string option =
   try Some ((Unix.getpwnam nam).pw_dir)
   with Not_found -> None
