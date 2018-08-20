@@ -24,9 +24,13 @@ let real_waitpid (pid : int) : int =
   | (_,Unix.WSTOPPED signal) -> 146 (* bash, dash behavior *)
   with Unix.Unix_error(EINTR,_,_) -> 130
 
+let real_exists (path : string) : bool = Sys.file_exists path
+
+let real_isdir (path : string) : bool = Sys.file_exists path && Sys.is_directory path
+
 let real_readdir (path : string) : (string * bool) list =
   let contents = Sys.readdir path in
-  let dir_info file = (file, Sys.file_exists (Filename.concat path file) && Sys.is_directory (Filename.concat path file)) in
+  let dir_info file = (file, real_isdir (Filename.concat path file)) in
   Array.to_list (Array.map dir_info contents)
 
 let real_chdir (path : string) : string option =

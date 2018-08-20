@@ -44,6 +44,10 @@ let rec split_on escapable sep cs =
   | (cs', cs'') -> cs'::(split_on escapable sep cs'')
   end
 
+val split_string_on : bool -> char -> string -> list string
+let split_string_on escapable sep s =
+  map toString (split_on escapable sep (toCharList s))
+
 (**********************************************************************)
 (* PRETTY PRINTING ****************************************************)
 (**********************************************************************)

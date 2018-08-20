@@ -42,6 +42,8 @@ class ( OS 'a )
 
   (* FS CALLS *)
   val chdir : 'a -> path -> 'a * maybe string
+  val file_exists : 'a -> path -> bool
+  val isdir : 'a -> path -> bool
   val readdir : 'a -> path -> set (path * file unit)
   val write_fd : 'a -> fd -> string -> maybe 'a
   val read_fd : 'a -> fd -> maybe ('a * string)
@@ -99,6 +101,7 @@ let symbolic_fs_subdir fs name =
   | _ -> Nothing
   end
    
+(* TODO 2018-08-20 make this failable *)
 val symbolic_fs_resolve_path_cl : symbolic_fs -> list char -> symbolic_fs
 let rec symbolic_fs_resolve_path_cl fs cs =
   (* just quit if we're done *)
@@ -350,6 +353,14 @@ instance (OS symbolic_os_state)
     (* TODO 2018-08-15 try to resolve path, give an error if no dice *)
     (<| os with symbolic_sh = <| os.symbolic_sh with cwd = path |> |>, Nothing)
 
+  let file_exists os path =
+    (* TODO 2018-08-20 need to revise resolve_ symbolic_fs *)
+    true
+
+  let isdir os path =
+    (* TODO 2018-08-20 need to revise resolve_ symbolic_fs *)
+    true
+
   let write_fd os fd s =
     match symbolic_resolve_fd os fd with
     | Just fifo_num ->
@@ -428,6 +439,12 @@ declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 val real_chdir : path -> maybe string
 declare ocaml target_rep function real_chdir = `System.real_chdir`
 
+val real_exists : path -> bool
+declare ocaml target_rep function real_exists = `System.real_exists`
+
+val real_isdir : path -> bool
+declare ocaml target_rep function real_isdir = `System.real_isdir`
+
 val real_readdir : string -> list (string * bool)
 declare ocaml target_rep function real_readdir = `System.real_readdir`
 
@@ -463,6 +480,9 @@ instance (OS real_os_state)
   let chdir os path =
     (<| os with real_sh = <| os.real_sh with cwd = path |> |>, real_chdir path)
       
+  let file_exists _os path = real_exists path
+  let isdir _os path = real_isdir path
+
   let readdir _os path = 
     let contents = real_readdir path in
     let convert (f,is_dir) = (f,if is_dir then Dir () else File) in

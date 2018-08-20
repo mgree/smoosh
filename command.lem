@@ -215,6 +215,30 @@ let builtin_echo s0 argv _env _fds =
   let s2 = write_stdout terminator s1 in
   Right (exit_with 0 s2, Done)
 
+val resolve_cdpath : forall 'a. OS 'a => 'a -> list string -> string -> string
+let rec resolve_cdpath s0 cdpath dir = 
+  (* 5. Starting with the first pathname in the <colon>-separated
+     pathnames of CDPATH (see the ENVIRONMENT VARIABLES section) if
+     the pathname is non-null, test if the concatenation of that
+     pathname, a <slash> character if that pathname did not end with a
+     <slash> character, and the directory operand names a
+     directory. If the pathname is null, test if the concatenation of
+     dot, a <slash> character, and the operand names a directory. In
+     either case, if the resulting string names an existing directory,
+     set curpath to that string and proceed to step 7. Otherwise,
+     repeat this step with the next pathname in CDPATH until all
+     pathnames have been tested. *)
+  let attempt altered cdpath' = 
+     if isdir s0 altered
+     then altered
+     else resolve_cdpath s0 cdpath' dir
+  in
+  match cdpath with
+  | [] -> dir
+  | ""::cdpath' -> attempt ("./" ^ dir) cdpath'
+  | pwd::cdpath' -> attempt (pwd ^ (if last_is_slash pwd then "" else "/") ^ dir) cdpath'
+  end
+
 let do_cd s0 mode dir =   
   let curpath =
     if first_is_slash dir
@@ -232,20 +256,12 @@ let do_cd s0 mode dir =
       (* onward! *)
       dir
     else
-      (* TODO 2018-08-15 use CDPATH:
-
-         5. Starting with the first pathname in the <colon>-separated
-         pathnames of CDPATH (see the ENVIRONMENT VARIABLES section) if the
-         pathname is non-null, test if the concatenation of that pathname, a
-         <slash> character if that pathname did not end with a <slash>
-         character, and the directory operand names a directory. If the
-         pathname is null, test if the concatenation of dot, a <slash>
-         character, and the operand names a directory. In either case, if
-         the resulting string names an existing directory, set curpath to
-         that string and proceed to step 7. Otherwise, repeat this step with
-         the next pathname in CDPATH until all pathnames have been
-         tested. *)
-       dir
+      match lookup_concrete_param s0 "CDPATH" with
+      | Nothing -> dir
+      | Just cdpath -> 
+        let cdpaths = split_string_on true (* escapable *) #':' cdpath in
+        resolve_cdpath s0 cdpaths dir
+      end
   in
   (* 7. If the -P option is in effect, proceed to step 10. If
      curpath does not begin with a <slash> character, set curpath to
