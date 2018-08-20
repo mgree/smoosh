@@ -1,10 +1,39 @@
 ### Last of the shell semantics
 
 - pipes and redirects
-  + need to boost what FS can do
+  + notion of 'expanded' redirect (whole data type)
+
+    Pathname expansion shall not be performed on the word [that is the
+    target of redirection] by a non-interactive shell; an interactive
+    shell may perform it, but shall do so only when the expansion
+    would result in one word.
+    
+  + congruence rules for everything with redirs
+  + eval_redir function that takes an OS state and returns a redirected one
+  + Popredir of stmt added to stmt datatype: a stack frame recording when to pop
+  + OS needs:
+    openredirect
+    dupredirect
+    
+    those two can be generically implemented over open/stat/pipe/dup/dup2
+    
+  + General order of events for eval_redir (from dash/src/redir.c):
+
+    redirect():
+      for each redir in the list
+        - open the descriptor for the given redirect [openredirect]
+        - go through everything in the list and decide what to save [redirtab: only fds <10!]:
+          + some things were closed and still are (REALLY_CLOSED)
+          + some things are unused (EMPTY)
+          + some things are opened for redir and need to be closed later (CLOSED)
+        - actually dup the opened fd to an appropriate fd number [dupredirect]
+    openredirect: needs FS calls (uses open64, stat64, pipe, etc.)
+      calls openhere: spins up a process to write things to the pipe if more than 4096b
+    dupredirect: wrapper around dup2
+    
 - special built-ins
   + trap
-    need to add to the shell representation
+    need to add trip listing to the shell representation
   + eval (call parser)
     need to properly handle errors in parser
   + . a/k/a source
@@ -28,6 +57,8 @@
 - parse errors break our libdash shim
 
 - symbolic pathname expansion
+
+- mark symbolic OS changes and move on; mark "unspecified" states and move on
 
 ### Long-term
 
