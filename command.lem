@@ -225,7 +225,7 @@ let rec resolve_path_with ok path name =
   match path with
   | [] -> Nothing
   | ""::path' -> attempt ("./" ^ name) path' (* 'legacy feature' in PATH per 8.3 *)
-  | pwd::path' -> attempt (pwd ^ (if last_is_slash pwd then "" else "/") ^ name) path'
+  | pwd::path' -> attempt (join_path pwd name) path'
   end
 
 let do_cd s0 mode dir =   
@@ -280,7 +280,7 @@ let do_cd s0 mode dir =
          then curpath 
          else 
            let pwd = (get_shell_state s0).cwd in
-           pwd ^ (if last_is_slash pwd then "" else "/") ^ curpath in
+           join_path pwd curpath in
        (* 8. The curpath value shall then be converted to canonical form
           as follows, considering each component from beginning to end,
           in sequence: ... *)

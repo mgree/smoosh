@@ -73,6 +73,9 @@ val last_is_slash : path -> bool
 let last_is_slash path = 
   path <> "" && nth path (stringLength path - 1) = #'/'
 
+val join_path : path -> path -> path
+let join_path root ext = root ^ (if last_is_slash root then "" else "/") ^ ext
+
 val canonicalize_split_path : forall 'a. OS 'a => 'a -> path -> list string -> maybe string
 let rec canonicalize_split_path os path components =
   match components with
@@ -83,15 +86,11 @@ let rec canonicalize_split_path os path components =
      if isdir os path
      then canonicalize_split_path os (dotdot path) components'
      else Nothing
-  | dir::components' -> canonicalize_split_path os (path ^ "/" ^ dir) components'
+  | dir::components' -> canonicalize_split_path os (join_path path dir) components'
   end
 
-import Debug
-
-(* TODO 2018-08-20 bug when moving from .. from /, leads to /.. as canonical path *)
 val canonicalize_path : forall 'a. OS 'a => 'a -> path -> maybe path 
 let canonicalize_path os path = 
-  let _ = Debug.print_endline ("canonicalizing " ^ path) in
   let (initial,path') =
     match (toCharList path) with
     | #'/'::#'/'::path' -> 
@@ -101,10 +100,7 @@ let canonicalize_path os path =
     end
   in
   let components = split_string_on false (* not escapable *) #'/' path' in
-  match components with
-  | [] -> Just initial
-  | topdir::components' -> canonicalize_split_path os (initial ^ topdir) components'
-  end
+  canonicalize_split_path os initial components
 
 (**********************************************************************)
 (* SYMBOLIC FS STATE **************************************************)
