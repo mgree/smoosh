@@ -1,4 +1,6 @@
 open import Fsh_prelude
+import Debug
+                                   
 
 (**********************************************************************)
 (* FS/OS CLASS ********************************************************)
@@ -128,33 +130,33 @@ let symbolic_fs_subdir fs name =
   | Just (Dir fs) -> Just fs
   | _ -> Nothing
   end
-   
-(* TODO 2018-08-20 make this failable *)
-val symbolic_fs_resolve_path_cl : symbolic_fs -> list char -> symbolic_fs
-let rec symbolic_fs_resolve_path_cl fs cs =
-  (* just quit if we're done *)
-  if null cs then fs else
-  (* otherwise, split off a slash *)
-  let (dir,slash_rest) = splitWhile (fun c -> c <> #'/') cs in
-  let rest = 
-    match slash_rest with
-    | #'/'::rest -> rest
-    | _ -> slash_rest
-    end in
-  (* and try to change directories *)
-  match dir with
-  | [] -> symbolic_fs_resolve_path_cl fs rest
-  | [#'.'] -> symbolic_fs_resolve_path_cl fs rest
-  | [#'.';#'.']-> symbolic_fs_resolve_path_cl (symbolic_fs_dotdot fs) rest
-  | _ -> 
-     match symbolic_fs_subdir fs (toString dir) with
-     | Just fs' -> symbolic_fs_resolve_path_cl fs' rest
-     | _ -> fs (* ??? *)
+
+val symbolic_fs_resolve_comps : symbolic_fs -> list string -> maybe (file symbolic_fs)
+let rec symbolic_fs_resolve_comps fs comps =
+  match comps with
+  | [] -> Just (Dir fs)
+  | ""::comps' -> symbolic_fs_resolve_comps fs comps'
+  | "."::comps' -> symbolic_fs_resolve_comps fs comps'
+  | ".."::comps' -> symbolic_fs_resolve_comps (symbolic_fs_dotdot fs) comps'
+  | [file] -> Map.lookup file fs.contents
+  | dir::comps' ->
+     match symbolic_fs_subdir fs dir with
+     | Just fs' -> symbolic_fs_resolve_comps fs' comps'
+     | Nothing -> Nothing
      end
   end
 
-val symbolic_fs_resolve_path : symbolic_fs -> string -> symbolic_fs
-let symbolic_fs_resolve_path fs path = symbolic_fs_resolve_path_cl fs (toCharList path)  
+val symbolic_fs_resolve_path : symbolic_fs -> string -> maybe (file symbolic_fs)
+let symbolic_fs_resolve_path fs path =
+  let comps = split_string_on false (* not escapable *) #'/' path in
+  symbolic_fs_resolve_comps fs comps
+
+val symbolic_fs_resolve_dir : symbolic_fs -> string -> maybe symbolic_fs
+let symbolic_fs_resolve_dir fs path = 
+  match symbolic_fs_resolve_path fs path with
+  | Just (Dir fs') -> Just fs'
+  | _ -> Nothing
+  end
 
 (* empty FS/OS for testing purposes *)    
 let fs_empty =
@@ -365,33 +367,47 @@ instance (OS symbolic_os_state)
            Just (Left step))
        end
     end
-                                   
+
   let readdir os path =
-    Set.map (fun (name,file) ->
-        (name,
-         match file with
-         | File -> File
-         | Dir _ -> Dir ()
-         end))
-      (* Only compare equality for the set based on the keys.
-       * Comparing equality of a non-trivial file system will loop infinitely. *)
-      (toSetBy compare_by_first (symbolic_fs_resolve_path os.symbolic_fs_root path).contents)
+    (* TODO 2018-08-21 will be buggy on non-absolute paths *)
+    match symbolic_fs_resolve_dir os.symbolic_fs_root path with
+    | Nothing -> Set.empty
+    | Just fs -> 
+       Set.map (fun (name,file) ->
+           (name,
+            match file with
+            | File -> File
+            | Dir _ -> Dir ()
+            end))
+         (* Only compare equality for the set based on the keys.
+          * Comparing equality of a non-trivial file system will loop infinitely. *)
+         (toSetBy compare_by_first fs.contents)
+    end
 
   let chdir os path =
-    (* TODO 2018-08-15 try to resolve path, give an error if no dice *)
-    (<| os with symbolic_sh = <| os.symbolic_sh with cwd = path |> |>, Nothing)
+    match symbolic_fs_resolve_dir os.symbolic_fs_root path with
+    | Nothing -> (os,Just ("no such directory: " ^ path))
+    | Just _ -> (<| os with symbolic_sh = <| os.symbolic_sh with cwd = path |> |>, Nothing)
+    end
 
   let file_exists os path =
-    (* TODO 2018-08-20 need to revise resolve_ symbolic_fs *)
-    true
+    match symbolic_fs_resolve_path os.symbolic_fs_root path with
+    | Nothing -> false
+    | Just _ -> true
+    end
 
   let isdir os path =
-    (* TODO 2018-08-20 need to revise resolve_ symbolic_fs *)
-    true
+    match symbolic_fs_resolve_path os.symbolic_fs_root path with
+    | Just (Dir _) -> true
+    | Just File -> false
+    | Nothing -> false
+    end
 
   let isexec os path =
-    (* TODO 2018-08-20 need to revise resolve_ symbolic_fs *)
-    true
+    match symbolic_fs_resolve_path os.symbolic_fs_root path with
+    | Nothing -> false
+    | Just _ -> true
+    end
 
   let write_fd os fd s =
     match symbolic_resolve_fd os fd with
