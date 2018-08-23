@@ -410,7 +410,6 @@ function renderStmt(info, elt, stmt) {
 
       break;
 
-
     case 'CommandExpanded':
       // | CommandExpanded (assigns, args, rs) -> 
       //    Assoc [tag "CommandExpanded"; 
