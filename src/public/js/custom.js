@@ -72,7 +72,7 @@ function showUnless(def, actual) {
   return def === actual ? "" : String(actual);
 }
 
-function renderRedir(info, elt, redir) {
+function renderRedirWith(info, elt, redir, render) {
   console.assert(typeof redir === 'object', 'expected redir object, got ' + redir);
   console.assert('tag' in redir, 'expected tag for statement object');
   console.assert(['File', 'Dup', 'Heredoc'].includes(redir['tag']), 
@@ -94,7 +94,7 @@ function renderRedir(info, elt, redir) {
       fSym.append(fileRedirSym[redir['ty']]);
 
       const fTgt = $('<span></span>').addClass('redir-File-tgt').appendTo(elt);
-      renderWords(info, fTgt, redir['tgt']);
+      render(info, fTgt, redir['tgt']);
 
       break;
 
@@ -137,7 +137,7 @@ function renderRedir(info, elt, redir) {
       hSym.append('<br></br>');
 
       const hText = $('<span></span>').addClass('redir-Heredoc-text').appendTo(elt);
-      renderWords(info, hText, redir['w']);
+      render(info, hText, redir['w']);
 
       const hMarker = $('<span></span>').addClass('redir-Heredoc-marker').appendTo(elt);
       hMarker.append(marker);
@@ -147,6 +147,14 @@ function renderRedir(info, elt, redir) {
     default:
       debugger;
   }
+}
+
+function renderRedir(info, elt, redir) {
+  renderRedirWith(info, elt, redir, renderWords);
+}
+
+function renderExpandedRedir(info, elt, redir) {
+  renderRedirWith(info, elt, redir, renderFields);
 }
 
 /* Statements *********************************************************/
@@ -173,7 +181,8 @@ function stmtSimple(info, elt, stmt, fAssign, fArgs) {
       fArgs(info, argsExp, stmt['args']);
 
       // if we have following redirs, then put a space in
-      if (stmt['rs'].length !== 0) {
+      if (   ('rs' in stmt && stmt['rs'].length !== 0)
+          || ('ers' in stmt && stmt['ers'].length !== 0)) {
         argsExp.append(fieldSep);
       }
 
@@ -182,12 +191,51 @@ function stmtSimple(info, elt, stmt, fAssign, fArgs) {
 
 function stmtRedirs(info, elt, name, stmt) {
   var redirs = $('<span></span>').addClass(name + '-redirs').appendTo(elt);
-  for (let i = 0; i < stmt['rs'].length; i += 1) {
-    const r = $('<span></span>').appendTo(redirs);    
-    renderRedir(info, r, stmt['rs'][i]);
-    
-    if (i !== stmt['rs'].length - 1) {
+
+  // ask the next pass to add a sep
+  let needSep = false;
+
+  // render expanded redirects
+  if ('ers' in stmt) {
+    for (let i = 0; i < stmt['ers'].length; i += 1) {
+      const r = $('<span></span>').appendTo(redirs);    
+      renderExpandedRedir(info, r, stmt['ers'][i]);
+
+      if (i !== stmt['ers'].length - 1) {
+        redirs.append(fieldSep);
+      }      
+    }
+
+    needSep = true;
+  }
+
+  // render currently expanding redirect
+  if ('exp_redir' in stmt) {
+    if (needSep) {
       redirs.append(fieldSep);
+      needSep = false;
+    }
+
+    const r = $('<span></span>').appendTo(redirs);    
+    renderRedirWith(info, r, stmt['exp_redir'], renderExpansionState);
+
+    needSep = true;
+  }
+
+  // render unexpanded redirects
+  if ('rs' in stmt) {
+    for (let i = 0; i < stmt['rs'].length; i += 1) {
+      if (needSep) {
+        redirs.append(fieldSep);
+        needSep = false;
+      }
+  
+      const r = $('<span></span>').appendTo(redirs);    
+      renderRedir(info, r, stmt['rs'][i]);
+      
+      if (i !== stmt['rs'].length - 1) {
+        redirs.append(fieldSep);
+      }
     }
   }
 }
@@ -301,7 +349,7 @@ function stmtCase(info, elt, fArgs, stmt) {
 function renderStmt(info, elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got ' + stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
-  console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpanded',
+  console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpRedirs', 'CommandExpanded',
                   'Pipe', 'Redir', 'Background', 'Subshell',
                   'And', 'Or', 'Not', 'Semi', 'If', 
                   'While', 'WhileCond', 'WhileRunning',
@@ -347,12 +395,28 @@ function renderStmt(info, elt, stmt) {
 
       break;
 
+    case 'CommandExpRedirs':
+      // | CommandExpRedirs (assigns, args, ers, mes, rs) ->
+      //    Assoc ([tag "CommandExpRedirs"; 
+      //            ("assigns", List (List.map json_of_expanded_assign assigns));
+      //            ("args", json_of_fields args);
+      //            ("ers", json_of_expanded_redirs ers)] @
+      //            (match mes with
+      //             | None -> [] 
+      //             | Some es -> [("exp_redir", json_of_expanding_redir es)]) @
+      //            [("rs", json_of_redirs rs)])
+
+      stmtSimple(info, elt, stmt, renderFields, renderFields);
+
+      break;
+
+
     case 'CommandExpanded':
       // | CommandExpanded (assigns, args, rs) -> 
       //    Assoc [tag "CommandExpanded"; 
       //           ("assigns", List (List.map json_of_expanded_assign assigns));
       //           ("args", json_of_fields args);
-      //           ("rs", json_of_redirs rs)]
+      //           ("rs", json_of_expanded_redirs rs)]
 
       stmtSimple(info, elt, stmt, renderFields, renderFields);
 
