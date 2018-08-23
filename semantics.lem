@@ -503,6 +503,26 @@ and step_assign s0 assigns =
   end
 
 and step_eval s0 stmt =
+  (* 
+     extremely subtle behavior with errors in expansion:
+       an expansion error is NOT a field
+       expansion errors cancel the current command with a failing exit status
+
+     $ count() { echo $# ; }
+     $ count ${x?one two three}                            # never runs count
+     /Users/mgree/fsh/dash/src/dash: 2: x: one two three
+     $ count $(echo ${x?one two three})                    # subshell fails, but count will run!
+     /Users/mgree/fsh/dash/src/dash: 2: x: one two three
+     0
+     $ count $(echo ${x?one two three} four)
+     /Users/mgree/fsh/dash/src/dash: 3: x: one two three
+     0
+     $ count $(echo ${x?one two three}) four
+     /Users/mgree/fsh/dash/src/dash: 4: x: one two three
+     1
+     $ count $(${x? one two three}) four
+     /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
+  *)
   match stmt with
   (* 
 When a given simple command is required to be executed (that is, when any conditional construct such as an AND-OR list or a case statement has not bypassed the simple command), the following expansions, assignments, and redirections shall all be performed from the beginning of the command text to the end:
@@ -666,26 +686,7 @@ so: how do we implement it?
                os1,
                CommandExpRedirs assigns args ers (Just er') redirs)
      end
-  (* expansion is done, check on args 
-
-extremely subtle behavior with errors in expansion:
-  an expansion error is NOT a field
-
-$ count() { echo $# ; }
-$ count ${x?one two three}                            # never runs count
-/Users/mgree/fsh/dash/src/dash: 2: x: one two three
-$ count $(echo ${x?one two three})                    # subshell fails, but count will run!
-/Users/mgree/fsh/dash/src/dash: 2: x: one two three
-0
-$ count $(echo ${x?one two three} four)
-/Users/mgree/fsh/dash/src/dash: 3: x: one two three
-0
-$ count $(echo ${x?one two three}) four
-/Users/mgree/fsh/dash/src/dash: 4: x: one two three
-1
-$ count $(${x? one two three}) four
-/Users/mgree/fsh/dash/src/dash: 5: x:  one two three
-      *)
+  (* expansion is done, check on args *)
   | CommandExpanded assigns (prog::args) _redirs ->
      (* perform assignments *)
      let sh = get_shell_state s0 in
