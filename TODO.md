@@ -6,11 +6,14 @@
   + congruence rules for everything with redirs:
       Command, Redir, Background, Subshell
   + eval_redir function that takes an OS state and returns a redirected one
-  + Popredir of stmt added to stmt datatype: a stack frame recording when to pop
+  + `Popredir of stmt * saved_fd list` added to stmt datatype: a stack frame recording when to pop
   + OS needs:
-    openredirect
-    dupredirect
+    ```
+    redirect : os -> expanded_redir list -> os * saved_fd list
     
+    openredirect : os -> expanded_redir -> os * nat
+    dupredirect : os -> nat -> nat -> os * saved_fd
+    ```
     those two can be generically implemented over open/stat/pipe/dup/dup2
     
   + General order of events for eval_redir (from dash/src/redir.c):

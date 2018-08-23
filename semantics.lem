@@ -686,7 +686,7 @@ so: how do we implement it?
                os1,
                CommandExpRedirs assigns args ers (Just er') redirs)
      end
-  (* expansion is done, check on args *)
+  (* expansion is done, try to run command *)
   | CommandExpanded assigns (prog::args) _redirs ->
      (* perform assignments *)
      let sh = get_shell_state s0 in
@@ -705,10 +705,9 @@ so: how do we implement it?
                            else s0
        | Nothing -> s0 
        end in
-     (* TODO 2018-02-09 setup redirects using current shell state *)
-     let fds = fds_default in
+     (* TODO 2018-02-09 setup redirects *)
      (* run command *)
-     match run_command s1 prog args env fds with
+     match run_command s1 prog args env with
      | Right (s2,stmt') -> 
         Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
                s2, 
@@ -767,7 +766,7 @@ evalpipe(union node *n, int flags)
 				close(pip[0]);
 			}
 			if (prevfd > 0) {
-				dup2(prevfd, 0);
+			dup2(prevfd, 0);
 				close(prevfd);
 			}
 			if (pip[1] > 1) {
@@ -807,7 +806,7 @@ evalpipe(union node *n, int flags)
         ...
         stmtn   STDIN  |-> fifon-1  in fdsn
 
-        then spawn each subshell in its own fds
+        then spawn each subshell appropriately
       *)     
      let last_pid = 0 in (* TODO 2018-03-02 use actual spawned pid *)
      Right (XSPipe "started pipe",s0,if bg then Done else Wait last_pid)
@@ -820,17 +819,15 @@ evalpipe(union node *n, int flags)
      *)    
      Left (XSRedir "TODO", s0)
   | Background stmt' _redirs -> 
-     (* TODO 2018-08-15 set up fds using redirs *)
-     let fds = fds_default in
-     let (s1,pid) = fork_and_subshell eval s0 stmt' fds in
+     (* TODO 2018-08-15 set up redirs *)
+     let (s1,pid) = fork_and_subshell eval s0 stmt' in
      let s2 = set_last_pid pid s1 in
      Right (XSBackground ("started background process with pid " ^ (stringFromNat pid)), 
             s2, 
             Done)
   | Subshell stmt' _redirs ->
-     (* TODO 2018-08-15 set up fds using redirs *)
-     let fds = fds_default in
-     let (s1,pid) = fork_and_subshell eval s0 stmt' fds in
+     (* TODO 2018-08-15 set up redirs *)
+     let (s1,pid) = fork_and_subshell eval s0 stmt' in
      Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
             s1, 
             Wait pid)

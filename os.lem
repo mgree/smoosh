@@ -33,11 +33,11 @@ class ( OS 'a )
 
   (* SYSTEM CALLS *)
   val getpwnam : 'a -> string -> maybe string
-  val fork_and_execve : 'a -> symbolic_string -> list symbolic_string -> env -> fds -> 'a * nat
+  val fork_and_execve : 'a -> symbolic_string -> list symbolic_string -> env -> 'a * nat
   val fork_and_subshell : 
     (* need to be passed eval to close the recursive knot for the real OS *)
     ('a -> stmt -> nat) ->
-    'a -> stmt -> fds -> 'a * nat
+    'a -> stmt -> 'a * nat
   val waitpid : 
     (* need to be passed step_eval to close recursive knot for the symbolic OS *)
     ('a -> stmt -> either (evaluation_step * 'a) (evaluation_step * 'a * stmt)) ->
@@ -172,7 +172,7 @@ let fs_empty =
 type fifo = string
           
 and proc =
-    Execve of symbolic_string (* command *) * list symbolic_string (* args *) * env * fds
+    Execve of symbolic_string (* command *) * list symbolic_string (* args *) * env
   | Shell of stmt * ty_shell_state * fds
   | Zombie of nat (* exit code *)
 
@@ -325,21 +325,21 @@ instance (OS symbolic_os_state)
   let set_shell_state new_sh os = <| os with symbolic_sh = new_sh |>
   let getpwnam os u = Map.lookup u os.symbolic_passwd
 
-  let fork_and_execve os prog argv env fds =
+  let fork_and_execve os prog argv env =
     (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
     let proc_num = length os.symbolic_procs in
-    (<| os with symbolic_procs = os.symbolic_procs ++ [Execve prog argv env fds] |>, 
+    (<| os with symbolic_procs = os.symbolic_procs ++ [Execve prog argv env] |>, 
      proc_num)
 
-  let fork_and_subshell _eval os stmt fds =
+  let fork_and_subshell _eval os stmt =
     let proc_num = length os.symbolic_procs in
-    (<| os with symbolic_procs = os.symbolic_procs ++ [Shell stmt os.symbolic_sh fds] |>, 
+    (<| os with symbolic_procs = os.symbolic_procs ++ [Shell stmt os.symbolic_sh os.symbolic_sh_fds] |>, 
      proc_num)
 
   let waitpid step_eval os0 pid =
     match index os0.symbolic_procs pid with
     | Nothing -> (os0, Nothing)
-    | Just (Execve _ _ _ _) -> (os0, Nothing)
+    | Just (Execve _ _ _) -> (os0, Nothing)
     | Just (Zombie ec) -> (os0, Just (Right ec))
     | Just (Shell stmt sh' fds') ->
        let os1 = <| os0 with symbolic_sh = sh'; symbolic_sh_fds = fds' |> in
@@ -517,20 +517,18 @@ instance (OS real_os_state)
 
   let getpwnam _os nam = real_getpwnam nam
 
-  let fork_and_execve os prog argv env fds = 
+  let fork_and_execve os prog argv env = 
     let pid = 
       real_fork_and_execve 
         (force_concrete prog)
         (map force_concrete argv) 
         (environ env) 
-        (* need fds or some other solution; see note in system.ml *)
         in
     (os, pid)
 
-  let fork_and_subshell eval os stmt fds =
+  let fork_and_subshell eval os stmt =
     let pid = 
       real_fork_and_call (fun (os,stmt) -> eval os stmt) (os,stmt)
-      (* need fds or some other solution; see not in system.ml *)
       in
     (os, pid)
 

@@ -305,7 +305,7 @@ and fd = nat
 and path = string
 
 (* Information for saved FDs during redirect: put in a list to indicate each FD
-   e.g., [Closed;SavedFD 31;ReallyClosed;Empty;Closed] says that:
+   e.g., [Close;SavedFD 31;ReallyClosed;Empty;Close] says that:
      - STDIN was opened for a redirect and should be closed
      - that STDOUT was saved as fd 31 
      - STDERR was closed before and should stay closed

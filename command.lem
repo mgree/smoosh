@@ -7,7 +7,6 @@ val run_command : forall 'a. OS 'a =>
                   symbolic_string (* prog *) -> 
                   fields (* argv *) ->
                   env ->
-                  fds ->
                   either ('a * string) ('a * stmt)
    
 val is_special_builtin : string -> bool
@@ -25,7 +24,7 @@ let is_unspecified_utility s =
           "logout";"map";"mapfile";"popd";"print";"pushd";"readarray";"repeat";
           "savehistory";"source";"shopt";"stop";"suspend";"typeset";"whence"]
        
-let builtin_unimplemented s0 _argv _env _fds = Left (s0,"unimplemented")
+let builtin_unimplemented s0 _argv _env = Left (s0,"unimplemented")
 
 val getopt : list char -> fields -> maybe (char * fields)
 let rec getopt opts fields =
@@ -66,9 +65,9 @@ let rec getopts opts fields =
 (* SPECIAL BUILTINS ***************************************************)
 (**********************************************************************)
 
-let builtin_colon s0 _argv _env _fds = Right (exit_with 0 s0,Done)
+let builtin_colon s0 _argv _env = Right (exit_with 0 s0,Done)
              
-let builtin_break s0 argv _env _fds =
+let builtin_break s0 argv _env =
   match argv with
   | [] -> Right (exit_with 0 s0,Break 1) (* default to just breaking the immediate loop *)
   | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
@@ -81,7 +80,7 @@ let builtin_break s0 argv _env _fds =
   | _ -> Left (s0,"break: too many arguments")
   end
 
-let builtin_continue s0 argv _env _fds =
+let builtin_continue s0 argv _env =
   match argv with
   | [] -> Right (exit_with 0 s0,Continue 1) (* default to just continuing the immediate loop *)
   | [s] -> match readNat (char_list_of_symbolic_string s) with
@@ -91,7 +90,7 @@ let builtin_continue s0 argv _env _fds =
   | _ -> Left (s0,"continue: too many arguments")
   end
 
-let builtin_exit s0 argv _env _fds =
+let builtin_exit s0 argv _env =
   match argv with
   | [] -> Right (s0,Exit) (* default to exit code of last command *)
   | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
@@ -104,7 +103,7 @@ let builtin_exit s0 argv _env _fds =
   | _ -> Left (s0,"exit: too many arguments")
   end
 
-let builtin_return s0 argv _env _fds =
+let builtin_return s0 argv _env =
   (* 2018-03-2 the present arrangement yields exit code of 1 on error; bash gives 255 for return; dash does 2.
         unspecified in POSIX docs *)
   match argv with
@@ -116,7 +115,7 @@ let builtin_return s0 argv _env _fds =
   | _ -> Left (s0,"return: too many arguments")
   end
 
-let builtin_shift s0 argv _env _fds =
+let builtin_shift s0 argv _env =
   let n = match argv with
     | [] -> Right 1
     | [s] -> match readNat (char_list_of_symbolic_string s) with
@@ -151,7 +150,7 @@ let builtin_unset = builtin_unimplemented
    
 val special_builtins :
   forall 'a. OS 'a =>
-    Map.map string ('a -> fields (* argv *) -> env -> fds -> either ('a * string) ('a * stmt))
+    Map.map string ('a -> fields (* argv *) -> env -> either ('a * string) ('a * stmt))
 let special_builtins =  
   Map.fromList
     [ (".", builtin_source)
@@ -176,8 +175,8 @@ let special_builtins =
 (* ORDINARY BUILTINS **************************************************)
 (**********************************************************************)
   
-let builtin_true s0 _argv _env _fds = Right (exit_with 0 s0, Done)
-let builtin_false s0 _argv _env _fds = Right (exit_with 1 s0, Done)
+let builtin_true s0 _argv _env = Right (exit_with 0 s0, Done)
+let builtin_false s0 _argv _env = Right (exit_with 1 s0, Done)
 
 type path_mode = Link | Physical
 
@@ -190,7 +189,7 @@ let rec path_mode opts =
   | _::opts -> path_mode opts
   end 
 
-let builtin_pwd s0 argv _env _fds =
+let builtin_pwd s0 argv _env =
   (* TODO 2018-08-10 support -L [allow links, no . or ..] and -P [resolve symbolic links] options *)
   let (opts,_argv') = getopts [#'L';#'P'] argv in
   let _mode = path_mode opts in
@@ -206,7 +205,7 @@ let rec write_many_stdout ss s0 =
      write_many_stdout ss' s1
   end
 
-let builtin_echo s0 argv _env _fds = 
+let builtin_echo s0 argv _env = 
   let (terminator, ss) = match argv with
     | [C #'-'; C #'n']::argv' -> ("", argv')
     | _ -> ("\n", argv)
@@ -301,7 +300,7 @@ let do_cd s0 mode dir =
      end
   end
 
-let builtin_cd s0 argv _env _fds = 
+let builtin_cd s0 argv _env = 
   let (opts,argv') = getopts [#'L';#'P'] argv in
   let mode = path_mode opts in
   match argv' with
@@ -360,7 +359,7 @@ let builtin_wait = builtin_unimplemented
   
 val builtins :
   forall 'a. OS 'a =>
-    Map.map string ('a -> fields (* argv *) -> env -> fds -> either ('a * string) ('a * stmt))
+    Map.map string ('a -> fields (* argv *) -> env -> either ('a * string) ('a * stmt))
 let builtins =
   Map.fromList
     [ ("[", builtin_test)
@@ -389,13 +388,13 @@ let builtins =
     ; ("wait", builtin_wait)
     ]
 
-let run_command s0 prog_name argv env fds =
+let run_command s0 prog_name argv env =
   match try_concrete prog_name with
   | Nothing -> Left (s0,"can't run symbolic command")
   | Just prog ->
   (*  1a. If the command name matches the name of a special built-in utility, that special built-in utility shall be invoked. *)
      match Map.lookup prog special_builtins with
-     | Just fn -> fn s0 argv env fds
+     | Just fn -> fn s0 argv env
      | Nothing ->
         (* 1b. b. If the command name matches the name of a utility
            listed in the following table, the results are unspecified. *)
@@ -420,7 +419,7 @@ let run_command s0 prog_name argv env fds =
                 of a utility listed in the following table, that
                 utility shall be invoked. *)
              match Map.lookup prog builtins with
-             | Just fn -> fn s0 argv env fds
+             | Just fn -> fn s0 argv env
              | Nothing ->
                 (* Otherwise, the command shall be searched for using
                    the PATH environment variable as described in XBD
@@ -534,7 +533,6 @@ let run_command s0 prog_name argv env fds =
                                       (symbolic_string_of_string executable) 
                                       argv 
                                       env 
-                                      fds 
                      in
                      Right (s1,Wait pid)
                    else (* TODO 2018-08-20 test for text file? *)
