@@ -49,6 +49,7 @@ let prepare_command () : string list (* positional args *) =
 
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
 let initialize_env s0 : real_os_state =
+  (* TODO 2018-08-23 set $$ [shell pid] and $- [option flags] *)
   (* will bork if we have privileges *)
   let environ = System.real_environment () in
   let set (x,v) os = 

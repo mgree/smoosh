@@ -19,6 +19,11 @@ type quoting_mode =
     Unquoted
   | Quoted
 
+type redir_exp_result 'a =
+    REDone of 'a * expanded_redir
+  | REError of fields
+  | REStep of expansion_step * 'a * expanding_redir
+
 val expand_control : forall 'a. OS 'a => 
                      'a -> quoting_mode -> control ->
                      either (expansion_step * 'a * expanded_words) 
@@ -30,6 +35,9 @@ val expand_words : forall 'a. OS 'a =>
 val step_expansion : forall 'a. OS 'a =>
                      'a * expansion_state -> 
                      expansion_step * 'a * expansion_state 
+val step_redir : forall 'a. OS 'a =>
+                     'a -> expanding_redir -> 
+                     redir_exp_result 'a
 val step_assign : forall 'a. OS 'a => 
                   'a -> list (string * expansion_state) ->
                   either ('a * list (string * fields)) (* Done state *)
@@ -443,6 +451,36 @@ and step_expansion (os0,st) =
 (* EVALUATION *********************************************************)   
 (**********************************************************************)   
    
+(* Steps an expanding_redir along *)
+and step_redir os0 er =
+  let exp_state = get_expanding_redir_state er in
+  let (step, os1, st1) = step_expansion (os0, exp_state) in
+  match st1 with
+   | ExpError err -> REError err
+   | ExpDone f -> REDone os1 (expand_redir er f)
+   | ExpPath ifs ->
+     (* "Pathname expansion shall not be performed on the word [that
+        is the target of redirection] by a non-interactive shell; an
+        interactive shell may perform it, but shall do so only when
+        the expansion would result in one word."
+      *)
+      let (msg,es') = 
+        if is_interactive os1
+        then 
+          let expanded = pathname_expansion os1 ifs in
+          if length expanded = 1
+          then ("performed pathname expansion in interactive shell",
+                ExpQuote expanded)
+          else ("skipped pathname expansion in interactive shell [produced " ^ 
+                (stringFromNat (length expanded)) ^ " words]",
+                ExpQuote ifs)
+        else ("skipped pathname expansion in non-interactive shell", 
+              ExpQuote ifs)
+      in
+      REStep (ESPath msg) os1 (set_expanding_redir_state es' er)
+   | _ -> REStep step os1 (set_expanding_redir_state st1 er)
+   end
+
 (* Steps the first, non-complete expansion_state and returns.
  * If it reached the base case, they are all complete, so
  *   we return the Left type to continue on the arg expansion. *)
@@ -559,7 +597,7 @@ so: how do we implement it?
      end
   | CommandExpAssign [] [] redirs ->
      (* keep on expanding, since we have to actually expand the redirects no matter what *)
-     Right (XSSimple "assignments complete", s0, CommandExpanded [] [] redirs)
+     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] [] [] Nothing redirs)
 
   (* GENERAL CASE: command with possible assignments, which no longer go in the general environment *)
   | CommandExpAssign assigns ws redirs ->
@@ -576,25 +614,59 @@ so: how do we implement it?
                CommandExpArgs fields (ExpStart ws) redirs)
     end
   | CommandExpArgs assigns exp_state redirs ->
-      let (step, os1, st1) = step_expansion (s0, exp_state) in
+      let (step, s1, st1) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError err ->
            let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
            Right (XSSimple "error in argument expansion",
-                  exit_with 1 (write_stderr msg os1),
+                  exit_with 1 (write_stderr msg s1),
                   Done)
         | ExpDone f ->
-           let count_args = length f in
-           let argword = if count_args = 1 then "argument" else "arguments" in
-           Right (XSSimple (show (length f) ^ " " ^ argword ^ " fully expanded (count includes command)"),
-                  os1,
-                  CommandExpanded assigns f redirs)
-        | (_ as in_progress) ->
+           let msg = 
+             show (length f) ^ " " ^ if length f = 1 then "argument" else "arguments" ^ 
+             " fully expanded (including command)"
+           in
+           Right (XSExpand (XSSimple msg) step, 
+                  s1, 
+                  CommandExpRedirs assigns f [] Nothing redirs)
+        | _ ->
            Right(XSExpand (XSSimple "argument expansion step") step,
-                 os1,
-                 CommandExpArgs assigns in_progress redirs)
+                 s1,
+                 CommandExpArgs assigns st1 redirs)
       end
-  (* assigns are done, check on args 
+  (* redirect expansion *)
+  | CommandExpRedirs assigns args ers Nothing [] ->
+     Right (XSSimple "done expanding redirects",
+            s0,
+            CommandExpanded assigns args ers)
+  | CommandExpRedirs assigns args ers Nothing (r::redirs) ->
+     let (msg, ers, exp_state) =
+       match r with
+       | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart w)))
+       | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty src tgt], Nothing)
+       | RHeredoc ty src w -> ("expanding heredoc", ers, Just (XRHeredoc ty src (ExpStart w)))
+       end
+     in
+     Right (XSSimple msg,
+            s0,
+            CommandExpRedirs assigns args ers exp_state redirs)
+  | CommandExpRedirs assigns args ers (Just er) redirs ->
+     match step_redir s0 er with
+     | REError err ->
+        let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
+        Right (XSSimple "error in redirect expansion",
+               exit_with 1 (write_stderr msg s0),
+               Done)
+     | REDone os1 er' ->
+        Right (XSSimple "expanded redirect",
+               os1,
+               CommandExpRedirs assigns args (ers ++ [er']) Nothing redirs)
+     | REStep step os1 er' ->
+        Right (XSExpand (XSSimple "redirection expansion step") step,
+               os1,
+               CommandExpRedirs assigns args ers (Just er') redirs)
+     end
+  (* expansion is done, check on args 
 
 extremely subtle behavior with errors in expansion:
   an expansion error is NOT a field
@@ -614,7 +686,6 @@ $ count $(echo ${x?one two three}) four
 $ count $(${x? one two three}) four
 /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
       *)
-  (* TODO 2017-12-22 add a CommandExpRedir to expand all of the redirect targets/heredocs *)
   | CommandExpanded assigns (prog::args) _redirs ->
      (* perform assignments *)
      let sh = get_shell_state s0 in

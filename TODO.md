@@ -2,13 +2,9 @@
 
 - pipes and redirects
   + notion of 'expanded' redirect (whole data type)
-
-    Pathname expansion shall not be performed on the word [that is the
-    target of redirection] by a non-interactive shell; an interactive
-    shell may perform it, but shall do so only when the expansion
-    would result in one word.
     
-  + congruence rules for everything with redirs
+  + congruence rules for everything with redirs:
+      Command, Redir, Background, Subshell
   + eval_redir function that takes an OS state and returns a redirected one
   + Popredir of stmt added to stmt datatype: a stack frame recording when to pop
   + OS needs:

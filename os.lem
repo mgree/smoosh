@@ -223,7 +223,6 @@ let lookup_param os str =
   | (Left _,"#") -> 
      let num_params = length sh.positional_params in
      Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1)))) (* number of positional arguments excluding $0 *)
-  | (Left _,"!") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* last bg pid *)
   | (Left _,"-") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* current option flags *)
   | (Left _,"$") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* shell pid *)
   | (Left _,_) -> Map.lookup str sh.env
@@ -279,6 +278,13 @@ let get_last_exit_code os =
 
 val set_last_pid : forall 'a. OS 'a => nat -> 'a -> 'a
 let set_last_pid pid os = set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
+
+val is_interactive : forall 'a. OS 'a => 'a -> bool
+let is_interactive os =
+  match lookup_concrete_param os "-" with
+  | Nothing -> false
+  | Just opts -> elem #'i' (toCharList opts)
+  end
   
 (***********************************************************************)
 (* UNCONVERTED *********************************************************)

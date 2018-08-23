@@ -173,7 +173,8 @@ and stmt =
     Command of list (string * words) * words * list redir
   | CommandExpAssign of list (string * expansion_state) * words * list redir
   | CommandExpArgs of list (string * fields) * expansion_state * list redir
-  | CommandExpanded of list (string * fields) * fields * list redir
+  | CommandExpRedirs of list (string * fields) * fields * list expanded_redir * maybe expanding_redir * list redir
+  | CommandExpanded of list (string * fields) * fields * list expanded_redir
   | Pipe of bool (* bg? *) * list stmt
   | Redir of stmt * list redir
   | Background of stmt * list redir
@@ -207,6 +208,15 @@ and redir =
    | RFile of redir_type * nat * words
    | RDup of dup_type * nat * nat
    | RHeredoc of heredoc_type * nat * words
+
+and expanding_redir =
+   | XRFile of redir_type * nat * expansion_state
+   | XRHeredoc of heredoc_type * nat * expansion_state
+
+and expanded_redir = 
+   | ERFile of redir_type * nat * fields
+   | ERDup of dup_type * nat * nat
+   | ERHeredoc of heredoc_type * nat * fields
 
 (**********************************************************************)
 (* Expansion **********************************************************)
@@ -502,6 +512,27 @@ let int32ToFields n = [symbolic_string_of_string (write n)]
 
 val int64ToFields : int64 -> fields
 let int64ToFields n = [symbolic_string_of_string (write n)]
+
+val get_expanding_redir_state : expanding_redir -> expansion_state
+let get_expanding_redir_state er =
+  match er with
+  | XRFile _ _ es -> es
+  | XRHeredoc _ _ es -> es
+  end
+
+val set_expanding_redir_state : expansion_state -> expanding_redir -> expanding_redir
+let set_expanding_redir_state es er =
+  match er with
+  | XRFile ty src _ -> XRFile ty src es
+  | XRHeredoc ty src _ -> XRHeredoc ty src es
+  end
+
+val expand_redir : expanding_redir -> fields -> expanded_redir
+let expand_redir er f =
+  match er with
+  | XRFile ty src _ -> ERFile ty src f
+  | XRHeredoc ty src _ -> ERHeredoc ty src f
+  end
 
 (**********************************************************************)
 (* DEFAULT SHELL STATE ************************************************)

@@ -42,6 +42,7 @@ let rec string_of_stmt c =
      string_of_redirs redirs
   | CommandExpAssign _assigns _cmds _redirs -> "TODO CommandExpAssign"
   | CommandExpArgs _assigns _cmds _redirs -> "TODO CommandExpArgs"
+  | CommandExpRedirs _assigns _cmds _eriders _exp_state _redirs -> "TODO CommandExpRedirs"
   | CommandExpanded _assigns _cmds _redirs -> "TODO CommandExpanded"  
   | Pipe bg cmds ->
      let p = concat " | " (List.map string_of_stmt cmds) in

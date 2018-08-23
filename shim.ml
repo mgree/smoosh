@@ -325,11 +325,20 @@ let rec json_of_stmt = function
             ("assigns", List (List.map json_of_expanded_assign assigns));
             ("args", json_of_expansion_state args);
             ("rs", json_of_redirs rs)]
-  | CommandExpanded (assigns, args, rs) -> 
+  | CommandExpRedirs (assigns, args, ers, mes, rs) ->
+     Assoc ([tag "CommandExpRedirs"; 
+             ("assigns", List (List.map json_of_expanded_assign assigns));
+             ("args", json_of_fields args);
+             ("ers", json_of_expanded_redirs ers)] @
+             (match mes with
+              | None -> [] 
+              | Some es -> [("exp_redir", json_of_expanding_redir es)]) @
+             [("rs", json_of_redirs rs)])
+  | CommandExpanded (assigns, args, ers) -> 
      Assoc [tag "CommandExpanded"; 
             ("assigns", List (List.map json_of_expanded_assign assigns));
             ("args", json_of_fields args);
-            ("rs", json_of_redirs rs)]
+            ("ers", json_of_expanded_redirs ers)]
   | Pipe (bg, cs) -> 
      Assoc [tag "Pipe"; ("bg", Bool bg); ("cs", List (List.map json_of_stmt cs))]
   | Redir (c, rs) -> obj_crs "Redir" c rs
@@ -394,6 +403,27 @@ and json_of_redir = function
   | RHeredoc (ty, src, w) -> 
      Assoc [tag "Heredoc";
             ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_words w)]
+and json_of_expanding_redir = function
+  | XRFile (ty, fd, es) -> 
+     Assoc [tag "File"; 
+            ("ty", json_of_redir_type ty); 
+            ("src", Int fd); 
+            ("tgt", json_of_expansion_state es)]
+  | XRHeredoc (ty, src, es) -> 
+     Assoc [tag "Heredoc";
+            ("ty", json_of_heredoc_type ty); 
+            ("src", Int src); 
+            ("f", json_of_expansion_state es)]
+and json_of_expanded_redir = function
+  | ERFile (ty, fd, f) -> 
+     Assoc [tag "File"; 
+            ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_fields f)]
+  | ERDup (ty, src, tgt) -> 
+     Assoc [tag "Dup";
+            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt)]
+  | ERHeredoc (ty, src, f) -> 
+     Assoc [tag "Heredoc";
+            ("ty", json_of_heredoc_type ty); ("src", Int src); ("f", json_of_fields f)]
 and json_of_redir_type = function
   | To -> String "To"
   | Clobber -> String "Clobber"
@@ -407,6 +437,7 @@ and json_of_heredoc_type = function
   | Here -> String "Here"
   | XHere -> String "XHere"
 and json_of_redirs rs = List (List.map json_of_redir rs)
+and json_of_expanded_redirs rs = List (List.map json_of_expanded_redir rs)
 and json_of_assign (x, w) = Assoc [("var", String x); ("value", json_of_words w)]
 and json_of_inprogress_assign (x, state) = Assoc [("var", String x); ("value", json_of_expansion_state state)]
 and json_of_expanded_assign (x, f) = Assoc [("var", String x); ("value", json_of_fields f)]
