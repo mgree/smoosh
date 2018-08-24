@@ -749,13 +749,22 @@ so: how do we implement it?
                  Pushredir Done saved_fds)
        end
      end
-  | CommandExpanded _assigns [] _redirs ->
-     (* TODO 2018-02-09 setup redirects for side effects/file creation
+  | CommandExpanded _assigns [] redirs ->
+     (* we have to be sure to setup redirects for side effects/file creation
 
         e.g., unset x y ; x=5 >${y=3}
               will set x to 5, y to 3, and create an empty file named 3
       *)
-     Right (XSSimple "ran empty command", s0, Done)
+     match do_redirs s0 redirs with
+     | Left msg -> 
+        Right (XSRedir "error in redirection", 
+               exit_with 1 (write_stderr msg s0), 
+               Done)
+     | Right (s1, saved_fds) ->
+        Right (XSSimple "ran empty command", 
+               s1, 
+               Pushredir Done saved_fds)
+     end
   | Pipe bg _stmts ->
      (* from dash/src/eval.c:
 /*
