@@ -57,6 +57,22 @@ let real_chdir (path : string) : string option =
 let fd_of_int : int -> Unix.file_descr = Obj.magic
 let int_of_fd : Unix.file_descr -> int = Obj.magic
 
+type open_flags = Unix.open_flag list
+
+let to_flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_EXCL]
+let clobber_flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC]
+let from_flags = [Unix.O_RDONLY]
+let fromto_flags = [Unix.O_RDWR; Unix.O_CREAT]
+let append_flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_APPEND]
+
+let real_open (file:string) (flags:open_flags) : (string,int) Either.either =
+  try Right (int_of_fd (Unix.openfile file flags 0o666))
+  with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
+
+let real_close (fd:int) : unit =
+  try Unix.close (fd_of_int fd)
+  with Unix.Unix_error(_,_,_) -> ()
+
 let real_write_fd (fd:int) (s:string) : bool =
   let buff = Bytes.of_string s in
   let len = Bytes.length buff in

@@ -53,7 +53,8 @@ class ( OS 'a )
   val read_fd : 'a -> fd -> maybe ('a * string)
 
   (* TODO 2018-08-24 refactor into dup2, open64, open_pipe, fork_and_write_pipe *)
-  val openredirect : 'a -> expanded_redir -> 'a * either string fd
+  val redirect : 'a -> expanded_redir -> either string ('a * saved_fds)
+  val restore_fd : 'a -> fd -> saved_fd_info -> 'a
 end
 
 val try_write_fd : forall 'a. OS 'a => fd -> string -> 'a -> 'a
@@ -106,6 +107,13 @@ let canonicalize_path os path =
   in
   let components = split_string_on false (* not escapable *) #'/' path' in
   canonicalize_split_path os initial components
+
+val restore_fds : forall 'a. OS 'a => 'a -> saved_fds -> 'a
+let restore_fds os saved_fds =
+  Map_extra.fold 
+    (fun orig_fd info os' -> restore_fd os' orig_fd info)
+    saved_fds 
+    os
 
 (**********************************************************************)
 (* SYMBOLIC FS STATE **************************************************)
@@ -421,9 +429,13 @@ instance (OS symbolic_os_state)
     | Nothing -> Nothing
   end
 
-  let openredirect os _er = 
+  let redirect os _er = 
     (* TODO 2018-08-24 implement *)
-    (os, Left "symbolic openredirect is unimplemented")
+    Left "symbolic redirect is unimplemented"
+
+  let restore_fd os _fd _info =
+    (* TODO 2018-08-24 implement *)
+    os
 end
 
 val set_pwdir : string -> string -> symbolic_os_state -> symbolic_os_state
@@ -494,12 +506,47 @@ declare ocaml target_rep function real_isexec = `System.real_isexec`
 val real_readdir : string -> list (string * bool)
 declare ocaml target_rep function real_readdir = `System.real_readdir`
 
-val real_write_fd : nat -> string -> bool
+val real_write_fd : fd -> string -> bool
 declare ocaml target_rep function real_write_fd = `System.real_write_fd`
 
-val real_read_fd : nat -> maybe string
+val real_read_fd : fd -> maybe string
 declare ocaml target_rep function real_read_fd = `System.real_read_fd`
-    
+
+type open_flags
+declare ocaml target_rep type open_flags = `System.open_flags` 
+val to_flags : open_flags
+declare ocaml target_rep function to_flags = `System.to_flags`
+val clobber_flags : open_flags
+declare ocaml target_rep function clobber_flags = `System.clobber_flags`
+val from_flags : open_flags   
+declare ocaml target_rep function from_flags = `System.from_flags`
+val fromto_flags : open_flags
+declare ocaml target_rep function fromto_flags = `System.fromto_flags`
+val append_flags : open_flags
+declare ocaml target_rep function append_flags = `System.append_flags`
+
+val flags_of_redir_type : redir_type -> open_flags
+let flags_of_redir_type rt =
+  match rt with
+  | To -> to_flags
+  | Clobber -> clobber_flags
+  | From -> from_flags
+  | FromTo -> fromto_flags
+  | Append -> append_flags
+  end
+
+val real_open : string -> open_flags -> either string fd
+declare ocaml target_rep function real_open = `System.real_open`
+
+val real_close : fd -> unit
+declare ocaml target_rep function real_close = `System.real_close`
+
+val real_savefd : fd -> either string fd
+declare ocaml target_rep function real_savefd = `System.real_savefd`
+
+val real_dup2 : fd -> fd -> maybe string
+declare ocaml target_rep function real_dup2 = `System.real_dup2`
+
 instance (OS real_os_state)
   let get_shell_state os = os.real_sh
   let set_shell_state new_sh os = <| os with real_sh = new_sh |>
@@ -551,20 +598,64 @@ instance (OS real_os_state)
     let code = real_waitpid pid in
     (os,Just (Right code))
 
-  let openredirect os er =
+  let redirect os er =
     match er with
-    | ERFile ty src [sfile] -> 
+    | ERFile ty wanted_fd [sfile] -> 
        match try_concrete sfile with
        | Nothing -> 
-          (os, Left ("couldn't open redirect to symbolic file: " ^ 
-                     string_of_symbolic_string sfile))
-       | Just file -> (os, Left "unimplemented")
+          Left ("couldn't open redirect to symbolic file: " ^ string_of_symbolic_string sfile)
+       | Just file -> 
+          let flags = flags_of_redir_type ty in
+          match real_open file flags with
+          | Left err -> Left err
+          | Right new_fd ->
+             if new_fd = wanted_fd
+             then 
+               (* we fished our wish! no need to dup or anything.
+                  just remember to clean up when you're done *)
+               Right (os, Map.singleton wanted_fd Close)
+               else (* need to save wanted_fd and then dup *)
+                 match real_savefd wanted_fd with
+                 | Left err -> Left err
+                 | Right saved_fd -> 
+                    match real_dup2 new_fd wanted_fd with
+                    | Just err -> Left err
+                    | Nothing -> 
+                       (* close the actual fd we got, now that we've
+                          relocated it where we want it *)
+                       let _ = real_close new_fd in
+                       Right (os, Map.singleton wanted_fd (Saved saved_fd))
+                    end
+                 end
+          end
        end
-    | ERFile _ _ fs -> (os, Left ("expected single file field, got: " ^ string_of_fields fs))
-    | ERDup ty src tgt -> (os, Left "unimplemented")
-    | ERHeredoc _ty tgt fs -> (os, Left "unimplemented")
+    | ERFile _ _ fs -> Left ("expected single file field, got: " ^ string_of_fields fs)
+    | ERDup _ty orig_fd wanted_fd -> 
+       (* TODO save wanted_fd *)
+       (* dash doesn't distinguish between the two types... because
+          both resolve to the same dup2 call, since dup2 doesn't care
+          about fd direction *)
+       match real_dup2 orig_fd wanted_fd with
+       | Just err -> Left err
+       | Nothing -> Right (os, Map.empty)
+       end
+    | ERHeredoc _ty _wanted_fd _fs -> Left "unimplemented"
     end
-    
+   
+  let restore_fd os orig_fd info =
+    let to_close = 
+      match info with
+      | Saved saved -> 
+         match real_dup2 saved orig_fd with
+         | Just _err -> saved (* TODO 2018-08-24 uh oh... signal in some way? *)
+         | Nothing -> saved
+         end
+      | Close -> orig_fd
+      end
+    in
+    let _ = real_close to_close in
+    os    
+ 
 end
 
 val real_lookup_concrete_param : real_os_state -> string -> maybe string

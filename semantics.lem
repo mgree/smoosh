@@ -38,11 +38,12 @@ val step_expansion : forall 'a. OS 'a =>
 val step_redir : forall 'a. OS 'a =>
                      'a -> expanding_redir -> 
                      redir_exp_result 'a
+val do_redirs : forall 'a. OS 'a =>
+                     'a -> list expanded_redir -> either string ('a * saved_fds)
 val step_assign : forall 'a. OS 'a => 
                   'a -> list (string * expansion_state) ->
                   either ('a * list (string * fields)) (* Done state *)
                          (evaluation_step * 'a * list (string * expansion_state)) 
-
 val step_eval : forall 'a. OS 'a =>
                 'a -> stmt -> 
                 either (evaluation_step * 'a) (* error case *)
@@ -210,6 +211,20 @@ let rec finalize_fields f =
 let quote_removal f =
   let no_quotes = combine_fields (remove_quotes f) in
   finalize_fields no_quotes
+
+let rec do_redirs os0 ers =
+  match ers with
+  | [] -> Right (os0, Map.empty)
+  | (er::ers') ->
+     match redirect os0 er with
+     | Left err -> Left err
+     | Right (os1,saved) -> 
+        match do_redirs os1 ers' with
+        | Left err -> Left err
+        | Right (os2,saved') -> Right (os2, Map.(union) saved saved')
+        end
+     end
+  end
 
 (**********************************************************************)   
 (* EXPANSION **********************************************************)   
@@ -698,7 +713,7 @@ so: how do we implement it?
                CommandExpRedirs assigns args ers (Just er') redirs)
      end
   (* expansion is done, try to run command *)
-  | CommandExpanded assigns (prog::args) _redirs ->
+  | CommandExpanded assigns (prog::args) redirs ->
      (* perform assignments *)
      let sh = get_shell_state s0 in
      let env = 
@@ -716,17 +731,23 @@ so: how do we implement it?
                            else s0
        | Nothing -> s0 
        end in
-     (* TODO 2018-02-09 setup redirects *)
-     (* run command *)
-     match run_command s1 prog args env with
-     | Right (s2,stmt') -> 
-        Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
-               s2, 
-               stmt')
-     | Left (s2,msg) -> 
-        Right (XSSimple "couldn't run command", 
-               exit_with 1 (write_stderr msg s2), 
+     match do_redirs s1 redirs with
+     | Left msg -> 
+        Right (XSRedir "error in redirection", 
+               exit_with 1 (write_stderr msg s1), 
                Done)
+     | Right (s2, saved_fds) ->
+       (* run command *)
+       match run_command s2 prog args env with
+       | Right (s3,stmt') -> 
+          Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
+                 s3, 
+                 Pushredir stmt' saved_fds)
+       | Left (s3,msg) -> 
+          Right (XSSimple "couldn't run command", 
+                 exit_with 1 (write_stderr msg s3), 
+                 Pushredir Done saved_fds)
+       end
      end
   | CommandExpanded _assigns [] _redirs ->
      (* TODO 2018-02-09 setup redirects for side effects/file creation
@@ -1091,7 +1112,20 @@ evalpipe(union node *n, int flags)
         Right (XSWait ("process with pid " ^ stringFromNat n ^ " completed"),
                exit_with code s1,
                Done)
-     end               
+     end            
+  | Pushredir c saved_fds ->
+      match step_eval s0 c with
+      | Left e -> Left e
+      | Right (step, s1, c') -> 
+         if is_terminating_control c'
+         then Right (XSNested (XSRedir "popping redirects") step, 
+                     restore_fds s1 saved_fds, 
+                     c')
+         else Right (XSNested (XSRedir "") step, 
+                     s1, 
+                     Pushredir c' saved_fds)
+      end
+     
   | Exit -> 
      (* TODO 2018-03-02 handle traps *)
      Right (XSSimple "exited", s0, Done)

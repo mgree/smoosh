@@ -86,6 +86,7 @@ let rec string_of_stmt c =
   | Return -> "return"
   | Exit -> "exit"
   | Wait n -> "wait " ^ stringFromNat n
+  | Pushredir s _saved -> string_of_stmt s (* TODO fixme *)
   | Done -> "Done"
   end
 

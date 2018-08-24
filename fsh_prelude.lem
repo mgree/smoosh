@@ -216,6 +216,7 @@ and stmt =
   | Return
   | Exit
   | Wait of nat (* pid *)
+  | Pushredir of stmt * saved_fds
   | Done
 
 (* TODO 2018-08-24 refactor into redir 'a with appropriate params *)
@@ -320,14 +321,17 @@ and fd = nat
 and path = string
 
 (* Information for saved FDs during redirect: put in a list to indicate each FD
-   e.g., [Close;SavedFD 31;ReallyClosed;Empty;Close] says that:
+   e.g., Map.fromList [(0,Close);(1,Saved 31);(4,Close)] says that:
      - STDIN was opened for a redirect and should be closed
      - that STDOUT was saved as fd 31 
      - STDERR was closed before and should stay closed
-     - there never was an fd 3
+     - fd 3 was closed before and should stay closed
      - fd 4 was opened for the redirect but should be closed
  *)
-and saved_fd = Empty | SavedFD of nat | Close | ReallyClosed (* TODO 2018-08-16 may be unnec. *)
+
+and saved_fd_info = Saved of fd | Close 
+
+and saved_fds = Map.map fd saved_fd_info
 
 (* environments *)       
 and env = Map.map string symbolic_string
@@ -342,8 +346,7 @@ and ty_shell_state = <|
     funcs: funcs;                 
     cwd: string;
     locale: locale;
-    loop_nest: nat (* for tracking break/continue *);
-    saved_fds : list (list saved_fd) (* stack of saved fd lists *)
+    loop_nest: nat (* for tracking break/continue *)
  |>
 
 val STDIN : nat
@@ -528,6 +531,19 @@ let int32ToFields n = [symbolic_string_of_string (write n)]
 val int64ToFields : int64 -> fields
 let int64ToFields n = [symbolic_string_of_string (write n)]
 
+(* AST helpers *)
+
+val is_terminating_control : stmt -> bool
+let is_terminating_control c =
+  match c with
+  | Exit -> true
+  | Return -> true
+  | Break _ -> true
+  | Continue _ -> true
+  | Done -> true
+  | _ -> false
+  end
+
 val get_expanding_redir_state : expanding_redir -> expansion_state
 let get_expanding_redir_state er =
   match er with
@@ -556,6 +572,14 @@ let expand_redir er f =
   | XRHeredoc ty src _ -> ERHeredoc ty src f
   end
 
+val wanted_fd_of_redir : expanded_redir -> fd
+let wanted_fd_of_redir er =
+  match er with
+  | ERFile _ fd _ -> fd
+  | ERDup _ _ fd -> fd
+  | ERHeredoc _ fd _ -> fd
+  end
+
 (**********************************************************************)
 (* DEFAULT SHELL STATE ************************************************)
 (**********************************************************************)
@@ -568,7 +592,6 @@ let default_shell_state = <|
       funcs = Map.empty;
       cwd = "/";
       locale = lc_ambient;
-      loop_nest = 0;
-      saved_fds = []
+      loop_nest = 0
   |>
 

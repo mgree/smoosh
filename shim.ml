@@ -388,6 +388,10 @@ let rec json_of_stmt = function
   | Continue n -> Assoc [tag "Continue"; ("n", Int n)]
   | Return -> Assoc [tag "Return"]
   | Wait n -> Assoc [tag "Wait"; ("pid", Int n)]
+  | Pushredir (c, saved_fds) -> 
+     Assoc [tag "Pushredir"; 
+            ("c", json_of_stmt c);
+            ("saved_fds", json_of_saved_fds saved_fds)]
   | Exit -> Assoc [tag "Exit"]
   | Done -> Assoc [tag "Done"]
 and obj_lr name l r = Assoc [tag name; ("l", json_of_stmt l); ("r", json_of_stmt r)]
@@ -519,6 +523,12 @@ and json_of_tmp_field = function
   | Field s -> Assoc [tag "Field"; ("s", json_of_symbolic_string s)]
   | QField s -> Assoc [tag "QField"; ("s", json_of_symbolic_string s)]
 and json_of_intermediate_fields fs = List (List.map json_of_tmp_field fs)
+and json_of_saved_fds saved_fds =
+  Assoc (Pmap.fold (fun fd info l -> (string_of_int fd, json_of_saved_fd_info info)::l)
+         saved_fds [])
+and json_of_saved_fd_info = function
+  | Saved fd -> Int fd
+  | Close -> String "close"
 
 and obj_w name w = Assoc [tag name; ("w", json_of_words w)]
 and obj_f name f = Assoc [tag name; ("f", json_of_expanded_words f)]
