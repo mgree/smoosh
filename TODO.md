@@ -1,12 +1,9 @@
 ### Last of the shell semantics
 
 - pipes and redirects
-  + notion of 'expanded' redirect (whole data type)
-    
-  + congruence rules for everything with redirs:
+  + implement heredocs
+  + redir expansion rules for everything with redirs:
       Command, Redir, Background, Subshell
-  + eval_redir function that takes an OS state and returns a redirected one
-  + `Popredir of stmt * saved_fd list` added to stmt datatype: a stack frame recording when to pop
   + OS needs:
     ```
     redirect : os -> expanded_redir list -> os * saved_fd list
@@ -29,7 +26,12 @@
     openredirect: needs FS calls (uses open64, stat64, pipe, etc.)
       calls openhere: spins up a process to write things to the pipe if more than 4096b
     dupredirect: wrapper around dup2
-    
+
+  + make a pass to minimize what goes in the OS typeclass and make the real_os redirect a helper
+    with an eye to what could be made symbolic in a reasonable way!
+  + can we get away with these same calls for pipes? tricky process creation issues
+  + write tests
+  
 - special built-ins
   + trap
     need to add trip listing to the shell representation

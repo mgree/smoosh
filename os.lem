@@ -631,15 +631,27 @@ instance (OS real_os_state)
        end
     | ERFile _ _ fs -> Left ("expected single file field, got: " ^ string_of_fields fs)
     | ERDup _ty orig_fd wanted_fd -> 
-       (* TODO save wanted_fd *)
        (* dash doesn't distinguish between the two types... because
           both resolve to the same dup2 call, since dup2 doesn't care
           about fd direction *)
-       match real_dup2 orig_fd wanted_fd with
-       | Just err -> Left err
-       | Nothing -> Right (os, Map.empty)
-       end
-    | ERHeredoc _ty _wanted_fd _fs -> Left "unimplemented"
+       if orig_fd = wanted_fd
+       then (* weird, right? I guess you could do this, might as well
+               save ourselves the trouble with dup2's interface*)
+         Right (os, Map.empty)
+       else match real_savefd wanted_fd with
+            | Left err -> Left err
+            | Right saved_fd ->
+               match real_dup2 orig_fd wanted_fd with
+               | Just err -> Left err
+               | Nothing -> Right (os, Map.singleton wanted_fd (Saved saved_fd))
+               end
+            end
+    | ERHeredoc _ty _wanted_fd _fs -> 
+       (* ty is irrelevant at this point---we used it to determine the
+          kinds of expansion we'll go through *)
+       (* TODO 2018-08-24 possibly open a process to send on the pipe, if fs is big enough *)
+       (* PICK UP HERE *)
+       Left "unimplemented"
     end
    
   let restore_fd os orig_fd info =
