@@ -91,7 +91,7 @@ let rec string_of_stmt c =
 
 and string_of_assign (v,a) = v ^ "=" ^ string_of_words a
 
-and string_of_inprogress_assign (v,f,a) = v ^ "=" ^ fields_to_string f ^ string_of_words a
+and string_of_inprogress_assign (v,f,a) = v ^ "=" ^ string_of_fields f ^ string_of_words a
 
 and string_of_if c t e =
   "if " ^ string_of_stmt c ^
@@ -126,11 +126,12 @@ and string_of_redirs rs =
   (if List.length ss > 0 then " " else "") ^ concat " " ss
 
 and string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
-and string_of_inprogress_words (f,w) = fields_to_string f ^ string_of_words w
+and string_of_inprogress_words (f,w) = string_of_fields f ^ string_of_words w
 and string_of_entry e =
   match e with
-  | S str -> "S(" ^ str ^ ")"
+  | S str -> str
   | ESym _ -> "<<SYMBOLIC>>" (* TODO "R(" ^ string_of_symbolic_string c ^ ")" *)
-  | K _ -> "<<CTRL>>"
-  | F -> "<<FS>>"
+  | K _ -> "<<CTRL>>" (* TODO 2018-08-24 need to implement correctly to support Here heredocs *)
+
+  | F -> " "
   end

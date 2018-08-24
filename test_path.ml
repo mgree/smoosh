@@ -46,7 +46,7 @@ let match_path_tests : (string * symbolic_os_state * string * (string list)) lis
 let run_tests () =
   let failed = ref 0 in
   let test_count = ref 0 in
-  let prnt = fun (s, n) -> ("<| " ^ (symbolic_print_shell_env s) ^ "; " ^ (Fsh.fields_to_string n) ^ " |>") in
+  let prnt = fun (s, n) -> ("<| " ^ (symbolic_print_shell_env s) ^ "; " ^ (Fsh.string_of_fields n) ^ " |>") in
   print_endline "\n=== Running path/fs tests...";
   (* core path matching tests *)
   test_part "Match path" check_match_path show_list match_path_tests test_count failed;

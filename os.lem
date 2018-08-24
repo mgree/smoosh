@@ -51,6 +51,9 @@ class ( OS 'a )
   val readdir : 'a -> path -> set (path * file unit)
   val write_fd : 'a -> fd -> string -> maybe 'a
   val read_fd : 'a -> fd -> maybe ('a * string)
+
+  (* TODO 2018-08-24 refactor into dup2, open64, open_pipe, fork_and_write_pipe *)
+  val openredirect : 'a -> expanded_redir -> 'a * either string fd
 end
 
 val try_write_fd : forall 'a. OS 'a => fd -> string -> 'a -> 'a
@@ -286,23 +289,6 @@ let is_interactive os =
   | Just opts -> elem #'i' (toCharList opts)
   end
   
-(***********************************************************************)
-(* UNCONVERTED *********************************************************)
-
-val adjust_nth : forall 'a 'b. list 'a -> nat -> ('a -> 'a * 'b) -> maybe (list 'a * 'b)
-let rec adjust_nth l n f =
-  match (l,n) with
-  | ([],_) -> Nothing
-  | (v::l',0) -> 
-     let (v',res) = f v in
-     Just (v'::l',res)
-  | (v::l',_) ->
-     match adjust_nth l' (n-1) f with
-     | Nothing -> Nothing
-     | Just (l'',res) -> Just (v::l'',res)
-     end
-  end
-  
 (**********************************************************************)
 (* SYMBOLIC OS STATE INSTANCE *****************************************)
 (**********************************************************************)
@@ -435,6 +421,9 @@ instance (OS symbolic_os_state)
     | Nothing -> Nothing
   end
 
+  let openredirect os _er = 
+    (* TODO 2018-08-24 implement *)
+    (os, Left "symbolic openredirect is unimplemented")
 end
 
 val set_pwdir : string -> string -> symbolic_os_state -> symbolic_os_state
@@ -561,6 +550,21 @@ instance (OS real_os_state)
   let waitpid _step_eval os pid =
     let code = real_waitpid pid in
     (os,Just (Right code))
+
+  let openredirect os er =
+    match er with
+    | ERFile ty src [sfile] -> 
+       match try_concrete sfile with
+       | Nothing -> 
+          (os, Left ("couldn't open redirect to symbolic file: " ^ 
+                     string_of_symbolic_string sfile))
+       | Just file -> (os, Left "unimplemented")
+       end
+    | ERFile _ _ fs -> (os, Left ("expected single file field, got: " ^ string_of_fields fs))
+    | ERDup ty src tgt -> (os, Left "unimplemented")
+    | ERHeredoc _ty tgt fs -> (os, Left "unimplemented")
+    end
+    
 end
 
 val real_lookup_concrete_param : real_os_state -> string -> maybe string

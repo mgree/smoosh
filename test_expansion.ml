@@ -202,5 +202,5 @@ let run_tests () =
   let count = ref 0 in
   let failed = ref 0 in
   print_endline "\n=== Running word expansion tests...";
-  test_part "Word expansion" check_expansion fields_to_string expansion_tests count failed;
+  test_part "Word expansion" check_expansion string_of_fields expansion_tests count failed;
   printf "=== ...ran %d word expansion tests with %d failures.\n\n" (List.length expansion_tests) !failed

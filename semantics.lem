@@ -459,13 +459,20 @@ and step_redir os0 er =
    | ExpError err -> REError err
    | ExpDone f -> REDone os1 (expand_redir er f)
    | ExpPath ifs ->
-     (* "Pathname expansion shall not be performed on the word [that
-        is the target of redirection] by a non-interactive shell; an
-        interactive shell may perform it, but shall do so only when
-        the expansion would result in one word."
-      *)
+      (* "Pathname expansion shall not be performed on the word [that
+         is the target of redirection] by a non-interactive shell; an
+         interactive shell may perform it, but shall do so only when
+         the expansion would result in one word."
+
+        "If no part of word is quoted, all lines of the here-document
+         shall be expanded for parameter expansion, command
+         substitution, and arithmetic expansion."
+
+         i.e., skipping pathname expansion. the dash parser should
+         take care of a lot of this. 
+       *)
       let (msg,es') = 
-        if is_interactive os1
+        if is_interactive os1 && not (is_heredoc er)
         then 
           let expanded = pathname_expansion os1 ifs in
           if length expanded = 1
@@ -474,8 +481,7 @@ and step_redir os0 er =
           else ("skipped pathname expansion in interactive shell [produced " ^ 
                 (stringFromNat (length expanded)) ^ " words]",
                 ExpQuote ifs)
-        else ("skipped pathname expansion in non-interactive shell", 
-              ExpQuote ifs)
+        else ("skipped pathname expansion", ExpQuote ifs)
       in
       REStep (ESPath msg) os1 (set_expanding_redir_state es' er)
    | _ -> REStep step os1 (set_expanding_redir_state st1 er)
@@ -610,7 +616,7 @@ so: how do we implement it?
      match step_expansion (s0, exp_state0)  with
      | (_step, s1, ExpDone f) -> Right (XSSimple ("assign " ^ x),
                                         set_param x (symbolic_string_of_fields f) s1, CommandExpAssign assigns [] redirs)
-     | (step, s1, ExpError f) -> Right (XSExpand (XSSimple ("error in " ^ x ^ ": " ^ fields_to_string f)) step,
+     | (step, s1, ExpError f) -> Right (XSExpand (XSSimple ("error in " ^ x ^ ": " ^ string_of_fields f)) step,
                                         s1, CommandExpAssign assigns [] redirs)
      | (step, s1, exp_state1) -> Right (XSExpand (XSSimple "") step,
                                         s1, CommandExpAssign ((x,exp_state1)::assigns) [] redirs)
@@ -664,7 +670,12 @@ so: how do we implement it?
        match r with
        | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart w)))
        | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty src tgt], Nothing)
-       | RHeredoc ty src w -> ("expanding heredoc", ers, Just (XRHeredoc ty src (ExpStart w)))
+       | RHeredoc XHere src w -> 
+          ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart w)))
+       | RHeredoc Here src w -> 
+          ("not expanding quoted heredoc", 
+           ers ++ [ERHeredoc Here src [symbolic_string_of_string (string_of_words w)]], 
+           Nothing)
        end
      in
      Right (XSSimple msg,

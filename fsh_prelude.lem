@@ -50,6 +50,20 @@ val split_string_on : bool -> char -> string -> list string
 let split_string_on escapable sep s =
   map toString (split_on escapable sep (toCharList s))
 
+val adjust_nth : forall 'a 'b. list 'a -> nat -> ('a -> 'a * 'b) -> maybe (list 'a * 'b)
+let rec adjust_nth l n f =
+  match (l,n) with
+  | ([],_) -> Nothing
+  | (v::l',0) -> 
+     let (v',res) = f v in
+     Just (v'::l',res)
+  | (v::l',_) ->
+     match adjust_nth l' (n-1) f with
+     | Nothing -> Nothing
+     | Just (l'',res) -> Just (v::l'',res)
+     end
+  end
+
 (**********************************************************************)
 (* LOCALES ************************************************************)
 (**********************************************************************)
@@ -204,6 +218,7 @@ and stmt =
   | Wait of nat (* pid *)
   | Done
 
+(* TODO 2018-08-24 refactor into redir 'a with appropriate params *)
 and redir = 
    | RFile of redir_type * nat * words
    | RDup of dup_type * nat * nat
@@ -479,12 +494,12 @@ let rec string_of_symbolic_string sym_str =
   | c::cs -> symbolic_char_to_string c ^ string_of_symbolic_string cs
   end
 
-val fields_to_string : fields -> string
-let rec fields_to_string fs = 
+val string_of_fields : fields -> string
+let rec string_of_fields fs = 
   match fs with
   | [] -> ""
   | [f] -> string_of_symbolic_string f
-  | f::fs' -> string_of_symbolic_string f ^ "<<FB>>" ^ fields_to_string fs'
+  | f::fs' -> string_of_symbolic_string f ^ "<<FB>>" ^ string_of_fields fs'
   end
 
 val concat_expanded : expanded_words -> symbolic_string
@@ -518,6 +533,13 @@ let get_expanding_redir_state er =
   match er with
   | XRFile _ _ es -> es
   | XRHeredoc _ _ es -> es
+  end
+
+val is_heredoc : expanding_redir -> bool
+let is_heredoc er =
+  match er with
+  | XRFile _ _ _ -> false
+  | XRHeredoc _ _ _ -> true
   end
 
 val set_expanding_redir_state : expansion_state -> expanding_redir -> expanding_redir
