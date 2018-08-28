@@ -654,7 +654,6 @@ instance (OS real_os_state)
     | ERHeredoc _ty wanted_fd fs -> 
        (* ty is irrelevant at this point---we used it to determine the
           kinds of expansion we'll go through *)
-       (* TODO 2018-08-24 possibly open a process to send on the pipe, if fs is big enough *)
        match try_concrete_fields fs with
        | Nothing ->
           Left ("couldn't open symbolic heredoc: " ^ string_of_fields fs)

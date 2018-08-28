@@ -1,7 +1,6 @@
 ### Last of the shell semantics
 
 - pipes and redirects
-  + implement heredocs
   + redir expansion rules for everything with redirs:
       Command, Redir, Background, Subshell
   + OS needs:
@@ -13,20 +12,6 @@
     ```
     those two can be generically implemented over open/stat/pipe/dup/dup2
     
-  + General order of events for eval_redir (from dash/src/redir.c):
-
-    redirect():
-      for each redir in the list
-        - open the descriptor for the given redirect [openredirect]
-        - go through everything in the list and decide what to save [redirtab: only fds <10!]:
-          + some things were closed and still are (REALLY_CLOSED)
-          + some things are unused (EMPTY)
-          + some things are opened for redir and need to be closed later (CLOSED)
-        - actually dup the opened fd to an appropriate fd number [dupredirect]
-    openredirect: needs FS calls (uses open64, stat64, pipe, etc.)
-      calls openhere: spins up a process to write things to the pipe if more than 4096b
-    dupredirect: wrapper around dup2
-
   + make a pass to minimize what goes in the OS typeclass and make the real_os redirect a helper
     with an eye to what could be made symbolic in a reasonable way!
   + can we get away with these same calls for pipes? tricky process creation issues
