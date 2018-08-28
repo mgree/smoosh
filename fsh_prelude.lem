@@ -472,6 +472,22 @@ let rec try_concrete vs =
   | Sym _::_ -> Nothing
   end
 
+val try_concrete_fields : fields -> maybe string
+let rec try_concrete_fields fs =
+  match fs with
+  | [] -> Just ""
+  | ss::fs' ->
+     match try_concrete ss with
+     | Nothing -> Nothing
+     | Just s -> 
+        match try_concrete_fields fs' with
+        | Nothing -> Nothing
+        | Just s' -> Just (s ^ s')
+        end
+     end
+  end
+        
+
 val symbolic_to_string : symbolic -> string
 let symbolic_to_string _sym = "<<SYMBOLIC>>"
 

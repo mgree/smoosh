@@ -547,6 +547,29 @@ declare ocaml target_rep function real_savefd = `System.real_savefd`
 val real_dup2 : fd -> fd -> maybe string
 declare ocaml target_rep function real_dup2 = `System.real_dup2`
 
+val real_openhere : string -> either string fd
+declare ocaml target_rep function real_openhere = `System.real_openhere`
+
+let real_renumber_fd os (new_fd : fd) (wanted_fd : fd) : either string ('a * saved_fds) =
+  if new_fd = wanted_fd
+  then 
+    (* we fished our wish! no need to dup or anything.
+       just remember to clean up when you're done *)
+    Right (os, Map.singleton wanted_fd Close)
+    else (* need to save wanted_fd and then dup *)
+      match real_savefd wanted_fd with
+      | Left err -> Left err
+      | Right saved_fd -> 
+         match real_dup2 new_fd wanted_fd with
+         | Just err -> Left err
+         | Nothing -> 
+            (* close the actual fd we got, now that we've
+               relocated it where we want it *)
+            let _ = real_close new_fd in
+            Right (os, Map.singleton wanted_fd (Saved saved_fd))
+         end
+      end
+
 instance (OS real_os_state)
   let get_shell_state os = os.real_sh
   let set_shell_state new_sh os = <| os with real_sh = new_sh |>
@@ -608,25 +631,7 @@ instance (OS real_os_state)
           let flags = flags_of_redir_type ty in
           match real_open file flags with
           | Left err -> Left err
-          | Right new_fd ->
-             if new_fd = wanted_fd
-             then 
-               (* we fished our wish! no need to dup or anything.
-                  just remember to clean up when you're done *)
-               Right (os, Map.singleton wanted_fd Close)
-               else (* need to save wanted_fd and then dup *)
-                 match real_savefd wanted_fd with
-                 | Left err -> Left err
-                 | Right saved_fd -> 
-                    match real_dup2 new_fd wanted_fd with
-                    | Just err -> Left err
-                    | Nothing -> 
-                       (* close the actual fd we got, now that we've
-                          relocated it where we want it *)
-                       let _ = real_close new_fd in
-                       Right (os, Map.singleton wanted_fd (Saved saved_fd))
-                    end
-                 end
+          | Right new_fd -> real_renumber_fd os new_fd wanted_fd
           end
        end
     | ERFile _ _ fs -> Left ("expected single file field, got: " ^ string_of_fields fs)
@@ -646,12 +651,19 @@ instance (OS real_os_state)
                | Nothing -> Right (os, Map.singleton wanted_fd (Saved saved_fd))
                end
             end
-    | ERHeredoc _ty _wanted_fd _fs -> 
+    | ERHeredoc _ty wanted_fd fs -> 
        (* ty is irrelevant at this point---we used it to determine the
           kinds of expansion we'll go through *)
        (* TODO 2018-08-24 possibly open a process to send on the pipe, if fs is big enough *)
-       (* PICK UP HERE *)
-       Left "unimplemented"
+       match try_concrete_fields fs with
+       | Nothing ->
+          Left ("couldn't open symbolic heredoc: " ^ string_of_fields fs)
+       | Just s ->
+          match real_openhere s with
+          | Left err -> Left err
+          | Right new_fd -> real_renumber_fd os new_fd wanted_fd
+          end
+       end
     end
    
   let restore_fd os orig_fd info =
@@ -667,7 +679,7 @@ instance (OS real_os_state)
     in
     let _ = real_close to_close in
     os    
- 
+
 end
 
 val real_lookup_concrete_param : real_os_state -> string -> maybe string
@@ -675,3 +687,4 @@ let real_lookup_concrete_param = lookup_concrete_param
 
 val real_set_param : real_os_state -> string -> string -> real_os_state
 let real_set_param os x v = set_param x (symbolic_string_of_string v) os
+

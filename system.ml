@@ -73,11 +73,18 @@ let real_close (fd:int) : unit =
   try Unix.close (fd_of_int fd)
   with Unix.Unix_error(_,_,_) -> ()
 
+(* uninterruptable write, per dash *)
+let rec xwrite (fd:Unix.file_descr) (buff : Bytes.t) : bool =
+  let len = Bytes.length buff in
+  try 
+    let written = Unix.write fd buff 0 len in
+    written = len
+  with Unix.Unix_error(Unix.EINTR,_,_) -> xwrite fd buff (* just try again *)
+     | Unix.Unix_error(_,_,_) -> false
+
 let real_write_fd (fd:int) (s:string) : bool =
   let buff = Bytes.of_string s in
-  let len = Bytes.length buff in
-  let written = Unix.write (fd_of_int fd) buff 0 len in
-  written = len
+  xwrite (fd_of_int fd) buff
 
 let real_read_fd (fd:int) : string option =
   (* allocate each time... may not be necessary with OCaml's model of shared memory *)
@@ -112,3 +119,39 @@ let real_pipe () : (string,int * int) Either.either =
   try let (fd_read,fd_write) = Unix.pipe () in
       Right (int_of_fd fd_read, int_of_fd fd_write)
   with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
+
+let real_openhere (s : string) : (string,int) Either.either =
+  let buff = Bytes.of_string s in
+  try 
+    let (fd_read, fd_write) = Unix.pipe () in
+    if Bytes.length buff <= 4096 (* from dash *)
+    then 
+      (* just write it, the pipe can hold it *)
+      begin
+        ignore (xwrite fd_write buff);
+        Unix.close fd_write;
+        Right (int_of_fd fd_read)
+      end       
+    else 
+      (* heredoc is too big for the pipe, so spin up a process to do the writing *)
+      match Unix.fork () with
+      | 0 -> 
+         begin
+           Unix.close fd_read;
+           (* ignore SIGINT, SIGQUIT, SIGHUP, SIGTSTP *)
+           Sys.set_signal Sys.sigint Sys.Signal_ignore;
+           Sys.set_signal Sys.sigquit Sys.Signal_ignore;
+           Sys.set_signal Sys.sighup Sys.Signal_ignore;
+           Sys.set_signal Sys.sigtstp Sys.Signal_ignore;
+           (* SIGPIPE gets default handler... maybe we didn't need the whole heredoc? *)
+           Sys.set_signal Sys.sigpipe Sys.Signal_default;
+           ignore (xwrite fd_write buff);
+           exit 0
+         end
+      | _pid -> 
+         begin
+           Unix.close fd_write;
+           Right (int_of_fd fd_read)
+         end
+  with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
+               
