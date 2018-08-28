@@ -87,6 +87,7 @@ let rec repl s0 =
      let set x v = 
        match (x,try_concrete v) with
        | ("?",_) -> ()
+       | ("!",_) -> ()
        | (_,None) -> ()
        | (_,Some s) -> Dash.setvar x s
      in

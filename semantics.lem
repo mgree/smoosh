@@ -35,9 +35,9 @@ val expand_words : forall 'a. OS 'a =>
 val step_expansion : forall 'a. OS 'a =>
                      'a * expansion_state -> 
                      expansion_step * 'a * expansion_state 
-val step_redir : forall 'a. OS 'a =>
-                     'a -> expanding_redir -> 
-                     redir_exp_result 'a
+val step_redir : forall 'a. OS 'a => 'a -> expanding_redir -> redir_exp_result 'a
+val step_redir_state : forall 'a. OS 'a => 'a -> redir_state -> 
+                       'a * string * maybe (redir_state * maybe expansion_step)
 val do_redirs : forall 'a. OS 'a =>
                      'a -> list expanded_redir -> either string ('a * saved_fds)
 val step_assign : forall 'a. OS 'a => 
@@ -502,6 +502,40 @@ and step_redir os0 er =
    | _ -> REStep step os1 (set_expanding_redir_state st1 er)
    end
 
+and step_redir_state os0 redir_state =
+  match redir_state with
+  | (_ers, Nothing, []) -> (os0, "done expanding redirs", Just (redir_state, Nothing))
+  | (ers, Nothing, r::redirs) ->
+     let (msg, ers, exp_state) =
+       match r with
+       | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart w)))
+       | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty src tgt], Nothing)
+       | RHeredoc XHere src w -> 
+          ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart w)))
+       | RHeredoc Here src w -> 
+          ("not expanding quoted heredoc", 
+           ers ++ [ERHeredoc Here src [symbolic_string_of_string (string_of_words w)]], 
+           Nothing)
+       end in
+     (os0, msg, Just ((ers, exp_state, redirs), Nothing))
+  | (ers, Just er, redirs) ->
+     match step_redir os0 er with
+     | REError err ->
+        let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
+        (os0,
+         msg,
+         Nothing)
+     | REDone os1 er' ->
+        (os1,
+         "expanded redirect",
+         Just ((ers ++ [er'], Nothing, redirs), Nothing))
+     | REStep step os1 er' ->
+        (os1,
+         "redirection expansion step",
+         Just ((ers, Just er', redirs), Just step))
+     end
+  end
+
 (* Steps the first, non-complete expansion_state and returns.
  * If it reached the base case, they are all complete, so
  *   we return the Left type to continue on the arg expansion. *)
@@ -545,79 +579,6 @@ and step_eval s0 stmt =
      /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
   *)
   match stmt with
-  (* 
-When a given simple command is required to be executed (that is, when any conditional construct such as an AND-OR list or a case statement has not bypassed the simple command), the following expansions, assignments, and redirections shall all be performed from the beginning of the command text to the end:
-
-The words that are recognized as variable assignments or redirections according to Shell Grammar Rules are saved for processing in steps 3 and 4.
-
-The words that are not variable assignments or redirections shall be expanded. If any fields remain following their expansion, the first field shall be considered the command name and remaining fields are the arguments for the command.
-
-Redirections shall be performed as described in Redirection.
-
-Each variable assignment shall be expanded for tilde expansion, parameter expansion, command substitution, arithmetic expansion, and quote removal prior to assigning the value.
-
-In the preceding list, the order of steps 3 and 4 may be reversed if no command name results from step 2 or if the command name matches the name of a special built-in utility; see Special Built-In Utilities.
-
-Variable assignments shall be performed as follows:
-
-If no command name results, variable assignments shall affect the current execution environment.
-
-If the command name is not a special built-in utility or function, the variable assignments shall be exported for the execution environment of the command and shall not affect the current execution environment except as a side-effect of the expansions performed in step 4. In this case it is unspecified:
-
-Whether or not the assignments are visible for subsequent expansions in step 4
-
-Whether variable assignments made as side-effects of these expansions are visible for subsequent expansions in step 4, or in the current shell execution environment, or both
-
-If the command name is a standard utility implemented as a function (see XBD Utility), the effect of variable assignments shall be as if the utility was not implemented as a function.
-
-If the command name is a special built-in utility, variable assignments shall affect the current execution environment. Unless the set -a option is on (see set), it is unspecified:
-
-Whether or not the variables gain the export attribute during the execution of the special built-in utility
-
-Whether or not export attributes gained as a result of the variable assignments persist after the completion of the special built-in utility
-
-If the command name is a function that is not a standard utility implemented as a function, variable assignments shall affect the current execution environment during the execution of the function. It is unspecified:
-
-Whether or not the variable assignments persist after the completion of the function
-
-Whether or not the variables gain the export attribute during the execution of the function
-
-Whether or not export attributes gained as a result of the variable assignments persist after the completion of the function (if variable assignments persist after the completion of the function)
-
-If any of the variable assignments attempt to assign a value to a variable for which the readonly attribute is set in the current shell environment (regardless of whether the assignment is made in that environment), a variable assignment error shall occur. See Consequences of Shell Errors for the consequences of these errors.
-
-If there is no command name, any redirections shall be performed in a subshell environment; it is unspecified whether this subshell environment is the same one as that used for a command substitution within the command. (To affect the current execution environment, see the exec special built-in.) If any of the redirections performed in the current shell execution environment fail, the command shall immediately fail with an exit status greater than zero, and the shell shall write an error message indicating the failure. See Consequences of Shell Errors for the consequences of these failures on interactive and non-interactive shells.
-
-If there is a command name, execution shall continue as described in Command Search and Execution [run_command]. If there is no command name, but the command contained a command substitution, the command shall complete with the exit status of the last command substitution performed. Otherwise, the command shall complete with a zero exit status.
-
-TODO 2018-01-28 special builtins vs. simple builtins
-
-but:
-
-  y=${x=5} cmd
-  - side-effects of expansion happen in CURRENT env, even if in an assignment for a command
-  - cmd sees y (but not x, because x isn't set for export)
-  - env sees x (but not y, less surprisingly)
-
-  export x
-  y=${x=5} cmd
-  - side effects of expansion happen in CURRENT env
-  - cmd sees x and y
-  - env sees x
-
-  y=${x=5}
-  - side effects of expansion happen in CURRENT env
-  - env sees x and y (just an assignment)
-
-so: how do we implement it?
-  it seems consistent to do all of the expansions in the CURRENT environment, regardless of the kind of command
-    but don't set it in the environment yet
-  each assignment sees the previous ones
-    set manually each time... or manually use a local environment?
-
-  decide at the end whether or not to publish to the current environment
-
-*)
   | Command assigns ws redirs ->
      Right (XSSimple "begin expansion",
             s0,
@@ -638,7 +599,7 @@ so: how do we implement it?
      end
   | CommandExpAssign [] [] redirs ->
      (* keep on expanding, since we have to actually expand the redirects no matter what *)
-     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] [] [] Nothing redirs)
+     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] [] ([], Nothing, redirs))
 
   (* GENERAL CASE: command with possible assignments, which no longer go in the general environment *)
   | CommandExpAssign assigns ws redirs ->
@@ -660,7 +621,7 @@ so: how do we implement it?
         | ExpError err ->
            let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
            Right (XSSimple "error in argument expansion",
-                  exit_with 1 (write_stderr msg s1),
+                  exit_with 1 (write_stderr (msg ^ "\n") s1),
                   Done)
         | ExpDone f ->
            let msg = 
@@ -669,51 +630,19 @@ so: how do we implement it?
            in
            Right (XSExpand (XSSimple msg) step, 
                   s1, 
-                  CommandExpRedirs assigns f [] Nothing redirs)
+                  CommandExpRedirs assigns f ([], Nothing, redirs))
         | _ ->
            Right(XSExpand (XSSimple "argument expansion step") step,
                  s1,
                  CommandExpArgs assigns st1 redirs)
       end
-  (* redirect expansion *)
-  | CommandExpRedirs assigns args ers Nothing [] ->
-     Right (XSSimple "done expanding redirects",
-            s0,
-            CommandExpanded assigns args ers)
-  | CommandExpRedirs assigns args ers Nothing (r::redirs) ->
-     let (msg, ers, exp_state) =
-       match r with
-       | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart w)))
-       | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty src tgt], Nothing)
-       | RHeredoc XHere src w -> 
-          ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart w)))
-       | RHeredoc Here src w -> 
-          ("not expanding quoted heredoc", 
-           ers ++ [ERHeredoc Here src [symbolic_string_of_string (string_of_words w)]], 
-           Nothing)
-       end
-     in
-     Right (XSSimple msg,
-            s0,
-            CommandExpRedirs assigns args ers exp_state redirs)
-  | CommandExpRedirs assigns args ers (Just er) redirs ->
-     match step_redir s0 er with
-     | REError err ->
-        let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
-        Right (XSSimple "error in redirect expansion",
-               exit_with 1 (write_stderr msg s0),
-               Done)
-     | REDone os1 er' ->
-        Right (XSSimple "expanded redirect",
-               os1,
-               CommandExpRedirs assigns args (ers ++ [er']) Nothing redirs)
-     | REStep step os1 er' ->
-        Right (XSExpand (XSSimple "redirection expansion step") step,
-               os1,
-               CommandExpRedirs assigns args ers (Just er') redirs)
-     end
+
+  (* ------------------ *)
+  (* Redirect expansion *)
+  (* ------------------ *)
+
   (* expansion is done, try to run command *)
-  | CommandExpanded assigns (prog::args) redirs ->
+  | CommandExpRedirs assigns (prog::args) (ers, Nothing, []) ->
      (* perform assignments *)
      let sh = get_shell_state s0 in
      let env = 
@@ -723,6 +652,39 @@ so: how do we implement it?
      in
      (* "If the command name is a special built-in utility, variable
         assignments shall affect the current execution environment."
+
+        Unless the set -a option is on (see set), it is unspecified:
+
+        Whether or not the variables gain the export attribute during
+        the execution of the special built-in utility
+
+        Whether or not export attributes gained as a result of the
+        variable assignments persist after the completion of the
+        special built-in utility
+
+        If the command name is a function that is not a standard
+        utility implemented as a function, variable assignments shall
+        affect the current execution environment during the execution
+        of the function. It is unspecified:
+
+        Whether or not the variable assignments persist after the
+        completion of the function
+
+        Whether or not the variables gain the export attribute during
+        the execution of the function
+
+        Whether or not export attributes gained as a result of the
+        variable assignments persist after the completion of the
+        function (if variable assignments persist after the completion
+        of the function)
+
+        If any of the variable assignments attempt to assign a value
+        to a variable for which the readonly attribute is set in the
+        current shell environment (regardless of whether the
+        assignment is made in that environment), a variable assignment
+        error shall occur. See Consequences of Shell Errors for the
+        consequences of these errors.
+
         *)
      let s1 = 
        match try_concrete prog with
@@ -731,10 +693,10 @@ so: how do we implement it?
                            else s0
        | Nothing -> s0 
        end in
-     match do_redirs s1 redirs with
+     match do_redirs s1 ers with
      | Left msg -> 
         Right (XSRedir "error in redirection", 
-               exit_with 1 (write_stderr msg s1), 
+               exit_with 1 (write_stderr (msg ^ "\n") s1), 
                Done)
      | Right (s2, saved_fds) ->
        (* run command *)
@@ -745,26 +707,61 @@ so: how do we implement it?
                  Pushredir stmt' saved_fds)
        | Left (s3,msg) -> 
           Right (XSSimple "couldn't run command", 
-                 exit_with 1 (write_stderr msg s3), 
+                 exit_with 1 (write_stderr (msg ^ "\n") s3), 
                  Pushredir Done saved_fds)
        end
      end
-  | CommandExpanded _assigns [] redirs ->
-     (* we have to be sure to setup redirects for side effects/file creation
+  (* expansion is done, but there's no command *)
+  | CommandExpRedirs assigns [] (ers, Nothing, []) ->
+     (* we have to be sure to setup redirects for side effects/file
+        creation
 
-        e.g., unset x y ; x=5 >${y=3}
-              will set x to 5, y to 3, and create an empty file named 3
+        e.g., unset x y ; x=5 >${y=3} will set x to 5, y to 3, and
+        create an empty file named 3
       *)
-     match do_redirs s0 redirs with
+     (* "If there is no command name, any redirections shall be
+        performed in a subshell environment; it is unspecified whether
+        this subshell environment is the same one as that used for a
+        command substitution within the command. (To affect the
+        current execution environment, see the exec special built-in.)
+        If any of the redirections performed in the current shell
+        execution environment fail, the command shall immediately fail
+        with an exit status greater than zero, and the shell shall
+        write an error message indicating the failure. See
+        Consequences of Shell Errors for the consequences of these
+        failures on interactive and non-interactive shells."  *)
+     (* So... we're cheating on this a little. Rather than
+        subshelling, we do the redirs and then record a pushredir. *)
+     match do_redirs s0 ers with
      | Left msg -> 
+        (* dash doesn't set the variables if the redirect failed *)
         Right (XSRedir "error in redirection", 
-               exit_with 1 (write_stderr msg s0), 
+               exit_with 1 (write_stderr (msg ^ "\n") s0), 
                Done)
      | Right (s1, saved_fds) ->
+        let s2 = 
+          foldr (fun (x,f) os -> set_param x (symbolic_string_of_fields f) os) s1 assigns
+        in
         Right (XSSimple "ran empty command", 
-               s1, 
+               s2, 
                Pushredir Done saved_fds)
      end
+   (* expand redirs *)
+   | CommandExpRedirs assigns args redir_state ->
+      match step_redir_state s0 redir_state with
+      | (s1, msg, Nothing) ->
+         Right (XSSimple "error in redirect expansion", 
+                exit_with 1 (write_stderr (msg ^ "\n") s1), 
+                Done)
+      | (s1, msg, Just (redir_state', mstep)) ->
+         let step =
+           match mstep with
+           | Just estep -> XSExpand (XSSimple msg) estep
+           | Nothing -> XSSimple msg
+           end in
+         Right (step, s1, CommandExpRedirs assigns args redir_state')
+      end
+
   | Pipe bg _stmts ->
      (* from dash/src/eval.c:
 /*
@@ -851,27 +848,85 @@ evalpipe(union node *n, int flags)
       *)     
      let last_pid = 0 in (* TODO 2018-03-02 use actual spawned pid *)
      Right (XSPipe "started pipe",s0,if bg then Done else Wait last_pid)
-  | Redir _stmt' _redirs ->
-     (* TODO 2018-03-12 Pathname expansion shall not be performed on
-        the word [that is the target of redirection] by a
-        non-interactive shell; an interactive shell may perform it,
-        but shall do so only when the expansion would result in one
-        word.         
-     *)    
-     Left (XSRedir "TODO", s0)
-  | Background stmt' _redirs -> 
-     (* TODO 2018-08-15 set up redirs *)
-     let (s1,pid) = fork_and_subshell eval s0 stmt' in
+  | Redir stmt' redirs ->
+     Right (XSRedir "expanding redirs", s0, RedirExpRedirs stmt' ([],Nothing,redirs))
+  (* actually do the redirection *)
+  | RedirExpRedirs stmt' (ers, Nothing, []) ->
+     match do_redirs s0 ers with
+     | Left msg -> 
+        Right (XSRedir "error in redirection", 
+               exit_with 1 (write_stderr (msg ^ "\n") s0), 
+               Done)
+     | Right (s1, saved_fds) ->
+        Right (XSRedir "running redirected command", 
+               s1, 
+               Pushredir stmt' saved_fds)
+     end
+  (* redirection steps *)
+  | RedirExpRedirs stmt' redir_state ->
+     match step_redir_state s0 redir_state with
+     | (s1, msg, Nothing) ->
+        Right (XSRedir "error in redirect expansion", 
+               exit_with 1 (write_stderr (msg ^ "\n") s1), 
+               Done)
+     | (s1, msg, Just (redir_state', mstep)) ->
+        let step =
+          match mstep with
+          | Just estep -> XSExpand (XSRedir msg) estep
+          | Nothing -> XSRedir msg
+          end in
+        Right (step, s1, RedirExpRedirs stmt' redir_state')
+     end
+
+  | Background stmt' redirs -> 
+     Right (XSBackground "expanding redirs", s0, BackgroundExpRedirs stmt' ([], Nothing, redirs))
+  (* actually do the background process *)
+  | BackgroundExpRedirs stmt' ((_, Nothing, []) as redir_state) ->
+     (* defer to RedirExpRedirs to load redirs *)
+     let (s1,pid) = fork_and_subshell eval s0 (RedirExpRedirs stmt' redir_state) in
      let s2 = set_last_pid pid s1 in
      Right (XSBackground ("started background process with pid " ^ (stringFromNat pid)), 
             s2, 
             Done)
-  | Subshell stmt' _redirs ->
-     (* TODO 2018-08-15 set up redirs *)
-     let (s1,pid) = fork_and_subshell eval s0 stmt' in
+  (* expand redirs *)
+  | BackgroundExpRedirs stmt' redir_state ->
+     match step_redir_state s0 redir_state with
+     | (s1, msg, Nothing) ->
+        Right (XSBackground "error in redirect expansion", 
+               exit_with 1 (write_stderr (msg ^ "\n") s1), 
+               Done)
+     | (s1, msg, Just (redir_state', mstep)) ->
+        let step =
+          match mstep with
+          | Just estep -> XSExpand (XSBackground msg) estep
+          | Nothing -> XSBackground msg
+          end in
+        Right (step, s1, BackgroundExpRedirs stmt' redir_state')
+     end
+ 
+  | Subshell stmt' redirs ->
+     Right (XSSubshell "expanding redirs", s0, SubshellExpRedirs stmt' ([], Nothing, redirs))
+  (* actually run subshell *)
+  | SubshellExpRedirs stmt' ((_, Nothing, []) as redir_state) ->
+     let (s1,pid) = fork_and_subshell eval s0 (RedirExpRedirs stmt' redir_state) in
      Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
             s1, 
             Wait pid)
+  | SubshellExpRedirs stmt' redir_state ->
+     match step_redir_state s0 redir_state with
+     | (s1, msg, Nothing) ->
+        Right (XSSubshell "error in redirect expansion", 
+               exit_with 1 (write_stderr (msg ^ "\n") s1), 
+               Done)
+     | (s1, msg, Just (redir_state', mstep)) ->
+        let step =
+          match mstep with
+          | Just estep -> XSExpand (XSSubshell msg) estep
+          | Nothing -> XSSubshell msg
+          end in
+        Right (step, s1, SubshellExpRedirs stmt' redir_state')
+     end
+
   | And l r ->
       match step_eval s0 l with
       | Left e -> Left e

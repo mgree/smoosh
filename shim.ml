@@ -325,25 +325,28 @@ let rec json_of_stmt = function
             ("assigns", List (List.map json_of_expanded_assign assigns));
             ("args", json_of_expansion_state args);
             ("rs", json_of_redirs rs)]
-  | CommandExpRedirs (assigns, args, ers, mes, rs) ->
+  | CommandExpRedirs (assigns, args, redir_state) ->
      Assoc ([tag "CommandExpRedirs"; 
              ("assigns", List (List.map json_of_expanded_assign assigns));
-             ("args", json_of_fields args);
-             ("ers", json_of_expanded_redirs ers)] @
-             (match mes with
-              | None -> [] 
-              | Some es -> [("exp_redir", json_of_expanding_redir es)]) @
-             [("rs", json_of_redirs rs)])
-  | CommandExpanded (assigns, args, ers) -> 
-     Assoc [tag "CommandExpanded"; 
-            ("assigns", List (List.map json_of_expanded_assign assigns));
-            ("args", json_of_fields args);
-            ("ers", json_of_expanded_redirs ers)]
+             ("args", json_of_fields args)]
+            @ fields_of_redir_state redir_state)
   | Pipe (bg, cs) -> 
      Assoc [tag "Pipe"; ("bg", Bool bg); ("cs", List (List.map json_of_stmt cs))]
   | Redir (c, rs) -> obj_crs "Redir" c rs
+  | RedirExpRedirs (c, redir_state) ->
+     Assoc ([tag "RedirExpRedirs";
+             ("c", json_of_stmt c)]
+            @ fields_of_redir_state redir_state)
   | Background (c, rs) -> obj_crs "Background" c rs
+  | BackgroundExpRedirs (c, redir_state) ->
+     Assoc ([tag "BackgroundExpRedirs";
+             ("c", json_of_stmt c)]
+            @ fields_of_redir_state redir_state)
   | Subshell (c, rs) -> obj_crs "Subshell" c rs
+  | SubshellExpRedirs (c, redir_state) ->
+     Assoc ([tag "SubshellExpRedirs";
+             ("c", json_of_stmt c)]
+            @ fields_of_redir_state redir_state)
   | And (c1, c2) -> obj_lr "And" c1 c2
   | Or (c1, c2) -> obj_lr "Or" c1 c2
   | Not c -> Assoc [tag "Not"; ("c", json_of_stmt c)]
@@ -397,6 +400,12 @@ let rec json_of_stmt = function
 and obj_lr name l r = Assoc [tag name; ("l", json_of_stmt l); ("r", json_of_stmt r)]
 and obj_crs name c rs = 
   Assoc [tag name; ("c", json_of_stmt c); ("rs", json_of_redirs rs)]
+and fields_of_redir_state (ers, mes, rs) =
+  [("ers", json_of_expanded_redirs ers)] @
+    (match mes with
+     | None -> [] 
+     | Some es -> [("exp_redir", json_of_expanding_redir es)]) @
+  [("rs", json_of_redirs rs)]
 and json_of_redir = function
   | RFile (ty, fd, w) -> 
      Assoc [tag "File"; 

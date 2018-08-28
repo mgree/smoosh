@@ -1,8 +1,8 @@
 ### Last of the shell semantics
 
 - pipes and redirects
-  + redir expansion rules for everything with redirs:
-      Command, Redir, Background, Subshell
+  + unify AST redir needs
+  + update custom.js to render the new forms
   + OS needs:
     ```
     redirect : os -> expanded_redir list -> os * saved_fd list

@@ -42,17 +42,19 @@ let rec string_of_stmt c =
      string_of_redirs redirs
   | CommandExpAssign _assigns _cmds _redirs -> "TODO CommandExpAssign"
   | CommandExpArgs _assigns _cmds _redirs -> "TODO CommandExpArgs"
-  | CommandExpRedirs _assigns _cmds _eriders _exp_state _redirs -> "TODO CommandExpRedirs"
-  | CommandExpanded _assigns _cmds _redirs -> "TODO CommandExpanded"  
+  | CommandExpRedirs _assigns _cmds _redir_state -> "TODO CommandExpRedirs"
   | Pipe bg cmds ->
      let p = concat " | " (List.map string_of_stmt cmds) in
      if bg then background p else p
   | Redir cmd redirs ->
      string_of_stmt cmd ^ string_of_redirs redirs
+  | RedirExpRedirs _cmd _redir_state -> "TODO RedirExpRedirs"
   | Background cmd redirs -> 
      background (string_of_stmt cmd ^ string_of_redirs redirs)
+  | BackgroundExpRedirs _cmd _redir_state -> "TODO BackgroundExpRedirs"
   | Subshell cmd redirs ->
      parens (string_of_stmt cmd ^ string_of_redirs redirs)
+  | SubshellExpRedirs _cmd _redir_state -> "TODO SubshellExpRedirs"
   | And cmd1 cmd2 ->
      string_of_stmt cmd1 ^ " && " ^ string_of_stmt cmd2
   | Or cmd1 cmd2 ->
