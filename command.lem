@@ -339,7 +339,8 @@ let builtin_cd s0 argv _env =
      | Just path -> 
         match do_cd s0 mode path with
         | Left (s1,msg) -> Left (s1,msg)
-        | Right (s1, _stmt (* should be Done *)) -> Right (write_stdout path s1, Done)
+        | Right (s1, _stmt (* should be Done *)) -> 
+           Right (write_stdout (path ^ "\n") s1, Done)
         end
      end
   | path::_ -> (* just ignore extra args *) 
