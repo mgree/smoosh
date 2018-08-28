@@ -349,7 +349,7 @@ function stmtCase(info, elt, fArgs, stmt) {
 function renderStmt(info, elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got ' + stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
-  console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpRedirs', 'CommandExpanded',
+  console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpRedirs',
                   'Pipe', 'Redir', 'Background', 'Subshell',
                   'And', 'Or', 'Not', 'Semi', 'If', 
                   'While', 'WhileCond', 'WhileRunning',
@@ -358,6 +358,8 @@ function renderStmt(info, elt, stmt) {
                   'Defun', 'Call',
                   'Break', 'Continue', 'Return', 'Wait', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
+
+  // PICK UP HERE, need ExpRedir forms for Redir/Background/Subshell
 
   elt.addClass('stmt stmt-' + stmt['tag']);
   
@@ -405,17 +407,6 @@ function renderStmt(info, elt, stmt) {
       //             | None -> [] 
       //             | Some es -> [("exp_redir", json_of_expanding_redir es)]) @
       //            [("rs", json_of_redirs rs)])
-
-      stmtSimple(info, elt, stmt, renderFields, renderFields);
-
-      break;
-
-    case 'CommandExpanded':
-      // | CommandExpanded (assigns, args, rs) -> 
-      //    Assoc [tag "CommandExpanded"; 
-      //           ("assigns", List (List.map json_of_expanded_assign assigns));
-      //           ("args", json_of_fields args);
-      //           ("rs", json_of_expanded_redirs rs)]
 
       stmtSimple(info, elt, stmt, renderFields, renderFields);
 
