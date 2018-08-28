@@ -44,6 +44,7 @@ class ( OS 'a )
     'a -> nat -> 'a * maybe (either evaluation_step nat)
 
   (* FS CALLS *)
+  val physical_cwd : 'a -> string
   val chdir : 'a -> path -> 'a * maybe string
   val file_exists : 'a -> path -> bool
   val isdir : 'a -> path -> bool
@@ -384,6 +385,8 @@ instance (OS symbolic_os_state)
          (toSetBy compare_by_first fs.contents)
     end
 
+  let physical_cwd os = os.symbolic_sh.cwd
+
   let chdir os path =
     match symbolic_fs_resolve_dir os.symbolic_fs_root path with
     | Nothing -> (os,Just ("no such directory: " ^ path))
@@ -491,6 +494,9 @@ declare ocaml target_rep function real_fork_and_call = `System.real_fork_and_cal
 val real_waitpid : nat -> nat
 declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 
+val real_physical_cwd : unit -> string
+declare ocaml target_rep function real_physical_cwd = `Unix.getcwd`
+
 val real_chdir : path -> maybe string
 declare ocaml target_rep function real_chdir = `System.real_chdir`
 
@@ -550,6 +556,7 @@ declare ocaml target_rep function real_dup2 = `System.real_dup2`
 val real_openhere : string -> either string fd
 declare ocaml target_rep function real_openhere = `System.real_openhere`
 
+(* TODO 2018-08-28 this is dupredirect... make generic? *)
 let real_renumber_fd os (new_fd : fd) (wanted_fd : fd) : either string ('a * saved_fds) =
   if new_fd = wanted_fd
   then 
@@ -590,6 +597,8 @@ instance (OS real_os_state)
       real_fork_and_call (fun (os,stmt) -> eval os stmt) (os,stmt)
       in
     (os, pid)
+
+  let physical_cwd _os = real_physical_cwd ()
 
   let chdir os path =
     match real_chdir path with

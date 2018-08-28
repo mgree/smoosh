@@ -189,12 +189,21 @@ let rec path_mode opts =
   | _::opts -> path_mode opts
   end 
 
+val resolve_path_mode : forall 'a. OS 'a => 'a -> path_mode -> 'a * string
+let resolve_path_mode s0 mode =
+  match mode with
+  | Link -> (s0, (get_shell_state s0).cwd)
+  | Physical -> 
+     let pwd = physical_cwd s0 in
+     let s1 = update_shell_state (fun sh -> <| sh with cwd = pwd |>) s0 in
+     (set_param "PWD" (symbolic_string_of_string pwd) s1, pwd)
+  end
+
 let builtin_pwd s0 argv _env =
-  (* TODO 2018-08-10 support -L [allow links, no . or ..] and -P [resolve symbolic links] options *)
   let (opts,_argv') = getopts [#'L';#'P'] argv in
-  let _mode = path_mode opts in
-  let pwd = (get_shell_state s0).cwd ^ "\n" in
-  Right (exit_with 0 (write_stdout pwd s0), Done)
+  let mode = path_mode opts in
+  let (s1,pwd) = resolve_path_mode s0 mode in
+  Right (exit_with 0 (write_stdout (pwd ^ "\n") s1), Done)
 
 let rec write_many_stdout ss s0 =
   match ss with
@@ -228,12 +237,12 @@ let rec resolve_path_with ok path name =
   end
 
 let do_cd s0 mode dir =   
-  let curpath =
+  let (curpath,need_print) =
     if first_is_slash dir
     then
       (* 3. If the directory operand begins with a <slash> character,
          set curpath to the operand and proceed to step 7. *)
-      dir
+      (dir,false)
     else if dir = "." || dir = ".." || 
             toString (take 2 (toCharList dir)) = "./" || 
             toString (take 3 (toCharList dir)) = "../"
@@ -242,7 +251,7 @@ let do_cd s0 mode dir =
          dot-dot, proceed to step 6. *)
       (* 6. Set curpath to the directory operand. *)
       (* onward! *)
-      dir
+      (dir,false)
     else 
   (* 5. Starting with the first pathname in the <colon>-separated
      pathnames of CDPATH (see the ENVIRONMENT VARIABLES section) if
@@ -256,12 +265,12 @@ let do_cd s0 mode dir =
      repeat this step with the next pathname in CDPATH until all
      pathnames have been tested. *)
       match lookup_concrete_param s0 "CDPATH" with
-      | Nothing -> dir
+      | Nothing -> (dir,false)
       | Just cdpath -> 
          let cdpaths = split_string_on true (* escapable *) #':' cdpath in
          match resolve_path_with (isdir s0) cdpaths dir with
-         | Nothing -> dir
-         | Just dir' -> dir'
+         | Nothing -> (dir,false)
+         | Just dir' -> (dir',true)
          end
       end
   in
@@ -289,13 +298,17 @@ let do_cd s0 mode dir =
   | Nothing -> Left (s0, "illegal path " ^ curpath)
   | Just curpath'' ->
      let old = (get_shell_state s0).cwd in
-     let _ = Debug.print_endline ("going to " ^ curpath'' ^ " from " ^ old) in
      let (s1,res) = chdir s0 curpath'' in
      match res with
      | Nothing -> 
-        let s2 = set_param "PWD" (symbolic_string_of_string curpath'') s1 in
+        let (s2,pwd) = resolve_path_mode s1 mode in (* sets PWD *)
         let s3 = set_param "OLDPWD" (symbolic_string_of_string old) s2 in
-        Right (exit_with 0 s3, Done)
+        let s4 = 
+          if need_print
+          then write_stdout (pwd ^ "\n") s3
+          else s3
+        in
+        Right (exit_with 0 s4, Done)
      | Just err -> Left (s1, err)
      end
   end
