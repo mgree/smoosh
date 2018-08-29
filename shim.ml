@@ -426,7 +426,7 @@ and json_of_expanding_redir = function
      Assoc [tag "Heredoc";
             ("ty", json_of_heredoc_type ty); 
             ("src", Int src); 
-            ("f", json_of_expansion_state es)]
+            ("w", json_of_expansion_state es)]
 and json_of_expanded_redir = function
   | ERFile (ty, fd, f) -> 
      Assoc [tag "File"; 
@@ -436,7 +436,7 @@ and json_of_expanded_redir = function
             ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt)]
   | ERHeredoc (ty, src, f) -> 
      Assoc [tag "Heredoc";
-            ("ty", json_of_heredoc_type ty); ("src", Int src); ("f", json_of_fields f)]
+            ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_fields f)]
 and json_of_redir_type = function
   | To -> String "To"
   | Clobber -> String "Clobber"
