@@ -115,10 +115,9 @@ let real_close (fd:int) : unit =
   try Unix.close (fd_of_int fd)
   with Unix.Unix_error(_,_,_) -> ()
 
-let real_pipe () : (string,int * int) Either.either =
-  try let (fd_read,fd_write) = Unix.pipe () in
-      Right (int_of_fd fd_read, int_of_fd fd_write)
-  with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
+let real_pipe () : int * int =
+  let (fd_read,fd_write) = Unix.pipe () in
+  (int_of_fd fd_read, int_of_fd fd_write)
 
 let real_openhere (s : string) : (string,int) Either.either =
   let buff = Bytes.of_string s in

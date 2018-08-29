@@ -475,10 +475,10 @@ and json_of_control = function
   | LError (x,f,w) -> Assoc [tag "LError"; ("var", String x);
                              ("f", json_of_expanded_words f); ("w", json_of_words w)]
   | Backtick c -> Assoc [tag "Backtick"; ("stmt", json_of_stmt c)]
-  | LBacktick (subsh, corig, c) -> Assoc [tag "LBacktick"; 
-                                          ("subsh", json_of_shell_state subsh); 
-                                          ("orig", json_of_stmt corig);
-                                          ("stmt", json_of_stmt c)]
+  | LBacktick (corig, pid, fd_read) -> Assoc [tag "LBacktick"; 
+                                              ("orig", json_of_stmt corig);
+                                              ("pid", Int pid);
+                                              ("fd_read", Int fd_read)]
   | Arith (f,w) ->  obj_fw "Arith" f w
   | Quote (f,w) -> obj_fw "Quote" f w
 and json_of_format = function

@@ -52,6 +52,7 @@ class ( OS 'a )
   val readdir : 'a -> path -> set (path * file unit)
   val write_fd : 'a -> fd -> string -> maybe 'a
   val read_fd : 'a -> fd -> maybe ('a * string)
+  val pipe : 'a -> 'a * fd * fd
 
   (* TODO 2018-08-24 refactor into dup2, open64, open_pipe, fork_and_write_pipe *)
   val redirect : 'a -> expanded_redir -> either string ('a * saved_fds)
@@ -314,6 +315,18 @@ let symbolic_resolve_fd os fd =
   | _ -> Nothing
   end
     
+val mkfifo : symbolic_os_state -> symbolic_os_state * nat  
+let mkfifo os =
+  let fifo_num = length os.symbolic_fifos in
+  (<| os with symbolic_fifos = os.symbolic_fifos ++ [""] |>, fifo_num)
+
+val symbolic_fresh_fd : fds -> fd
+let symbolic_fresh_fd sh_fds = 
+  match Set.findMax (Map.domain sh_fds) with
+  | Nothing -> 0
+  | Just max -> max + 1
+  end
+
 instance (OS symbolic_os_state)
    
   let get_shell_state os = os.symbolic_sh
@@ -432,6 +445,11 @@ instance (OS symbolic_os_state)
     | Nothing -> Nothing
   end
 
+  let pipe os0 =
+    let (os1, fifo_num) = mkfifo os0 in
+    let fd = symbolic_fresh_fd os1.symbolic_sh_fds in
+    (<| os1 with symbolic_sh_fds = Map.insert fd (FD fifo_num) os1.symbolic_sh_fds |>, fd, fd)
+
   let redirect os _er = 
     (* TODO 2018-08-24 implement *)
     Left "symbolic redirect is unimplemented"
@@ -443,11 +461,6 @@ end
 
 val set_pwdir : string -> string -> symbolic_os_state -> symbolic_os_state
 let set_pwdir u d os = <| os with symbolic_passwd = Map.insert u d (os.symbolic_passwd) |>
-
-val mkfifo : symbolic_os_state -> symbolic_os_state * nat  
-let mkfifo os =
-  let fifo_num = length os.symbolic_fifos in
-  (<| os with symbolic_fifos = os.symbolic_fifos ++ [""] |>, fifo_num)
 
 val mkfifos : symbolic_os_state -> nat -> symbolic_os_state * list nat 
 let rec mkfifos os0 n =
@@ -517,6 +530,9 @@ declare ocaml target_rep function real_write_fd = `System.real_write_fd`
 
 val real_read_fd : fd -> maybe string
 declare ocaml target_rep function real_read_fd = `System.real_read_fd`
+
+val real_pipe : unit -> fd * fd
+declare ocaml target_rep function real_pipe = `System.real_pipe`
 
 type open_flags
 declare ocaml target_rep type open_flags = `System.open_flags` 
@@ -625,6 +641,10 @@ instance (OS real_os_state)
     | Nothing -> Nothing
     | Just s -> Just (os,s)
     end
+
+  let pipe os =
+    let (fd_read, fd_write) = real_pipe () in
+    (os, fd_read, fd_write)
 
   let waitpid _step_eval os pid =
     let code = real_waitpid pid in

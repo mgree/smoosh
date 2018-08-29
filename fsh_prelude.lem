@@ -7,6 +7,19 @@ include import Fsh_num
 (* UTILITY FUNCTIONS **************************************************)
 (**********************************************************************)
 
+val ltrim_newlines_cl : list char -> list char
+let rec ltrim_newlines_cl cl =
+  match cl with
+  | [] -> []
+  | #'\n'::cl' -> ltrim_newlines_cl cl'
+  | _ -> cl
+  end
+
+val trimr_newlines : string -> string
+let trimr_newlines s =
+  let cl = toCharList s in
+  toString (reverse (ltrim_newlines_cl (reverse cl)))
+
 val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
 let rec break p ls =
   match ls with
@@ -171,7 +184,7 @@ and control =
   | LMatch of fields * substring_side * substring_mode * expanded_words * words (* runtime technicality *)
   | LError of string * expanded_words * words (* runtime technicality *)
   | Backtick of stmt
-  | LBacktick of ty_shell_state * stmt (* original stmt *) * stmt (* in progress *)
+  | LBacktick of stmt (* original stmt *) * nat (* pid *) * fd (* pipe [read] *)
   | Arith of expanded_words (* runtime technicality *) * words
   | Quote of expanded_words (* runtime technicality *) * words
 

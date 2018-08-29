@@ -46,12 +46,14 @@
 
 - symbolic pathname expansion
 
-- mark symbolic OS changes and move on; mark "unspecified" states and move on
+- mark symbolic OS changes/unspecified states/unsoundness and move on
 
 ### Long-term
 
 - refactor shell state so that OS is subsidiary, keep common in common
   tricky: shell states need to show up for subshells in LBacktick, forces parameter through :(
+- refactor semantics.lem to use is_terminating_control
+  follow dash on break/continue behavior
 - use monads (better parsing, etc.)
 - support for nondeterminism (move to K?)
 

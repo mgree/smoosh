@@ -113,7 +113,8 @@ let split_fields s0 exp_words =
     | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
     | Just fs -> 
        match try_concrete fs with
-       | Nothing -> (* TODO symbolic, a symbolic IFS makes it nearly-impossible to model field splitting *)
+       | Nothing -> 
+          (* TODO 2018-08-29 unsoundly usinsg default IFS. symbolic IFS is basically impossible. should record this unsoundness. *)
           split_word (toCharList " \n\t") ([], exp_words)
        | Just "" -> ([Field (concat_expanded exp_words)], [])
        | Just s -> split_word (toCharList s) ([], exp_words)
@@ -368,23 +369,46 @@ let rec expand_control s0 q k =
        | Left err -> Left err
        end
     | Backtick c ->
-       Right (ESCommand "initializing subshell", s0, [], [K (LBacktick (get_shell_state s0) c c)]) (* TODO should set up pipes *)
-    | LBacktick subsh corig c0 ->
-       match step_eval (set_shell_state subsh s0) c0 with
-       (* When a subshell errors, it should evaluate to the null string and print its error message. *)
-       | Left (step, s1) -> Right (ESEval (ESCommand "command exited with error") step, set_shell_state (get_shell_state s0) s1, [], [])
-       (* The shell shall expand the command substitution by executing
-          command in a subshell environment (see Shell Execution
-          Environment) and replacing the command substitution (the text
-          of command plus the enclosing "$()" or backquotes) with the
-          standard output of the command, removing sequences of one or
-          more <newline>s at the end of the substitution POSIX 2.6.3 
- 
-          TODO 2017-12-22 read result from pipe, trim newlines
-        *) 
-       | Right (step, s1, Done) -> Right (ESEval (ESCommand "command exited successfully; returning symbolic result") step, set_shell_state (get_shell_state s0) s1, [EWSym (SymCommand corig)], [])
-       | Right (step, s1, c1) -> Right (ESEval (ESCommand "") step, set_shell_state (get_shell_state s0) s1, [], [K (LBacktick (get_shell_state s1) corig c1)])
-       end
+       (* create a pipe *)
+       let (s1, fd_read, fd_write) = pipe s0 in
+       (* set up redirects [skipping expansion] *)
+       (* TODO 2018-08-29 have a way to close FDs in redirect *)
+       let ers = [ERDup ToFD fd_write STDOUT; 
+                  ERFile From STDIN [symbolic_string_of_string "/dev/null"]] in
+       let (s2, pid) = fork_and_subshell eval s1 (RedirExpRedirs c (ers, Nothing, [])) in
+       Right (ESCommand "initializing subshell", 
+              s2, 
+              [], 
+              [K (LBacktick c pid fd_read)])
+    | LBacktick corig pid fd_read ->
+       match waitpid step_eval s0 pid with
+       | (s1, Nothing) -> 
+          Left (ESEval (ESCommand "") 
+                  (XSWait ("couldn't step process with pid " ^ stringFromNat pid)), 
+                 write_stderr ("wait: pid " ^ stringFromNat pid ^ " is not a child of this shell") s1, 
+                 [])
+       | (s1, Just (Left step)) ->
+          Right (ESEval (ESCommand ("process with pid " ^ stringFromNat pid ^ " stepped"))
+                         step,
+                 s1,
+                 [],
+                 [K (LBacktick corig pid fd_read)])
+       | (s1, Just (Right _code)) ->
+          (* TODO 2018-08-29 do we need to look at the exit code? *)
+          match read_fd s1 fd_read with
+          | Nothing -> 
+             Left (ESCommand "broken pipe",
+                   s1,
+                   [])
+          | Just (s2, s) ->
+             (* TODO 2018-08-29 close pipe *)
+             let s_trimmed = trimr_newlines s in
+             Right (ESCommand "command exited successfully",
+                    s2, 
+                    [ExpS s_trimmed], 
+                    [])
+          end
+       end            
     | Arith f [] ->
         match arith64 s0 (concat_expanded f) with
         | Right (s1, result) -> Right (ESArith "computed arithmetic result", s1, expanded_words_of_fields result, [])
@@ -1115,13 +1139,13 @@ evalpipe(union node *n, int flags)
                   exit_with 1 (write_stderr msg os1),
                   Done)
         | ExpDone [pat'] ->
-          (* TODO 2018-02-09 use proper locale and verify substring mode works correctly *)
+          (* TODO 2018-08-29 use proper locale *)
           match match_prefix lc_ambient Exact pat' f with
           | NoMatch -> Right (XSCase "case did not match, trying the next",
                               os1, CaseMatch f cases)
           | Match _ -> Right (XSCase "case matched, evaluating cmd",
                               os1, cmd)
-          | Symbolic -> Left (XSCase "TODO symbolic value, could match", os1)
+          | Symbolic -> Left (XSCase "case on symbolic value, gave up", os1)
           end
         | ExpDone _ -> Left (XSCase "case match pattern did not expand to a single field", os1)
         | (_ as in_progress) ->
@@ -1148,11 +1172,30 @@ evalpipe(union node *n, int flags)
         Right (XSStack (f ^ ": exit") step,
                set_function_params old_loop_nest old_positional_params s1,
                Exit)
-     (* TODO 2018-03-02 what do we do if there's a break or continue in a call? 
+     (* what do we do if there's a break or continue in a call? 
         
         break/continue don't seem to ever be lexically enclosed in a loop, so behavior is unspecified.
-        bash supports "non local break", dash doesn't.
+        bash supports "non local break", dash doesn't:
+
+          $ brk() { break 5; echo post; }        
+          $ while true; do brk; done 
+
+        dash diverges, printing post
+        bash breaks immediately, no printing
+
+        following dash is tricky: 
+        wherever there's a break, you have look at loop_nest.
+        when i refactor step_eval to treat terminating control differently, we'll be made.
+        for now, we'll follow bash.
       *)
+     | Right (step, s1, Break n) ->
+        Right (XSStack (f ^ ": break [unspecified behavior]") step,
+               set_function_params old_loop_nest old_positional_params s1,
+               Break n)
+     | Right (step, s1, Continue n) ->
+        Right (XSStack (f ^ ": continue [unspecified behavior]") step,
+               set_function_params old_loop_nest old_positional_params s1,
+               Continue n)
      | Right (step, s1, c') ->
         Right (XSStack f step,
                s1,
@@ -1217,7 +1260,6 @@ and eval os0 stmt0 =
 (**********************************************************************)   
 (* TRACING ************************************************************)   
 (**********************************************************************)   
-(* TODO 2018-01-26 limit the amount of trace generated (for while, etc) *)
 (* These functions are for testing and the expansion tool. *)
 
 (* Expansion **********************************************************)
