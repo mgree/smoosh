@@ -52,10 +52,16 @@ class ( OS 'a )
   val readdir : 'a -> path -> set (path * file unit)
   val write_fd : 'a -> fd -> string -> maybe 'a
   val read_fd : 'a -> fd -> maybe ('a * string)
+  val close_fd : 'a -> fd -> 'a
   val pipe : 'a -> 'a * fd * fd
 
-  (* TODO 2018-08-24 refactor into dup2, open64, open_pipe, fork_and_write_pipe *)
-  val redirect : 'a -> expanded_redir -> either string ('a * saved_fds)
+  val open_file_for_redir : 'a -> redir_type -> symbolic_string -> either string ('a * fd)
+  val open_heredoc : 'a -> string -> either string ('a * fd)
+  val renumber_fd : 'a -> 
+                    bool (* close orig? *) -> 
+                    fd (* orig *) -> 
+                    fd (* wanted number *) -> 
+                    either string ('a * saved_fds)
   val restore_fd : 'a -> fd -> saved_fd_info -> 'a
 end
 
@@ -109,6 +115,35 @@ let canonicalize_path os path =
   in
   let components = split_string_on false (* not escapable *) #'/' path' in
   canonicalize_split_path os initial components
+
+val redirect : forall 'a. OS 'a => 'a -> expanded_redir -> either string ('a * saved_fds)
+let redirect os0 er =
+  match er with
+  | ERFile ty wanted_fd [sfile] -> 
+     match open_file_for_redir os0 ty sfile with
+     | Left err -> Left err
+     | Right (os1,new_fd) -> renumber_fd os1 true (* close *) new_fd wanted_fd
+     end
+  | ERFile _ _ fs -> Left ("expected single file field, got: " ^ string_of_fields fs)
+  | ERDup _ty orig_fd wanted_fd ->
+     (* dash doesn't distinguish between the two types... because
+        both resolve to the same dup2 call, since dup2 doesn't care
+        about fd direction *)
+     renumber_fd os0 false (* don't close *) orig_fd wanted_fd
+  | ERHeredoc _ty wanted_fd fs -> 
+     (* ty is irrelevant at this point---we used it to determine the
+        kinds of expansion we'll go through *)
+     match try_concrete_fields fs with
+     | Nothing ->
+        Left ("couldn't open symbolic heredoc: " ^ string_of_fields fs)
+     | Just s ->
+        match open_heredoc os0 s with
+        | Left err -> Left err
+        | Right (os1, new_fd) -> renumber_fd os1 true new_fd wanted_fd
+        end
+     end
+  end
+
 
 val restore_fds : forall 'a. OS 'a => 'a -> saved_fds -> 'a
 let restore_fds os saved_fds =
@@ -320,6 +355,20 @@ let mkfifo os =
   let fifo_num = length os.symbolic_fifos in
   (<| os with symbolic_fifos = os.symbolic_fifos ++ [""] |>, fifo_num)
 
+val write_fifo : symbolic_os_state -> nat -> string -> maybe symbolic_os_state
+let write_fifo os fifo_num s =
+  match adjust_nth os.symbolic_fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
+  | Nothing -> Nothing
+  | Just (new_fifos,()) -> Just <| os with symbolic_fifos = new_fifos |>
+  end
+
+val read_fifo : symbolic_os_state -> nat -> maybe (symbolic_os_state * string)
+let read_fifo os fifo_num =
+  match adjust_nth os.symbolic_fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
+  | Nothing -> Nothing
+  | Just (new_fifos,s) -> Just (<| os with symbolic_fifos = new_fifos |>, s)
+  end
+
 val symbolic_fresh_fd : fds -> fd
 let symbolic_fresh_fd sh_fds = 
   match Set.findMax (Map.domain sh_fds) with
@@ -427,36 +476,72 @@ instance (OS symbolic_os_state)
 
   let write_fd os fd s =
     match symbolic_resolve_fd os fd with
-    | Just fifo_num ->
-      match adjust_nth os.symbolic_fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
-      | Nothing -> Nothing
-      | Just (new_fifos,()) -> Just <| os with symbolic_fifos = new_fifos |>
-      end
+    | Just fifo_num -> write_fifo os fifo_num s
     | Nothing -> Nothing
     end
   
   let read_fd os fd =
     match symbolic_resolve_fd os fd with
-    | Just fifo_num ->
-      match adjust_nth os.symbolic_fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
-      | Nothing -> Nothing
-      | Just (new_fifos,s) -> Just (<| os with symbolic_fifos = new_fifos |>, s)
-      end
+    | Just fifo_num -> read_fifo os fifo_num
     | Nothing -> Nothing
   end
+
+  let close_fd os fd = 
+    <| os with symbolic_sh_fds = Map.delete fd os.symbolic_sh_fds |>
 
   let pipe os0 =
     let (os1, fifo_num) = mkfifo os0 in
     let fd = symbolic_fresh_fd os1.symbolic_sh_fds in
-    (<| os1 with symbolic_sh_fds = Map.insert fd (FD fifo_num) os1.symbolic_sh_fds |>, fd, fd)
+    (<| os1 with symbolic_sh_fds = Map.insert fd (FD fifo_num) os1.symbolic_sh_fds |>, 
+     fd, fd)
 
-  let redirect os _er = 
-    (* TODO 2018-08-24 implement *)
-    Left "symbolic redirect is unimplemented"
+  let open_file_for_redir _os _ty _file = 
+    Left "symbolic file redirects are unimplemented"
 
-  let restore_fd os _fd _info =
-    (* TODO 2018-08-24 implement *)
-    os
+  let open_heredoc os0 s =
+    let (os1, fifo_num) = mkfifo os0 in
+    let fd = symbolic_fresh_fd os1.symbolic_sh_fds in
+    (* update the FD map and write to the pipe *)
+    let os2 = <| os1 with symbolic_sh_fds = Map.insert fd (FD fifo_num) os1.symbolic_sh_fds|> in
+    match write_fifo os2 fifo_num s with
+    | Nothing -> Left "broken pipe"
+    | Just os3 -> Right (os3, fd)
+    end
+
+  let renumber_fd os0 close new_fd wanted_fd = 
+    if new_fd = wanted_fd
+    then Right (os0, if close then Map.singleton wanted_fd Close else Map.empty)
+    else
+      match Map.lookup new_fd os0.symbolic_sh_fds with
+      | Nothing -> Left "broken pipe (tried to renumber closed fd)"
+      | Just new_tgt ->
+        let saved = 
+          match Map.lookup wanted_fd os0.symbolic_sh_fds with
+          | Nothing -> 
+             (* the wanted_fd is free... great! *)
+             Map.empty
+          | Just (FD fifo_num) ->
+             (* the wanted fd is in use, points to a fifo... hold on to the number *)
+             Map.singleton wanted_fd (Saved fifo_num)
+          | Just (Path _path) ->
+             (* the wanted fd is in use, points to a file *)
+             (* TODO 2018-08-24 symbolic path FDs unimplemented *)
+             Map.empty
+          end in
+        let fds0 = Map.insert wanted_fd new_tgt os0.symbolic_sh_fds in
+        let fds1 = if close then Map.delete new_fd fds0 else fds0 in
+        Right (<| os0 with symbolic_sh_fds = fds1 |>, saved)
+      end
+
+  let restore_fd os0 fd info =
+    match info with
+    | Saved fifo_num -> 
+       let fds = Map.insert fd (FD fifo_num) os0.symbolic_sh_fds in
+       <| os0 with symbolic_sh_fds = fds |>
+    | Close ->
+       let fds = Map.delete fd os0.symbolic_sh_fds in
+       <| os0 with symbolic_sh_fds = fds |>
+    end
 end
 
 val set_pwdir : string -> string -> symbolic_os_state -> symbolic_os_state
@@ -572,13 +657,12 @@ declare ocaml target_rep function real_dup2 = `System.real_dup2`
 val real_openhere : string -> either string fd
 declare ocaml target_rep function real_openhere = `System.real_openhere`
 
-(* TODO 2018-08-28 this is dupredirect... make generic? *)
-let real_renumber_fd os (new_fd : fd) (wanted_fd : fd) : either string ('a * saved_fds) =
+let real_renumber_fd os (close : bool) (new_fd : fd) (wanted_fd : fd) : either string ('a * saved_fds) =
   if new_fd = wanted_fd
   then 
     (* we fished our wish! no need to dup or anything.
        just remember to clean up when you're done *)
-    Right (os, Map.singleton wanted_fd Close)
+    Right (os, if close then Map.singleton wanted_fd Close else Map.empty)
     else (* need to save wanted_fd and then dup *)
       match real_savefd wanted_fd with
       | Left err -> Left err
@@ -588,7 +672,7 @@ let real_renumber_fd os (new_fd : fd) (wanted_fd : fd) : either string ('a * sav
          | Nothing -> 
             (* close the actual fd we got, now that we've
                relocated it where we want it *)
-            let _ = real_close new_fd in
+            let () = if close then real_close new_fd else () in
             Right (os, Map.singleton wanted_fd (Saved saved_fd))
          end
       end
@@ -642,58 +726,38 @@ instance (OS real_os_state)
     | Just s -> Just (os,s)
     end
 
+  let close_fd os fd =
+    let () = real_close fd in
+    os
+
   let pipe os =
     let (fd_read, fd_write) = real_pipe () in
     (os, fd_read, fd_write)
 
   let waitpid _step_eval os pid =
     let code = real_waitpid pid in
-    (os,Just (Right code))
+    (os, Just (Right code))
 
-  let redirect os er =
-    match er with
-    | ERFile ty wanted_fd [sfile] -> 
-       match try_concrete sfile with
-       | Nothing -> 
-          Left ("couldn't open redirect to symbolic file: " ^ string_of_symbolic_string sfile)
-       | Just file -> 
-          let flags = flags_of_redir_type ty in
-          match real_open file flags with
-          | Left err -> Left err
-          | Right new_fd -> real_renumber_fd os new_fd wanted_fd
-          end
-       end
-    | ERFile _ _ fs -> Left ("expected single file field, got: " ^ string_of_fields fs)
-    | ERDup _ty orig_fd wanted_fd -> 
-       (* dash doesn't distinguish between the two types... because
-          both resolve to the same dup2 call, since dup2 doesn't care
-          about fd direction *)
-       if orig_fd = wanted_fd
-       then (* weird, right? I guess you could do this, might as well
-               save ourselves the trouble with dup2's interface*)
-         Right (os, Map.empty)
-       else match real_savefd wanted_fd with
-            | Left err -> Left err
-            | Right saved_fd ->
-               match real_dup2 orig_fd wanted_fd with
-               | Just err -> Left err
-               | Nothing -> Right (os, Map.singleton wanted_fd (Saved saved_fd))
-               end
-            end
-    | ERHeredoc _ty wanted_fd fs -> 
-       (* ty is irrelevant at this point---we used it to determine the
-          kinds of expansion we'll go through *)
-       match try_concrete_fields fs with
-       | Nothing ->
-          Left ("couldn't open symbolic heredoc: " ^ string_of_fields fs)
-       | Just s ->
-          match real_openhere s with
-          | Left err -> Left err
-          | Right new_fd -> real_renumber_fd os new_fd wanted_fd
-          end
+  let open_file_for_redir os ty sfile =
+    match try_concrete sfile with
+    | Nothing -> 
+       Left ("couldn't open redirect to symbolic file: " ^ string_of_symbolic_string sfile)
+    | Just file -> 
+       let flags = flags_of_redir_type ty in
+       match real_open file flags with
+       | Left err -> Left err
+       | Right new_fd -> Right (os,new_fd)
        end
     end
    
+  let open_heredoc os s =
+    match real_openhere s with
+    | Left err -> Left err
+    | Right fd -> Right (os, fd)
+    end
+
+  let renumber_fd = real_renumber_fd
+
   let restore_fd os orig_fd info =
     let to_close = 
       match info with

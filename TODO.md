@@ -2,18 +2,6 @@
 
 - pipes and redirects
   + unify AST redir needs
-  + update custom.js to render the new forms
-  + OS needs:
-    ```
-    redirect : os -> expanded_redir list -> os * saved_fd list
-    
-    openredirect : os -> expanded_redir -> os * nat
-    dupredirect : os -> nat -> nat -> os * saved_fd
-    ```
-    those two can be generically implemented over open/stat/pipe/dup/dup2
-    
-  + make a pass to minimize what goes in the OS typeclass and make the real_os redirect a helper
-    with an eye to what could be made symbolic in a reasonable way!
   + can we get away with these same calls for pipes? tricky process creation issues
   + write tests
   

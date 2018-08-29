@@ -47,6 +47,8 @@ let exit_code_tests : (string * symbolic_os_state * int) list =
   ; ("x=5 ; for y in ${x?oh no}; do exit $y; done", os_empty, 5)
   ; ("case ${x?alas} in *) true;; esac", os_empty, 1)
   ; ("x=7 ; case ${x?alas} in *) exit $x;; esac", os_empty, 7)
+  ; ("x=$(echo 5) ; exit $x", os_empty, 5)
+  ; ("x=$(echo hello) ; case $x in *ell*) true;; *) false;; esac", os_empty, 0)
 
   (* exit *)
   ; ("exit", os_empty, 0)
