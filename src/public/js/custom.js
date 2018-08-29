@@ -1207,18 +1207,15 @@ function renderControl(info, elt, control) {
       break;
 
     case 'LBacktick':
-      // | LBacktick (subsh, corig, c) -> Assoc [tag "LBacktick"; 
-      //                                         ("subsh", json_of_shell_state subsh); 
-      //                                         ("orig", json_of_stmt corig);
-      //                                         ("stmt", json_of_stmt c)]
-
-      // 2017-12-22 compare subsh and our current shell, show the difference
-      console.log(control);
+      // | LBacktick (corig, pid, fd_read) -> Assoc [tag "LBacktick"; 
+      //                                             ("orig", json_of_stmt corig);
+      //                                             ("pid", Int pid);
+      //                                             ("fd_read", Int fd_read)]
 
       elt.append('$(');
       var stmt = $('<span></span>').addClass('stmt').appendTo(elt);
-      renderStmt(info, stmt, control['stmt']);
-      elt.append(')');
+      renderStmt(info, stmt, control['orig']);
+      elt.append(') # running with pid ' + pid.toString());
 
       break;
 
