@@ -126,17 +126,26 @@ function renderRedirWith(info, elt, redir, render) {
       const hSym = $('<span></span>').addClass('redir-Heredoc-sym').appendTo(elt);
       hSym.append('&lt;&lt;');
 
-      // compute a collision-free marker
+      // compute a collision-free marker:
+      //   go through every string entry. if EOF is in there, extend the marker to, e.g., EOFEOF
+      //   by the time we're done, we'll have EOF^n for some maximal n.
+      //   no need to revisit lines: each line pushes n to the max needed so far
       let marker = "EOF";
-      const lines = redir['w'].split(/\n\r|\n|\r/);
-      while (lines.includes(marker)) {
-        marker += "EOF";
+      for (let i = 0; i < redir['w'].length; i += 1) {
+          const entry = redir['w'][i];
+          if (entry['tag'] === "S") {
+              const lines = entry['v'].split(/\n\r|\n|\r/);
+              while (lines.includes(marker)) {
+                  marker += "EOF";
+              }
+          }
       }
 
       hSym.append(marker);
       hSym.append('<br></br>');
 
-      const hText = $('<span></span>').addClass('redir-Heredoc-text').appendTo(elt);
+      // use code tag to get tt fonts, which will present newlines
+      const hText = $('<pre></pre>').addClass('redir-Heredoc-text').appendTo(elt);
       render(info, hText, redir['w']);
 
       const hMarker = $('<span></span>').addClass('redir-Heredoc-marker').appendTo(elt);
@@ -350,7 +359,10 @@ function renderStmt(info, elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got ' + stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
   console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpRedirs',
-                  'Pipe', 'Redir', 'Background', 'Subshell',
+                  'Pipe', 
+                  'Redir', 'RedirExpRedirs', 
+                  'Background', 'BackgroundExpRedirs', 
+                  'Subshell', 'SubshellExpRedirs',
                   'And', 'Or', 'Not', 'Semi', 'If', 
                   'While', 'WhileCond', 'WhileRunning',
                   'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
@@ -358,8 +370,6 @@ function renderStmt(info, elt, stmt) {
                   'Defun', 'Call',
                   'Break', 'Continue', 'Return', 'Wait', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
-
-  // PICK UP HERE, need ExpRedir forms for Redir/Background/Subshell
 
   elt.addClass('stmt stmt-' + stmt['tag']);
   
@@ -433,7 +443,12 @@ function renderStmt(info, elt, stmt) {
       break;
 
     case 'Redir':
+    case 'RedirExpRedirs':
       // | Redir (c, rs) -> obj_crs "Redir" c rs
+      // | RedirExpRedirs (c, redir_state) ->
+      //    Assoc ([tag "RedirExpRedirs";
+      //            ("c", json_of_stmt c)]
+      //           @ fields_of_redir_state redir_state)
 
       var command = $('<span></span>').addClass('redir-command').appendTo(elt);
       renderStmt(info, command, stmt['c']);
@@ -445,7 +460,12 @@ function renderStmt(info, elt, stmt) {
       break;
 
     case 'Background':
+    case 'BackgroundExpRedirs':
       // | Background (c, rs) -> obj_crs "Background" c rs
+      // | BackgroundExpRedirs (c, redir_state) ->
+      //    Assoc ([tag "BackgroundExpRedirs";
+      //            ("c", json_of_stmt c)]
+      //           @ fields_of_redir_state redir_state)
 
       /* we translate 
            cmds... &
@@ -474,7 +494,12 @@ function renderStmt(info, elt, stmt) {
       break;
 
     case 'Subshell':
+    case 'SubshellExpRedirs':
       // | Subshell (c, rs) -> obj_crs "Subshell" c rs
+      // | SubshellExpRedirs (c, redir_state) ->
+      //    Assoc ([tag "SubshellExpRedirs";
+      //            ("c", json_of_stmt c)]
+      //           @ fields_of_redir_state redir_state)
 
       elt.append('('); 
 
@@ -714,10 +739,13 @@ function renderStmt(info, elt, stmt) {
       break;
 
     case 'Wait':
+      // | Wait n -> Assoc [tag "Wait"; ("pid", Int n)]
+
       $('<i></i>').addClass('icon wait').appendTo(info);
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
-      cmd.append('wait' + fieldSep + Number.toString(stmt['n']));
+
+      cmd.append('wait' + fieldSep + stmt['pid'].toString());
 
       break;
 

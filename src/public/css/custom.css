@@ -17,3 +17,7 @@ span.tmp-field {
 span.field-separator::after, span.tmp-field-FS::after {
     content: "␣ "
 }
+
+pre.redir-Heredoc-text {
+    margin: 0px;
+}
