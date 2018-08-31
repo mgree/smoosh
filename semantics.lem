@@ -649,7 +649,7 @@ and step_eval s0 stmt =
         | ExpError err ->
            let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
            Right (XSSimple "error in argument expansion",
-                  exit_with 1 (write_stderr (msg ^ "\n") s1),
+                  fail_with msg s1,
                   Done)
         | ExpDone f ->
            let msg = 
@@ -720,7 +720,7 @@ and step_eval s0 stmt =
      match do_redirs s1 ers with
      | Left msg -> 
         Right (XSRedir "error in redirection", 
-               exit_with 1 (write_stderr (msg ^ "\n") s1), 
+               fail_with msg s1, 
                Done)
      | Right (s2, saved_fds) ->
        (* run command *)
@@ -731,7 +731,7 @@ and step_eval s0 stmt =
                  pushredir stmt' saved_fds)
        | Left (s3,msg) -> 
           Right (XSSimple "couldn't run command", 
-                 exit_with 1 (write_stderr (msg ^ "\n") s3), 
+                 fail_with msg s3, 
                  pushredir Done saved_fds)
        end
      end
@@ -760,7 +760,7 @@ and step_eval s0 stmt =
      | Left msg -> 
         (* dash doesn't set the variables if the redirect failed *)
         Right (XSRedir "error in redirection", 
-               exit_with 1 (write_stderr (msg ^ "\n") s0), 
+               fail_with msg s0, 
                Done)
      | Right (s1, saved_fds) ->
         let s2 = 
@@ -775,7 +775,7 @@ and step_eval s0 stmt =
       match step_redir_state s0 redir_state with
       | (s1, msg, Nothing) ->
          Right (XSSimple "error in redirect expansion", 
-                exit_with 1 (write_stderr (msg ^ "\n") s1), 
+                fail_with msg s1, 
                 Done)
       | (s1, msg, Just (redir_state', mstep)) ->
          let step =
@@ -806,7 +806,7 @@ and step_eval s0 stmt =
      match do_redirs s0 ers with
      | Left msg -> 
         Right (XSRedir "error in redirection", 
-               exit_with 1 (write_stderr (msg ^ "\n") s0), 
+               fail_with msg s0, 
                Done)
      | Right (s1, saved_fds) ->
         Right (XSRedir "running redirected command", 
@@ -818,7 +818,7 @@ and step_eval s0 stmt =
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
         Right (XSRedir "error in redirect expansion", 
-               exit_with 1 (write_stderr (msg ^ "\n") s1), 
+               fail_with msg s1, 
                Done)
      | (s1, msg, Just (redir_state', mstep)) ->
         let step =
@@ -845,7 +845,7 @@ and step_eval s0 stmt =
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
         Right (XSBackground "error in redirect expansion", 
-               exit_with 1 (write_stderr (msg ^ "\n") s1), 
+               fail_with msg s1, 
                Done)
      | (s1, msg, Just (redir_state', mstep)) ->
         let step =
@@ -869,7 +869,7 @@ and step_eval s0 stmt =
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
         Right (XSSubshell "error in redirect expansion", 
-               exit_with 1 (write_stderr (msg ^ "\n") s1), 
+               fail_with msg s1, 
                Done)
      | (s1, msg, Just (redir_state', mstep)) ->
         let step =
@@ -925,9 +925,9 @@ and step_eval s0 stmt =
       | Right (_step, s1, Done) ->
           match get_last_exit_code s1 with
           | Just 0 -> 
-             Right (XSNot "0 -> 1", set_param "?" (symbolic_string_of_string "1") s1, Done)
+             Right (XSNot "0 -> 1", exit_with 1 s1, Done)
           | Just _ -> 
-             Right ((XSNot "_ -> 0"), set_param "?" (symbolic_string_of_string "0") s1, Done)
+             Right ((XSNot "_ -> 0"), exit_with 0 s1, Done)
           | Nothing -> Left (XSNot "unset or symbolic exit code", s1)
           end
       | Right (step, s1, stmt'') -> Right (XSNested (XSNot "") step, s1, Not stmt'')
@@ -1005,7 +1005,7 @@ and step_eval s0 stmt =
         | ExpError err ->
            let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
            Right (XSFor "error in argument expansion",
-                  exit_with 1 (write_stderr msg os1),
+                  fail_with msg os1,
                   Done)
         | ExpDone f ->
            Right (XSFor "arguments fully expanded",
@@ -1017,7 +1017,7 @@ and step_eval s0 stmt =
                   ForExpArgs var in_progress body)
       end
   (* FOR: Special case, no items exit status is zero **************************)
-  | ForExpanded _var [] _body -> Right (XSFor "no items, exit code is 0", set_param "?" (symbolic_string_of_string "0") s0, Done)
+  | ForExpanded _var [] _body -> Right (XSFor "no items, exit code is 0", exit_with 0 s0, Done)
   | ForExpanded var (i::f) body ->
       let s1 = enter_loop s0 in
       Right (XSFor ("starting for loop with " ^ var ^ " = " ^ (string_of_symbolic_string i)), set_param var i s1, ForRunning var f body body)
@@ -1054,7 +1054,7 @@ and step_eval s0 stmt =
         | ExpError err ->
            let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
            Right (XSCase "error in argument expansion",
-                  exit_with 1 (write_stderr msg os1),
+                  fail_with msg os1,
                   Done)
         | ExpDone [f] ->
            Right (XSCase "argument fully expanded", os1, CaseMatch f cases)
@@ -1083,7 +1083,7 @@ and step_eval s0 stmt =
         | ExpError err ->
            let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
            Right (XSCase "error in argument expansion",
-                  exit_with 1 (write_stderr msg os1),
+                  fail_with msg os1,
                   Done)
         | ExpDone [pat'] ->
           (* TODO 2018-08-29 use proper locale *)

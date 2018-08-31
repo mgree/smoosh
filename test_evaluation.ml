@@ -69,6 +69,11 @@ let exit_code_tests : (string * symbolic_os_state * int) list =
   ; ("case abc in *) true;; abc) false;; esac", os_empty, 0)
   ; ("x=hello ; case $x in *el*) true;; *) false;; esac", os_empty, 0)
   ; ("case \"no one is home\" in esac", os_empty, 0)
+
+  (* pipes *)
+  ; ("false | true", os_empty, 0)
+  ; ("true | false", os_empty, 1)
+  ; ("true | exit 5", os_empty, 5)
   ]
 
 (***********************************************************************)

@@ -377,6 +377,9 @@ let exit_loop os =
 val exit_with : forall 'a. OS 'a => nat -> 'a -> 'a
 let exit_with ec os = set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
 
+val fail_with : forall 'a. OS 'a => string -> 'a -> 'a
+let fail_with msg os = exit_with 1 (write_stderr (msg ^ "\n") os)
+
 val get_last_exit_code : forall 'a. OS 'a => 'a -> maybe nat
 let get_last_exit_code os =
   match lookup_concrete_param os "?" with
@@ -465,7 +468,8 @@ instance (OS symbolic_os_state)
     | Just (Shell stmt sh' fds') ->
        let os1 = <| os0 with symbolic_sh = sh'; symbolic_sh_fds = fds' |> in
        match step_eval os1 stmt with
-       | Left (_step, os2) -> (os2, Just (Right 1)) (* errored, signal with code *)
+       | Left (_step, os2) -> 
+          (os2, Just (Right 1)) (* errored, signal with code *)
        | Right (_step, os2, Done) ->
           (* terminated! grab the code, update everything *)
           let ec = (* can't use get_last_exit_code because we're DEFINING the type class *)
@@ -476,7 +480,9 @@ instance (OS symbolic_os_state)
                | Nothing -> 255
                | Just s -> 
                   match readNat (toCharList s) with
-                  | Right n -> n
+                  | Right n -> 
+                     let _ = Debug.print_endline ("waitpid done: " ^ stringFromNat n) in
+                     n
                   | Left _err -> 255
                   end
                end
@@ -560,6 +566,7 @@ instance (OS symbolic_os_state)
      fd, fd)
 
   let open_file_for_redir _os _ty _file = 
+    let _ = Debug.print_endline "open_file_for_redir" in
     Left "symbolic file redirects are unimplemented"
 
   let open_heredoc os0 s =

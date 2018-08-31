@@ -89,6 +89,7 @@ let rec repl s0 =
   | `Done -> finish_up s0
   | `Null -> repl s0
   | `Parsed n -> 
+     (* TODO 2018-08-31 record trace in a logfile *)
      let s1 = real_eval s0 (Shim.of_node n) in
      let set x v = 
        match (x,try_concrete v) with

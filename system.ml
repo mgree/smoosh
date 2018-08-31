@@ -22,16 +22,15 @@ let real_fork_and_call (f : 'a -> int) (v : 'a) : int =
   match Unix.fork () with
   | 0 -> 
      let status = f v in 
-     let _ = Printf.eprintf "pid %d exiting\n" (Unix.getpid ()) in
      exit status
   | pid -> pid
 
-let real_waitpid (pid : int) : int = 
+let rec real_waitpid (pid : int) : int = 
   try match Unix.waitpid [] pid with
   | (_,Unix.WEXITED code) -> code
   | (_,Unix.WSIGNALED signal) -> 130 (* bash, dash behavior *)
   | (_,Unix.WSTOPPED signal) -> 146 (* bash, dash behavior *)
-  with Unix.Unix_error(EINTR,_,_) -> 130
+  with Unix.Unix_error(EINTR,_,_) -> real_waitpid pid (* actually keep waiting *)
 
 let real_exists (path : string) : bool = Sys.file_exists path
 

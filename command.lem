@@ -128,7 +128,7 @@ let builtin_shift s0 argv _env =
   | Left err -> Left (s0,err)
   | Right n -> 
      if n >= length (get_shell_state s0).positional_params
-     then Left (exit_with 1 s0,"shift: can't shift that many")
+     then Left (exit_with 1 s0, "shift: can't shift that many")
      else
        let s1 = 
          update_shell_state 
