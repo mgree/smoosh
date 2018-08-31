@@ -372,7 +372,7 @@ let rec expand_control s0 q k =
        (* create a pipe *)
        let (s1, fd_read, fd_write) = pipe s0 in
        let cmd = 
-         Pushredir 
+         pushredir 
            (* set up redirects [skipping expansion] *)
            (RedirExpRedirs c 
               ([ERDup ToFD fd_write STDOUT], 
@@ -733,11 +733,11 @@ and step_eval s0 stmt =
        | Right (s3,stmt') -> 
           Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
                  s3, 
-                 Pushredir stmt' saved_fds)
+                 pushredir stmt' saved_fds)
        | Left (s3,msg) -> 
           Right (XSSimple "couldn't run command", 
                  exit_with 1 (write_stderr (msg ^ "\n") s3), 
-                 Pushredir Done saved_fds)
+                 pushredir Done saved_fds)
        end
      end
   (* expansion is done, but there's no command *)
@@ -773,7 +773,7 @@ and step_eval s0 stmt =
         in
         Right (XSSimple "ran empty command", 
                s2, 
-               Pushredir Done saved_fds)
+               pushredir Done saved_fds)
      end
    (* expand redirs *)
    | CommandExpRedirs assigns args redir_state ->
@@ -889,7 +889,7 @@ evalpipe(union node *n, int flags)
      | Right (s1, saved_fds) ->
         Right (XSRedir "running redirected command", 
                s1, 
-               Pushredir stmt' saved_fds)
+               pushredir stmt' saved_fds)
      end
   (* redirection steps *)
   | RedirExpRedirs stmt' redir_state ->
@@ -1226,18 +1226,17 @@ evalpipe(union node *n, int flags)
                Done)
      end            
   | Pushredir c saved_fds ->
-      match step_eval s0 c with
-      | Left e -> Left e
-      | Right (step, s1, c') -> 
-         if is_terminating_control c'
-         then Right (XSNested (XSRedir "popping redirects") step, 
-                     restore_fds s1 saved_fds, 
-                     c')
-         else Right (XSNested (XSRedir "") step, 
-                     s1, 
-                     Pushredir c' saved_fds)
-      end
-     
+     if is_terminating_control c
+     then Right (XSRedir "popping redirects", 
+                 restore_fds s0 saved_fds, 
+                 c)
+     else match step_eval s0 c with
+          | Left e -> Left e
+          | Right (step, s1, c') -> 
+             Right (XSNested (XSRedir "") step, 
+                    s1, 
+                    Pushredir c' saved_fds)
+          end
   | Exit -> 
      (* TODO 2018-03-02 handle traps *)
      Right (XSSimple "exited", s0, Done)

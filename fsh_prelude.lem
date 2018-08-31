@@ -566,6 +566,12 @@ let int64ToFields n = [symbolic_string_of_string (write n)]
 
 (* AST helpers *)
 
+val pushredir : stmt -> saved_fds -> stmt
+let pushredir stmt saved_fds =
+  if Map.null saved_fds
+  then stmt
+  else Pushredir stmt saved_fds
+
 val is_terminating_control : stmt -> bool
 let is_terminating_control c =
   match c with

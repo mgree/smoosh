@@ -56,6 +56,9 @@ let exit_code_tests : (string * symbolic_os_state * int) list =
   ; ("false; exit", os_empty, 1)
   ; ("false; exit 2", os_empty, 2)
   
+  (* break *)
+  ; ("while true; do break; done", os_empty, 0)
+
   (* for loop with no args should exit 0 *)
   ; ("for x in; do exit 1; done", os_empty, 0)
   ; ("for x in \"\"; do exit 1; done", os_empty, 1)

@@ -69,7 +69,7 @@ let builtin_colon s0 _argv _env = Right (exit_with 0 s0,Done)
              
 let builtin_break s0 argv _env =
   match argv with
-  | [] -> Right (exit_with 0 s0,Break 1) (* default to just breaking the immediate loop *)
+  | [] -> Right (exit_with 0 s0, Break 1) (* default to just breaking the immediate loop *)
   | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 1
