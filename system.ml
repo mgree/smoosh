@@ -22,6 +22,7 @@ let real_fork_and_call (f : 'a -> int) (v : 'a) : int =
   match Unix.fork () with
   | 0 -> 
      let status = f v in 
+     let _ = Printf.eprintf "pid %d exiting\n" (Unix.getpid ()) in
      exit status
   | pid -> pid
 

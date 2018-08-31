@@ -49,7 +49,7 @@ let prepare_command () : string list (* positional args *) =
 
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
 let initialize_env s0 : real_os_state =
-  (* TODO 2018-08-23 set $$ [shell pid] and $- [option flags] *)
+  (* TODO 2018-08-23 set $- [option flags] *)
   (* will bork if we have privileges *)
   let environ = System.real_environment () in
   let set (x,v) os = 
@@ -57,7 +57,8 @@ let initialize_env s0 : real_os_state =
     Os.real_set_param os x v
   in
   let s1 = List.fold_right set environ s0 in
-  { s1 with real_sh = { s1.real_sh with cwd = Unix.getcwd () } }
+  let s2 = Os.real_set_param s1 "$" (string_of_int (Unix.getpid ())) in
+  { s2 with real_sh = { s2.real_sh with cwd = Unix.getcwd () } }
 
 let finish_up s0 =
   (* TODO 2018-08-14 trap on EXIT etc. goes here? *)
@@ -75,7 +76,12 @@ let run_cmds s0 =
 
 let rec repl s0 =
   (* TODO 2018-08-14 all kinds of interactive nonsense here *)
-  print_string "$ "; flush stdout;
+  let prompt = 
+    match real_lookup_concrete_param s0 "PS1" with
+    | None -> "$ "
+    | Some ps1 -> ps1
+  in
+  print_string prompt; flush stdout;
   (* TODO 2018-08-15 to get appropriate prompting, we need to set
      dash's actual environment up correctly, since the parser makes
      reference to ps1val, etc. *)
@@ -86,8 +92,10 @@ let rec repl s0 =
      let s1 = real_eval s0 (Shim.of_node n) in
      let set x v = 
        match (x,try_concrete v) with
+         (* don't copy over special variables *)
        | ("?",_) -> ()
        | ("!",_) -> ()
+       | ("$",_) -> ()
        | (_,None) -> ()
        | (_,Some s) -> Dash.setvar x s
      in

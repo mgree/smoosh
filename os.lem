@@ -125,11 +125,11 @@ let redirect os0 er =
      | Right (os1,new_fd) -> renumber_fd os1 true (* close *) new_fd wanted_fd
      end
   | ERFile _ _ fs -> Left ("expected single file field, got: " ^ string_of_fields fs)
-  | ERDup _ty orig_fd wanted_fd ->
+  | ERDup _ty close_orig orig_fd wanted_fd ->
      (* dash doesn't distinguish between the two types... because
         both resolve to the same dup2 call, since dup2 doesn't care
         about fd direction *)
-     renumber_fd os0 false (* don't close *) orig_fd wanted_fd
+     renumber_fd os0 close_orig orig_fd wanted_fd
   | ERHeredoc _ty wanted_fd fs -> 
      (* ty is irrelevant at this point---we used it to determine the
         kinds of expansion we'll go through *)
@@ -144,13 +144,64 @@ let redirect os0 er =
      end
   end
 
-
 val restore_fds : forall 'a. OS 'a => 'a -> saved_fds -> 'a
 let restore_fds os saved_fds =
   Map_extra.fold 
     (fun orig_fd info os' -> restore_fd os' orig_fd info)
     saved_fds 
     os
+
+val run_pipe_loop : forall 'a. OS 'a =>
+                 ('a -> stmt -> nat) (* thread eval for real OS*) ->
+                 'a ->
+                 list stmt -> 
+                 fd ->
+                 'a * nat
+let rec run_pipe_loop eval s0 stmts fd_prev =
+  match stmts with
+  | [] -> fork_and_subshell eval s0 Done (* just run a trivial statement *)
+  | [stmt] -> (* last one *)
+     let (s1, last_pid) = 
+       fork_and_subshell eval s0 
+         (with_redirs 
+            stmt 
+            [ERDup ToFD true (* close orig *) fd_prev STDIN]) in
+     let s2 = close_fd s1 fd_prev in
+     (s2, last_pid)
+  | stmt::stmts' ->
+     let (s1, fd_next, fd_write) = pipe s0 in
+     let (s2, _pid) =
+       fork_and_subshell eval s1
+         (with_redirs 
+            (close_fd_and_then fd_next stmt) 
+            [ERDup ToFD true (* close orig *) fd_prev STDIN
+            ;ERDup ToFD true (* close orig *) fd_write STDOUT]) in
+     let s3 = close_fd s2 fd_prev in
+     let s4 = close_fd s3 fd_write in
+     run_pipe_loop eval s4 stmts' fd_next
+  end
+
+val run_pipe : forall 'a. OS 'a =>
+                 ('a -> stmt -> nat) (* thread eval for real OS*) ->
+                 'a ->
+                 list stmt ->
+                 'a * nat
+let run_pipe eval s0 stmts =
+  match stmts with
+  | [] -> fork_and_subshell eval s0 Done       (* just run a trivial statement *)
+  | [stmt] -> fork_and_subshell eval s0 stmt   (* trivial pipe *)
+  | stmt::stmts' ->                            (* real pipe! *)
+     (* set up first process *)
+     let (s1, fd_next, fd_write) = pipe s0 in
+     let (s2, _pid) =
+       fork_and_subshell eval s1
+         (with_redirs 
+            (close_fd_and_then fd_next stmt)
+            [ERDup ToFD true (* close orig *) fd_write STDOUT]) in
+     let s3 = close_fd s2 fd_write in
+     (* hand off to the loop *)
+     run_pipe_loop eval s3 stmts' fd_next
+  end
 
 (**********************************************************************)
 (* SYMBOLIC FS STATE **************************************************)
@@ -258,21 +309,27 @@ let print_shell_env os = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_sym
 val lookup_positional_param : forall 'a. OS 'a => nat -> 'a -> maybe symbolic_string
 let lookup_positional_param num os =
   let sh = get_shell_state os in
-  index sh.positional_params (num - 1)
+  index sh.positional_params num
 
-(* The result is nothing if the parameter is unset, and the empty string null. *)
+(* The result is nothing if the parameter is unset, and the empty string if it's null. *)
 val lookup_param : forall 'a. OS 'a => 'a -> string -> maybe symbolic_string
 let lookup_param os str =
   let sh = get_shell_state os in
   match (readNat (toCharList str),str) with
   | (Right num,_) -> lookup_positional_param num os
-  | (Left _,"@") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as fields *)
-  | (Left _,"*") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* positional arguments as a string *)
+  | (Left _,"@") ->
+     (* TODO 2018-08-31 need to change lookup_param to return fields for this case *)
+     Just (symbolic_string_of_string "TODO 2018-03-02")
+  | (Left _,"*") -> 
+     let args = 
+       match sh.positional_params with
+       | [] -> []
+       | _::params -> params
+       end in
+     Just (symbolic_string_of_fields args)
   | (Left _,"#") -> 
      let num_params = length sh.positional_params in
      Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1)))) (* number of positional arguments excluding $0 *)
-  | (Left _,"-") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* current option flags *)
-  | (Left _,"$") -> Just (symbolic_string_of_string "TODO 2018-03-02") (* shell pid *)
   | (Left _,_) -> Map.lookup str sh.env
   end
 
@@ -298,7 +355,14 @@ let set_param x v os = update_shell_state (fun sh -> <| sh with env = Map.insert
   
 val set_function_params : forall 'a. OS 'a => nat -> fields -> 'a -> 'a
 let set_function_params ln argv os =
-  update_shell_state (fun sh -> <| sh with loop_nest = ln; positional_params = argv |>) os
+  update_shell_state 
+    (fun sh -> 
+      let new_params =
+        match sh.positional_params with
+        | [] -> []::argv
+        | arg0::_ -> arg0::argv
+       end in
+      <| sh with loop_nest = ln; positional_params = new_params |>) os
 
 val enter_loop : forall 'a. OS 'a => 'a -> 'a
 let enter_loop os = 

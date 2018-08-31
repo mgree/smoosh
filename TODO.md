@@ -1,8 +1,8 @@
 ### Last of the shell semantics
 
 - pipes and redirects
-  + unify AST redir needs
-  + can we get away with these same calls for pipes? tricky process creation issues
+  + unify AST redir needs (no real need for ExpRedirs)
+  + fix pipe race
   + write tests
   
 - special built-ins
@@ -41,6 +41,7 @@
 - refactor shell state so that OS is subsidiary, keep common in common
   tricky: shell states need to show up for subshells in LBacktick, forces parameter through :(
 - refactor semantics.lem to use is_terminating_control
+    don't immediately step! Break _n -> Done
   follow dash on break/continue behavior
 - use monads (better parsing, etc.)
 - support for nondeterminism (move to K?)

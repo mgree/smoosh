@@ -374,9 +374,7 @@ let rec expand_control s0 q k =
        let cmd = 
          pushredir 
            (* set up redirects [skipping expansion] *)
-           (RedirExpRedirs c 
-              ([ERDup ToFD fd_write STDOUT], 
-               Nothing, []))
+           (with_redirs c [ERDup ToFD true (* close orig *) fd_write STDOUT])
            (* make sure to close the pipe when we're done *)
            (Map.singleton fd_write Close)
        in
@@ -538,7 +536,7 @@ and step_redir_state os0 redir_state =
      let (msg, ers, exp_state) =
        match r with
        | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart w)))
-       | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty src tgt], Nothing)
+       | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty false (* don't close orig *) src tgt], Nothing)
        | RHeredoc XHere src w -> 
           ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart w)))
        | RHeredoc Here src w -> 
@@ -608,6 +606,8 @@ and step_eval s0 stmt =
      /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
   *)
   match stmt with
+
+  (* COMMAND ******************************************************************)
   | Command assigns ws redirs ->
      Right (XSSimple "begin expansion",
             s0,
@@ -615,8 +615,7 @@ and step_eval s0 stmt =
               (map (fun (x, w) -> (x, ExpStart w)) assigns)
               ws
               redirs)
-
-  (* SPECIAL CASE: plain assignment, no command *)
+  (* COMMAND: SPECIAL CASE: plain assignment, no command **********************)
   | CommandExpAssign ((x,exp_state0)::assigns) [] redirs ->
      match step_expansion (s0, exp_state0)  with
      | (_step, s1, ExpDone f) -> Right (XSSimple ("assign " ^ x),
@@ -665,11 +664,7 @@ and step_eval s0 stmt =
                  s1,
                  CommandExpArgs assigns st1 redirs)
       end
-
-  (* ------------------ *)
-  (* Redirect expansion *)
-  (* ------------------ *)
-
+  (* COMMAND: Redirect expansion **********************************************)
   (* expansion is done, try to run command *)
   | CommandExpRedirs assigns (prog::args) (ers, Nothing, []) ->
      (* perform assignments *)
@@ -791,92 +786,19 @@ and step_eval s0 stmt =
          Right (step, s1, CommandExpRedirs assigns args redir_state')
       end
 
-  | Pipe bg _stmts ->
-     (* from dash/src/eval.c:
-/*
- * Evaluate a pipeline.  All the processes in the pipeline are children
- * of the process creating the pipeline.  (This differs from some versions
- * of the shell, which make the last process in a pipeline the parent
- * of all the rest.)
- */
+  (* PIPE *********************************************************************)
+  | Pipe bg stmts ->
+     let (s1, last_pid) = run_pipe eval s0 stmts in
+     let (s2, c) =
+       if bg
+       then (set_last_pid last_pid s1, Done)
+       else (s1, Wait last_pid) 
+     in
+     Right (XSPipe "started pipe",
+            s2,
+            c)
 
-STATIC int
-evalpipe(union node *n, int flags)
-{
-	struct job *jp;
-	struct nodelist *lp;
-	int pipelen;
-	int prevfd;
-	int pip[2];
-	int status = 0;
-
-	TRACE(("evalpipe(0x%lx) called\n", (long)n));
-	pipelen = 0;
-	for (lp = n->npipe.cmdlist ; lp ; lp = lp->next)
-		pipelen++;
-	flags |= EV_EXIT;
-	INTOFF;
-	jp = makejob(n, pipelen);
-	prevfd = -1;
-	for (lp = n->npipe.cmdlist ; lp ; lp = lp->next) {
-		prehash(lp->n);
-		pip[1] = -1;
-		if (lp->next) {
-			if (pipe(pip) < 0) {
-				close(prevfd);
-				sh_error("Pipe call failed");
-			}
-		}
-		if (forkshell(jp, lp->n, n->npipe.backgnd) == 0) {
-			INTON;
-			if (pip[1] >= 0) {
-				close(pip[0]);
-			}
-			if (prevfd > 0) {
-			dup2(prevfd, 0);
-				close(prevfd);
-			}
-			if (pip[1] > 1) {
-				dup2(pip[1], 1);
-				close(pip[1]);
-			}
-			evaltreenr(lp->n, flags);
-			/* never returns */
-		}
-		if (prevfd >= 0)
-			close(prevfd);
-		prevfd = pip[0];
-		close(pip[1]);
-	}
-	if (n->npipe.backgnd == 0) {
-		status = waitforjob(jp);
-		TRACE(("evalpipe:  job done exit status %d\n", status));
-	}
-	INTON;
-
-	return status;
-}
-      *)
-     (* TODO 2018-02-09 spawn each process with fds set appropriately 
-
-        builds fds1 ... fdsn such that:
-
-        stmt1   STDOUT |-> fifo1    in fds1
-        stmt2   STDOUT |-> fifo2    in fds2
-        ...
-        stmtn-1 STDOUT |-> fifon-1  in fdsn-1
-        stmtn uses ambient          in fdsn
-
-        stmt1 uses ambient          in fds1
-        stmt2   STDIN  |-> fifo1    in fds2
-        stmt3   STDIN  |-> fifo2    in fds3
-        ...
-        stmtn   STDIN  |-> fifon-1  in fdsn
-
-        then spawn each subshell appropriately
-      *)     
-     let last_pid = 0 in (* TODO 2018-03-02 use actual spawned pid *)
-     Right (XSPipe "started pipe",s0,if bg then Done else Wait last_pid)
+  (* REDIR ********************************************************************)
   | Redir stmt' redirs ->
      Right (XSRedir "expanding redirs", s0, RedirExpRedirs stmt' ([],Nothing,redirs))
   (* actually do the redirection *)
@@ -907,6 +829,7 @@ evalpipe(union node *n, int flags)
         Right (step, s1, RedirExpRedirs stmt' redir_state')
      end
 
+  (* BACKGROUND ***************************************************************)
   | Background stmt' redirs -> 
      Right (XSBackground "expanding redirs", s0, BackgroundExpRedirs stmt' ([], Nothing, redirs))
   (* actually do the background process *)
@@ -933,6 +856,7 @@ evalpipe(union node *n, int flags)
         Right (step, s1, BackgroundExpRedirs stmt' redir_state')
      end
  
+  (* SUBSHELL *****************************************************************)
   | Subshell stmt' redirs ->
      Right (XSSubshell "expanding redirs", s0, SubshellExpRedirs stmt' ([], Nothing, redirs))
   (* actually run subshell *)
@@ -956,6 +880,7 @@ evalpipe(union node *n, int flags)
         Right (step, s1, SubshellExpRedirs stmt' redir_state')
      end
 
+  (* AND **********************************************************************)
   | And l r ->
       match step_eval s0 l with
       | Left e -> Left e
@@ -971,6 +896,8 @@ evalpipe(union node *n, int flags)
           end
       | Right (step, s1, l') -> Right (XSNested (XSAnd "") step, s1, And l' r)
       end
+
+  (* OR ***********************************************************************)
   | Or l r ->
       match step_eval s0 l with
       | Left e -> Left e
@@ -986,6 +913,8 @@ evalpipe(union node *n, int flags)
           end
       | Right (step, s1, l') -> Right (XSNested (XSOr "") step, s1, Or l' r)
       end
+
+  (* NOT **********************************************************************)
   | Not stmt' ->
       match step_eval s0 stmt' with
       | Left e -> Left e
@@ -1003,6 +932,8 @@ evalpipe(union node *n, int flags)
           end
       | Right (step, s1, stmt'') -> Right (XSNested (XSNot "") step, s1, Not stmt'')
       end
+
+  (* SEMI *********************************************************************)
   | Semi l r ->
       match step_eval s0 l with
       | Left e -> Left e
@@ -1013,6 +944,8 @@ evalpipe(union node *n, int flags)
       | Right (step, s1, Done) -> Right (XSNested (XSSemi "done with LHS") step, s1, r)
       | Right (step, s1, l') -> Right (XSNested (XSSemi "") step, s1, Semi l' r)
       end
+
+  (* IF ***********************************************************************)
   | If c t e ->
       match step_eval s0 c with
       | Left e -> Left e
@@ -1028,7 +961,12 @@ evalpipe(union node *n, int flags)
           end
       | Right (step, s1, c') -> Right (XSNested (XSIf "") step, s1, If c' t e)
       end
-  | While c body -> Right (XSWhile "start to evaluate the condtion", enter_loop s0, WhileCond c c body)
+
+  (* WHILE ********************************************************************)
+  | While c body -> 
+     Right (XSWhile "start to evaluate the condtion", 
+            enter_loop s0, 
+            WhileCond c c body)
   | WhileCond c cur body ->
       match step_eval s0 cur with
       | Left e -> Left e
@@ -1058,6 +996,8 @@ evalpipe(union node *n, int flags)
       | Right (step, s1, Done) -> Right (XSNested (XSWhile "finished iteration of while loop; retesting condition") step, s1, WhileCond c c body)
       | Right (step, s1, cur') -> Right (XSNested (XSWhile "") step, s1, WhileRunning c body cur')
       end
+
+  (* FOR **********************************************************************)
   | For var ws body -> Right (XSFor "begin arg expansion", s0, ForExpArgs var (ExpStart ws) body)
   | ForExpArgs var exp_state body ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
@@ -1076,7 +1016,7 @@ evalpipe(union node *n, int flags)
                   os1,
                   ForExpArgs var in_progress body)
       end
-  (* Special case, no items exit status is zero *)
+  (* FOR: Special case, no items exit status is zero **************************)
   | ForExpanded _var [] _body -> Right (XSFor "no items, exit code is 0", set_param "?" (symbolic_string_of_string "0") s0, Done)
   | ForExpanded var (i::f) body ->
       let s1 = enter_loop s0 in
@@ -1105,6 +1045,8 @@ evalpipe(union node *n, int flags)
           end
       | Right (step, s1, cur') -> Right (XSNested (XSFor "") step, s1, ForRunning var f body cur')
       end
+
+  (* CASE *********************************************************************)
   | Case ws cases -> Right (XSCase "begin arg expansion", s0, CaseExpArg (ExpStart ws) cases)
   | CaseExpArg exp_state cases ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
@@ -1158,10 +1100,14 @@ evalpipe(union node *n, int flags)
                  os1,
                  CaseCheckMatch f in_progress cmd cases)
       end
+
+  (* DEFUN ********************************************************************)
   | Defun name body -> 
      if is_special_builtin name
      then Left (XSDefun ("invalid function name " ^ name ^ " (shadows special built-in)"), s0)
      else Right (XSDefun ("defined " ^ name), defun name body s0, Done)
+
+  (* CALL *********************************************************************)
   | Call old_loop_nest old_positional_params f orig c ->
      match step_eval s0 c with
      | Left e -> Left e
@@ -1206,9 +1152,8 @@ evalpipe(union node *n, int flags)
                s1,
                Call old_loop_nest old_positional_params f orig c')
      end
-  | Break _n -> Right (XSSimple "break bottomed out", s0, Done)
-  | Continue _n -> Right (XSSimple "continue bottomed out", s0, Done)
-  | Return -> Right (XSSimple "return bottomed out", s0, Done)
+
+  (* WAIT *********************************************************************)
   | Wait n -> 
      match waitpid step_eval s0 n with
      | (s1, Nothing) -> 
@@ -1225,6 +1170,8 @@ evalpipe(union node *n, int flags)
                exit_with code s1,
                Done)
      end            
+
+  (* PUSHREDIR ****************************************************************)
   | Pushredir c saved_fds ->
      if is_terminating_control c
      then Right (XSRedir "popping redirects", 
@@ -1237,6 +1184,11 @@ evalpipe(union node *n, int flags)
                     s1, 
                     Pushredir c' saved_fds)
           end
+
+  (* BREAK/CONTINUE/RETURN/EXIT/DONE ******************************************)
+  | Break _n -> Right (XSSimple "break bottomed out", s0, Done)
+  | Continue _n -> Right (XSSimple "continue bottomed out", s0, Done)
+  | Return -> Right (XSSimple "return bottomed out", s0, Done)
   | Exit -> 
      (* TODO 2018-03-02 handle traps *)
      Right (XSSimple "exited", s0, Done)

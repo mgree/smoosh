@@ -246,7 +246,7 @@ and expanding_redir =
 
 and expanded_redir = 
    | ERFile of redir_type * nat * fields
-   | ERDup of dup_type * nat * nat
+   | ERDup of dup_type * bool (* close_orig? *) * nat * nat
    | ERHeredoc of heredoc_type * nat * fields
 
 and redir_state = list expanded_redir * maybe expanding_redir * list redir
@@ -572,6 +572,16 @@ let pushredir stmt saved_fds =
   then stmt
   else Pushredir stmt saved_fds
 
+val with_redirs : stmt -> list expanded_redir -> stmt
+let with_redirs stmt ers =
+  if null ers
+  then stmt
+  else RedirExpRedirs stmt (ers,Nothing,[])
+
+val close_fd_and_then : fd -> stmt -> stmt
+let close_fd_and_then fd stmt =
+  Semi (Pushredir Done (Map.singleton fd Close)) stmt
+
 val is_terminating_control : stmt -> bool
 let is_terminating_control c =
   match c with
@@ -615,7 +625,7 @@ val wanted_fd_of_redir : expanded_redir -> fd
 let wanted_fd_of_redir er =
   match er with
   | ERFile _ fd _ -> fd
-  | ERDup _ _ fd -> fd
+  | ERDup _ _ _ fd -> fd
   | ERHeredoc _ fd _ -> fd
   end
 
