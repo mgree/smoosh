@@ -2,8 +2,7 @@
 
 - pipes and redirects
   + unify AST redir needs (no real need for ExpRedirs)
-  + fix pipe race
-  + write tests
+  + fix tests and write more
   
 - special built-ins
   + trap
