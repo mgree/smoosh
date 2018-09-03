@@ -7,6 +7,8 @@ include import Fsh_num
 (* UTILITY FUNCTIONS **************************************************)
 (**********************************************************************)
 
+let parens s = "( " ^ s ^ " )"
+
 val ltrim_newlines_cl : list char -> list char
 let rec ltrim_newlines_cl cl =
   match cl with
@@ -324,6 +326,7 @@ and evaluation_step =
   | XSStack of string (* function name *) * evaluation_step 
   | XSStep of string
   | XSWait of string
+  | XSProc of stmt
   | XSNested of evaluation_step * evaluation_step
   | XSExpand of evaluation_step * expansion_step
 
@@ -502,8 +505,7 @@ let rec try_concrete_fields fs =
         | Just s' -> Just (s ^ s')
         end
      end
-  end
-        
+  end       
 
 val symbolic_to_string : symbolic -> string
 let symbolic_to_string _sym = "<<SYMBOLIC>>"
@@ -563,6 +565,56 @@ let int32ToFields n = [symbolic_string_of_string (write n)]
 
 val int64ToFields : int64 -> fields
 let int64ToFields n = [symbolic_string_of_string (write n)]
+
+(* debugging *)
+val string_of_expansion_step : expansion_step -> string
+val string_of_evaluation_step : evaluation_step -> string
+
+let rec string_of_expansion_step estep =
+  match estep with
+  | ESTilde s -> "Tilde " ^ s
+  | ESParam s -> "Param " ^ s
+  | ESCommand s -> "Command " ^ s
+  | ESArith s -> "Arith " ^ s
+  | ESSplit s -> "Split " ^ s
+  | ESPath s -> "Path " ^ s
+  | ESQuote s -> "Quote " ^ s
+  | ESStep s -> "Step " ^ s
+  | ESNested estep_outer estep_inner ->
+     parens (string_of_expansion_step estep_outer) ^ " " ^
+     parens (string_of_expansion_step estep_inner)
+  | ESEval estep' step ->
+     parens (string_of_expansion_step estep') ^ " " ^
+     parens (string_of_evaluation_step step)
+  end
+
+and string_of_evaluation_step step =
+  match step with
+  | XSSimple s -> "Simple " ^ s
+  | XSPipe s -> "Pipe " ^ s
+  | XSRedir s -> "Redir " ^ s
+  | XSBackground s -> "Background " ^ s
+  | XSSubshell s -> "Subshell " ^ s
+  | XSAnd s -> "And " ^ s
+  | XSOr s -> "Or " ^ s
+  | XSNot s -> "Not " ^ s
+  | XSSemi s -> "Semi " ^ s
+  | XSIf s -> "If " ^ s
+  | XSWhile s -> "While " ^ s
+  | XSFor s -> "For " ^ s
+  | XSCase s -> "Case " ^ s
+  | XSDefun s -> "Defun " ^ s
+  | XSStack s step' -> "Stack " ^ s ^ parens (string_of_evaluation_step step')
+  | XSStep s -> "Step " ^ s
+  | XSWait s -> "Wait " ^ s
+  | XSProc _c -> "Proc"
+  | XSNested step_outer step_inner -> 
+     parens (string_of_evaluation_step step_outer) ^ " " ^ 
+     parens (string_of_evaluation_step step_inner)
+  | XSExpand step' estep ->
+     parens (string_of_evaluation_step step') ^ " " ^ 
+     parens (string_of_expansion_step estep)
+  end
 
 (* AST helpers *)
 

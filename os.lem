@@ -41,7 +41,7 @@ class ( OS 'a )
   val waitpid : 
     (* need to be passed step_eval to close recursive knot for the symbolic OS *)
     ('a -> stmt -> either (evaluation_step * 'a) (evaluation_step * 'a * stmt)) ->
-    'a -> nat -> 'a * maybe (either evaluation_step nat)
+    'a -> nat -> 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))
 
   (* FS CALLS *)
   val physical_cwd : 'a -> string
@@ -481,7 +481,6 @@ instance (OS symbolic_os_state)
                | Just s -> 
                   match readNat (toCharList s) with
                   | Right n -> 
-                     let _ = Debug.print_endline ("waitpid done: " ^ stringFromNat n) in
                      n
                   | Left _err -> 255
                   end
@@ -495,9 +494,9 @@ instance (OS symbolic_os_state)
           (<| os2 with symbolic_sh = os0.symbolic_sh; 
                        symbolic_sh_fds = os0.symbolic_sh_fds;
                        symbolic_procs = 
-                         update os2.symbolic_procs pid 
+                         List.update os2.symbolic_procs pid 
                            (Shell stmt' os2.symbolic_sh os2.symbolic_sh_fds) |>,
-           Just (Left step))
+           Just (Left (XSNested step (XSProc stmt'))))
        end
     end
 
@@ -557,7 +556,14 @@ instance (OS symbolic_os_state)
   end
 
   let close_fd os fd = 
-    <| os with symbolic_sh_fds = Map.delete fd os.symbolic_sh_fds |>
+    (* PICK UP HERE: bug is excessive closing of FDs in run_pipe
+
+       EITHER: actually implement pipe ends and keep track of widowed
+       states, etc.
+
+       OR: just leave everything open, since FDs aren't a finite
+       resource when excuting symbolically *)
+    os (* <| os with symbolic_sh_fds = Map.delete fd os.symbolic_sh_fds |> *)
 
   let pipe os0 =
     let (os1, fifo_num) = mkfifo os0 in
@@ -584,7 +590,8 @@ instance (OS symbolic_os_state)
     then Right (os0, if close then Map.singleton wanted_fd Close else Map.empty)
     else
       match Map.lookup new_fd os0.symbolic_sh_fds with
-      | Nothing -> Left "broken pipe (tried to renumber closed fd)"
+      | Nothing -> 
+         Left "broken pipe (tried to renumber closed fd)"
       | Just new_tgt ->
         let saved = 
           match Map.lookup wanted_fd os0.symbolic_sh_fds with

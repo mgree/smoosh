@@ -8,9 +8,7 @@ include import Os
 val string_of_stmt : stmt -> string
 val string_of_words : words -> string
 val string_of_entry : entry -> string
-      
-let parens s = "( " ^ s ^ " )"
-  
+       
 let braces s = "{ " ^ s ^ " ; }"
 
 (* we translate 
