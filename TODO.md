@@ -1,7 +1,7 @@
 ### Last of the shell semantics
 
 - pipes and redirects
-  + write tests
+  + write more tests
   
 - special built-ins
   + trap

@@ -26,7 +26,7 @@ let is_unspecified_utility s =
        
 let builtin_unimplemented s0 _argv _env = Left (s0,"unimplemented")
 
-val getopt : list char -> fields -> maybe (char * fields)
+val getopt : list char -> fields -> maybe (maybe char * fields)
 let rec getopt opts fields =
   match fields with
   | [] -> Nothing
@@ -35,6 +35,7 @@ let rec getopt opts fields =
      | Nothing -> Nothing
      | Just s -> 
         match toCharList s with
+        | #'-'::#'-'::[] -> Just (Nothing, fields')
         | #'-'::c::cs -> 
            if elem c opts
            then 
@@ -44,7 +45,7 @@ let rec getopt opts fields =
                | [] -> fields'
                | _ -> ((C #'-')::map C cs)::fields'
                end in
-             Just (c,argrest)
+             Just (Just c,argrest)
            else Nothing
         | _ -> Nothing
         end
@@ -55,7 +56,10 @@ val getopts : list char -> fields -> list char * fields
 let rec getopts opts fields = 
   match getopt opts fields with
   | Nothing -> ([],fields)
-  | Just (opt,fields') -> 
+  | Just (Nothing, fields') ->
+     (* stop! we hit -- or some such *)
+     (opts, fields')
+  | Just (Just opt,fields') -> 
      let (opts,fields'') = getopts opts fields' in
      (* store in reverse order so we can process the list without needing an accumulator *)
      (opts ++ [opt],fields'')
@@ -137,6 +141,59 @@ let builtin_shift s0 argv _env =
        Right (exit_with 0 s1, Done)
   end
 
+val unset_var : forall 'a. OS 'a => symbolic_string -> 'a -> either string 'a
+let unset_var sx s0 =
+  match try_concrete sx with
+  | Nothing -> Left ("couldn't unset symbolic variable " ^ string_of_symbolic_string sx)
+  | Just x ->
+     let sh = get_shell_state s0 in
+     (* TODO 2018-09-04 check if x is read only *)
+     let sh' = <| sh with env = Map.delete x sh.env |> in
+     let s1 = set_shell_state sh' s0 in
+     Right s1
+  end
+
+val unset_fun : forall 'a. OS 'a => symbolic_string -> 'a -> either string 'a
+let unset_fun sx s0 =
+  match try_concrete sx with
+  | Nothing -> Left ("couldn't unset symbolic function " ^ string_of_symbolic_string sx)
+  | Just x ->
+     let sh = get_shell_state s0 in
+     let sh' = <| sh with funcs = Map.delete x sh.funcs |> in
+     let s1 = set_shell_state sh' s0 in
+     Right s1
+  end
+
+let rec unset_mode opts =
+  match opts with
+  | [] -> unset_var
+  | #'f'::_ -> unset_fun
+  | #'v'::_ -> unset_var
+  | _::opts -> unset_mode opts
+  end 
+
+val unset_all : forall 'a. OS 'a =>
+                  (symbolic_string -> 'a -> either string 'a) ->
+                  list symbolic_string ->
+                  'a ->
+                  either ('a * string) ('a * stmt)
+let rec unset_all unsetter names s0 =
+  match names with
+  | [] -> Right (exit_with 0 s0, Done)
+  | name::names' ->
+     match unsetter name s0 with
+     | Left err -> Left (s0, err)
+     | Right s1 -> unset_all unsetter names' s1
+     end
+  end
+
+let builtin_unset s0 argv _env =
+  let (opts,argv') = getopts [#'f'; #'v'] argv in
+  (* unspec whether to unset a function if no flag is given and no such var.
+     dash doesn't do it; neither will we . *)
+  let unsetter = unset_mode opts in
+  unset_all unsetter argv' s0
+
 (* TODO 2018-08-13 *)
 let builtin_source = builtin_unimplemented
 let builtin_eval = builtin_unimplemented
@@ -146,7 +203,6 @@ let builtin_readonly = builtin_unimplemented
 let builtin_set = builtin_unimplemented
 let builtin_times = builtin_unimplemented
 let builtin_trap = builtin_unimplemented
-let builtin_unset = builtin_unimplemented
    
 val special_builtins :
   forall 'a. OS 'a =>
@@ -529,16 +585,20 @@ let run_command s0 prog_name argv env =
                    behave as described in this standard.  *)
                 let prog_path = 
                   match lookup_concrete_param s0 "PATH" with
-                  | Nothing -> Just prog
+                  | Nothing -> 
+                     if file_exists s0 prog
+                     then Just prog
+                     else Nothing
                   | Just path -> 
                      let paths = split_string_on true (* escapable *) #':' path in
                      resolve_path_with (file_exists s0) paths prog
                   end in
                 match prog_path with
                 | Nothing -> 
-                   let s1 = write_stderr (prog ^ ": command not found") s0 in
+                   let s1 = write_stderr (prog ^ ": command not found\n") s0 in
                    Right (exit_with 127 s1, Done)
                 | Just executable ->
+                   let _ = Debug.print_endline ("found " ^ executable) in
                    if isexec s0 executable
                    then 
                      let (s1,pid) = fork_and_execve 
@@ -549,7 +609,7 @@ let run_command s0 prog_name argv env =
                      in
                      Right (s1,Wait pid)
                    else (* TODO 2018-08-20 test for text file? *)
-                     let s1 = write_stderr (executable ^ ": command not executable") s0 in
+                     let s1 = write_stderr (executable ^ ": command not executable\n") s0 in
                      Right (exit_with 126 s1,Done)
                 end
              end

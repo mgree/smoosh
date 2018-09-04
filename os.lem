@@ -70,6 +70,10 @@ class ( OS 'a )
   val restore_fd : 'a -> fd -> saved_fd_info -> 'a
 end
 
+(**********************************************************************)
+(* SHELL/OS STATE FUNCTIONS *******************************************)
+(**********************************************************************)
+
 val try_write_fd : forall 'a. OS 'a => fd -> string -> 'a -> 'a
 let try_write_fd fd s os =
   (* TODO 2018-03-02 is this the right behavior when an fd points to a bad fifo, e.g., STDERR is closed? *)
@@ -207,6 +211,105 @@ let run_pipe eval s0 stmts =
      (* hand off to the loop *)
      run_pipe_loop eval s3 stmts' fd_next
   end
+   
+val print_shell_env : forall 'a. OS 'a => 'a -> string
+let print_shell_env os = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) (get_shell_state os).env ""
+
+val lookup_positional_param : forall 'a. OS 'a => nat -> 'a -> maybe symbolic_string
+let lookup_positional_param num os =
+  let sh = get_shell_state os in
+  index sh.positional_params num
+
+(* The result is nothing if the parameter is unset, and the empty string if it's null. *)
+val lookup_param : forall 'a. OS 'a => 'a -> string -> maybe symbolic_string
+let lookup_param os str =
+  let sh = get_shell_state os in
+  match (readNat (toCharList str),str) with
+  | (Right num,_) -> lookup_positional_param num os
+  | (Left _,"@") ->
+     (* TODO 2018-08-31 need to change lookup_param to return fields for this case *)
+     Just (symbolic_string_of_string "TODO 2018-03-02")
+  | (Left _,"*") -> 
+     let args = 
+       match sh.positional_params with
+       | [] -> []
+       | _::params -> params
+       end in
+     Just (symbolic_string_of_fields args)
+  | (Left _,"#") -> 
+     let num_params = length sh.positional_params in
+     Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1)))) (* number of positional arguments excluding $0 *)
+  | (Left _,_) -> Map.lookup str sh.env
+  end
+
+val lookup_concrete_param : forall 'a. OS 'a => 'a -> string -> maybe string
+let lookup_concrete_param os str =
+  match lookup_param os str with
+  | Nothing -> Nothing
+  | Just fs -> try_concrete fs
+  end
+
+val update_shell_state : forall 'a. OS 'a => (ty_shell_state -> ty_shell_state) -> 'a -> 'a
+let update_shell_state update os =
+  set_shell_state (update (get_shell_state os)) os
+   
+val defun : forall 'a. OS 'a => string -> stmt -> 'a -> 'a
+let defun name body os = update_shell_state (fun sh -> <| sh with funcs = Map.insert name body sh.funcs |>) os
+
+val lookup_function : forall 'a. OS 'a => string -> 'a -> maybe stmt
+let lookup_function name os = Map.lookup name (get_shell_state os).funcs
+
+val set_param : forall 'a. OS 'a => string -> symbolic_string -> 'a -> 'a
+let set_param x v os = 
+  update_shell_state (fun sh -> <| sh with env = Map.insert x v sh.env |>) os
+  
+val set_function_params : forall 'a. OS 'a => nat -> fields -> 'a -> 'a
+let set_function_params ln argv os =
+  update_shell_state 
+    (fun sh -> 
+      let new_params =
+        match sh.positional_params with
+        | [] -> []::argv
+        | arg0::_ -> arg0::argv
+       end in
+      <| sh with loop_nest = ln; positional_params = new_params |>) os
+
+val enter_loop : forall 'a. OS 'a => 'a -> 'a
+let enter_loop os = 
+  update_shell_state
+    (fun sh -> <| sh with loop_nest = sh.loop_nest + 1 |>) os
+
+val exit_loop : forall 'a. OS 'a => 'a -> 'a
+let exit_loop os = 
+  update_shell_state
+    (fun sh -> <| sh with loop_nest = sh.loop_nest - 1 |>) os
+
+val exit_with : forall 'a. OS 'a => nat -> 'a -> 'a
+let exit_with ec os = set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
+
+val fail_with : forall 'a. OS 'a => string -> 'a -> 'a
+let fail_with msg os = exit_with 1 (write_stderr (msg ^ "\n") os)
+
+val get_last_exit_code : forall 'a. OS 'a => 'a -> maybe nat
+let get_last_exit_code os =
+  match lookup_concrete_param os "?" with
+  | Nothing -> Nothing
+  | Just s -> 
+     match readNat (toCharList s) with
+     | Right n -> Just n
+     | Left _err -> Nothing
+     end
+  end
+
+val set_last_pid : forall 'a. OS 'a => nat -> 'a -> 'a
+let set_last_pid pid os = set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
+
+val is_interactive : forall 'a. OS 'a => 'a -> bool
+let is_interactive os =
+  match lookup_concrete_param os "-" with
+  | Nothing -> false
+  | Just opts -> elem #'i' (toCharList opts)
+  end
 
 (**********************************************************************)
 (* SYMBOLIC FS STATE **************************************************)
@@ -307,108 +410,6 @@ let os_empty : symbolic_os_state = <|
                      ];
     symbolic_procs = []
  |>
-
-(**********************************************************************)
-(* SHELL/OS STATE FUNCTIONS *******************************************)
-(**********************************************************************)
-   
-val print_shell_env : forall 'a. OS 'a => 'a -> string
-let print_shell_env os = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) (get_shell_state os).env ""
-
-val lookup_positional_param : forall 'a. OS 'a => nat -> 'a -> maybe symbolic_string
-let lookup_positional_param num os =
-  let sh = get_shell_state os in
-  index sh.positional_params num
-
-(* The result is nothing if the parameter is unset, and the empty string if it's null. *)
-val lookup_param : forall 'a. OS 'a => 'a -> string -> maybe symbolic_string
-let lookup_param os str =
-  let sh = get_shell_state os in
-  match (readNat (toCharList str),str) with
-  | (Right num,_) -> lookup_positional_param num os
-  | (Left _,"@") ->
-     (* TODO 2018-08-31 need to change lookup_param to return fields for this case *)
-     Just (symbolic_string_of_string "TODO 2018-03-02")
-  | (Left _,"*") -> 
-     let args = 
-       match sh.positional_params with
-       | [] -> []
-       | _::params -> params
-       end in
-     Just (symbolic_string_of_fields args)
-  | (Left _,"#") -> 
-     let num_params = length sh.positional_params in
-     Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1)))) (* number of positional arguments excluding $0 *)
-  | (Left _,_) -> Map.lookup str sh.env
-  end
-
-val lookup_concrete_param : forall 'a. OS 'a => 'a -> string -> maybe string
-let lookup_concrete_param os str =
-  match lookup_param os str with
-  | Nothing -> Nothing
-  | Just fs -> try_concrete fs
-  end
-
-val update_shell_state : forall 'a. OS 'a => (ty_shell_state -> ty_shell_state) -> 'a -> 'a
-let update_shell_state update os =
-  set_shell_state (update (get_shell_state os)) os
-   
-val defun : forall 'a. OS 'a => string -> stmt -> 'a -> 'a
-let defun name body os = update_shell_state (fun sh -> <| sh with funcs = Map.insert name body sh.funcs |>) os
-
-val lookup_function : forall 'a. OS 'a => string -> 'a -> maybe stmt
-let lookup_function name os = Map.lookup name (get_shell_state os).funcs
-
-val set_param : forall 'a. OS 'a => string -> symbolic_string -> 'a -> 'a
-let set_param x v os = update_shell_state (fun sh -> <| sh with env = Map.insert x v sh.env |>) os
-  
-val set_function_params : forall 'a. OS 'a => nat -> fields -> 'a -> 'a
-let set_function_params ln argv os =
-  update_shell_state 
-    (fun sh -> 
-      let new_params =
-        match sh.positional_params with
-        | [] -> []::argv
-        | arg0::_ -> arg0::argv
-       end in
-      <| sh with loop_nest = ln; positional_params = new_params |>) os
-
-val enter_loop : forall 'a. OS 'a => 'a -> 'a
-let enter_loop os = 
-  update_shell_state
-    (fun sh -> <| sh with loop_nest = sh.loop_nest + 1 |>) os
-
-val exit_loop : forall 'a. OS 'a => 'a -> 'a
-let exit_loop os = 
-  update_shell_state
-    (fun sh -> <| sh with loop_nest = sh.loop_nest - 1 |>) os
-
-val exit_with : forall 'a. OS 'a => nat -> 'a -> 'a
-let exit_with ec os = set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
-
-val fail_with : forall 'a. OS 'a => string -> 'a -> 'a
-let fail_with msg os = exit_with 1 (write_stderr (msg ^ "\n") os)
-
-val get_last_exit_code : forall 'a. OS 'a => 'a -> maybe nat
-let get_last_exit_code os =
-  match lookup_concrete_param os "?" with
-  | Nothing -> Nothing
-  | Just s -> 
-     match readNat (toCharList s) with
-     | Right n -> Just n
-     | Left _err -> Nothing
-     end
-  end
-
-val set_last_pid : forall 'a. OS 'a => nat -> 'a -> 'a
-let set_last_pid pid os = set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
-
-val is_interactive : forall 'a. OS 'a => 'a -> bool
-let is_interactive os =
-  match lookup_concrete_param os "-" with
-  | Nothing -> false
-  | Just opts -> elem #'i' (toCharList opts)
-  end
   
 (**********************************************************************)
 (* SYMBOLIC OS STATE INSTANCE *****************************************)
@@ -533,6 +534,7 @@ instance (OS symbolic_os_state)
     | Just _ -> (<| os with symbolic_sh = <| os.symbolic_sh with cwd = path |> |>, Nothing)
     end
 
+  (* TODO 2018-09-04 symbolic fs needs file contents/types *)
   let file_exists os path =
     match symbolic_fs_resolve_path os.symbolic_fs_root path with
     | Nothing -> false

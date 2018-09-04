@@ -74,6 +74,14 @@ let exit_code_tests : (string * symbolic_os_state * int) list =
   ; ("false | true", os_empty, 0)
   ; ("true | false", os_empty, 1)
   ; ("true | exit 5", os_empty, 5)
+
+  (* unset *)
+  ; ("x=5 ; exit $x", os_empty, 5)
+  ; ("x=5 ; unset x; exit $x", os_empty, 0)
+  ; ("x=5 ; unset x; exit ${x-42}", os_empty, 42)
+  ; ("f() { exit 3 ; } ; f", os_empty, 3)
+  ; ("f() { exit 3 ; } ; unset f ; f", os_empty, 3)
+  ; ("f() { exit 3 ; } ; unset -f f ; f", os_empty, 127)
   ]
 
 (***********************************************************************)
