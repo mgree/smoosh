@@ -46,7 +46,7 @@ let os_ifs_comma : symbolic_os_state = add_literal_env_string "IFS" "," os_empty
 (***********************************************************************)
 
 let show_list set =
-  "[" ^ intercalate "," set ^ "]"  
+  "[" ^ concat "," set ^ "]"  
                             
 (***********************************************************************)
 (* FILESYSTEM SCAFFOLDING **********************************************)
