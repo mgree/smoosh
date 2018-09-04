@@ -8,7 +8,11 @@ include import Os
 val string_of_stmt : stmt -> string
 val string_of_words : words -> string
 val string_of_entry : entry -> string
-       
+
+let join s1 s2 =
+  let sep = if s1 <> "" && s2 <> "" then " " else "" in
+  s1 ^ sep ^ s2
+
 let braces s = "{ " ^ s ^ " ; }"
 
 (* we translate 
@@ -34,25 +38,42 @@ let show_unless expected actual =
 let rec string_of_stmt c = 
   match c with
   | Command assigns cmds redirs ->
-     concat " " (List.map string_of_assign assigns) ^
-     (if List.length assigns = 0 || List.length cmds = 0 then "" else " ") ^
-     string_of_words cmds ^
-     string_of_redirs redirs
-  | CommandExpAssign _assigns _cmds _redirs -> "TODO CommandExpAssign"
-  | CommandExpArgs _assigns _cmds _redirs -> "TODO CommandExpArgs"
-  | CommandExpRedirs _assigns _cmds _redir_state -> "TODO CommandExpRedirs"
+     let s_assigns = 
+       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_words a) assigns) 
+     in
+     let s_cmds = string_of_words cmds in
+     let s_redirs = string_of_redirs redirs in
+     join s_assigns (join s_cmds s_redirs)
+  | CommandExpAssign assigns cmds redirs -> 
+     let s_assigns = 
+       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_expansion_state a) assigns) 
+     in
+     let s_cmds = string_of_words cmds in
+     let s_redirs = string_of_redirs redirs in
+     join s_assigns (join s_cmds s_redirs)
+  | CommandExpArgs assigns cmds redirs -> 
+     let s_assigns = 
+       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_fields a) assigns) 
+     in
+     let s_cmds = string_of_expansion_state cmds in
+     let s_redirs = string_of_redirs redirs in
+     join s_assigns (join s_cmds s_redirs)
+  | CommandExpRedirs assigns cmds redir_state ->
+     let s_assigns = 
+       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_fields a) assigns) 
+     in
+     let s_cmds = string_of_fields cmds in
+     let s_redirs = string_of_redir_state redir_state in
+     join s_assigns (join s_cmds s_redirs)
   | Pipe bg cmds ->
      let p = concat " | " (List.map string_of_stmt cmds) in
      if bg then background p else p
-  | Redir cmd redirs ->
-     string_of_stmt cmd ^ string_of_redirs redirs
-  | RedirExpRedirs _cmd _redir_state -> "TODO RedirExpRedirs"
-  | Background cmd redirs -> 
-     background (string_of_stmt cmd ^ string_of_redirs redirs)
-  | BackgroundExpRedirs _cmd _redir_state -> "TODO BackgroundExpRedirs"
-  | Subshell cmd redirs ->
-     parens (string_of_stmt cmd ^ string_of_redirs redirs)
-  | SubshellExpRedirs _cmd _redir_state -> "TODO SubshellExpRedirs"
+  | Redir cmd redir_state -> 
+     join (string_of_stmt cmd) (string_of_redir_state redir_state)
+  | Background cmd redir_state -> 
+     background (join (string_of_stmt cmd) (string_of_redir_state redir_state))
+  | Subshell cmd redir_state ->
+     parens (join (string_of_stmt cmd) (string_of_redir_state redir_state))
   | And cmd1 cmd2 ->
      string_of_stmt cmd1 ^ " && " ^ string_of_stmt cmd2
   | Or cmd1 cmd2 ->
@@ -90,7 +111,9 @@ let rec string_of_stmt c =
   | Done -> "Done"
   end
 
-and string_of_assign (v,a) = v ^ "=" ^ string_of_words a
+and string_of_command f_a f_c f_r assigns cmds redirs =
+  join (concat " " (List.map (fun (v,a) -> v ^ "=" ^ f_a a) assigns))
+    (join (f_c cmds) (f_r redirs))
 
 and string_of_inprogress_assign (v,f,a) = v ^ "=" ^ string_of_fields f ^ string_of_words a
 
@@ -106,25 +129,60 @@ and string_of_if c t e =
 and string_of_case (w,c) =
   intercalate "|" (List.map string_of_words w) ^ ") " ^ string_of_stmt c ^ ";;"
 
+and string_of_rfile ty fd =
+  match ty with
+  | To      -> show_unless 1 fd ^ ">"
+  | Clobber -> show_unless 1 fd ^ ">|"
+  | From    -> show_unless 0 fd ^ "<"
+  | FromTo  -> show_unless 0 fd ^ "<>"
+  | Append  -> show_unless 1 fd ^ ">>"
+  end
+
+and string_of_rdup ty fd =
+  match ty with
+  | ToFD -> show_unless 1 fd ^ ">&"
+  | FromFD -> show_unless 0 fd ^ "<&"
+  end
+
+and string_of_heredoc ty fd heredoc =
+  (* TODO 2018-09-04 use sound marker *)
+  let marker = "EOF" in
+  show_unless 0 fd ^ "<<" ^
+  (if ty = XHere then marker else "'" ^ marker ^ "'") ^ "\n" ^ heredoc ^ marker ^ "\n"
+
 and string_of_redir r = 
   match r with
-  | RFile To fd a      -> show_unless 1 fd ^ ">" ^ string_of_words a
-  | RFile Clobber fd a -> show_unless 1 fd ^ ">|" ^ string_of_words a
-  | RFile From fd a    -> show_unless 0 fd ^ "<" ^ string_of_words a
-  | RFile FromTo fd a  -> show_unless 0 fd ^ "<>" ^ string_of_words a
-  | RFile Append fd a  -> show_unless 1 fd ^ ">>" ^ string_of_words a
-  | RDup ToFD fd tgt   -> show_unless 1 fd ^ ">&" ^ stringFromNat tgt
-  | RDup FromFD fd tgt -> show_unless 0 fd ^ "<&" ^ stringFromNat tgt
-  | RHeredoc t fd a ->
-     let heredoc = string_of_words a in
-     let marker = "EOF" in
-     show_unless 0 fd ^ "<<" ^
-     (if t = XHere then marker else "'" ^ marker ^ "'") ^ "\n" ^ heredoc ^ marker ^ "\n"
+  | RFile ty fd a   ->  string_of_rfile ty fd ^ string_of_words a
+  | RDup ty fd tgt  ->  string_of_rdup ty fd ^ stringFromNat tgt
+  | RHeredoc ty fd a -> string_of_heredoc ty fd (string_of_words a)
   end 
 
-and string_of_redirs rs =
-  let ss = List.map string_of_redir rs in
-  (if List.length ss > 0 then " " else "") ^ concat " " ss
+and string_of_expanding_redir exp_redir =
+  match exp_redir with
+  | Nothing -> ""
+  | Just (XRFile ty fd exp_state) -> 
+     string_of_rfile ty fd ^ string_of_expansion_state exp_state
+  | Just (XRHeredoc ty fd exp_state) ->
+     string_of_heredoc ty fd (string_of_expansion_state exp_state)
+  end
+
+and string_of_expanded_redir er =
+  match er with
+  | ERFile ty fd a   ->  string_of_rfile ty fd ^ string_of_fields a
+  | ERDup ty _close_orig fd tgt  ->  string_of_rdup ty fd ^ stringFromNat tgt
+  | ERHeredoc ty fd a -> string_of_heredoc ty fd (string_of_fields a)
+  end 
+
+and string_of_expanded_redirs ers =
+  concat " " (List.map string_of_expanded_redir ers)
+and string_of_redirs rs = 
+  concat " " (List.map string_of_redir rs)
+
+and string_of_redir_state (ers, exp_redir, rs) =
+  let s_ers = string_of_expanded_redirs ers in
+  let s_exp_redir = string_of_expanding_redir exp_redir in
+  let s_rs = string_of_redirs rs in
+  join s_ers (join s_exp_redir s_rs)
 
 and string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
 and string_of_inprogress_words (f,w) = string_of_fields f ^ string_of_words w
@@ -136,3 +194,7 @@ and string_of_entry e =
 
   | F -> " "
   end
+
+and string_of_expansion_state _exp_state =
+  (* TODO 2018-09-04 TODO implement *)
+  "string_of_expansion_state"

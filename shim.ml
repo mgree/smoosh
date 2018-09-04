@@ -92,7 +92,7 @@ let rec of_node (n : node union ptr) : stmt =
 
 and of_nredir (n : node union ptr) =
   let n = n @-> node_nredir in
-  (of_node (getf n nredir_n), redirs (getf n nredir_redirect))
+  (of_node (getf n nredir_n), ([], None, redirs (getf n nredir_redirect)))
 
 and redirs (n : node union ptr) =
   if nullptr n
@@ -332,19 +332,16 @@ let rec json_of_stmt = function
             @ fields_of_redir_state redir_state)
   | Pipe (bg, cs) -> 
      Assoc [tag "Pipe"; ("bg", Bool bg); ("cs", List (List.map json_of_stmt cs))]
-  | Redir (c, rs) -> obj_crs "Redir" c rs
-  | RedirExpRedirs (c, redir_state) ->
-     Assoc ([tag "RedirExpRedirs";
+  | Redir (c, redir_state) ->
+     Assoc ([tag "Redir";
              ("c", json_of_stmt c)]
             @ fields_of_redir_state redir_state)
-  | Background (c, rs) -> obj_crs "Background" c rs
-  | BackgroundExpRedirs (c, redir_state) ->
-     Assoc ([tag "BackgroundExpRedirs";
+  | Background (c, redir_state) ->
+     Assoc ([tag "Background";
              ("c", json_of_stmt c)]
             @ fields_of_redir_state redir_state)
-  | Subshell (c, rs) -> obj_crs "Subshell" c rs
-  | SubshellExpRedirs (c, redir_state) ->
-     Assoc ([tag "SubshellExpRedirs";
+  | Subshell (c, redir_state) ->
+     Assoc ([tag "Subshell";
              ("c", json_of_stmt c)]
             @ fields_of_redir_state redir_state)
   | And (c1, c2) -> obj_lr "And" c1 c2

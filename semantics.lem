@@ -799,10 +799,7 @@ and step_eval s0 stmt =
             c)
 
   (* REDIR ********************************************************************)
-  | Redir stmt' redirs ->
-     Right (XSRedir "expanding redirs", s0, RedirExpRedirs stmt' ([],Nothing,redirs))
-  (* actually do the redirection *)
-  | RedirExpRedirs stmt' (ers, Nothing, []) ->
+  | Redir stmt' (ers, Nothing, []) ->
      match do_redirs s0 ers with
      | Left msg -> 
         Right (XSRedir "error in redirection", 
@@ -814,7 +811,7 @@ and step_eval s0 stmt =
                pushredir stmt' saved_fds)
      end
   (* redirection steps *)
-  | RedirExpRedirs stmt' redir_state ->
+  | Redir stmt' redir_state ->
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
         Right (XSRedir "error in redirect expansion", 
@@ -826,22 +823,19 @@ and step_eval s0 stmt =
           | Just estep -> XSExpand (XSRedir msg) estep
           | Nothing -> XSRedir msg
           end in
-        Right (step, s1, RedirExpRedirs stmt' redir_state')
+        Right (step, s1, Redir stmt' redir_state')
      end
 
   (* BACKGROUND ***************************************************************)
-  | Background stmt' redirs -> 
-     Right (XSBackground "expanding redirs", s0, BackgroundExpRedirs stmt' ([], Nothing, redirs))
-  (* actually do the background process *)
-  | BackgroundExpRedirs stmt' ((_, Nothing, []) as redir_state) ->
-     (* defer to RedirExpRedirs to load redirs *)
-     let (s1,pid) = fork_and_subshell eval s0 (RedirExpRedirs stmt' redir_state) in
+  | Background stmt' ((_, Nothing, []) as redir_state) ->
+     (* defer to Redir to load redirs *)
+     let (s1,pid) = fork_and_subshell eval s0 (Redir stmt' redir_state) in
      let s2 = set_last_pid pid s1 in
      Right (XSBackground ("started background process with pid " ^ (stringFromNat pid)), 
             s2, 
             Done)
   (* expand redirs *)
-  | BackgroundExpRedirs stmt' redir_state ->
+  | Background stmt' redir_state ->
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
         Right (XSBackground "error in redirect expansion", 
@@ -853,19 +847,16 @@ and step_eval s0 stmt =
           | Just estep -> XSExpand (XSBackground msg) estep
           | Nothing -> XSBackground msg
           end in
-        Right (step, s1, BackgroundExpRedirs stmt' redir_state')
+        Right (step, s1, Background stmt' redir_state')
      end
  
   (* SUBSHELL *****************************************************************)
-  | Subshell stmt' redirs ->
-     Right (XSSubshell "expanding redirs", s0, SubshellExpRedirs stmt' ([], Nothing, redirs))
-  (* actually run subshell *)
-  | SubshellExpRedirs stmt' ((_, Nothing, []) as redir_state) ->
-     let (s1,pid) = fork_and_subshell eval s0 (RedirExpRedirs stmt' redir_state) in
+  | Subshell stmt' ((_, Nothing, []) as redir_state) ->
+     let (s1,pid) = fork_and_subshell eval s0 (Redir stmt' redir_state) in
      Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
             s1, 
             Wait pid)
-  | SubshellExpRedirs stmt' redir_state ->
+  | Subshell stmt' redir_state ->
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
         Right (XSSubshell "error in redirect expansion", 
@@ -877,7 +868,7 @@ and step_eval s0 stmt =
           | Just estep -> XSExpand (XSSubshell msg) estep
           | Nothing -> XSSubshell msg
           end in
-        Right (step, s1, SubshellExpRedirs stmt' redir_state')
+        Right (step, s1, Subshell stmt' redir_state')
      end
 
   (* AND **********************************************************************)

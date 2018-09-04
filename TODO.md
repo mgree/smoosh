@@ -1,8 +1,7 @@
 ### Last of the shell semantics
 
 - pipes and redirects
-  + unify AST redir needs (no real need for ExpRedirs)
-  + fix tests and write more
+  + write tests
   
 - special built-ins
   + trap

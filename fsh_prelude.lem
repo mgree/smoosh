@@ -204,12 +204,9 @@ and stmt =
   | CommandExpArgs of list (string * fields) * expansion_state * list redir
   | CommandExpRedirs of list (string * fields) * fields * redir_state
   | Pipe of bool (* bg? *) * list stmt
-  | Redir of stmt * list redir
-  | RedirExpRedirs of stmt * redir_state
-  | Background of stmt * list redir
-  | BackgroundExpRedirs of stmt * redir_state
-  | Subshell of stmt * list redir
-  | SubshellExpRedirs of stmt * redir_state
+  | Redir of stmt * redir_state
+  | Background of stmt * redir_state
+  | Subshell of stmt * redir_state
   | And of stmt * stmt
   | Or of stmt * stmt
   | Not of stmt
@@ -628,7 +625,7 @@ val with_redirs : stmt -> list expanded_redir -> stmt
 let with_redirs stmt ers =
   if null ers
   then stmt
-  else RedirExpRedirs stmt (ers,Nothing,[])
+  else Redir stmt (ers,Nothing,[])
 
 val close_fd_and_then : fd -> stmt -> stmt
 let close_fd_and_then fd stmt =
