@@ -32,9 +32,18 @@ let rec break p ls =
     else let (xs', xs'') = break p xs in (x::xs', xs'')
   end
 
-let join s1 s2 =
+val spaced : string -> string -> string
+let spaced s1 s2 =
   let sep = if s1 <> "" && s2 <> "" then " " else "" in
   s1 ^ sep ^ s2
+
+val spaced_many : list string -> string
+let rec spaced_many ss =
+  match ss with
+  | [] -> ""
+  | [s] -> s
+  | s::ss' -> spaced s (spaced_many ss')
+  end
 
 val break_on_esc : bool -> char -> list char -> (list char) * (list char)
 let rec break_on_esc escapable sep ls =
@@ -668,37 +677,37 @@ let rec string_of_stmt c =
      in
      let s_cmds = string_of_words cmds in
      let s_redirs = string_of_redirs redirs in
-     join s_assigns (join s_cmds s_redirs)
+     spaced_many [s_assigns; s_cmds; s_redirs]
   | CommandExpAssign assigns cmds redirs -> 
      let s_assigns = 
        concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_expansion_state a) assigns) 
      in
      let s_cmds = string_of_words cmds in
      let s_redirs = string_of_redirs redirs in
-     join s_assigns (join s_cmds s_redirs)
+     spaced_many [s_assigns; s_cmds; s_redirs]
   | CommandExpArgs assigns cmds redirs -> 
      let s_assigns = 
        concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_fields a) assigns) 
      in
      let s_cmds = string_of_expansion_state cmds in
      let s_redirs = string_of_redirs redirs in
-     join s_assigns (join s_cmds s_redirs)
+     spaced_many [s_assigns; s_cmds; s_redirs]
   | CommandExpRedirs assigns cmds redir_state ->
      let s_assigns = 
        concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_fields a) assigns) 
      in
      let s_cmds = string_of_fields cmds in
      let s_redirs = string_of_redir_state redir_state in
-     join s_assigns (join s_cmds s_redirs)
+     spaced_many [s_assigns; s_cmds; s_redirs]
   | Pipe bg cmds ->
      let p = concat " | " (List.map string_of_stmt cmds) in
      if bg then background p else p
   | Redir cmd redir_state -> 
-     join (string_of_stmt cmd) (string_of_redir_state redir_state)
+     spaced (string_of_stmt cmd) (string_of_redir_state redir_state)
   | Background cmd redir_state -> 
-     background (join (string_of_stmt cmd) (string_of_redir_state redir_state))
+     background (spaced (string_of_stmt cmd) (string_of_redir_state redir_state))
   | Subshell cmd redir_state ->
-     parens (join (string_of_stmt cmd) (string_of_redir_state redir_state))
+     parens (spaced (string_of_stmt cmd) (string_of_redir_state redir_state))
   | And cmd1 cmd2 ->
      string_of_stmt cmd1 ^ " && " ^ string_of_stmt cmd2
   | Or cmd1 cmd2 ->
@@ -735,12 +744,6 @@ let rec string_of_stmt c =
   | Pushredir s _saved -> string_of_stmt s (* TODO fixme *)
   | Done -> "Done"
   end
-
-and string_of_command f_a f_c f_r assigns cmds redirs =
-  join (concat " " (List.map (fun (v,a) -> v ^ "=" ^ f_a a) assigns))
-    (join (f_c cmds) (f_r redirs))
-
-and string_of_inprogress_assign (v,f,a) = v ^ "=" ^ string_of_fields f ^ string_of_words a
 
 and string_of_if c t e =
   "if " ^ string_of_stmt c ^
@@ -807,10 +810,9 @@ and string_of_redir_state (ers, exp_redir, rs) =
   let s_ers = string_of_expanded_redirs ers in
   let s_exp_redir = string_of_expanding_redir exp_redir in
   let s_rs = string_of_redirs rs in
-  join s_ers (join s_exp_redir s_rs)
+  spaced_many [s_ers; s_exp_redir; s_rs]
 
 and string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
-and string_of_inprogress_words (f,w) = string_of_fields f ^ string_of_words w
 and string_of_entry e =
   match e with
   | S str -> str
