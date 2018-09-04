@@ -10,7 +10,12 @@ import Debug
 type file 'a = File | Dir of 'a
 
 (* Data structures for symbolic FDs *)
-type fd_tgt = FD of nat | Path of path
+(* TODO 2018-09-04 have Fifo record which end we're working on
+
+   trickiness: renumber_fd then needs to save some of that data.
+   it's bigger refactor than you'd hope
+ *)
+type fd_tgt = FIFO of nat | Path of path
 
 (* Mapping of FDs numbers *)
 type fds = Map.map fd fd_tgt
@@ -285,7 +290,11 @@ and symbolic_os_state = <|
   |>
     
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
-let fds_default : fds = Map.insert STDIN (FD 0) (Map.insert STDOUT (FD 1) (Map.insert STDERR (FD 2) Map.empty))
+let fds_default : fds = 
+  Map.insert STDIN (FIFO 0) 
+ (Map.insert STDOUT (FIFO 1) 
+ (Map.insert STDERR (FIFO 2) 
+  Map.empty))
 
 let os_empty : symbolic_os_state = <|
     symbolic_sh = default_shell_state;
@@ -411,7 +420,7 @@ let compare_by_first (a, _) (a', _) = compare a a'
 val symbolic_resolve_fd : symbolic_os_state -> fd -> maybe nat
 let symbolic_resolve_fd os fd =
   match Map.lookup fd os.symbolic_sh_fds with
-  | Just (FD fifo_num) -> Just fifo_num
+  | Just (FIFO fifo_num) -> Just fifo_num
   (* TODO 2018-03-23 is this the right behavior when fd points to a file? *)   
   (* TODO 2018-03-02 is this the right behavior when fd doesn't exist? *)
   | _ -> Nothing
@@ -556,20 +565,17 @@ instance (OS symbolic_os_state)
   end
 
   let close_fd os fd = 
-    (* PICK UP HERE: bug is excessive closing of FDs in run_pipe
-
-       EITHER: actually implement pipe ends and keep track of widowed
-       states, etc.
-
-       OR: just leave everything open, since FDs aren't a finite
-       resource when excuting symbolically *)
-    os (* <| os with symbolic_sh_fds = Map.delete fd os.symbolic_sh_fds |> *)
+    <| os with symbolic_sh_fds = Map.delete fd os.symbolic_sh_fds |>
 
   let pipe os0 =
     let (os1, fifo_num) = mkfifo os0 in
-    let fd = symbolic_fresh_fd os1.symbolic_sh_fds in
-    (<| os1 with symbolic_sh_fds = Map.insert fd (FD fifo_num) os1.symbolic_sh_fds |>, 
-     fd, fd)
+    (* get an FD number for reading *)
+    let fd_read = symbolic_fresh_fd os1.symbolic_sh_fds in
+    let fds' = Map.insert fd_read (FIFO fifo_num) os1.symbolic_sh_fds in
+    (* get an FD number for writing *)
+    let fd_write = symbolic_fresh_fd fds' in
+    let fds'' = Map.insert fd_write (FIFO fifo_num) fds' in
+    (<| os1 with symbolic_sh_fds = fds'' |>, fd_read, fd_write)
 
   let open_file_for_redir _os _ty _file = 
     let _ = Debug.print_endline "open_file_for_redir" in
@@ -578,8 +584,9 @@ instance (OS symbolic_os_state)
   let open_heredoc os0 s =
     let (os1, fifo_num) = mkfifo os0 in
     let fd = symbolic_fresh_fd os1.symbolic_sh_fds in
-    (* update the FD map and write to the pipe *)
-    let os2 = <| os1 with symbolic_sh_fds = Map.insert fd (FD fifo_num) os1.symbolic_sh_fds|> in
+    (* update the FD map with a read FD *)
+    let os2 = <| os1 with symbolic_sh_fds = Map.insert fd (FIFO fifo_num) os1.symbolic_sh_fds|> in
+    (* don't bother making a write FD, just write to the FIFO buffer *)
     match write_fifo os2 fifo_num s with
     | Nothing -> Left "broken pipe"
     | Just os3 -> Right (os3, fd)
@@ -598,7 +605,7 @@ instance (OS symbolic_os_state)
           | Nothing -> 
              (* the wanted_fd is free... great! *)
              Map.empty
-          | Just (FD fifo_num) ->
+          | Just (FIFO fifo_num) ->
              (* the wanted fd is in use, points to a fifo... hold on to the number *)
              Map.singleton wanted_fd (Saved fifo_num)
           | Just (Path _path) ->
@@ -614,7 +621,7 @@ instance (OS symbolic_os_state)
   let restore_fd os0 fd info =
     match info with
     | Saved fifo_num -> 
-       let fds = Map.insert fd (FD fifo_num) os0.symbolic_sh_fds in
+       let fds = Map.insert fd (FIFO fifo_num) os0.symbolic_sh_fds in
        <| os0 with symbolic_sh_fds = fds |>
     | Close ->
        let fds = Map.delete fd os0.symbolic_sh_fds in
