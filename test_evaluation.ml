@@ -8,7 +8,7 @@ open Printf
 (***********************************************************************)
 
 let get_exit_code (os : symbolic_os_state) =
-  match lookup_concrete_param instance_Os_OS_Os_symbolic_os_state_dict os "?" with
+  match symbolic_lookup_concrete_param os "?" with
   | Some(digits) ->
      begin try int_of_string digits
            with Failure "int_of_string" -> 257 (* unrepresentable in shell *)

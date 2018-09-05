@@ -692,6 +692,9 @@ let rec mkfifos os0 n =
   end
    
 (* specialized functions to avoid manual instantiation of typeclasses in OCaml *)   
+val symbolic_lookup_concrete_param : symbolic_os_state -> string -> maybe string
+let symbolic_lookup_concrete_param = lookup_concrete_param
+
 val symbolic_set_param : string -> symbolic_string -> symbolic_os_state -> symbolic_os_state
 let symbolic_set_param x v os = internal_set_param x v os
 
