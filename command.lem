@@ -147,8 +147,11 @@ let unset_var sx s0 =
   | Nothing -> Left ("couldn't unset symbolic variable " ^ string_of_symbolic_string sx)
   | Just x ->
      let sh = get_shell_state s0 in
-     (* TODO 2018-09-04 check if x is read only *)
-     let sh' = <| sh with env = Map.delete x sh.env |> in
+     let sh' = <| sh with 
+       env = Map.delete x sh.env;
+       readonly = Set.delete x sh.readonly;
+       export = Set.delete x sh.export
+     |> in
      let s1 = set_shell_state sh' s0 in
      Right s1
   end
@@ -194,12 +197,79 @@ let builtin_unset s0 argv _env =
   let unsetter = unset_mode opts in
   unset_all unsetter argv' s0
 
+let rec show_varlist s0 cmd vs =
+  match vs with
+  | [] -> s0
+  | v::vs' ->
+     let msg = 
+       cmd ^ " " ^ v ^ 
+         match lookup_param s0 v with
+         | Just ss -> "=" ^ quote (string_of_symbolic_string ss)
+         | Nothing -> ""
+         end ^
+       "\n"
+     in
+     let s1 = write_stdout msg s0 in
+     show_varlist s1 cmd vs'
+  end
+
+val update_varlist : forall 'a. OS 'a => 
+   'a -> string -> ('a -> string -> 'a) -> 
+   list symbolic_string -> 
+   either ('a * string) ('a * stmt)
+let rec update_varlist s0 cmd update args =
+  match args with
+  | [] -> Right (s0, Done)
+  | arg::args' ->
+     let (var,mvalue) = try_split_assign arg in
+     (* first, try to set. if it's readonly, we're borked! *)
+     match mvalue with
+     | Nothing -> 
+        update_varlist (update s0 var) cmd update args'
+     | Just value ->
+        match set_param var value s0 with
+        | Left msg -> Left (s0, msg) (* var is readonly, exit early *)
+        | Right s1 -> update_varlist (update s1 var) cmd update args'
+        end
+     end
+  end
+
+let builtin_export s0 argv _env = 
+  let (opts,argv') = getopts [#'p'] argv in
+  if elem #'p' opts || null argv'
+  then (* print out current export vars *)
+    let vars = Set_extra.toOrderedList (get_shell_state s0).export in
+    Right (show_varlist s0 "export" vars, Done)
+  else (* mark export and possibly set *)
+    update_varlist 
+      s0 
+      "export" 
+      (fun os x ->
+        update_shell_state 
+          (fun sh -> <| sh with export = Set.insert x sh.export |>) 
+          os)
+      argv'
+
+let builtin_readonly s0 argv _env = 
+  let (opts,argv') = getopts [#'p'] argv in
+  if elem #'p' opts || null argv'
+  then (* print out current readonly vars *)
+    let vars = Set_extra.toOrderedList (get_shell_state s0).readonly in
+    Right (show_varlist s0 "readonly" vars, Done)
+  else (* mark readonly and possibly set *)
+    update_varlist 
+      s0 
+      "readonly" 
+      (fun os x ->
+        update_shell_state 
+          (fun sh -> <| sh with readonly = Set.insert x sh.readonly |>) 
+          os)
+      argv'
+
 (* TODO 2018-08-13 *)
 let builtin_source = builtin_unimplemented
 let builtin_eval = builtin_unimplemented
 let builtin_exec = builtin_unimplemented
-let builtin_export = builtin_unimplemented
-let builtin_readonly = builtin_unimplemented
 let builtin_set = builtin_unimplemented
 let builtin_times = builtin_unimplemented
 let builtin_trap = builtin_unimplemented
@@ -252,7 +322,7 @@ let resolve_path_mode s0 mode =
   | Physical -> 
      let pwd = physical_cwd s0 in
      let s1 = update_shell_state (fun sh -> <| sh with cwd = pwd |>) s0 in
-     (set_param "PWD" (symbolic_string_of_string pwd) s1, pwd)
+     (internal_set_param "PWD" (symbolic_string_of_string pwd) s1, pwd)
   end
 
 let builtin_pwd s0 argv _env =
@@ -358,7 +428,7 @@ let do_cd s0 mode dir =
      match res with
      | Nothing -> 
         let (s2,pwd) = resolve_path_mode s1 mode in (* sets PWD *)
-        let s3 = set_param "OLDPWD" (symbolic_string_of_string old) s2 in
+        let s3 = internal_set_param "OLDPWD" (symbolic_string_of_string old) s2 in
         let s4 = 
           if need_print
           then write_stdout (pwd ^ "\n") s3
@@ -598,7 +668,6 @@ let run_command s0 prog_name argv env =
                    let s1 = write_stderr (prog ^ ": command not found\n") s0 in
                    Right (exit_with 127 s1, Done)
                 | Just executable ->
-                   let _ = Debug.print_endline ("found " ^ executable) in
                    if isexec s0 executable
                    then 
                      let (s1,pid) = fork_and_execve 

@@ -54,11 +54,13 @@ let initialize_env s0 : real_os_state =
   let environ = System.real_environment () in
   let set (x,v) os = 
     Dash.setvar x v;
-    Os.real_set_param os x v
+    Os.real_set_param x v os
   in
   let s1 = List.fold_right set environ s0 in
-  let s2 = Os.real_set_param s1 "$" (string_of_int (Unix.getpid ())) in
-  { s2 with real_sh = { s2.real_sh with cwd = Unix.getcwd () } }
+  let s2 = Os.real_set_param "$" (string_of_int (Unix.getpid ())) s1 in
+  (* override the prompt by default *)
+  let s3 = Os.real_set_param "PS1" "$ " s2 in
+  { s3 with real_sh = { s3.real_sh with cwd = Unix.getcwd () } }
 
 let finish_up s0 =
   (* TODO 2018-08-14 trap on EXIT etc. goes here? *)

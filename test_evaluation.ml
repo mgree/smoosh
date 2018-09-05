@@ -82,6 +82,14 @@ let exit_code_tests : (string * symbolic_os_state * int) list =
   ; ("f() { exit 3 ; } ; f", os_empty, 3)
   ; ("f() { exit 3 ; } ; unset f ; f", os_empty, 3)
   ; ("f() { exit 3 ; } ; unset -f f ; f", os_empty, 127)
+
+  (* readonly *)
+  ; ("x=5 ; readonly x", os_empty, 0)
+  ; ("x=5 ; readonly x ; ! readonly x=10", os_empty, 0)
+  ; ("x=- ; ! readonly $x=derp", os_empty, 0)
+
+  (* export *)
+(*   ; ("x=- ; ! export $x=derp", os_empty, 0) *)
   ]
 
 (***********************************************************************)

@@ -508,7 +508,11 @@ let rec eval_arith bits s0 e =
                 match read (toCharList str) with
                 | Right n ->
                     match eval_arith bits s0 (BinOp o (Num n) exp) with
-                    | Right (s1, n2) -> Right (set_param s (symbolic_string_of_string (write n2)) s1, n2)
+                    | Right (s1, n2) -> 
+                       match set_param s (symbolic_string_of_string (write n2)) s1 with
+                       | Left e -> Left e
+                       | Right s2 -> Right (s2, n2)
+                       end
                     | Left e -> Left e
                     end
                 | Left e -> Left e
@@ -517,7 +521,11 @@ let rec eval_arith bits s0 e =
           end
       | Nothing ->
           match eval_arith bits s0 exp with
-          | Right (s1, n) -> Right (set_param s (symbolic_string_of_string (write n)) s1, n)
+          | Right (s1, n) -> 
+             match set_param s (symbolic_string_of_string (write n)) s1 with
+             | Left e -> Left e
+             | Right s2 -> Right (s2, n)
+             end
           | Left e -> Left e
           end
       end

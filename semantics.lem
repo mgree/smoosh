@@ -349,8 +349,10 @@ let rec expand_control s0 q k =
        end
     | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
-        let s1 = set_param s (concat_expanded f) s0 in
-        Right (ESParam "finished assignment", s1, f, [])
+       match set_param s (concat_expanded f) s0 with
+       | Left err -> Left (ESParam "bad or readonly variable", s0, ExpS err::f)
+       | Right s1 -> Right (ESParam "finished assignment", s1, f, [])
+       end
     | LAssign s f w ->
        match expand_words s0 q GeneratedString ([], w) with
        | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "assignment") step, s1, [], [K (LAssign s (f ++ f1) w1)])
@@ -606,7 +608,6 @@ and step_eval s0 stmt =
      /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
   *)
   match stmt with
-
   (* COMMAND ******************************************************************)
   | Command assigns ws redirs ->
      Right (XSSimple "begin expansion",
@@ -616,14 +617,26 @@ and step_eval s0 stmt =
               ws
               redirs)
   (* COMMAND: SPECIAL CASE: plain assignment, no command **********************)
+  (* in this case, we WANT the visibility between each assignment, so don't bother
+     with the step_assigns rigamarole below *)
   | CommandExpAssign ((x,exp_state0)::assigns) [] redirs ->
      match step_expansion (s0, exp_state0)  with
-     | (_step, s1, ExpDone f) -> Right (XSSimple ("assign " ^ x),
-                                        set_param x (symbolic_string_of_fields f) s1, CommandExpAssign assigns [] redirs)
-     | (step, s1, ExpError f) -> Right (XSExpand (XSSimple ("error in " ^ x ^ ": " ^ string_of_fields f)) step,
-                                        s1, CommandExpAssign assigns [] redirs)
-     | (step, s1, exp_state1) -> Right (XSExpand (XSSimple "") step,
-                                        s1, CommandExpAssign ((x,exp_state1)::assigns) [] redirs)
+     | (_step, s1, ExpDone f) -> 
+        match set_param x (symbolic_string_of_fields f) s1 with
+        | Left err -> Left (XSSimple err, write_stderr (err ^ "\n") s1)
+        | Right s2 ->
+           Right (XSSimple ("assign " ^ x),
+                  s2, 
+                  CommandExpAssign assigns [] redirs)
+        end
+     | (step, s1, ExpError f) -> 
+        Right (XSExpand (XSSimple ("error in " ^ x ^ ": " ^ string_of_fields f)) step,
+               s1, 
+               CommandExpAssign assigns [] redirs)
+     | (step, s1, exp_state1) -> 
+        Right (XSExpand (XSSimple "") step,
+               s1, 
+               CommandExpAssign ((x,exp_state1)::assigns) [] redirs)
      end
   | CommandExpAssign [] [] redirs ->
      (* keep on expanding, since we have to actually expand the redirects no matter what *)
@@ -667,12 +680,17 @@ and step_eval s0 stmt =
   (* COMMAND: Redirect expansion **********************************************)
   (* expansion is done, try to run command *)
   | CommandExpRedirs assigns (prog::args) (ers, Nothing, []) ->
-     (* perform assignments *)
+     (* load exported variables, perform assignments *)
      let sh = get_shell_state s0 in
+     let exported = 
+       Map_extra.mapMaybe 
+         (fun x v -> if Set.member x sh.export then Just v else Nothing)
+         sh.env
+     in
      let env = 
        foldr (fun (x,f) env' -> 
            Map.insert x (symbolic_string_of_fields f) env') 
-         sh.env assigns
+         exported assigns
      in
      (* "If the command name is a special built-in utility, variable
         assignments shall affect the current execution environment."
@@ -713,7 +731,7 @@ and step_eval s0 stmt =
      let s1 = 
        match try_concrete prog with
        | Just prog_name -> if is_special_builtin prog_name
-                           then set_shell_state <| sh with env = env |> s0
+                           then set_shell_state <| sh with env = Map.(union) env sh.env |> s0
                            else s0
        | Nothing -> s0 
        end in
@@ -736,13 +754,13 @@ and step_eval s0 stmt =
        end
      end
   (* expansion is done, but there's no command *)
-  | CommandExpRedirs assigns [] (ers, Nothing, []) ->
-     (* we have to be sure to setup redirects for side effects/file
+  | CommandExpRedirs _assigns [] (ers, Nothing, []) ->
+     (* we've already done whatever assignments above, in the special
+        case.  it remains to set up redirects for side effects/file
         creation
 
         e.g., unset x y ; x=5 >${y=3} will set x to 5, y to 3, and
-        create an empty file named 3
-      *)
+        create an empty file named 3 *)
      (* "If there is no command name, any redirections shall be
         performed in a subshell environment; it is unspecified whether
         this subshell environment is the same one as that used for a
@@ -763,11 +781,8 @@ and step_eval s0 stmt =
                fail_with msg s0, 
                Done)
      | Right (s1, saved_fds) ->
-        let s2 = 
-          foldr (fun (x,f) os -> set_param x (symbolic_string_of_fields f) os) s1 assigns
-        in
         Right (XSSimple "ran empty command", 
-               s2, 
+               s1, 
                pushredir Done saved_fds)
      end
    (* expand redirs *)
@@ -1008,10 +1023,20 @@ and step_eval s0 stmt =
                   ForExpArgs var in_progress body)
       end
   (* FOR: Special case, no items exit status is zero **************************)
-  | ForExpanded _var [] _body -> Right (XSFor "no items, exit code is 0", exit_with 0 s0, Done)
+  | ForExpanded _var [] _body ->
+     Right (XSFor "no items, exit code is 0", 
+            exit_with 0 s0, 
+            Done)
   | ForExpanded var (i::f) body ->
-      let s1 = enter_loop s0 in
-      Right (XSFor ("starting for loop with " ^ var ^ " = " ^ (string_of_symbolic_string i)), set_param var i s1, ForRunning var f body body)
+     match set_param var i s0 with
+     | Left err -> Left (XSFor err, s0)
+     | Right s1 ->
+        let s2 = enter_loop s1 in
+        Right 
+          (XSFor ("starting for loop with " ^ var ^ " = " ^ (string_of_symbolic_string i)),
+           s2, 
+           ForRunning var f body body)
+     end
   | ForRunning var f body cur ->
       match step_eval s0 cur with
       | Left e -> Left e
@@ -1023,7 +1048,8 @@ and step_eval s0 stmt =
           match f with
           | [] -> Right (XSNested (XSFor "continued at last iteration") step, exit_loop s1, Done)
           | (i::f') -> Right (XSNested (XSFor ("continuing to next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step,
-                              set_param var i s1,
+                              (* if the var name was good the first time, it's still good *)
+                              internal_set_param var i s1,
                               ForRunning var f' body body)
           end
       | Right (step, s1, Continue n) -> Right (XSNested (XSFor "continuing to outer loop") step, s1, Continue (n-1))
@@ -1031,7 +1057,7 @@ and step_eval s0 stmt =
           match f with
           | [] -> Right (XSNested (XSFor "finished last iteration") step, exit_loop s1, Done)
           | (i::f') -> Right (XSNested (XSFor ("starting next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step,
-                              set_param var i s1,
+                              internal_set_param var i s1,
                               ForRunning var f' body body)
           end
       | Right (step, s1, cur') -> Right (XSNested (XSFor "") step, s1, ForRunning var f body cur')

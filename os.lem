@@ -220,6 +220,13 @@ let lookup_positional_param num os =
   let sh = get_shell_state os in
   index sh.positional_params num
 
+val is_special_param : string -> bool
+let is_special_param x =
+  match readNat (toCharList x) with
+  | Right _ -> true
+  | Left _ -> elem x ["@"; "*"; "#"; "?"; "-"; "$"; "!"]
+  end
+
 (* The result is nothing if the parameter is unset, and the empty string if it's null. *)
 val lookup_param : forall 'a. OS 'a => 'a -> string -> maybe symbolic_string
 let lookup_param os str =
@@ -238,7 +245,8 @@ let lookup_param os str =
      Just (symbolic_string_of_fields args)
   | (Left _,"#") -> 
      let num_params = length sh.positional_params in
-     Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1)))) (* number of positional arguments excluding $0 *)
+     Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1)))) 
+     (* number of positional arguments excluding $0 *)
   | (Left _,_) -> Map.lookup str sh.env
   end
 
@@ -248,6 +256,9 @@ let lookup_concrete_param os str =
   | Nothing -> Nothing
   | Just fs -> try_concrete fs
   end
+
+val is_readonly : forall 'a. OS 'a => string -> 'a -> bool
+let is_readonly var os = Set.member var (get_shell_state os).readonly
 
 val update_shell_state : forall 'a. OS 'a => (ty_shell_state -> ty_shell_state) -> 'a -> 'a
 let update_shell_state update os =
@@ -259,9 +270,17 @@ let defun name body os = update_shell_state (fun sh -> <| sh with funcs = Map.in
 val lookup_function : forall 'a. OS 'a => string -> 'a -> maybe stmt
 let lookup_function name os = Map.lookup name (get_shell_state os).funcs
 
-val set_param : forall 'a. OS 'a => string -> symbolic_string -> 'a -> 'a
-let set_param x v os = 
+val internal_set_param : forall 'a. OS 'a => string -> symbolic_string -> 'a -> 'a
+let internal_set_param x v os = 
   update_shell_state (fun sh -> <| sh with env = Map.insert x v sh.env |>) os
+
+val set_param : forall 'a. OS 'a => string -> symbolic_string -> 'a -> either string 'a
+let set_param x v os = 
+  if is_readonly x os
+  then Left (x ^ ": is read only")
+  else if is_special_param x
+  then Left (x ^ ": is a special parameter and not a valid identifier")
+  else Right (internal_set_param x v os)
   
 val set_function_params : forall 'a. OS 'a => nat -> fields -> 'a -> 'a
 let set_function_params ln argv os =
@@ -285,7 +304,8 @@ let exit_loop os =
     (fun sh -> <| sh with loop_nest = sh.loop_nest - 1 |>) os
 
 val exit_with : forall 'a. OS 'a => nat -> 'a -> 'a
-let exit_with ec os = set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
+let exit_with ec os = 
+  internal_set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
 
 val fail_with : forall 'a. OS 'a => string -> 'a -> 'a
 let fail_with msg os = exit_with 1 (write_stderr (msg ^ "\n") os)
@@ -302,7 +322,8 @@ let get_last_exit_code os =
   end
 
 val set_last_pid : forall 'a. OS 'a => nat -> 'a -> 'a
-let set_last_pid pid os = set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
+let set_last_pid pid os = 
+  internal_set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
 
 val is_interactive : forall 'a. OS 'a => 'a -> bool
 let is_interactive os =
@@ -645,7 +666,7 @@ let rec mkfifos os0 n =
    
 (* specialized functions to avoid manual instantiation of typeclasses in OCaml *)   
 val symbolic_set_param : string -> symbolic_string -> symbolic_os_state -> symbolic_os_state
-let symbolic_set_param = set_param
+let symbolic_set_param x v os = internal_set_param x v os
 
 val symbolic_print_shell_env : symbolic_os_state -> string
 let symbolic_print_shell_env os = print_shell_env os
@@ -864,6 +885,7 @@ end
 val real_lookup_concrete_param : real_os_state -> string -> maybe string
 let real_lookup_concrete_param = lookup_concrete_param
 
-val real_set_param : real_os_state -> string -> string -> real_os_state
-let real_set_param os x v = set_param x (symbolic_string_of_string v) os
+val real_set_param : string -> string -> real_os_state -> real_os_state
+let real_set_param x v os = internal_set_param x (symbolic_string_of_string v) os
+
 

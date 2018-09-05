@@ -366,6 +366,8 @@ and ty_shell_state = <|
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
+    readonly: set string;
+    export: set string;
     funcs: funcs;                 
     cwd: string;
     locale: locale;
@@ -625,6 +627,23 @@ let rec concat_expanded w =
 
 val fields_of_expanded_words : expanded_words -> fields
 let fields_of_expanded_words w = [concat_expanded w]
+
+val split_equal : string -> symbolic_string -> string * maybe symbolic_string
+let rec split_equal var ss =
+  match ss with
+  | [] -> (var, Nothing)
+  | (C #'=')::ss' -> (var, Just ss')
+  | (C c)::ss' -> split_equal (var ^ toString [c]) ss'
+  | _ -> (var ^ string_of_symbolic_string ss, Nothing)
+  end
+
+val try_split_assign : symbolic_string -> string * maybe symbolic_string
+let try_split_assign ss = split_equal "" ss
+
+val quote : string -> string
+let rec quote s = 
+  (* TODO 2018-09-05 implement *)
+  s
                                     
 (* Number type helpers *)
 
@@ -881,6 +900,8 @@ let env_default : env = Map.insert "?" (symbolic_string_of_string "0") Map.empty
 let default_shell_state = <|
       positional_params = []; (* $0, $1, $2, $3 ... *)
       env = env_default;
+      readonly = Set.empty;
+      export = Set.empty;
       funcs = Map.empty;
       cwd = "/";
       locale = lc_ambient;
