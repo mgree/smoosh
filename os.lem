@@ -494,13 +494,18 @@ instance (OS symbolic_os_state)
   let waitpid step_eval os0 pid =
     match index os0.symbolic_procs pid with
     | Nothing -> (os0, Nothing)
-    | Just (Execve _ _ _) -> (os0, Nothing)
+    | Just (Execve _ _ _) -> 
+       (* TODO 2018-09-05 record some symbolic output/exit code *)
+       (os0, Nothing)
     | Just (Zombie ec) -> (os0, Just (Right ec))
     | Just (Shell stmt sh' fds') ->
        let os1 = <| os0 with symbolic_sh = sh'; symbolic_sh_fds = fds' |> in
        match step_eval os1 stmt with
        | Left (_step, os2) -> 
-          (os2, Just (Right 1)) (* errored, signal with code *)
+          (<| os2 with symbolic_sh = os0.symbolic_sh; 
+                       symbolic_sh_fds = os0.symbolic_sh_fds;
+                       symbolic_procs = update os2.symbolic_procs pid (Zombie 1) |>, 
+           Just (Right 1)) (* errored, signal with code *)
        | Right (_step, os2, Done) ->
           (* terminated! grab the code, update everything *)
           let ec = (* can't use get_last_exit_code because we're DEFINING the type class *)
