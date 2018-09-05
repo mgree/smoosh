@@ -16,9 +16,7 @@ let get_exit_code (os : symbolic_os_state) =
   | None -> 258
    
 let run_cmd_for_exit_code (cmd : string) (os0 : symbolic_os_state) : int =
-  Dash.setinputstring cmd;
-  let ns = Dash.parse_all () in
-  let cs = List.map Shim.of_node ns in
+  let cs = Shim.parse_string cmd in
   let os1 = Semantics.full_evaluation_multi os0 cs in
   get_exit_code os1
               

@@ -1,7 +1,8 @@
 open Ctypes
 open Foreign
 open Dash
-open Fsh
+open Fsh_prelude
+open Os
 
 let skip = Command ([],[],[])
 
@@ -271,6 +272,11 @@ and to_args (n : node union ptr) : words list =
   else (assert (n @-> node_type = 15);
         let n = n @-> node_narg in
         to_arg n::to_args (getf n narg_next))
+
+let parse_string (cmd : string) : stmt list =
+  Dash.setinputstring cmd;
+  let ns = Dash.parse_all () in
+  List.map of_node ns
 
 (************************************************************************)
 (* JSON rendering *******************************************************)

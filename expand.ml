@@ -1,5 +1,4 @@
 open Config
-open Test_prelude
 open Shim
 open Fsh
 open Semantics
@@ -31,7 +30,7 @@ let parse_entry (unescape:bool) (s:string) =
       try if unescape then Scanf.unescaped value else value
       with Scanf.Scan_failure _ -> eprintf "Environment parse error: couldn't handle escapes in %s, leaving as-is" s; value
     in
-    initial_os_state := add_literal_env_string name escaped !initial_os_state
+    initial_os_state := symbolic_set_param name (Fsh.symbolic_string_of_string escaped) !initial_os_state
   with Not_found -> eprintf "Environment parse error: couldn't find an '=' in %s" s
 
 let load_env (f:string) =

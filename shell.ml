@@ -1,5 +1,4 @@
 open Config
-open Test_prelude
 open Fsh
 open Semantics
 
