@@ -663,6 +663,7 @@ and step_eval s0 stmt =
            let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
            Right (XSSimple "error in argument expansion",
                   fail_with msg s1,
+                  (* TODO 2018-09-05 implement table 2.8.1: non-interactive shells may exit *)
                   Done)
         | ExpDone f ->
            let msg = 
@@ -739,6 +740,7 @@ and step_eval s0 stmt =
      | Left msg -> 
         Right (XSRedir "error in redirection", 
                fail_with msg s1, 
+               (* TODO 2018-09-05 implement table 2.8.1: non-interactive shells may exit *)
                Done)
      | Right (s2, saved_fds) ->
        (* run command *)
