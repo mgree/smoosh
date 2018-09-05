@@ -103,7 +103,12 @@ and redirs (n : node union ptr) =
       RFile (ty,getf n nfile_fd,to_arg (getf n nfile_fname @-> node_narg)) in
     let mk_dup ty =
       let n = n @-> node_ndup in
-      RDup (ty,getf n ndup_fd,getf n ndup_dupfd) in
+      let tgt = 
+        match getf n ndup_dupfd with
+        | -1 -> None
+        | fd -> Some fd
+      in
+      RDup (ty,getf n ndup_fd,tgt) in
     let mk_here ty =
       let n = n @-> node_nhere in
       RHeredoc (ty,getf n nhere_fd,to_arg (getf n nhere_doc @-> node_narg)) in
@@ -407,9 +412,12 @@ and json_of_redir = function
   | RFile (ty, fd, w) -> 
      Assoc [tag "File"; 
             ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_words w)]
-  | RDup (ty, src, tgt) -> 
+  | RDup (ty, src, Some tgt) -> 
      Assoc [tag "Dup";
             ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt)]
+  | RDup (ty, src, None) -> 
+     Assoc [tag "Dup";
+            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", String "-")]
   | RHeredoc (ty, src, w) -> 
      Assoc [tag "Heredoc";
             ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_words w)]
@@ -428,9 +436,12 @@ and json_of_expanded_redir = function
   | ERFile (ty, fd, f) -> 
      Assoc [tag "File"; 
             ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_fields f)]
-  | ERDup (ty, close_orig, src, tgt) -> 
+  | ERDup (ty, close_orig, src, Some tgt) -> 
      Assoc [tag "Dup";
             ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt); ("close", Bool close_orig)]
+  | ERDup (ty, close_orig, src, None) -> 
+     Assoc [tag "Dup";
+            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", String "-"); ("close", Bool close_orig)]
   | ERHeredoc (ty, src, f) -> 
      Assoc [tag "Heredoc";
             ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_fields f)]

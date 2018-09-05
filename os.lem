@@ -65,6 +65,7 @@ class ( OS 'a )
 
   val open_file_for_redir : 'a -> redir_type -> symbolic_string -> either string ('a * fd)
   val open_heredoc : 'a -> string -> either string ('a * fd)
+  val close_and_save_fd : 'a -> fd -> either string ('a * saved_fds)
   val renumber_fd : 'a -> 
                     bool (* close orig? *) -> 
                     fd (* orig *) -> 
@@ -137,7 +138,10 @@ let redirect os0 er =
      | Right (os1,new_fd) -> renumber_fd os1 true (* close *) new_fd wanted_fd
      end
   | ERFile _ _ fs -> Left ("expected single file field, got: " ^ string_of_fields fs)
-  | ERDup _ty close_orig orig_fd wanted_fd ->
+  | ERDup _ty _close_orig orig_fd Nothing ->
+     (* we're meant to close orig_fd *)
+     close_and_save_fd os0 orig_fd
+  | ERDup _ty close_orig orig_fd (Just wanted_fd) ->
      (* dash doesn't distinguish between the two types... because
         both resolve to the same dup2 call, since dup2 doesn't care
         about fd direction *)
@@ -177,7 +181,7 @@ let rec run_pipe_loop eval s0 stmts fd_prev =
        fork_and_subshell eval s0 
          (with_redirs 
             stmt 
-            [ERDup ToFD true (* close orig *) fd_prev STDIN]) in
+            [ERDup ToFD true (* close orig *) fd_prev (Just STDIN)]) in
      let s2 = close_fd s1 fd_prev in
      (s2, last_pid)
   | stmt::stmts' ->
@@ -186,8 +190,8 @@ let rec run_pipe_loop eval s0 stmts fd_prev =
        fork_and_subshell eval s1
          (with_redirs 
             (close_fd_and_then fd_next stmt) 
-            [ERDup ToFD true (* close orig *) fd_prev STDIN
-            ;ERDup ToFD true (* close orig *) fd_write STDOUT]) in
+            [ERDup ToFD true (* close orig *) fd_prev (Just STDIN)
+            ;ERDup ToFD true (* close orig *) fd_write (Just STDOUT)]) in
      let s3 = close_fd s2 fd_prev in
      let s4 = close_fd s3 fd_write in
      run_pipe_loop eval s4 stmts' fd_next
@@ -209,7 +213,7 @@ let run_pipe eval s0 stmts =
        fork_and_subshell eval s1
          (with_redirs 
             (close_fd_and_then fd_next stmt)
-            [ERDup ToFD true (* close orig *) fd_write STDOUT]) in
+            [ERDup ToFD true (* close orig *) fd_write (Just STDOUT)]) in
      let s3 = close_fd s2 fd_write in
      (* hand off to the loop *)
      run_pipe_loop eval s3 stmts' fd_next
@@ -625,6 +629,19 @@ instance (OS symbolic_os_state)
     | Just os3 -> Right (os3, fd)
     end
 
+  let close_and_save_fd os0 fd = 
+    let os1 = <| os0 with symbolic_sh_fds = Map.delete fd os0.symbolic_sh_fds |> in
+    match Map.lookup fd os0.symbolic_sh_fds with
+    | Nothing -> 
+       (* already closed, nothing to save *)
+       Right (os1, Map.empty)
+    | Just (FIFO fifo_num) ->
+       (* hold on to the FIFO number *)
+       Right (os1, Map.singleton fd (Saved fifo_num))
+    | Just (Path _path) ->
+       Left "TODO 2018-08-24 symbolic path FDs unimplemented"
+    end
+
   let renumber_fd os0 close new_fd wanted_fd = 
     if new_fd = wanted_fd
     then Right (os0, if close then Map.singleton wanted_fd Close else Map.empty)
@@ -778,6 +795,14 @@ declare ocaml target_rep function real_dup2 = `System.real_dup2`
 val real_openhere : string -> either string fd
 declare ocaml target_rep function real_openhere = `System.real_openhere`
 
+let real_close_and_save_fd os fd =
+  match real_savefd fd with
+  | Left err -> Left err
+  | Right saved_fd ->
+     let () = real_close fd in
+     Right (os, Map.singleton fd (Saved saved_fd))
+  end
+
 let real_renumber_fd os (close : bool) (new_fd : fd) (wanted_fd : fd) : either string ('a * saved_fds) =
   if new_fd = wanted_fd
   then 
@@ -878,6 +903,8 @@ instance (OS real_os_state)
     | Left err -> Left err
     | Right fd -> Right (os, fd)
     end
+
+  let close_and_save_fd = real_close_and_save_fd
 
   let renumber_fd = real_renumber_fd
 

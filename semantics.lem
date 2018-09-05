@@ -376,7 +376,7 @@ let rec expand_control s0 q k =
        let cmd = 
          pushredir 
            (* set up redirects [skipping expansion] *)
-           (with_redirs c [ERDup ToFD true (* close orig *) fd_write STDOUT])
+           (with_redirs c [ERDup ToFD true (* close orig *) fd_write (Just STDOUT)])
            (* make sure to close the pipe when we're done *)
            (Map.singleton fd_write Close)
        in

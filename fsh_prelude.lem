@@ -242,7 +242,7 @@ and stmt =
 (* TODO 2018-08-24 refactor into redir 'a with appropriate params *)
 and redir = 
    | RFile of redir_type * nat * words
-   | RDup of dup_type * nat * nat
+   | RDup of dup_type * nat * maybe nat (* Nothing if we're just closing *)
    | RHeredoc of heredoc_type * nat * words
 
 and expanding_redir =
@@ -251,7 +251,7 @@ and expanding_redir =
 
 and expanded_redir = 
    | ERFile of redir_type * nat * fields
-   | ERDup of dup_type * bool (* close_orig? *) * nat * nat
+   | ERDup of dup_type * bool (* close_orig? *) * nat * maybe nat
    | ERHeredoc of heredoc_type * nat * fields
 
 and redir_state = list expanded_redir * maybe expanding_redir * list redir
@@ -439,14 +439,6 @@ let expand_redir er f =
   match er with
   | XRFile ty src _ -> ERFile ty src f
   | XRHeredoc ty src _ -> ERHeredoc ty src f
-  end
-
-val wanted_fd_of_redir : expanded_redir -> fd
-let wanted_fd_of_redir er =
-  match er with
-  | ERFile _ fd _ -> fd
-  | ERDup _ _ _ fd -> fd
-  | ERHeredoc _ fd _ -> fd
   end
 
 (**********************************************************************)
@@ -799,8 +791,13 @@ and string_of_heredoc ty fd heredoc =
 
 and string_of_redir r = 
   match r with
-  | RFile ty fd a   ->  string_of_rfile ty fd ^ string_of_words a
-  | RDup ty fd tgt  ->  string_of_rdup ty fd ^ stringFromNat tgt
+  | RFile ty fd a    -> string_of_rfile ty fd ^ string_of_words a
+  | RDup ty fd tgt   -> 
+     string_of_rdup ty fd ^ 
+       match tgt with
+       | Nothing -> "-"
+       | Just fd_tgt -> stringFromNat fd_tgt
+       end
   | RHeredoc ty fd a -> string_of_heredoc ty fd (string_of_words a)
   end 
 
@@ -816,7 +813,12 @@ and string_of_expanding_redir exp_redir =
 and string_of_expanded_redir er =
   match er with
   | ERFile ty fd a   ->  string_of_rfile ty fd ^ string_of_fields a
-  | ERDup ty _close_orig fd tgt  ->  string_of_rdup ty fd ^ stringFromNat tgt
+  | ERDup ty _close_orig fd tgt  -> 
+     string_of_rdup ty fd ^ 
+       match tgt with
+       | Nothing -> "-"
+       | Just fd_tgt -> stringFromNat fd_tgt
+       end
   | ERHeredoc ty fd a -> string_of_heredoc ty fd (string_of_fields a)
   end 
 
