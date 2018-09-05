@@ -276,7 +276,9 @@ and to_args (n : node union ptr) : words list =
 let parse_string (cmd : string) : stmt list =
   Dash.setinputstring cmd;
   let ns = Dash.parse_all () in
-  List.map of_node ns
+  let stmts = List.map of_node ns in
+  Dash.popfile ();
+  stmts
 
 (************************************************************************)
 (* JSON rendering *******************************************************)

@@ -602,7 +602,7 @@ let rec string_of_fields fs =
   match fs with
   | [] -> ""
   | [f] -> string_of_symbolic_string f
-  | f::fs' -> string_of_symbolic_string f ^ "<<FB>>" ^ string_of_fields fs'
+  | f::fs' -> string_of_symbolic_string f ^ " " ^ string_of_fields fs'
   end
 
 val concat_expanded : expanded_words -> symbolic_string
