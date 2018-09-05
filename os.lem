@@ -33,8 +33,8 @@ val dotdot : path -> path
 let dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
 
 class ( OS 'a )
-  val get_shell_state : 'a -> ty_shell_state
-  val set_shell_state : ty_shell_state -> 'a -> 'a
+  val get_shell_state : 'a -> shell_state
+  val set_shell_state : shell_state -> 'a -> 'a
 
   (* SYSTEM CALLS *)
   val getpwnam : 'a -> string -> maybe string
@@ -268,7 +268,7 @@ let lookup_concrete_param os str =
 val is_readonly : forall 'a. OS 'a => string -> 'a -> bool
 let is_readonly var os = Set.member var (get_shell_state os).readonly
 
-val update_shell_state : forall 'a. OS 'a => (ty_shell_state -> ty_shell_state) -> 'a -> 'a
+val update_shell_state : forall 'a. OS 'a => (shell_state -> shell_state) -> 'a -> 'a
 let update_shell_state update os =
   set_shell_state (update (get_shell_state os)) os
    
@@ -409,12 +409,12 @@ type fifo = string
           
 and proc =
     Execve of symbolic_string (* command *) * list symbolic_string (* args *) * env
-  | Shell of stmt * ty_shell_state * fds
+  | Shell of stmt * shell_state * fds
   | Zombie of nat (* exit code *)
 
 and symbolic_os_state = <|
     symbolic_passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
-    symbolic_sh: ty_shell_state;
+    symbolic_sh: shell_state;
     symbolic_sh_fds: fds;
     symbolic_fs_root: fs;
     symbolic_fifos: list fifo;
@@ -710,7 +710,7 @@ let symbolic_print_shell_env os = print_shell_env os
 (* REAL OS STATE INSTANCE *********************************************)
 (**********************************************************************)
 
-type real_os_state = <| real_sh: ty_shell_state |>
+type real_os_state = <| real_sh: shell_state |>
 
 let force_concrete ss =
   match try_concrete ss with

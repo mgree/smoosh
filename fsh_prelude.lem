@@ -362,7 +362,7 @@ and env = Map.map string symbolic_string
 (* function definitions *)
 and funcs = Map.map string stmt        
 
-and ty_shell_state = <|
+and shell_state = <|
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
@@ -384,7 +384,6 @@ let STDERR = 2
 (**********************************************************************)
 (* AST HELPERS/SMART CONSTRUCTORS *************************************)
 (**********************************************************************)
-
 
 val pushredir : stmt -> saved_fds -> stmt
 let pushredir stmt saved_fds =

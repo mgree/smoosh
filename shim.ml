@@ -629,7 +629,7 @@ and json_of_trace t = List (List.map json_of_evaluation_trace_entry t)
 and json_of_env (env:(string, symbolic_string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))
 
-and json_of_shell_state (sh:ty_shell_state) : json = 
+and json_of_shell_state (sh:shell_state) : json = 
   Assoc [("env", json_of_env sh.env);
          ("cwd", String sh.cwd);
          ("locale", String sh.locale.name)]
