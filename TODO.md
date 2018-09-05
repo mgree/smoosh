@@ -2,13 +2,13 @@
 
 - pipes and redirects
   + write more tests
-  
+- eval/.
+  + properly handle errors in the dash parser (fork lib, etc.)
+  + write more tests
+    
 - special built-ins
   + trap
     need to add trip listing to the shell representation
-  + eval (call parser)
-    need to properly handle errors in parser
-  + . a/k/a source
   + exec
 - other built-ins
 - special variables and shell flags
@@ -28,8 +28,6 @@
 
 - expansion: make null more explicit... simplify matches?
 
-- parse errors break our libdash shim
-
 - symbolic pathname expansion
 
 - mark symbolic OS changes/unspecified states/unsoundness and move on
@@ -37,7 +35,6 @@
 ### Long-term
 
 - refactor shell state so that OS is subsidiary, keep common in common
-  tricky: shell states need to show up for subshells in LBacktick, forces parameter through :(
 - refactor semantics.lem to use is_terminating_control
     don't immediately step! Break _n -> Done
   follow dash on break/continue behavior

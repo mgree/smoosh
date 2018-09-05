@@ -87,7 +87,14 @@ let exit_code_tests : (string * symbolic_os_state * int) list =
   ; ("x=- ; ! readonly $x=derp", os_empty, 0)
 
   (* export *)
-(*   ; ("x=- ; ! export $x=derp", os_empty, 0) *)
+  ; ("x=- ; ! export $x=derp", os_empty, 0)
+
+  (* eval *)
+  ; ("eval exit 0", os_empty, 0)
+  ; ("eval exit 1", os_empty, 1)
+  ; ("! ( eval exit 1 )", os_empty, 0)
+  ; ("! eval exit 1", os_empty, 1)
+  ; ("! eval exit 47", os_empty, 47)
   ]
 
 (***********************************************************************)

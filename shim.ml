@@ -280,6 +280,13 @@ let parse_string (cmd : string) : stmt list =
   Dash.popfile ();
   stmts
 
+let parse_file (file : string) : stmt list =
+  Dash.setinputfile ~push:true file;
+  let ns = Dash.parse_all () in
+  let stmts = List.map of_node ns in
+  Dash.popfile ();
+  stmts
+
 (************************************************************************)
 (* JSON rendering *******************************************************)
 (************************************************************************)

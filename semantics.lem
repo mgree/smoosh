@@ -1210,7 +1210,7 @@ and step_eval s0 stmt =
   | Return -> Right (XSSimple "return bottomed out", s0, Done)
   | Exit -> 
      (* TODO 2018-03-02 handle traps *)
-     Right (XSSimple "exited", s0, Done)
+     Right (XSSimple "exited", exit s0, Done)
   | Done -> Right (XSSimple "", s0, Done)
   end
 
@@ -1219,6 +1219,7 @@ and step_eval s0 stmt =
 and full_evaluation os0 stmt0 =
   match stmt0 with
   | Done -> os0
+  | Exit -> exit os0
   | _ -> match step_eval os0 stmt0 with
          | Right (_step, os1, stmt1) -> full_evaluation os1 stmt1
          | Left (_step, os1) -> os1

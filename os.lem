@@ -43,10 +43,11 @@ class ( OS 'a )
     (* need to be passed eval to close the recursive knot for the real OS *)
     ('a -> stmt -> nat) ->
     'a -> stmt -> 'a * nat
+  val exit : 'a -> 'a
   val waitpid : 
     (* need to be passed step_eval to close recursive knot for the symbolic OS *)
     ('a -> stmt -> either (evaluation_step * 'a) (evaluation_step * 'a * stmt)) ->
-    'a -> nat -> 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))
+    'a -> nat -> 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
   val times : 'a -> 
               (string (* utime *)            * string (* stime *) * 
                string (* utime + children *) * string (* stime + children *))
@@ -417,7 +418,8 @@ and symbolic_os_state = <|
     symbolic_sh_fds: fds;
     symbolic_fs_root: fs;
     symbolic_fifos: list fifo;
-    symbolic_procs: list proc
+    symbolic_procs: list proc;
+    symbolic_exited: bool
   |>
     
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
@@ -436,7 +438,8 @@ let os_empty : symbolic_os_state = <|
                      ;"" (* STDOUT *)
                      ;"" (* STDERR *)
                      ];
-    symbolic_procs = []
+    symbolic_procs = [];
+    symbolic_exited = false
  |>
   
 (**********************************************************************)
@@ -497,6 +500,8 @@ instance (OS symbolic_os_state)
     let proc_num = length os.symbolic_procs in
     (<| os with symbolic_procs = os.symbolic_procs ++ [Shell stmt os.symbolic_sh os.symbolic_sh_fds] |>, 
      proc_num)
+
+  let exit os = <| os with symbolic_exited = true |>
 
   let waitpid step_eval os0 pid =
     match index os0.symbolic_procs pid with
@@ -730,6 +735,9 @@ declare ocaml target_rep function real_fork_and_call = `System.real_fork_and_cal
 val real_waitpid : nat -> nat
 declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 
+val real_exit : forall 'a. nat -> 'a
+declare ocaml target_rep function real_exit = `exit`
+
 val real_times : unit -> string * string * string * string
 declare ocaml target_rep function real_times = `System.real_times`
 
@@ -882,6 +890,22 @@ instance (OS real_os_state)
   let pipe os =
     let (fd_read, fd_write) = real_pipe () in
     (os, fd_read, fd_write)
+
+  let exit os =
+    let ec = 
+      match Map.lookup "?" os.real_sh.env with
+      | Nothing -> 127
+      | Just ss -> 
+         match try_concrete ss with
+         | Nothing -> 128
+         | Just s -> 
+            match readNat (toCharList s) with
+            | Right n -> n
+            | Left _err -> 2
+            end
+         end
+      end in
+    real_exit ec
 
   let waitpid _step_eval os pid =
     let code = real_waitpid pid in

@@ -26,6 +26,19 @@ let is_unspecified_utility s =
        
 let builtin_unimplemented s0 _argv _env = Left (s0,"unimplemented")
 
+val resolve_path_with : (path -> bool) -> list path -> string -> maybe path
+let rec resolve_path_with ok path name = 
+  let attempt altered path' = 
+     if ok altered
+     then Just altered
+     else resolve_path_with ok path' name
+  in
+  match path with
+  | [] -> Nothing
+  | ""::path' -> attempt ("./" ^ name) path' (* 'legacy feature' in PATH per 8.3 *)
+  | pwd::path' -> attempt (join_path pwd name) path'
+  end
+
 val getopt : list char -> fields -> maybe (maybe char * fields)
 let rec getopt opts fields =
   match fields with
@@ -99,7 +112,7 @@ let builtin_exit s0 argv _env =
   | [] -> Right (s0,Exit) (* default to exit code of last command *)
   | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
            | Right n -> 
-              if n < 1 || n > 255
+              if n < 0 || n > 255
               then Left (s0,"exit: " ^ write n ^ ": illegal number")
               else Right (exit_with (toNat n) s0,Exit)
            | Left _ -> Left (s0,"exit: " ^ string_of_symbolic_string s ^ ": numeric argument required")
@@ -273,15 +286,44 @@ let builtin_times s0 _argv _env =
 val parse_string : string -> list stmt
 declare ocaml target_rep function parse_string = `Shim.parse_string`
 
+val parse_file : path -> list stmt
+declare ocaml target_rep function parse_file = `Shim.parse_file`
+
 let builtin_eval s0 argv _env = 
   if null argv
   then Right (exit_with 0 s0, Done)
   else 
     let stmts = parse_string (string_of_fields argv) in
+    (* TODO 2018-09-05 won't do the right thing for, e.g., alias *)
     Right (s0, foldr Semi (Command [] [] []) stmts)
 
+let builtin_source s0 argv _env = 
+  match argv with
+  | [] -> Left (s0, ".: usage: . filename")
+  | sfile::_ ->
+     match try_concrete sfile with
+     | Nothing -> 
+        Left (s0, ".: couldn't handle symbolic argument " ^ string_of_symbolic_string sfile)
+     | Just file ->
+        let path = 
+          if elem #'/' (toCharList file)
+          then file
+          else match lookup_concrete_param s0 "PATH" with
+               | Nothing -> file
+               | Just pathvar -> 
+                  let paths = split_string_on true (* escapable *) #':' pathvar in
+                  match resolve_path_with (file_exists s0) paths file with
+                  | Nothing -> file
+                  | Just path -> path
+                  end
+               end in
+        let stmts = parse_file path in
+        (* TODO 2018-09-05 won't do the right thing for, e.g., alias *)
+        Right (s0, foldr Semi (Command [] [] []) stmts)
+     end
+  end
+
 (* TODO 2018-08-13 *)
-let builtin_source = builtin_unimplemented
 let builtin_exec = builtin_unimplemented
 let builtin_set = builtin_unimplemented
 let builtin_trap = builtin_unimplemented
@@ -360,19 +402,6 @@ let builtin_echo s0 argv _env =
   let s1 = write_many_stdout ss s0 in
   let s2 = write_stdout terminator s1 in
   Right (exit_with 0 s2, Done)
-
-val resolve_path_with : (path -> bool) -> list path -> string -> maybe path
-let rec resolve_path_with ok path name = 
-  let attempt altered path' = 
-     if ok altered
-     then Just altered
-     else resolve_path_with ok path' name
-  in
-  match path with
-  | [] -> Nothing
-  | ""::path' -> attempt ("./" ^ name) path' (* 'legacy feature' in PATH per 8.3 *)
-  | pwd::path' -> attempt (join_path pwd name) path'
-  end
 
 let do_cd s0 mode dir =   
   let (curpath,need_print) =
