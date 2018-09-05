@@ -32,6 +32,18 @@ let rec real_waitpid (pid : int) : int =
   | (_,Unix.WSTOPPED signal) -> 146 (* bash, dash behavior *)
   with Unix.Unix_error(EINTR,_,_) -> real_waitpid pid (* actually keep waiting *)
 
+let show_time time =
+  let mins = time /. 60.0 in
+  let secs = mod_float time 60.0 in
+  Printf.sprintf "%dm%fs" (int_of_float mins) secs
+
+let real_times () : string * string * string * string =
+  let ptimes = Unix.times () in
+  (show_time ptimes.tms_utime,
+   show_time ptimes.tms_stime,
+   show_time ptimes.tms_cutime,
+   show_time ptimes.tms_cstime)
+
 let real_exists (path : string) : bool = Sys.file_exists path
 
 let real_isexec (path : string) : bool =

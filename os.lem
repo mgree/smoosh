@@ -47,6 +47,9 @@ class ( OS 'a )
     (* need to be passed step_eval to close recursive knot for the symbolic OS *)
     ('a -> stmt -> either (evaluation_step * 'a) (evaluation_step * 'a * stmt)) ->
     'a -> nat -> 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))
+  val times : 'a -> 
+              (string (* utime *)            * string (* stime *) * 
+               string (* utime + children *) * string (* stime + children *))
 
   (* FS CALLS *)
   val physical_cwd : 'a -> string
@@ -536,6 +539,8 @@ instance (OS symbolic_os_state)
        end
     end
 
+  let times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
+
   let readdir os path =
     (* TODO 2018-08-21 will be buggy on non-absolute paths *)
     match symbolic_fs_resolve_dir os.symbolic_fs_root path with
@@ -705,6 +710,9 @@ declare ocaml target_rep function real_fork_and_call = `System.real_fork_and_cal
 val real_waitpid : nat -> nat
 declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 
+val real_times : unit -> string * string * string * string
+declare ocaml target_rep function real_times = `System.real_times`
+
 val real_physical_cwd : unit -> string
 declare ocaml target_rep function real_physical_cwd = `Unix.getcwd`
 
@@ -850,6 +858,8 @@ instance (OS real_os_state)
   let waitpid _step_eval os pid =
     let code = real_waitpid pid in
     (os, Just (Right code))
+
+  let times _os = real_times ()
 
   let open_file_for_redir os ty sfile =
     match try_concrete sfile with
