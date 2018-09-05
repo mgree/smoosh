@@ -1,14 +1,16 @@
 ### Last of the shell semantics
 
+- test differentiating $* and $@
 - pipes and redirects
   + write more tests
 - eval/.
-  + properly handle errors in the dash parser (fork lib, etc.)
+  + properly handle errors in the dash parser 
+    (fork lib: setjmp before parsing, longjmp on error, return appropriate value)
   + write more tests
     
 - special built-ins
   + trap
-    need to add trip listing to the shell representation
+    need to add trap listing to the shell representation
   + exec
 - other built-ins
 - special variables and shell flags
@@ -99,3 +101,5 @@ Dash
   - Are EXP_VARTILDE and EXP_VARTILDE2 necessary? 
     it seems to me that the parser is properly separating things out...
     test it!
+
+  - seems like timescmd is implemented incorrectly, printing out wrong numbers

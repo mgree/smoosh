@@ -96,6 +96,19 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   ; ("! ( eval exit 1 )", os_empty, 0)
   ; ("! eval exit 1", os_empty, 1)
   ; ("! eval exit 47", os_empty, 47)
+
+  (* function calls *)
+  ; ("g() { exit 5 ; } ; h() { exit 6 ; } ; i() { $1 ; exit 7 ; } ; i g", os_empty, 5)
+  ; ("g() { exit 5 ; } ; h() { exit 6 ; } ; i() { $1 ; exit 7 ; } ; i h", os_empty, 6)
+  ; ("g() { exit 5 ; } ; h() { exit 6 ; } ; i() { $1 ; exit 7 ; } ; i :", os_empty, 7)
+
+  (* $# *)
+  ; ("f() { exit $# ; } ; f", os_empty, 0)
+  ; ("f() { exit $# ; } ; f a", os_empty, 1)
+  ; ("f() { exit $# ; } ; f a b", os_empty, 2)
+  ; ("f() { exit $# ; } ; f a b c", os_empty, 3)
+  ; ("f() { $@ ; } ; f exit 12", os_empty, 12)
+  ; ("f() { $* ; } ; f exit 12", os_empty, 12)
   ]
 
 (***********************************************************************)

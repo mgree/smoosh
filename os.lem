@@ -236,32 +236,40 @@ let is_special_param x =
   end
 
 (* The result is nothing if the parameter is unset, and the empty string if it's null. *)
-val lookup_param : forall 'a. OS 'a => os_state 'a -> string -> maybe symbolic_string
-let lookup_param os str =
+val lookup_nonat_param : forall 'a. OS 'a => os_state 'a -> string -> maybe symbolic_string
+let lookup_nonat_param os str =
   match (readNat (toCharList str),str) with
   | (Right num,_) -> lookup_positional_param num os
-  | (Left _,"@") ->
-     (* TODO 2018-08-31 need to change lookup_param to return fields for this case *)
-     Just (symbolic_string_of_string "TODO 2018-03-02")
+  | (Left _,"@") -> Nothing (* specifically excluded! *)
   | (Left _,"*") -> 
-     let args = 
-       match os.sh.positional_params with
-       | [] -> []
-       | _::params -> params
-       end in
-     Just (symbolic_string_of_fields args)
+     match os.sh.positional_params with
+     | [] -> Just []
+     | _::params -> Just (symbolic_string_of_fields params)
+     end
   | (Left _,"#") -> 
      let num_params = length os.sh.positional_params in
-     Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1)))) 
+     Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1))))
      (* number of positional arguments excluding $0 *)
   | (Left _,_) -> Map.lookup str os.sh.env
   end
+
+val lookup_param : forall 'a. OS 'a => os_state 'a -> string -> maybe fields
+let lookup_param os str =
+  if str = "@"
+  then match os.sh.positional_params with
+       | [] -> Just []
+       | _::params -> Just params
+       end
+  else match lookup_nonat_param os str with
+       | Nothing -> Nothing
+       | Just v -> Just [v]
+       end
 
 val lookup_concrete_param : forall 'a. OS 'a => os_state 'a -> string -> maybe string
 let lookup_concrete_param os str =
   match lookup_param os str with
   | Nothing -> Nothing
-  | Just fs -> try_concrete fs
+  | Just fs -> try_concrete_fields fs
   end
 
 val is_readonly : forall 'a. OS 'a => string -> os_state 'a -> bool

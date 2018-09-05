@@ -213,7 +213,7 @@ let rec show_varlist s0 cmd vs =
      let msg = 
        cmd ^ " " ^ v ^ 
          match lookup_param s0 v with
-         | Just ss -> "=" ^ quote (string_of_symbolic_string ss)
+         | Just ss -> "=" ^ quote (string_of_fields ss)
          | Nothing -> ""
          end ^
        "\n"

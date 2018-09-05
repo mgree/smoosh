@@ -110,7 +110,7 @@ let rec split_word ifs p =
   end
 
 let split_fields s0 exp_words =
-  let ifs = lookup_param s0 "IFS" in
+  let ifs = lookup_nonat_param s0 "IFS" in
   let (f, _) = match ifs with
     | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
     | Just fs -> 
@@ -258,41 +258,41 @@ let expand_param s0 _q str f =
   match (value, f) with
   (* NORMAL *)
   | (Nothing, Normal)     -> [S ""] (* null *)
-  | (Just fs, Normal)     -> words_of_symbolic_string fs
+  | (Just fs, Normal)     -> words_of_fields fs
   (* DEFAULT *)
   | (Nothing, Default w)  -> w
-  | (Just fs, Default _)  -> words_of_symbolic_string fs
+  | (Just fs, Default _)  -> words_of_fields fs
   | (Nothing, NDefault w) -> w
   | (Just fs, NDefault w) ->
-     match null_string fs with
-     | Nothing -> words_of_symbolic_string fs
+     match null_fields fs with
+     | Nothing -> words_of_fields fs
      | Just true -> w
-     | Just false -> words_of_symbolic_string fs
+     | Just false -> words_of_fields fs
      end
   (* ASSIGN *)
   | (Nothing, Assign w)  -> [K (LAssign str [] w)]
-  | (Just fs, Assign _)  -> words_of_symbolic_string fs       
+  | (Just fs, Assign _)  -> words_of_fields fs       
   | (Nothing, NAssign w) -> [K (LAssign str [] w)]
   | (Just fs, NAssign w) -> 
-     match null_string fs with
-     | Nothing -> words_of_symbolic_string fs
+     match null_fields fs with
+     | Nothing -> words_of_fields fs
      | Just true -> [K (LAssign str [] w)]
-     | Just false -> words_of_symbolic_string fs
+     | Just false -> words_of_fields fs
      end
   (* ERROR *)
   | (Nothing, Error w)  -> [K (LError str [] w)]
-  | (Just fs, Error _)  -> words_of_symbolic_string fs
+  | (Just fs, Error _)  -> words_of_fields fs
   | (Nothing, NError w) -> [K (LError str [] w)]
   | (Just fs, NError w) -> 
-     match null_string fs with
-     | Nothing -> words_of_symbolic_string fs
+     match null_fields fs with
+     | Nothing -> words_of_fields fs
      | Just true -> [K (LError str [] w)]
-     | Just false -> words_of_symbolic_string fs
+     | Just false -> words_of_fields fs
      end
   (* LENGTH *)
   | (Nothing, Length) -> [S "0"]
   | (Just fs, Length) ->
-     match try_concrete fs with
+     match try_concrete_fields fs with
      | Nothing -> (* TODO This should be the length of the symbolic result of fs *) [S "0"]
      | Just strs -> [S (show (stringLength strs))]
      end
@@ -301,14 +301,14 @@ let expand_param s0 _q str f =
   | (Just _, Alt w)  -> w
   | (Nothing, NAlt _) -> [S ""]
   | (Just fs, NAlt w) ->
-     match null_string fs with
-     | Nothing -> words_of_symbolic_string fs
+     match null_fields fs with
+     | Nothing -> words_of_fields fs
      | Just true -> [S ""]
      | Just false -> w
      end
   (* SUBTRINGS (prefix/suffix) *)
   | (Nothing, Substring _ _ _) -> [S ""]
-  | (Just fs, Substring s m w) -> [K (LMatch [fs] s m [] w)]
+  | (Just fs, Substring s m w) -> [K (LMatch fs s m [] w)]
   end
 
 let rec expand_control s0 q k =

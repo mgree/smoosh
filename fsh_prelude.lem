@@ -560,13 +560,14 @@ val try_concrete_fields : fields -> maybe string
 let rec try_concrete_fields fs =
   match fs with
   | [] -> Just ""
+  | [ss] -> try_concrete ss
   | ss::fs' ->
      match try_concrete ss with
      | Nothing -> Nothing
      | Just s -> 
         match try_concrete_fields fs' with
         | Nothing -> Nothing
-        | Just s' -> Just (s ^ s')
+        | Just s' -> Just (s ^ " " ^ s')
         end
      end
   end       
