@@ -34,7 +34,6 @@
 
 ### Long-term
 
-- refactor shell state so that OS is subsidiary, keep common in common
 - refactor semantics.lem to use is_terminating_control
     don't immediately step! Break _n -> Done
   follow dash on break/continue behavior

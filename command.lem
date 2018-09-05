@@ -3,11 +3,11 @@ open import Fsh
 import Debug
 
 val run_command : forall 'a. OS 'a => 
-                  'a -> 
+                  os_state 'a -> 
                   symbolic_string (* prog *) -> 
                   fields (* argv *) ->
                   env ->
-                  either ('a * string) ('a * stmt)
+                  either (os_state 'a * string) (os_state 'a * stmt)
    
 val is_special_builtin : string -> bool
 let is_special_builtin s =
@@ -144,40 +144,36 @@ let builtin_shift s0 argv _env =
   match n with
   | Left err -> Left (s0,err)
   | Right n -> 
-     if n >= length (get_shell_state s0).positional_params
+     if n >= length s0.sh.positional_params
      then Left (exit_with 1 s0, "shift: can't shift that many")
      else
        let s1 = 
-         update_shell_state 
-           (fun sh -> <| sh with positional_params = drop n sh.positional_params |>)
-           s0 in
+         <| s0 with sh = 
+            <| s0.sh with positional_params = drop n s0.sh.positional_params |> |>
+       in
        Right (exit_with 0 s1, Done)
   end
 
-val unset_var : forall 'a. OS 'a => symbolic_string -> 'a -> either string 'a
+val unset_var : 
+  forall 'a. OS 'a => symbolic_string -> os_state 'a -> either string (os_state 'a)
 let unset_var sx s0 =
   match try_concrete sx with
   | Nothing -> Left ("couldn't unset symbolic variable " ^ string_of_symbolic_string sx)
   | Just x ->
-     let sh = get_shell_state s0 in
-     let sh' = <| sh with 
-       env = Map.delete x sh.env;
-       readonly = Set.delete x sh.readonly;
-       export = Set.delete x sh.export
-     |> in
-     let s1 = set_shell_state sh' s0 in
-     Right s1
+     Right <| s0 with sh = <| s0.sh with 
+                                env = Map.delete x s0.sh.env;
+                                readonly = Set.delete x s0.sh.readonly;
+                                export = Set.delete x s0.sh.export
+                           |> |>
   end
 
-val unset_fun : forall 'a. OS 'a => symbolic_string -> 'a -> either string 'a
+val unset_fun : 
+  forall 'a. OS 'a => symbolic_string -> (os_state 'a) -> either string (os_state 'a)
 let unset_fun sx s0 =
   match try_concrete sx with
   | Nothing -> Left ("couldn't unset symbolic function " ^ string_of_symbolic_string sx)
   | Just x ->
-     let sh = get_shell_state s0 in
-     let sh' = <| sh with funcs = Map.delete x sh.funcs |> in
-     let s1 = set_shell_state sh' s0 in
-     Right s1
+     Right <| s0 with sh = <| s0.sh with funcs = Map.delete x s0.sh.funcs |> |>
   end
 
 let rec unset_mode opts =
@@ -189,10 +185,10 @@ let rec unset_mode opts =
   end 
 
 val unset_all : forall 'a. OS 'a =>
-                  (symbolic_string -> 'a -> either string 'a) ->
+                  (symbolic_string -> os_state 'a -> either string (os_state 'a)) ->
                   list symbolic_string ->
-                  'a ->
-                  either ('a * string) ('a * stmt)
+                  os_state 'a ->
+                  either (os_state 'a * string) (os_state 'a * stmt)
 let rec unset_all unsetter names s0 =
   match names with
   | [] -> Right (exit_with 0 s0, Done)
@@ -227,9 +223,9 @@ let rec show_varlist s0 cmd vs =
   end
 
 val update_varlist : forall 'a. OS 'a => 
-   'a -> string -> ('a -> string -> 'a) -> 
+   os_state 'a -> string -> (os_state 'a -> string -> os_state 'a) -> 
    list symbolic_string -> 
-   either ('a * string) ('a * stmt)
+   either (os_state 'a * string) (os_state 'a * stmt)
 let rec update_varlist s0 cmd update args =
   match args with
   | [] -> Right (s0, Done)
@@ -251,32 +247,28 @@ let builtin_export s0 argv _env =
   let (opts,argv') = getopts [#'p'] argv in
   if elem #'p' opts || null argv'
   then (* print out current export vars *)
-    let vars = Set_extra.toOrderedList (get_shell_state s0).export in
+    let vars = Set_extra.toOrderedList s0.sh.export in
     Right (show_varlist s0 "export" vars, Done)
   else (* mark export and possibly set *)
     update_varlist 
       s0 
       "export" 
       (fun os x ->
-        update_shell_state 
-          (fun sh -> <| sh with export = Set.insert x sh.export |>) 
-          os)
+        <| os with sh = <| os.sh with export = Set.insert x os.sh.export |> |>)
       argv'
 
 let builtin_readonly s0 argv _env = 
   let (opts,argv') = getopts [#'p'] argv in
   if elem #'p' opts || null argv'
   then (* print out current readonly vars *)
-    let vars = Set_extra.toOrderedList (get_shell_state s0).readonly in
+    let vars = Set_extra.toOrderedList s0.sh.readonly in
     Right (show_varlist s0 "readonly" vars, Done)
   else (* mark readonly and possibly set *)
     update_varlist 
       s0 
       "readonly" 
       (fun os x ->
-        update_shell_state 
-          (fun sh -> <| sh with readonly = Set.insert x sh.readonly |>) 
-          os)
+        <| os with sh = <| os.sh with readonly = Set.insert x os.sh.readonly |> |>)
       argv'
 
 let builtin_times s0 _argv _env = 
@@ -330,7 +322,9 @@ let builtin_trap = builtin_unimplemented
    
 val special_builtins :
   forall 'a. OS 'a =>
-    Map.map string ('a -> fields (* argv *) -> env -> either ('a * string) ('a * stmt))
+    Map.map string 
+      (os_state 'a -> fields (* argv *) -> env -> 
+       either (os_state 'a * string) (os_state 'a * stmt))
 let special_builtins =  
   Map.fromList
     [ (".", builtin_source)
@@ -369,13 +363,13 @@ let rec path_mode opts =
   | _::opts -> path_mode opts
   end 
 
-val resolve_path_mode : forall 'a. OS 'a => 'a -> path_mode -> 'a * string
+val resolve_path_mode : forall 'a. OS 'a => os_state 'a -> path_mode -> os_state 'a * string
 let resolve_path_mode s0 mode =
   match mode with
-  | Link -> (s0, (get_shell_state s0).cwd)
+  | Link -> (s0, s0.sh.cwd)
   | Physical -> 
      let pwd = physical_cwd s0 in
-     let s1 = update_shell_state (fun sh -> <| sh with cwd = pwd |>) s0 in
+     let s1 = <| s0 with sh = <| s0.sh with cwd = pwd |> |> in
      (internal_set_param "PWD" (symbolic_string_of_string pwd) s1, pwd)
   end
 
@@ -453,9 +447,7 @@ let do_cd s0 mode dir =
        let curpath'' = 
          if first_is_slash curpath
          then curpath 
-         else 
-           let pwd = (get_shell_state s0).cwd in
-           join_path pwd curpath in
+         else join_path s0.sh.cwd curpath in
        (* 8. The curpath value shall then be converted to canonical form
           as follows, considering each component from beginning to end,
           in sequence: ... *)
@@ -464,7 +456,7 @@ let do_cd s0 mode dir =
   match curpath' with
   | Nothing -> Left (s0, "illegal path " ^ curpath)
   | Just curpath'' ->
-     let old = (get_shell_state s0).cwd in
+     let old = s0.sh.cwd in
      let (s1,res) = chdir s0 curpath'' in
      match res with
      | Nothing -> 
@@ -539,7 +531,9 @@ let builtin_wait = builtin_unimplemented
   
 val builtins :
   forall 'a. OS 'a =>
-    Map.map string ('a -> fields (* argv *) -> env -> either ('a * string) ('a * stmt))
+    Map.map string 
+      (os_state 'a -> fields (* argv *) -> env -> 
+       either (os_state 'a * string) (os_state 'a * stmt))
 let builtins =
   Map.fromList
     [ ("[", builtin_test)
@@ -590,9 +584,8 @@ let run_command s0 prog_name argv env =
              search in step 1e. *)
           match lookup_function prog s0 with
           | Just body ->
-             let sh = get_shell_state s0 in
              Right (set_function_params 0 argv s0,
-                    Call sh.loop_nest sh.positional_params prog body body)
+                    Call s0.sh.loop_nest s0.sh.positional_params prog body body)
           | Nothing -> 
              (* 1d. If the command name matches the name [XSI] [Option
                 Start] of the type or ulimit utility, or [Option End]

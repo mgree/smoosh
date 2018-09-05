@@ -25,32 +25,34 @@ type redir_exp_result 'a =
   | REStep of expansion_step * 'a * expanding_redir
 
 val expand_control : forall 'a. OS 'a => 
-                     'a -> quoting_mode -> control ->
-                     either (expansion_step * 'a * expanded_words) 
-                            (expansion_step * 'a * expanded_words * words) 
+                     os_state 'a -> quoting_mode -> control ->
+                     either (expansion_step * os_state 'a * expanded_words) 
+                            (expansion_step * os_state 'a * expanded_words * words) 
 val expand_words : forall 'a. OS 'a => 
-                   'a -> quoting_mode -> string_mode -> (expanded_words * words) ->
-                   either (expansion_step * 'a * expanded_words) 
-                          (expansion_step * 'a * expanded_words * words) 
+                   os_state 'a -> quoting_mode -> string_mode -> (expanded_words * words) ->
+                   either (expansion_step * os_state 'a * expanded_words) 
+                          (expansion_step * os_state 'a * expanded_words * words) 
 val step_expansion : forall 'a. OS 'a =>
-                     'a * expansion_state -> 
-                     expansion_step * 'a * expansion_state 
-val step_redir : forall 'a. OS 'a => 'a -> expanding_redir -> redir_exp_result 'a
-val step_redir_state : forall 'a. OS 'a => 'a -> redir_state -> 
-                       'a * string * maybe (redir_state * maybe expansion_step)
+                     os_state 'a * expansion_state -> 
+                     expansion_step * os_state 'a * expansion_state 
+val step_redir : forall 'a. OS 'a => 
+                   os_state 'a -> expanding_redir -> redir_exp_result (os_state 'a)
+val step_redir_state : forall 'a. OS 'a => os_state 'a -> redir_state -> 
+                       os_state 'a * string * maybe (redir_state * maybe expansion_step)
 val do_redirs : forall 'a. OS 'a =>
-                     'a -> list expanded_redir -> either string ('a * saved_fds)
+                     os_state 'a -> list expanded_redir -> 
+                     either string (os_state 'a * saved_fds)
 val step_assign : forall 'a. OS 'a => 
-                  'a -> list (string * expansion_state) ->
-                  either ('a * list (string * fields)) (* Done state *)
-                         (evaluation_step * 'a * list (string * expansion_state)) 
+                  os_state 'a -> list (string * expansion_state) ->
+                  either (os_state 'a * list (string * fields)) (* Done state *)
+                         (evaluation_step * os_state 'a * list (string * expansion_state)) 
 val step_eval : forall 'a. OS 'a =>
-                'a -> stmt -> 
-                either (evaluation_step * 'a) (* error case *)
-                       (evaluation_step * 'a * stmt) (* success *)
+                os_state 'a -> stmt -> 
+                either (evaluation_step * os_state 'a) (* error case *)
+                       (evaluation_step * os_state 'a * stmt) (* success *)
 
-val full_evaluation : forall 'a. OS 'a => 'a -> stmt -> 'a
-val eval : forall 'a. OS 'a => 'a -> stmt -> nat
+val full_evaluation : forall 'a. OS 'a => os_state 'a -> stmt -> os_state 'a
+val eval : forall 'a. OS 'a => os_state 'a -> stmt -> nat
 
 (**********************************************************************)   
 (* LATE STAGE EXPANSION ***********************************************)   
@@ -68,9 +70,9 @@ val collect_non_ifs : list char -> list char -> (list char) * (list char)
 (*val collect_ifs_whitespace : list char -> list char -> list char*)
 val split_expstring : list char -> list char -> intermediate_fields
 val split_word : list char -> (intermediate_fields * expanded_words) -> (intermediate_fields * expanded_words)
-val split_fields : forall 'a. OS 'a => 'a -> expanded_words -> intermediate_fields
+val split_fields : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields
 val clean_fields : intermediate_fields -> intermediate_fields
-val field_splitting : forall 'a. OS 'a => 'a -> expanded_words -> intermediate_fields  
+val field_splitting : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields  
   
 let is_ws c = elem c (toCharList " \n\t")
            
@@ -153,7 +155,7 @@ let rec insert_field_separators fs =
   | f::fs' -> Field (symbolic_string_of_string f)::FS::insert_field_separators fs'
   end
 
-val pathname_expansion : forall 'a. OS 'a => 'a -> intermediate_fields -> intermediate_fields
+val pathname_expansion : forall 'a. OS 'a => os_state 'a -> intermediate_fields -> intermediate_fields
 
 (* Parameter expansion only happens on unquoted fields *)
 let rec pathname_expansion s0 f =
@@ -235,9 +237,9 @@ let rec do_redirs os0 ers =
  * Stage 1 Expansion: Word expansion
  *)
 
-val expand_param : forall 'a. OS 'a => 'a -> quoting_mode -> string -> format -> words
+val expand_param : forall 'a. OS 'a => os_state 'a -> quoting_mode -> string -> format -> words
 (* Runs expansion all the way, for testing purposes only *)
-val control_code_expansion : forall 'a. OS 'a => 'a -> quoting_mode -> words -> ('a * expanded_words)
+val control_code_expansion : forall 'a. OS 'a => os_state 'a -> quoting_mode -> words -> (os_state 'a * expanded_words)
 
 let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
   let sympat : symbolic_string = (concat_expanded pat) in
@@ -358,7 +360,7 @@ let rec expand_control s0 q k =
        | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "assignment") step, s1, [], [K (LAssign s (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | LMatch str side mode f [] -> Right (ESParam "finished match", s0, [], words_of_symbolic_string (match_substring (get_shell_state s0).locale side mode f str))
+    | LMatch str side mode f [] -> Right (ESParam "finished match", s0, [], words_of_symbolic_string (match_substring s0.sh.locale side mode f str))
     | LMatch s side mode f w ->
        match expand_words s0 q GeneratedString ([], w) with
        | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "match") step, s1, [], [K (LMatch s side mode (f ++ f1) w1)])
@@ -682,11 +684,10 @@ and step_eval s0 stmt =
   (* expansion is done, try to run command *)
   | CommandExpRedirs assigns (prog::args) (ers, Nothing, []) ->
      (* load exported variables, perform assignments *)
-     let sh = get_shell_state s0 in
      let exported = 
        Map_extra.mapMaybe 
-         (fun x v -> if Set.member x sh.export then Just v else Nothing)
-         sh.env
+         (fun x v -> if Set.member x s0.sh.export then Just v else Nothing)
+         s0.sh.env
      in
      let env = 
        foldr (fun (x,f) env' -> 
@@ -732,7 +733,7 @@ and step_eval s0 stmt =
      let s1 = 
        match try_concrete prog with
        | Just prog_name -> if is_special_builtin prog_name
-                           then set_shell_state <| sh with env = Map.(union) env sh.env |> s0
+                           then <| s0 with sh = <| s0.sh with env = Map.(union) env s0.sh.env |> |>
                            else s0
        | Nothing -> s0 
        end in
@@ -1240,7 +1241,7 @@ and eval os0 stmt0 =
 
 (* Expansion **********************************************************)
    
-val run_trace_expansion : nat -> symbolic_os_state * expansion_state -> list (expansion_step * symbolic_os_state * expansion_state)
+val run_trace_expansion : nat -> os_state symbolic * expansion_state -> list (expansion_step * os_state symbolic * expansion_state)
 let rec run_trace_expansion gas (os0,st0) =
   if gas <= 0
   then [(ESStep "out of gas",os0,st0)]
@@ -1252,7 +1253,7 @@ let rec run_trace_expansion gas (os0,st0) =
      (step,os1,st1)::run_trace_expansion (gas-1) (os1,st1)
   end
   
-val trace_expansion : nat -> symbolic_os_state -> words -> list (expansion_step * symbolic_os_state * expansion_state)
+val trace_expansion : nat -> os_state symbolic -> words -> list (expansion_step * os_state symbolic * expansion_state)
 let trace_expansion gas os0 w0 = 
   (ESStep "",os0,ExpStart w0)::run_trace_expansion gas (os0, ExpStart w0)
 
@@ -1263,7 +1264,7 @@ let trace_expansion gas os0 w0 =
    because we're not keeping track of whether the result was a message
    printed to stderr or the actual result of expansion
  *)
-val run_trace_expansion_unbounded : symbolic_os_state * expansion_state -> list (expansion_step * symbolic_os_state * expansion_state)
+val run_trace_expansion_unbounded : os_state symbolic * expansion_state -> list (expansion_step * os_state symbolic * expansion_state)
 let rec run_trace_expansion_unbounded (os0,st0) =
   match st0 with
   | ExpError _ -> []
@@ -1273,11 +1274,11 @@ let rec run_trace_expansion_unbounded (os0,st0) =
      (step,os1,st1)::run_trace_expansion_unbounded (os1,st1)
   end
 
-val trace_expansion_unbounded : symbolic_os_state -> words -> list (expansion_step * symbolic_os_state * expansion_state)
+val trace_expansion_unbounded : os_state symbolic -> words -> list (expansion_step * os_state symbolic * expansion_state)
 let trace_expansion_unbounded os0 w0 = 
   (ESStep "",os0,ExpStart w0)::run_trace_expansion_unbounded (os0, ExpStart w0)
 
-val full_expansion : symbolic_os_state -> words -> symbolic_os_state * fields
+val full_expansion : os_state symbolic -> words -> os_state symbolic * fields
 let full_expansion s0 w0 =
   let (_,s1,f1) = last (trace_expansion_unbounded s0 w0) in
   match f1 with
@@ -1286,7 +1287,7 @@ let full_expansion s0 w0 =
   | _ -> (s1, [symbolic_string_of_string "!!! broken invariant"])
   end
    
-val run_trace_evaluation : nat -> symbolic_os_state -> stmt -> list (evaluation_step * symbolic_os_state * stmt)
+val run_trace_evaluation : nat -> os_state symbolic -> stmt -> list (evaluation_step * os_state symbolic * stmt)
 let rec run_trace_evaluation gas os0 stmt0 =
   if gas <= 0
   then [(XSStep "out of gas",os0,stmt0)]
@@ -1299,11 +1300,11 @@ let rec run_trace_evaluation gas os0 stmt0 =
       end
   end
 
-val trace_evaluation : nat -> symbolic_os_state -> stmt -> list (evaluation_step * symbolic_os_state * stmt)
+val trace_evaluation : nat -> os_state symbolic -> stmt -> list (evaluation_step * os_state symbolic * stmt)
 let trace_evaluation gas os0 stmt0 = (XSStep "",os0,stmt0)::run_trace_evaluation gas os0 stmt0
 
 (* TODO 2018-03-30 cleverer use of gas/limit number of commands *)
-val trace_evaluation_multi : nat -> symbolic_os_state -> list stmt -> list (evaluation_step * symbolic_os_state * stmt)
+val trace_evaluation_multi : nat -> os_state symbolic -> list stmt -> list (evaluation_step * os_state symbolic * stmt)
 let rec trace_evaluation_multi gas os0 stmts =
   match stmts with
   | [] -> []
@@ -1313,7 +1314,7 @@ let rec trace_evaluation_multi gas os0 stmts =
      trace ++ trace_evaluation_multi (gas-1) os1 stmts'
 end
   
-val full_evaluation_multi : symbolic_os_state -> list stmt -> symbolic_os_state
+val full_evaluation_multi : os_state symbolic -> list stmt -> os_state symbolic
 let rec full_evaluation_multi os0 stmts =
   match stmts with
   | [] -> os0
@@ -1321,7 +1322,7 @@ let rec full_evaluation_multi os0 stmts =
   end
 
 (* convenience function for shell *)
-val real_eval : real_os_state -> stmt -> real_os_state
+val real_eval : os_state real -> stmt -> os_state real
 let real_eval os c = full_evaluation os c
 
 (**********************************************************************)   

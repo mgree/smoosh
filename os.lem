@@ -1,10 +1,14 @@
 open import Fsh_prelude
 import Debug
                                    
-
 (**********************************************************************)
 (* FS/OS CLASS ********************************************************)
 (**********************************************************************)
+
+type os_state 'a = <| 
+   symbolic: 'a; 
+   sh: shell_state
+ |>                   
 
 (* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)           
 type file 'a = File | Dir of 'a
@@ -33,53 +37,51 @@ val dotdot : path -> path
 let dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
 
 class ( OS 'a )
-  val get_shell_state : 'a -> shell_state
-  val set_shell_state : shell_state -> 'a -> 'a
-
   (* SYSTEM CALLS *)
-  val getpwnam : 'a -> string -> maybe string
-  val fork_and_execve : 'a -> symbolic_string -> list symbolic_string -> env -> 'a * nat
+  val getpwnam : os_state 'a -> string -> maybe string
+  val fork_and_execve : 
+    os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * nat
   val fork_and_subshell : 
     (* need to be passed eval to close the recursive knot for the real OS *)
-    ('a -> stmt -> nat) ->
-    'a -> stmt -> 'a * nat
-  val exit : 'a -> 'a
+    (os_state 'a -> stmt -> nat) ->
+    os_state 'a -> stmt -> os_state 'a * nat
+  val exit : os_state 'a -> os_state 'a
   val waitpid : 
     (* need to be passed step_eval to close recursive knot for the symbolic OS *)
-    ('a -> stmt -> either (evaluation_step * 'a) (evaluation_step * 'a * stmt)) ->
-    'a -> nat -> 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
-  val times : 'a -> 
+    (os_state 'a -> stmt -> either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)) ->
+    os_state 'a -> nat -> os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
+  val times : os_state 'a -> 
               (string (* utime *)            * string (* stime *) * 
                string (* utime + children *) * string (* stime + children *))
 
   (* FS CALLS *)
-  val physical_cwd : 'a -> string
-  val chdir : 'a -> path -> 'a * maybe string
-  val file_exists : 'a -> path -> bool
-  val isdir : 'a -> path -> bool
-  val isexec : 'a -> path -> bool
-  val readdir : 'a -> path -> set (path * file unit)
-  val write_fd : 'a -> fd -> string -> maybe 'a
-  val read_fd : 'a -> fd -> maybe ('a * string)
-  val close_fd : 'a -> fd -> 'a
-  val pipe : 'a -> 'a * fd * fd
+  val physical_cwd : os_state 'a -> string
+  val chdir : os_state 'a -> path -> os_state 'a * maybe string
+  val file_exists : os_state 'a -> path -> bool
+  val isdir : os_state 'a -> path -> bool
+  val isexec : os_state 'a -> path -> bool
+  val readdir : os_state 'a -> path -> set (path * file unit)
+  val write_fd : os_state 'a -> fd -> string -> maybe (os_state 'a)
+  val read_fd : os_state 'a -> fd -> maybe (os_state 'a * string)
+  val close_fd : os_state 'a -> fd -> os_state 'a
+  val pipe : os_state 'a -> os_state 'a * fd * fd
 
-  val open_file_for_redir : 'a -> redir_type -> symbolic_string -> either string ('a * fd)
-  val open_heredoc : 'a -> string -> either string ('a * fd)
-  val close_and_save_fd : 'a -> fd -> either string ('a * saved_fds)
-  val renumber_fd : 'a -> 
+  val open_file_for_redir : os_state 'a -> redir_type -> symbolic_string -> either string (os_state 'a * fd)
+  val open_heredoc : os_state 'a -> string -> either string (os_state 'a * fd)
+  val close_and_save_fd : os_state 'a -> fd -> either string (os_state 'a * saved_fds)
+  val renumber_fd : os_state 'a -> 
                     bool (* close orig? *) -> 
                     fd (* orig *) -> 
                     fd (* wanted number *) -> 
-                    either string ('a * saved_fds)
-  val restore_fd : 'a -> fd -> saved_fd_info -> 'a
+                    either string (os_state 'a * saved_fds)
+  val restore_fd : os_state 'a -> fd -> saved_fd_info -> os_state 'a
 end
 
 (**********************************************************************)
 (* SHELL/OS STATE FUNCTIONS *******************************************)
 (**********************************************************************)
 
-val try_write_fd : forall 'a. OS 'a => fd -> string -> 'a -> 'a
+val try_write_fd : forall 'a. OS 'a => fd -> string -> os_state 'a -> os_state 'a
 let try_write_fd fd s os =
   (* TODO 2018-03-02 is this the right behavior when an fd points to a bad fifo, e.g., STDERR is closed? *)
   match write_fd os fd s with
@@ -87,10 +89,10 @@ let try_write_fd fd s os =
   | Nothing -> os
   end
    
-val write_stdout : forall 'a. OS 'a => string -> 'a -> 'a
+val write_stdout : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let write_stdout = try_write_fd STDOUT
 
-val write_stderr : forall 'a. OS 'a => string -> 'a -> 'a
+val write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let write_stderr = try_write_fd STDERR
 
 val first_is_slash : path -> bool
@@ -104,7 +106,7 @@ let last_is_slash path =
 val join_path : path -> path -> path
 let join_path root ext = root ^ (if last_is_slash root then "" else "/") ^ ext
 
-val canonicalize_split_path : forall 'a. OS 'a => 'a -> path -> list string -> maybe string
+val canonicalize_split_path : forall 'a. OS 'a => os_state 'a -> path -> list string -> maybe string
 let rec canonicalize_split_path os path components =
   match components with
   | [] -> Just path
@@ -117,7 +119,7 @@ let rec canonicalize_split_path os path components =
   | dir::components' -> canonicalize_split_path os (join_path path dir) components'
   end
 
-val canonicalize_path : forall 'a. OS 'a => 'a -> path -> maybe path 
+val canonicalize_path : forall 'a. OS 'a => os_state 'a -> path -> maybe path 
 let canonicalize_path os path = 
   let (initial,path') =
     match (toCharList path) with
@@ -130,7 +132,7 @@ let canonicalize_path os path =
   let components = split_string_on false (* not escapable *) #'/' path' in
   canonicalize_split_path os initial components
 
-val redirect : forall 'a. OS 'a => 'a -> expanded_redir -> either string ('a * saved_fds)
+val redirect : forall 'a. OS 'a => os_state 'a -> expanded_redir -> either string (os_state 'a * saved_fds)
 let redirect os0 er =
   match er with
   | ERFile ty wanted_fd [sfile] -> 
@@ -161,7 +163,7 @@ let redirect os0 er =
      end
   end
 
-val restore_fds : forall 'a. OS 'a => 'a -> saved_fds -> 'a
+val restore_fds : forall 'a. OS 'a => os_state 'a -> saved_fds -> os_state 'a
 let restore_fds os saved_fds =
   Map_extra.fold 
     (fun orig_fd info os' -> restore_fd os' orig_fd info)
@@ -169,11 +171,11 @@ let restore_fds os saved_fds =
     os
 
 val run_pipe_loop : forall 'a. OS 'a =>
-                 ('a -> stmt -> nat) (* thread eval for real OS*) ->
-                 'a ->
+                 (os_state 'a -> stmt -> nat) (* thread eval for real OS*) ->
+                 os_state 'a ->
                  list stmt -> 
                  fd ->
-                 'a * nat
+                 os_state 'a * nat
 let rec run_pipe_loop eval s0 stmts fd_prev =
   match stmts with
   | [] -> fork_and_subshell eval s0 Done (* just run a trivial statement *)
@@ -199,10 +201,10 @@ let rec run_pipe_loop eval s0 stmts fd_prev =
   end
 
 val run_pipe : forall 'a. OS 'a =>
-                 ('a -> stmt -> nat) (* thread eval for real OS*) ->
-                 'a ->
+                 (os_state 'a -> stmt -> nat) (* thread eval for real OS*) ->
+                 os_state 'a ->
                  list stmt ->
-                 'a * nat
+                 os_state 'a * nat
 let run_pipe eval s0 stmts =
   match stmts with
   | [] -> fork_and_subshell eval s0 Done       (* just run a trivial statement *)
@@ -220,13 +222,11 @@ let run_pipe eval s0 stmts =
      run_pipe_loop eval s3 stmts' fd_next
   end
    
-val print_shell_env : forall 'a. OS 'a => 'a -> string
-let print_shell_env os = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) (get_shell_state os).env ""
+val print_shell_env : forall 'a. OS 'a => os_state 'a -> string
+let print_shell_env os = Map_extra.fold (fun k v s -> k ^ " => " ^ string_of_symbolic_string v ^ ", " ^ s) os.sh.env ""
 
-val lookup_positional_param : forall 'a. OS 'a => nat -> 'a -> maybe symbolic_string
-let lookup_positional_param num os =
-  let sh = get_shell_state os in
-  index sh.positional_params num
+val lookup_positional_param : forall 'a. OS 'a => nat -> os_state 'a -> maybe symbolic_string
+let lookup_positional_param num os = index os.sh.positional_params num
 
 val is_special_param : string -> bool
 let is_special_param x =
@@ -236,9 +236,8 @@ let is_special_param x =
   end
 
 (* The result is nothing if the parameter is unset, and the empty string if it's null. *)
-val lookup_param : forall 'a. OS 'a => 'a -> string -> maybe symbolic_string
+val lookup_param : forall 'a. OS 'a => os_state 'a -> string -> maybe symbolic_string
 let lookup_param os str =
-  let sh = get_shell_state os in
   match (readNat (toCharList str),str) with
   | (Right num,_) -> lookup_positional_param num os
   | (Left _,"@") ->
@@ -246,43 +245,42 @@ let lookup_param os str =
      Just (symbolic_string_of_string "TODO 2018-03-02")
   | (Left _,"*") -> 
      let args = 
-       match sh.positional_params with
+       match os.sh.positional_params with
        | [] -> []
        | _::params -> params
        end in
      Just (symbolic_string_of_fields args)
   | (Left _,"#") -> 
-     let num_params = length sh.positional_params in
+     let num_params = length os.sh.positional_params in
      Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1)))) 
      (* number of positional arguments excluding $0 *)
-  | (Left _,_) -> Map.lookup str sh.env
+  | (Left _,_) -> Map.lookup str os.sh.env
   end
 
-val lookup_concrete_param : forall 'a. OS 'a => 'a -> string -> maybe string
+val lookup_concrete_param : forall 'a. OS 'a => os_state 'a -> string -> maybe string
 let lookup_concrete_param os str =
   match lookup_param os str with
   | Nothing -> Nothing
   | Just fs -> try_concrete fs
   end
 
-val is_readonly : forall 'a. OS 'a => string -> 'a -> bool
-let is_readonly var os = Set.member var (get_shell_state os).readonly
-
-val update_shell_state : forall 'a. OS 'a => (shell_state -> shell_state) -> 'a -> 'a
-let update_shell_state update os =
-  set_shell_state (update (get_shell_state os)) os
+val is_readonly : forall 'a. OS 'a => string -> os_state 'a -> bool
+let is_readonly var os = Set.member var os.sh.readonly
    
-val defun : forall 'a. OS 'a => string -> stmt -> 'a -> 'a
-let defun name body os = update_shell_state (fun sh -> <| sh with funcs = Map.insert name body sh.funcs |>) os
+val defun : forall 'a. OS 'a => string -> stmt -> os_state 'a -> os_state 'a
+let defun name body os = 
+  <| os with sh = <| os.sh with funcs = Map.insert name body os.sh.funcs |> |>
 
-val lookup_function : forall 'a. OS 'a => string -> 'a -> maybe stmt
-let lookup_function name os = Map.lookup name (get_shell_state os).funcs
+val lookup_function : forall 'a. OS 'a => string -> os_state 'a -> maybe stmt
+let lookup_function name os = Map.lookup name os.sh.funcs
 
-val internal_set_param : forall 'a. OS 'a => string -> symbolic_string -> 'a -> 'a
+val internal_set_param : forall 'a. OS 'a => 
+                           string -> symbolic_string -> os_state 'a -> os_state 'a
 let internal_set_param x v os = 
-  update_shell_state (fun sh -> <| sh with env = Map.insert x v sh.env |>) os
+  <| os with sh = <| os.sh with env = Map.insert x v os.sh.env |> |>
 
-val set_param : forall 'a. OS 'a => string -> symbolic_string -> 'a -> either string 'a
+val set_param : forall 'a. OS 'a => 
+                  string -> symbolic_string -> os_state 'a -> either string (os_state 'a)
 let set_param x v os = 
   if is_readonly x os
   then Left (x ^ ": is read only")
@@ -290,35 +288,31 @@ let set_param x v os =
   then Left (x ^ ": is a special parameter and not a valid identifier")
   else Right (internal_set_param x v os)
   
-val set_function_params : forall 'a. OS 'a => nat -> fields -> 'a -> 'a
+val set_function_params : forall 'a. OS 'a => nat -> fields -> os_state 'a -> os_state 'a
 let set_function_params ln argv os =
-  update_shell_state 
-    (fun sh -> 
-      let new_params =
-        match sh.positional_params with
-        | [] -> []::argv
-        | arg0::_ -> arg0::argv
-       end in
-      <| sh with loop_nest = ln; positional_params = new_params |>) os
+  let new_params =
+    match os.sh.positional_params with
+    | [] -> []::argv
+    | arg0::_ -> arg0::argv
+    end in
+  <| os with sh = <| os.sh with loop_nest = ln; positional_params = new_params |> |>
 
-val enter_loop : forall 'a. OS 'a => 'a -> 'a
+val enter_loop : forall 'a. OS 'a => os_state 'a -> os_state 'a
 let enter_loop os = 
-  update_shell_state
-    (fun sh -> <| sh with loop_nest = sh.loop_nest + 1 |>) os
+  <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest + 1 |> |>
 
-val exit_loop : forall 'a. OS 'a => 'a -> 'a
+val exit_loop : forall 'a. OS 'a => os_state 'a -> os_state 'a
 let exit_loop os = 
-  update_shell_state
-    (fun sh -> <| sh with loop_nest = sh.loop_nest - 1 |>) os
+  <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest - 1 |> |>
 
-val exit_with : forall 'a. OS 'a => nat -> 'a -> 'a
+val exit_with : forall 'a. OS 'a => nat -> os_state 'a -> os_state 'a
 let exit_with ec os = 
   internal_set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
 
-val fail_with : forall 'a. OS 'a => string -> 'a -> 'a
+val fail_with : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let fail_with msg os = exit_with 1 (write_stderr (msg ^ "\n") os)
 
-val get_last_exit_code : forall 'a. OS 'a => 'a -> maybe nat
+val get_last_exit_code : forall 'a. OS 'a => os_state 'a -> maybe nat
 let get_last_exit_code os =
   match lookup_concrete_param os "?" with
   | Nothing -> Nothing
@@ -329,11 +323,11 @@ let get_last_exit_code os =
      end
   end
 
-val set_last_pid : forall 'a. OS 'a => nat -> 'a -> 'a
+val set_last_pid : forall 'a. OS 'a => nat -> os_state 'a -> os_state 'a
 let set_last_pid pid os = 
   internal_set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
 
-val is_interactive : forall 'a. OS 'a => 'a -> bool
+val is_interactive : forall 'a. OS 'a => os_state 'a -> bool
 let is_interactive os =
   match lookup_concrete_param os "-" with
   | Nothing -> false
@@ -412,14 +406,13 @@ and proc =
   | Shell of stmt * shell_state * fds
   | Zombie of nat (* exit code *)
 
-and symbolic_os_state = <|
-    symbolic_passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
-    symbolic_sh: shell_state;
-    symbolic_sh_fds: fds;
-    symbolic_fs_root: fs;
-    symbolic_fifos: list fifo;
-    symbolic_procs: list proc;
-    symbolic_exited: bool
+and symbolic = <|
+    passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
+    sh_fds: fds;
+    fs_root: fs;
+    fifos: list fifo;
+    procs: list proc;
+    exited: bool
   |>
     
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
@@ -429,18 +422,19 @@ let fds_default : fds =
  (Map.insert STDERR (FIFO 2) 
   Map.empty))
 
-let os_empty : symbolic_os_state = <|
-    symbolic_sh = default_shell_state;
-    symbolic_sh_fds = fds_default;
-    symbolic_passwd = Map.empty;
-    symbolic_fs_root = fs_empty;
-    symbolic_fifos = ["" (* STDIN *)
-                     ;"" (* STDOUT *)
-                     ;"" (* STDERR *)
-                     ];
-    symbolic_procs = [];
-    symbolic_exited = false
+let symbolic_empty : symbolic = <|
+    sh_fds = fds_default;
+    passwd = Map.empty;
+    fs_root = fs_empty;
+    fifos = ["" (* STDIN *)
+            ;"" (* STDOUT *)
+            ;"" (* STDERR *)
+            ];
+    procs = [];
+    exited = false
  |>
+
+let os_empty : os_state symbolic = <| symbolic = symbolic_empty; sh = default_shell_state |>
   
 (**********************************************************************)
 (* SYMBOLIC OS STATE INSTANCE *****************************************)
@@ -449,32 +443,32 @@ let os_empty : symbolic_os_state = <|
 val compare_by_first : forall 'a 'b. Ord 'a => ('a * 'b) -> ('a * 'b) -> ordering
 let compare_by_first (a, _) (a', _) = compare a a'
 
-val symbolic_resolve_fd : symbolic_os_state -> fd -> maybe nat
-let symbolic_resolve_fd os fd =
-  match Map.lookup fd os.symbolic_sh_fds with
+val symbolic_resolve_fd : symbolic -> fd -> maybe nat
+let symbolic_resolve_fd symbolic fd =
+  match Map.lookup fd symbolic.sh_fds with
   | Just (FIFO fifo_num) -> Just fifo_num
   (* TODO 2018-03-23 is this the right behavior when fd points to a file? *)   
   (* TODO 2018-03-02 is this the right behavior when fd doesn't exist? *)
   | _ -> Nothing
   end
     
-val mkfifo : symbolic_os_state -> symbolic_os_state * nat  
-let mkfifo os =
-  let fifo_num = length os.symbolic_fifos in
-  (<| os with symbolic_fifos = os.symbolic_fifos ++ [""] |>, fifo_num)
+val mkfifo : symbolic -> symbolic * nat  
+let mkfifo symbolic =
+  let fifo_num = length symbolic.fifos in
+  (<| symbolic with fifos = symbolic.fifos ++ [""] |>, fifo_num)
 
-val write_fifo : symbolic_os_state -> nat -> string -> maybe symbolic_os_state
-let write_fifo os fifo_num s =
-  match adjust_nth os.symbolic_fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
+val write_fifo : symbolic -> nat -> string -> maybe (symbolic)
+let write_fifo symbolic fifo_num s =
+  match adjust_nth symbolic.fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
   | Nothing -> Nothing
-  | Just (new_fifos,()) -> Just <| os with symbolic_fifos = new_fifos |>
+  | Just (new_fifos,()) -> Just <| symbolic with fifos = new_fifos |>
   end
 
-val read_fifo : symbolic_os_state -> nat -> maybe (symbolic_os_state * string)
-let read_fifo os fifo_num =
-  match adjust_nth os.symbolic_fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
+val read_fifo : symbolic -> nat -> maybe (symbolic * string)
+let read_fifo symbolic fifo_num =
+  match adjust_nth symbolic.fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
   | Nothing -> Nothing
-  | Just (new_fifos,s) -> Just (<| os with symbolic_fifos = new_fifos |>, s)
+  | Just (new_fifos,s) -> Just (<| symbolic with fifos = new_fifos |>, s)
   end
 
 val symbolic_fresh_fd : fds -> fd
@@ -484,44 +478,45 @@ let symbolic_fresh_fd sh_fds =
   | Just max -> max + 1
   end
 
-instance (OS symbolic_os_state)
-   
-  let get_shell_state os = os.symbolic_sh
-  let set_shell_state new_sh os = <| os with symbolic_sh = new_sh |>
-  let getpwnam os u = Map.lookup u os.symbolic_passwd
+instance (OS symbolic)
+  let getpwnam os u = Map.lookup u os.symbolic.passwd
 
   let fork_and_execve os prog argv env =
     (* TODO 2018-02-09 choose valid process numbers (e.g., 0 and 1 are reserved on Linux) *)
-    let proc_num = length os.symbolic_procs in
-    (<| os with symbolic_procs = os.symbolic_procs ++ [Execve prog argv env] |>, 
+    let proc_num = length os.symbolic.procs in
+    (<| os with symbolic = 
+            <| os.symbolic with procs = os.symbolic.procs ++ [Execve prog argv env] |> |>, 
      proc_num)
 
   let fork_and_subshell _eval os stmt =
-    let proc_num = length os.symbolic_procs in
-    (<| os with symbolic_procs = os.symbolic_procs ++ [Shell stmt os.symbolic_sh os.symbolic_sh_fds] |>, 
+    let proc_num = length os.symbolic.procs in
+    (<| os with symbolic =
+            <| os.symbolic with 
+                 procs = os.symbolic.procs ++ [Shell stmt os.sh os.symbolic.sh_fds] |> |>, 
      proc_num)
 
-  let exit os = <| os with symbolic_exited = true |>
+  let exit os = <| os with symbolic = <| os.symbolic with exited = true |> |>
 
   let waitpid step_eval os0 pid =
-    match index os0.symbolic_procs pid with
+    match index os0.symbolic.procs pid with
     | Nothing -> (os0, Nothing)
     | Just (Execve _ _ _) -> 
        (* TODO 2018-09-05 record some symbolic output/exit code *)
        (os0, Nothing)
     | Just (Zombie ec) -> (os0, Just (Right ec))
     | Just (Shell stmt sh' fds') ->
-       let os1 = <| os0 with symbolic_sh = sh'; symbolic_sh_fds = fds' |> in
+       let os1 = <| os0 with sh = sh'; symbolic = <| os0.symbolic with sh_fds = fds' |> |> in
        match step_eval os1 stmt with
        | Left (_step, os2) -> 
-          (<| os2 with symbolic_sh = os0.symbolic_sh; 
-                       symbolic_sh_fds = os0.symbolic_sh_fds;
-                       symbolic_procs = update os2.symbolic_procs pid (Zombie 1) |>, 
+          (<| os2 with sh = os0.sh; 
+                       symbolic = <| os2.symbolic with 
+                                        sh_fds = os0.symbolic.sh_fds;
+                                        procs = update os2.symbolic.procs pid (Zombie 1) |> |>, 
            Just (Right 1)) (* errored, signal with code *)
        | Right (_step, os2, Done) ->
           (* terminated! grab the code, update everything *)
           let ec = (* can't use get_last_exit_code because we're DEFINING the type class *)
-            match Map.lookup "?" os2.symbolic_sh.env with
+            match Map.lookup "?" os2.sh.env with
             | Nothing -> 255
             | Just ss -> 
                match try_concrete ss with
@@ -534,16 +529,18 @@ instance (OS symbolic_os_state)
                   end
                end
             end in
-          (<| os2 with symbolic_sh = os0.symbolic_sh; 
-                       symbolic_sh_fds = os0.symbolic_sh_fds;
-                       symbolic_procs = update os2.symbolic_procs pid (Zombie ec) |>,
+          (<| os2 with sh = os0.sh; 
+                       symbolic = <| os2.symbolic with 
+                                        sh_fds = os0.symbolic.sh_fds;
+                                        procs = update os2.symbolic.procs pid (Zombie ec) |> |>,
            Just (Right ec))
        | Right (step, os2, stmt') ->
-          (<| os2 with symbolic_sh = os0.symbolic_sh; 
-                       symbolic_sh_fds = os0.symbolic_sh_fds;
-                       symbolic_procs = 
-                         List.update os2.symbolic_procs pid 
-                           (Shell stmt' os2.symbolic_sh os2.symbolic_sh_fds) |>,
+          (<| os2 with sh = os0.sh; 
+                       symbolic = <| os2.symbolic with 
+                                        sh_fds = os0.symbolic.sh_fds;
+                                        procs = 
+                                          List.update os2.symbolic.procs pid 
+                                            (Shell stmt' os2.sh os2.symbolic.sh_fds) |> |>,
            Just (Left (XSNested step (XSProc stmt'))))
        end
     end
@@ -552,7 +549,7 @@ instance (OS symbolic_os_state)
 
   let readdir os path =
     (* TODO 2018-08-21 will be buggy on non-absolute paths *)
-    match symbolic_fs_resolve_dir os.symbolic_fs_root path with
+    match symbolic_fs_resolve_dir os.symbolic.fs_root path with
     | Nothing -> Set.empty
     | Just fs -> 
        Set.map (fun (name,file) ->
@@ -566,77 +563,87 @@ instance (OS symbolic_os_state)
          (toSetBy compare_by_first fs.contents)
     end
 
-  let physical_cwd os = os.symbolic_sh.cwd
+  let physical_cwd os = os.sh.cwd
 
   let chdir os path =
-    match symbolic_fs_resolve_dir os.symbolic_fs_root path with
+    match symbolic_fs_resolve_dir os.symbolic.fs_root path with
     | Nothing -> (os,Just ("no such directory: " ^ path))
-    | Just _ -> (<| os with symbolic_sh = <| os.symbolic_sh with cwd = path |> |>, Nothing)
+    | Just _ -> (<| os with sh = <| os.sh with cwd = path |> |>, Nothing)
     end
 
   (* TODO 2018-09-04 symbolic fs needs file contents/types *)
   let file_exists os path =
-    match symbolic_fs_resolve_path os.symbolic_fs_root path with
+    match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> false
     | Just _ -> true
     end
 
   let isdir os path =
-    match symbolic_fs_resolve_path os.symbolic_fs_root path with
+    match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Just (Dir _) -> true
     | Just File -> false
     | Nothing -> false
     end
 
   let isexec os path =
-    match symbolic_fs_resolve_path os.symbolic_fs_root path with
+    match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> false
     | Just _ -> true
     end
 
   let write_fd os fd s =
-    match symbolic_resolve_fd os fd with
-    | Just fifo_num -> write_fifo os fifo_num s
+    match symbolic_resolve_fd os.symbolic fd with
+    | Just fifo_num -> 
+       match write_fifo os.symbolic fifo_num s with
+       | Nothing -> Nothing
+       | Just symbolic' -> Just <| os with symbolic = symbolic' |>
+       end
     | Nothing -> Nothing
     end
   
   let read_fd os fd =
-    match symbolic_resolve_fd os fd with
-    | Just fifo_num -> read_fifo os fifo_num
+    match symbolic_resolve_fd os.symbolic fd with
+    | Just fifo_num -> 
+       match read_fifo os.symbolic fifo_num with
+       | Nothing -> Nothing
+       | Just (symbolic', s) -> Just (<| os with symbolic = symbolic' |>, s)
+       end
     | Nothing -> Nothing
   end
 
   let close_fd os fd = 
-    <| os with symbolic_sh_fds = Map.delete fd os.symbolic_sh_fds |>
+    <| os with symbolic = <| os.symbolic with sh_fds = Map.delete fd os.symbolic.sh_fds |> |>
 
   let pipe os0 =
-    let (os1, fifo_num) = mkfifo os0 in
+    let (sym1, fifo_num) = mkfifo os0.symbolic in
     (* get an FD number for reading *)
-    let fd_read = symbolic_fresh_fd os1.symbolic_sh_fds in
-    let fds' = Map.insert fd_read (FIFO fifo_num) os1.symbolic_sh_fds in
+    let fd_read = symbolic_fresh_fd sym1.sh_fds in
+    let fds' = Map.insert fd_read (FIFO fifo_num) sym1.sh_fds in
     (* get an FD number for writing *)
     let fd_write = symbolic_fresh_fd fds' in
     let fds'' = Map.insert fd_write (FIFO fifo_num) fds' in
-    (<| os1 with symbolic_sh_fds = fds'' |>, fd_read, fd_write)
+    (<| os0 with symbolic = <| sym1 with sh_fds = fds'' |> |>, fd_read, fd_write)
 
   let open_file_for_redir _os _ty _file = 
     let _ = Debug.print_endline "open_file_for_redir" in
     Left "symbolic file redirects are unimplemented"
 
   let open_heredoc os0 s =
-    let (os1, fifo_num) = mkfifo os0 in
-    let fd = symbolic_fresh_fd os1.symbolic_sh_fds in
+    let (sym1, fifo_num) = mkfifo os0.symbolic in
+    let fd = symbolic_fresh_fd sym1.sh_fds in
     (* update the FD map with a read FD *)
-    let os2 = <| os1 with symbolic_sh_fds = Map.insert fd (FIFO fifo_num) os1.symbolic_sh_fds|> in
+    let sym2 = <| sym1 with sh_fds = Map.insert fd (FIFO fifo_num) sym1.sh_fds |> in
     (* don't bother making a write FD, just write to the FIFO buffer *)
-    match write_fifo os2 fifo_num s with
+    match write_fifo sym2 fifo_num s with
     | Nothing -> Left "broken pipe"
-    | Just os3 -> Right (os3, fd)
+    | Just sym3 -> Right (<| os0 with symbolic = sym3 |>, fd)
     end
 
   let close_and_save_fd os0 fd = 
-    let os1 = <| os0 with symbolic_sh_fds = Map.delete fd os0.symbolic_sh_fds |> in
-    match Map.lookup fd os0.symbolic_sh_fds with
+    (* precomupte potential next os *)
+    let sym1 = <| os0.symbolic with sh_fds = Map.delete fd os0.symbolic.sh_fds |> in
+    let os1 = <| os0 with symbolic = sym1 |> in
+    match Map.lookup fd os0.symbolic.sh_fds with
     | Nothing -> 
        (* already closed, nothing to save *)
        Right (os1, Map.empty)
@@ -651,12 +658,12 @@ instance (OS symbolic_os_state)
     if new_fd = wanted_fd
     then Right (os0, if close then Map.singleton wanted_fd Close else Map.empty)
     else
-      match Map.lookup new_fd os0.symbolic_sh_fds with
+      match Map.lookup new_fd os0.symbolic.sh_fds with
       | Nothing -> 
          Left "broken pipe (tried to renumber closed fd)"
       | Just new_tgt ->
         let saved = 
-          match Map.lookup wanted_fd os0.symbolic_sh_fds with
+          match Map.lookup wanted_fd os0.symbolic.sh_fds with
           | Nothing -> 
              (* the wanted_fd is free... great! *)
              Map.empty
@@ -668,49 +675,41 @@ instance (OS symbolic_os_state)
              (* TODO 2018-08-24 symbolic path FDs unimplemented *)
              Map.empty
           end in
-        let fds0 = Map.insert wanted_fd new_tgt os0.symbolic_sh_fds in
+        let fds0 = Map.insert wanted_fd new_tgt os0.symbolic.sh_fds in
         let fds1 = if close then Map.delete new_fd fds0 else fds0 in
-        Right (<| os0 with symbolic_sh_fds = fds1 |>, saved)
+        Right (<| os0 with symbolic = <| os0.symbolic with sh_fds = fds1 |> |>, saved)
       end
 
   let restore_fd os0 fd info =
     match info with
     | Saved fifo_num -> 
-       let fds = Map.insert fd (FIFO fifo_num) os0.symbolic_sh_fds in
-       <| os0 with symbolic_sh_fds = fds |>
+       let fds = Map.insert fd (FIFO fifo_num) os0.symbolic.sh_fds in
+       <| os0 with symbolic = <| os0.symbolic with sh_fds = fds |> |>
     | Close ->
-       let fds = Map.delete fd os0.symbolic_sh_fds in
-       <| os0 with symbolic_sh_fds = fds |>
+       let fds = Map.delete fd os0.symbolic.sh_fds in
+       <| os0 with symbolic = <| os0.symbolic with sh_fds = fds |> |>
     end
 end
 
-val set_pwdir : string -> string -> symbolic_os_state -> symbolic_os_state
-let set_pwdir u d os = <| os with symbolic_passwd = Map.insert u d (os.symbolic_passwd) |>
-
-val mkfifos : symbolic_os_state -> nat -> symbolic_os_state * list nat 
-let rec mkfifos os0 n =
-  match n with
-  | 0 -> (os0, [])
-  | _ -> let (os1,fifo) = mkfifo os0 in 
-         let (os2,fifos) = mkfifos os1 (n-1) in
-         (os2,fifo::fifos)
-  end
+val set_pwdir : string -> string -> os_state symbolic -> os_state symbolic
+let set_pwdir u d os = 
+  <| os with symbolic = <| os.symbolic with passwd = Map.insert u d (os.symbolic.passwd) |> |>
    
 (* specialized functions to avoid manual instantiation of typeclasses in OCaml *)   
-val symbolic_lookup_concrete_param : symbolic_os_state -> string -> maybe string
+val symbolic_lookup_concrete_param : os_state symbolic -> string -> maybe string
 let symbolic_lookup_concrete_param = lookup_concrete_param
 
-val symbolic_set_param : string -> symbolic_string -> symbolic_os_state -> symbolic_os_state
+val symbolic_set_param : string -> symbolic_string -> os_state symbolic -> os_state symbolic
 let symbolic_set_param x v os = internal_set_param x v os
 
-val symbolic_print_shell_env : symbolic_os_state -> string
+val symbolic_print_shell_env : os_state symbolic -> string
 let symbolic_print_shell_env os = print_shell_env os
 
 (**********************************************************************)
 (* REAL OS STATE INSTANCE *********************************************)
 (**********************************************************************)
 
-type real_os_state = <| real_sh: shell_state |>
+type real = unit
 
 let force_concrete ss =
   match try_concrete ss with
@@ -814,7 +813,7 @@ let real_close_and_save_fd os fd =
      Right (os, Map.singleton fd (Saved saved_fd))
   end
 
-let real_renumber_fd os (close : bool) (new_fd : fd) (wanted_fd : fd) : either string ('a * saved_fds) =
+let real_renumber_fd os (close : bool) (new_fd : fd) (wanted_fd : fd) =
   if new_fd = wanted_fd
   then 
     (* we fished our wish! no need to dup or anything.
@@ -834,10 +833,7 @@ let real_renumber_fd os (close : bool) (new_fd : fd) (wanted_fd : fd) : either s
          end
       end
 
-instance (OS real_os_state)
-  let get_shell_state os = os.real_sh
-  let set_shell_state new_sh os = <| os with real_sh = new_sh |>
-
+instance (OS unit)
   let getpwnam _os nam = real_getpwnam nam
 
   let fork_and_execve os prog argv env = 
@@ -859,7 +855,7 @@ instance (OS real_os_state)
 
   let chdir os path =
     match real_chdir path with
-    | Nothing -> (<| os with real_sh = <| os.real_sh with cwd = path |> |>, Nothing)
+    | Nothing -> (<| os with sh = <| os.sh with cwd = path |> |>, Nothing)
     | Just err -> (os, Just err)
     end
       
@@ -893,7 +889,7 @@ instance (OS real_os_state)
 
   let exit os =
     let ec = 
-      match Map.lookup "?" os.real_sh.env with
+      match Map.lookup "?" os.sh.env with
       | Nothing -> 127
       | Just ss -> 
          match try_concrete ss with
@@ -951,10 +947,10 @@ instance (OS real_os_state)
 
 end
 
-val real_lookup_concrete_param : real_os_state -> string -> maybe string
+val real_lookup_concrete_param : os_state real -> string -> maybe string
 let real_lookup_concrete_param = lookup_concrete_param
 
-val real_set_param : string -> string -> real_os_state -> real_os_state
+val real_set_param : string -> string -> os_state real -> os_state real
 let real_set_param x v os = internal_set_param x (symbolic_string_of_string v) os
 
 

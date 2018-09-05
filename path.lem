@@ -22,17 +22,17 @@ let has_trailing_slash cs =
   | _ -> false
   end
 
-val parse_path_pattern : forall 'a. OS 'a => 'a -> string -> list string * path * path_info
+val parse_path_pattern : forall 'a. OS 'a => os_state 'a -> string -> list string * path * path_info
 let parse_path_pattern os pat =
   match toCharList pat with
   | #'/'::pat' -> (map toString (split_on_slash pat'), "/", <| path_prefix = "/"; trailing_slash = has_trailing_slash pat' |>)
-  | chars -> (map toString (split_on_slash chars), (get_shell_state os).cwd, <| path_prefix = ""; trailing_slash = has_trailing_slash chars |>)
+  | chars -> (map toString (split_on_slash chars), os.sh.cwd, <| path_prefix = ""; trailing_slash = has_trailing_slash chars |>)
   end
 
 (* We use shortest matching because we won't look at the content of the match.
  * We only care whether or not there was a match.
  *)
-val match_pattern_file_list : forall 'a. OS 'a => 'a -> locale -> path -> string -> set (string * file path)
+val match_pattern_file_list : forall 'a. OS 'a => os_state 'a -> locale -> path -> string -> set (string * file path)
 let match_pattern_file_list os lc dir pat =
   Set.map (fun (name,file) ->
       (name,
@@ -48,7 +48,7 @@ let match_pattern_file_list os lc dir pat =
        end)
       (readdir os dir))
 
-val match_dir : forall 'a. OS 'a => 'a -> path -> locale -> string -> set (string * file path)
+val match_dir : forall 'a. OS 'a => os_state 'a -> path -> locale -> string -> set (string * file path)
 let match_dir os dir lc name =
   match name with
   | "." -> Set.singleton (".", Dir dir)
@@ -63,7 +63,7 @@ let stringtoFs fs k set =
   | _ -> set
   end
 
-val walk : forall 'a. OS 'a => 'a -> (maybe path * path) -> path_info -> locale -> list string -> set (string * file path)
+val walk : forall 'a. OS 'a => os_state 'a -> (maybe path * path) -> path_info -> locale -> list string -> set (string * file path)
 let rec walk os (path_so_far, dir) pinfo lc path =
   match path with
   | [] ->
@@ -96,11 +96,11 @@ let rec walk os (path_so_far, dir) pinfo lc path =
       (match_dir os dir lc path')
   end
 
-val match_path : forall 'a. OS 'a => 'a -> string -> list path
+val match_path : forall 'a. OS 'a => os_state 'a -> string -> list path
 let match_path os path =
   let (pat,start,pinfo) = parse_path_pattern os path in
-  Set_extra.toOrderedList (Set.map fst (walk os (Nothing, start) pinfo (get_shell_state os).locale pat))
+  Set_extra.toOrderedList (Set.map fst (walk os (Nothing, start) pinfo os.sh.locale pat))
 
 (* instantiated version for testing from OCaml *)
-val match_path_symbolic : symbolic_os_state -> string -> list path
+val match_path_symbolic : os_state symbolic -> string -> list path
 let match_path_symbolic = match_path                                                     

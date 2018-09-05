@@ -613,14 +613,14 @@ and json_of_evaluation_step = function
 
 and json_of_expansion_trace_entry (step, os, state) =
   Assoc [("step", json_of_expansion_step step)
-        ;("env", json_of_env os.symbolic_sh.env)
+        ;("env", json_of_env os.sh.env)
         ;("term", json_of_expansion_state state)
         ]
 
 and json_of_evaluation_trace_entry (step, os, stmt) =
   Assoc [("step", json_of_evaluation_step step)
         (* 2017-12-22 TODO dump more of the shell state? *)
-        ;("env", json_of_env os.symbolic_sh.env)
+        ;("env", json_of_env os.sh.env)
         ;("term", json_of_stmt stmt)
         ]
 

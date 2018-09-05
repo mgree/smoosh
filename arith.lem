@@ -427,7 +427,7 @@ let bool_to_num b =
   then fromNat 1
   else fromNat 0
 
-val eval_arith : forall 'a 'b. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a, OS 'b => 'a -> 'b -> arith_exp 'a -> either string ('b * 'a)
+val eval_arith : forall 'a 'b. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a, OS 'b => 'a -> os_state 'b -> arith_exp 'a -> either string (os_state 'b * 'a)
 let rec eval_arith bits s0 e =
   match e with
   | (Num n) -> Right (s0, n)
@@ -531,7 +531,7 @@ let rec eval_arith bits s0 e =
       end
   end
 
-val arith : forall 'a 'b. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a, OS 'b => 'a -> 'b -> symbolic_string -> either string ('b * fields)
+val arith : forall 'a 'b. Read 'a, Nat 'a, Eq 'a, Ord 'a, NumAdd 'a, NumMinus 'a, NumMult 'a, NumIntegerDivision 'a, NumRemainder 'a, NumPow 'a, NumNegate 'a, WordLsl 'a, WordLsr 'a, WordAsr 'a, WordNot 'a, WordAnd 'a, WordOr 'a, WordXor 'a, OS 'b => 'a -> os_state 'b -> symbolic_string -> either string (os_state 'b * fields)
 let arith bits s0 str =
   match try_concrete str with
   | Just cstr ->
@@ -550,16 +550,16 @@ let arith bits s0 str =
 (* MANUAL SPECIALIZATIONS *)
 
 (* default to 64-bit semantics *)
-val arith64 : forall 'a. OS 'a => 'a -> symbolic_string -> either string ('a * fields)
+val arith64 : forall 'a. OS 'a => os_state 'a -> symbolic_string -> either string (os_state 'a * fields)
 let arith64 = arith (int64FromNat 64)
 
 (* symbolic functions to avoid manual instantiation of typeclasses in OCaml *)
-val symbolic_arith_big_num : symbolic_os_state -> symbolic_string -> either string (symbolic_os_state * fields)
+val symbolic_arith_big_num : os_state symbolic -> symbolic_string -> either string (os_state symbolic * fields)
 let symbolic_arith_big_num = arith (~(integerFromNat 1))
 
-val symbolic_arith32 : symbolic_os_state -> symbolic_string -> either string (symbolic_os_state * fields)
+val symbolic_arith32 : os_state symbolic -> symbolic_string -> either string (os_state symbolic * fields)
 let symbolic_arith32 = arith (int32FromNat 32)
 
-val symbolic_arith64 : symbolic_os_state -> symbolic_string -> either string (symbolic_os_state * fields)
+val symbolic_arith64 : os_state symbolic -> symbolic_string -> either string (os_state symbolic * fields)
 let symbolic_arith64 = arith (int64FromNat 64)
 

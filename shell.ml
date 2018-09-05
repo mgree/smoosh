@@ -47,7 +47,7 @@ let prepare_command () : string list (* positional args *) =
      end
 
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
-let initialize_env s0 : real_os_state =
+let initialize_env s0 : real os_state =
   (* TODO 2018-08-23 set $- [option flags] *)
   (* will bork if we have privileges *)
   let environ = System.real_environment () in
@@ -59,7 +59,7 @@ let initialize_env s0 : real_os_state =
   let s2 = Os.real_set_param "$" (string_of_int (Unix.getpid ())) s1 in
   (* override the prompt by default *)
   let s3 = Os.real_set_param "PS1" "$ " s2 in
-  { s3 with real_sh = { s3.real_sh with cwd = Unix.getcwd () } }
+  { s3 with sh = { s3.sh with cwd = Unix.getcwd () } }
 
 let finish_up s0 =
   (* TODO 2018-08-14 trap on EXIT etc. goes here? *)
@@ -101,7 +101,7 @@ let rec repl s0 =
        | (_,None) -> ()
        | (_,Some s) -> Dash.setvar x s
      in
-     Pmap.iter set s1.real_sh.env;
+     Pmap.iter set s1.sh.env;
      repl s1
 
 (* TODO lots of special casing at http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sh.html *)
@@ -131,8 +131,9 @@ let main () =
   *)
   let positional = prepare_command () in
   let sym_positional = List.map symbolic_string_of_string positional in
-  let s0 = { Os.real_sh = { default_shell_state with 
-                            positional_params = sym_positional } } in
+  let s0 = { Os.sh = { default_shell_state with 
+                       positional_params = sym_positional };
+             Os.symbolic = () } in
   let s1 = initialize_env s0 in
   if !interactive
   then repl s1

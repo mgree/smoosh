@@ -58,7 +58,7 @@ let check_parser = checker (either_monad parse_arith_exp) (=)
 
 let eval_equals out expected =
   match (out, expected) with
-  | (Either.Right (s1, n1), Either.Right (s2, n2)) -> n1 = n2 && (Pmap.equal (=) s1.symbolic_sh.env s2.symbolic_sh.env)
+  | (Either.Right (s1, n1), Either.Right (s2, n2)) -> n1 = n2 && (Pmap.equal (=) s1.sh.env s2.sh.env)
   | (Either.Left e1, Either.Left e2) -> e1 = e2
   | _ -> false
 
@@ -168,7 +168,7 @@ let parser_tests:(string*(string,(Nat_big_num.num arith_token)list)Either.either
 
 (* let big_num = Int64.of_int Nat_big_num.of_int *)
 
-let eval_tests ofNumLiteral mul : (string * symbolic_os_state * string * (string, symbolic_os_state * 'a )Either.either)list=
+let eval_tests ofNumLiteral mul : (string * symbolic os_state * string * (string, symbolic os_state * 'a )Either.either)list=
   [
     ("bare number", os_empty, "47", Right (os_empty, ofNumLiteral 47));
 
@@ -249,14 +249,14 @@ let eval_tests ofNumLiteral mul : (string * symbolic_os_state * string * (string
     ("x = x + 1, x is unset", os_empty, "x=x+1", Right (add_literal_env_string "x" "1" os_empty, ofNumLiteral 1));
   ]
 
-let eval_bignum_tests ofNumLiteral mul : (string * symbolic_os_state * string * (string, symbolic_os_state * Nat_big_num.num)Either.either)list =
+let eval_bignum_tests ofNumLiteral mul : (string * symbolic os_state * string * (string, symbolic os_state * Nat_big_num.num)Either.either)list =
   [
     ("large number 9223372036854775808", os_empty, "9223372036854775808", Right (os_empty, mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
     ("large hex number 0x8000000000000000", os_empty, "0x8000000000000000", Right (os_empty, mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
     ("large oct number 01000000000000000000000", os_empty, "01000000000000000000000", Right (os_empty, mul (mul (ofNumLiteral 65536) (ofNumLiteral 65536)) (mul (ofNumLiteral 65536) (ofNumLiteral 32768))));
   ]
 
-let eval_int64_tests ofNumLiteral mul : (string * symbolic_os_state * string * (string, symbolic_os_state * Int64.t)Either.either)list =
+let eval_int64_tests ofNumLiteral mul : (string * symbolic os_state * string * (string, symbolic os_state * Int64.t)Either.either)list =
   [
     ("large number 9223372036854775808", os_empty, "9223372036854775808", Right (os_empty, int64Max));
     ("large hex number 0x8000000000000000", os_empty, "0x8000000000000000", Right (os_empty, int64Max));
@@ -272,7 +272,7 @@ let eval_int64_tests ofNumLiteral mul : (string * symbolic_os_state * string * (
     ("x minus equals 7 return -2 when x is set to 5", os_var_x_five, "x-=7", Right (add_literal_env_string "x" "-2" os_empty, Int64.neg (ofNumLiteral 2)));
   ]
 
-let eval_int32_tests ofNumLiteral mul : (string * symbolic_os_state * string * (string, symbolic_os_state * Int32.t)Either.either)list =
+let eval_int32_tests ofNumLiteral mul : (string * symbolic os_state * string * (string, symbolic os_state * Int32.t)Either.either)list =
   [
     ("large number 9223372036854775808", os_empty, "9223372036854775808", Right (os_empty, int32Max));
     ("large hex number 0x8000000000000000", os_empty, "0x8000000000000000", Right (os_empty, int32Max));

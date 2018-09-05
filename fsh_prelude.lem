@@ -200,7 +200,7 @@ and entry =
     S of string
   | K of control
   | F
-  | ESym of symbolic (* embedded symbolic entries *)
+  | ESym of sym (* embedded symbolic entries *)
 
 and words = list entry
 
@@ -265,18 +265,18 @@ and expanded_word =
  | ExpS of string
  | UsrS of string
  | DQuo of symbolic_string
- | EWSym of symbolic
+ | EWSym of sym
 
 and expanded_words = list expanded_word
 
 (* final expansion output *)
-and symbolic =
+and sym =
     SymArith of fields (* symbolic result of arithmetic evaluation *) (* TODO is fields necessary? *)
   | SymCommand of stmt (* symbolic result of evaluating a command *)
   | SymPat of substring_side * substring_mode * symbolic_string * symbolic_string (* symbolic result of pattern matching (mode, pat, string) *)
 and symbolic_char =
     C of char
-  | Sym of symbolic
+  | Sym of sym
 and symbolic_string = list symbolic_char
 
 and fields = list (symbolic_string)
@@ -444,7 +444,7 @@ let expand_redir er f =
 (* SYMBOLIC STRING FUNCTIONS ******************************************)
 (**********************************************************************)
 
-val null_sym : symbolic -> maybe bool
+val null_sym : sym -> maybe bool
 let null_sym sym =
   match sym with
   | SymArith _ -> Just false
@@ -571,7 +571,7 @@ let rec try_concrete_fields fs =
      end
   end       
 
-val symbolic_to_string : symbolic -> string
+val symbolic_to_string : sym -> string
 let symbolic_to_string _sym = "<<SYMBOLIC>>"
 
 val symbolic_char_to_string : symbolic_char -> string

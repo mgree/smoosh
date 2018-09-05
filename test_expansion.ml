@@ -12,10 +12,10 @@ let check_expansion (test_name, s0, w_in, f_expected) : fields result =
 let concrete = List.map (fun x -> List.map (fun c -> Fsh.C c) (Xstring.explode x))
 
 let symcommand : symbolic_char = Sym (SymCommand (Command ([], [S "command"], [])))
-let os_var_x_foofoobarbar : symbolic_os_state = add_literal_env_string "x" "foofoobarbar" os_empty
-let os_var_x_foocommand : symbolic_os_state = symbolic_set_param "x" ((symbolic_string_of_string "foo") @ [symcommand]) os_empty
+let os_var_x_foofoobarbar : symbolic os_state = add_literal_env_string "x" "foofoobarbar" os_empty
+let os_var_x_foocommand : symbolic os_state = symbolic_set_param "x" ((symbolic_string_of_string "foo") @ [symcommand]) os_empty
 
-let expansion_tests : (string * symbolic_os_state * entry list * fields)list=
+let expansion_tests : (string * symbolic os_state * entry list * fields)list=
  ([
     ("plain string foo", os_empty, [S "foo"], concrete ["foo"]);
     ("expand tilde without username", add_literal_env_string "HOME" "/home/testuser" os_empty, [K Tilde], concrete ["/home/testuser"]);
