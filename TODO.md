@@ -11,7 +11,6 @@
 - special built-ins
   + trap
     need to add trap listing to the shell representation
-  + exec
 - other built-ins
 - special variables and shell flags
   + need to add to the shell representation
