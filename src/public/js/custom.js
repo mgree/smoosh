@@ -368,7 +368,8 @@ function renderStmt(info, elt, stmt) {
                   'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
                   'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
                   'Defun', 'Call',
-                  'Break', 'Continue', 'Return', 'Wait', 'Exit', 'Done'].includes(stmt['tag']), 
+                  'Break', 'Continue', 'Return', 
+                  'Exec', 'Wait', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
 
   elt.addClass('stmt stmt-' + stmt['tag']);
@@ -737,6 +738,24 @@ function renderStmt(info, elt, stmt) {
       cmd.append('return');
       
       break;
+
+    case 'Exec':
+      // | Exec (cmd, args, env) -> 
+      //    Assoc [tag "Exec";
+      //           ("cmd", json_of_symbolic_string cmd);
+      //           ("args", json_of_fields args);
+      //           ("env", json_of_env env)]
+
+      $('<i></i>').addClass('icon sign out alternate').appendTo(info);      
+
+      var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
+
+      renderSymbolicString(info, cmd, stmt['cmd']);
+
+      const argsExp = $('<span></span>').addClass('simple-args').appendTo(elt);
+      renderFields(info, argsExp, stmt['args']);
+
+      // TODO 2018-09-06 show env?
 
     case 'Wait':
       // | Wait n -> Assoc [tag "Wait"; ("pid", Int n)]
@@ -1542,8 +1561,8 @@ function renderEvaluationStep(info, step) {
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
                   'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
-                  'XSFor', 'XSCase', 'XSDefun', 'XSStack',
-                  'XSStep', 'XSWait', 'XSNested', 'XSExpand'].includes(step['tag']),
+                  'XSFor', 'XSCase', 'XSDefun', 'XSStack', 'XSStep', 
+                  'XSExec' 'XSWait', 'XSNested', 'XSExpand'].includes(step['tag']),
                  'got weird step tag ' + step['tag']);
 
   switch (step['tag']) {
@@ -1643,6 +1662,11 @@ function renderEvaluationStep(info, step) {
       if (step['msg'] !== '') {
         renderMessage(info, 'Evaluation step', step);
       }
+
+      break;
+
+    case 'XSExec':
+      renderMessage(info, 'Exec', step);
 
       break;
 
