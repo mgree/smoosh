@@ -254,6 +254,53 @@ let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat
  * and allow for both cases to progress.
  *)
 let expand_param s0 _q str f =
+  (* TODO 2018-09-06
+     PICK UP HERE
+     special case "@" and "*" when _q is quoted 
+       in which case we'll ust reconstruct a particular thing to expand
+
+     then go fix Os.lookup_param
+
+$ set -- "arg  1" "arg  2" "arg  3"
+
+$ for word in $*; do echo "$word"; done
+arg
+1
+arg
+2
+arg
+3
+
+$ for word in $@; do echo "$word"; done
+arg
+1
+arg
+2
+arg
+3
+
+$ for word in "$*"; do echo "$word"; done
+arg  1 arg  2 arg  3
+
+$ for word in "$@"; do echo "$word"; done
+arg  1
+arg  2
+arg  3
+
+$ for word in "${@#arg}"; do echo $word; done 
+1
+arg 2
+arg 3
+
+$ for word in "${*#arg}"; do echo $word; done
+1 arg 2 arg 3
+
+$ for word in "${#@}"; do echo $word; done
+20
+
+$ for word in "${#*}"; do echo $word; done
+
+   *)
   let value = lookup_param s0 str in
   match (value, f) with
   (* NORMAL *)
