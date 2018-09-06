@@ -1,89 +1,10 @@
 include import Pervasives_extra
 include import Fsh_num
 
-(* ??? What character set does lem use for strings? Does it matter? *)
-
-(**********************************************************************)
-(* UTILITY FUNCTIONS **************************************************)
-(**********************************************************************)
-
-let parens s = "( " ^ s ^ " )"
-
-val ltrim_newlines_cl : list char -> list char
-let rec ltrim_newlines_cl cl =
-  match cl with
-  | [] -> []
-  | #'\n'::cl' -> ltrim_newlines_cl cl'
-  | _ -> cl
-  end
-
-val trimr_newlines : string -> string
-let trimr_newlines s =
-  let cl = toCharList s in
-  toString (reverse (ltrim_newlines_cl (reverse cl)))
-
-val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
-let rec break p ls =
-  match ls with
-  | [] -> ([], [])
-  | x::xs ->
-    if p x
-    then ([], xs)
-    else let (xs', xs'') = break p xs in (x::xs', xs'')
-  end
-
-val spaced : string -> string -> string
-let spaced s1 s2 =
-  let sep = if s1 <> "" && s2 <> "" then " " else "" in
-  s1 ^ sep ^ s2
-
-val spaced_many : list string -> string
-let rec spaced_many ss =
-  match ss with
-  | [] -> ""
-  | [s] -> s
-  | s::ss' -> spaced s (spaced_many ss')
-  end
-
-val break_on_esc : bool -> char -> list char -> (list char) * (list char)
-let rec break_on_esc escapable sep ls =
-  match (escapable,ls) with
-  | (_,[]) -> ([], [])
-  | (true,#'\\'::c::cs) ->
-     let (cs', cs'') = break_on_esc escapable sep cs in 
-     (#'\\'::c::cs', cs'')
-  | (_,c::cs) ->
-    if sep = c
-    then ([], cs)
-    else let (cs', cs'') = break_on_esc escapable sep cs in 
-         (c::cs', cs'')
-  end
-
-val split_on : bool -> char -> list char -> list (list char)
-let rec split_on escapable sep cs =
-  match break_on_esc escapable sep cs with
-  | ([], []) -> []
-  | (cs', []) -> [cs']
-  | (cs', cs'') -> cs'::(split_on escapable sep cs'')
-  end
-
-val split_string_on : bool -> char -> string -> list string
-let split_string_on escapable sep s =
-  map toString (split_on escapable sep (toCharList s))
-
-val adjust_nth : forall 'a 'b. list 'a -> nat -> ('a -> 'a * 'b) -> maybe (list 'a * 'b)
-let rec adjust_nth l n f =
-  match (l,n) with
-  | ([],_) -> Nothing
-  | (v::l',0) -> 
-     let (v',res) = f v in
-     Just (v'::l',res)
-  | (v::l',_) ->
-     match adjust_nth l' (n-1) f with
-     | Nothing -> Nothing
-     | Just (l'',res) -> Just (v::l'',res)
-     end
-  end
+(*
+Strings will be whatever lem uses for string
+??? What character set does lem use for strings? Does it matter?
+*)
 
 (**********************************************************************)
 (* LOCALES ************************************************************)
@@ -150,7 +71,6 @@ let lc_ambient =
 type substring_mode =
   Shortest
 | Longest
-| Exact
 
 type substring_side =
   Prefix
@@ -192,15 +112,15 @@ and control =
   | LMatch of fields * substring_side * substring_mode * expanded_words * words (* runtime technicality *)
   | LError of string * expanded_words * words (* runtime technicality *)
   | Backtick of stmt
-  | LBacktick of stmt (* original stmt *) * nat (* pid *) * fd (* pipe [read] *)
-  | Arith of expanded_words (* runtime technicality *) * words
-  | Quote of expanded_words (* runtime technicality *) * words
+  | LBacktick of ty_shell_state * stmt (* original stmt *) * stmt (* in progress *)
+  | Arith of expanded_words * words
+  | Quote of words
 
 and entry =
     S of string
   | K of control
   | F
-  | ESym of sym (* embedded symbolic entries *)
+  | ESym of symbolic (* embedded symbolic entries *)
 
 and words = list entry
 
@@ -208,11 +128,11 @@ and stmt =
     Command of list (string * words) * words * list redir
   | CommandExpAssign of list (string * expansion_state) * words * list redir
   | CommandExpArgs of list (string * fields) * expansion_state * list redir
-  | CommandExpRedirs of list (string * fields) * fields * redir_state
+  | CommandExpanded of list (string * fields) * fields * list redir
   | Pipe of bool (* bg? *) * list stmt
-  | Redir of stmt * redir_state
-  | Background of stmt * redir_state
-  | Subshell of stmt * redir_state
+  | Redir of stmt * list redir
+  | Background of stmt * list redir
+  | Subshell of stmt * list redir
   | And of stmt * stmt
   | Or of stmt * stmt
   | Not of stmt
@@ -225,37 +145,24 @@ and stmt =
   | ForExpArgs of string * expansion_state * stmt
   | ForExpanded of string * fields * stmt
   | ForRunning of string * fields * stmt (* original body *) * stmt (* current body *)
-  | Case of words * list (list words * stmt)
-  | CaseExpArg of expansion_state * list (list words * stmt)
-  | CaseMatch of symbolic_string * list (list words * stmt)
-  | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (list words * stmt) (* remaining cases *)
+  | Case of words * list (words * stmt)
+  | CaseExpArg of expansion_state * list (words * stmt)
+  | CaseMatch of symbolic_string * list (words * stmt)
+  | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (words * stmt) (* remaining cases *)
   | Defun of string * stmt
   | Call of nat (* outer loop_nest, to be restored *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
   | Break of nat
   | Continue of nat
   | Return
   | Exit
-  | Exec of symbolic_string * list symbolic_string * env
   | Wait of nat (* pid *)
-  | Pushredir of stmt * saved_fds
   | Done
 
-(* TODO 2018-08-24 refactor into redir 'a with appropriate params *)
 and redir = 
    | RFile of redir_type * nat * words
-   | RDup of dup_type * nat * maybe nat (* Nothing if we're just closing *)
+   | RDup of dup_type * nat * nat
    | RHeredoc of heredoc_type * nat * words
 
-and expanding_redir =
-   | XRFile of redir_type * nat * expansion_state
-   | XRHeredoc of heredoc_type * nat * expansion_state
-
-and expanded_redir = 
-   | ERFile of redir_type * nat * fields
-   | ERDup of dup_type * bool (* close_orig? *) * nat * maybe nat
-   | ERHeredoc of heredoc_type * nat * fields
-
-and redir_state = list expanded_redir * maybe expanding_redir * list redir
 
 (**********************************************************************)
 (* Expansion **********************************************************)
@@ -265,19 +172,19 @@ and expanded_word =
    UsrF
  | ExpS of string
  | UsrS of string
- | DQuo of symbolic_string
- | EWSym of sym
+ | DQuo of string
+ | EWSym of symbolic
 
 and expanded_words = list expanded_word
 
 (* final expansion output *)
-and sym =
+and symbolic =
     SymArith of fields (* symbolic result of arithmetic evaluation *) (* TODO is fields necessary? *)
   | SymCommand of stmt (* symbolic result of evaluating a command *)
   | SymPat of substring_side * substring_mode * symbolic_string * symbolic_string (* symbolic result of pattern matching (mode, pat, string) *)
 and symbolic_char =
     C of char
-  | Sym of sym
+  | Sym of symbolic
 and symbolic_string = list symbolic_char
 
 and fields = list (symbolic_string)
@@ -329,9 +236,6 @@ and evaluation_step =
   | XSDefun of string
   | XSStack of string (* function name *) * evaluation_step 
   | XSStep of string
-  | XSExec of string
-  | XSWait of string
-  | XSProc of stmt
   | XSNested of evaluation_step * evaluation_step
   | XSExpand of evaluation_step * expansion_step
 
@@ -341,123 +245,28 @@ and evaluation_step =
 
 (* File descriptors *)         
 and fd = nat
-
-(* Paths *)
-and path = string
-
-(* Information for saved FDs during redirect: put in a list to indicate each FD
-   e.g., Map.fromList [(0,Close);(1,Saved 31);(4,Close)] says that:
-     - STDIN was opened for a redirect and should be closed
-     - that STDOUT was saved as fd 31 
-     - STDERR was closed before and should stay closed
-     - fd 3 was closed before and should stay closed
-     - fd 4 was opened for the redirect but should be closed
- *)
-
-and saved_fd_info = Saved of fd | Close 
-
-and saved_fds = list (fd * saved_fd_info)
-
+      
 (* environments *)       
 and env = Map.map string symbolic_string
 
 (* function definitions *)
 and funcs = Map.map string stmt        
 
-and shell_state = <|
-    (* no explicit stack of params... we use Call stmt as a stack frame *)
-    positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
+and ty_shell_state = <|
+    script_name: string; (* $0 *)
+    positional_params: list symbolic_string; (* $1, $2, $3, ... *)
     env: env;
-    readonly: set string;
-    export: set string;
     funcs: funcs;                 
     cwd: string;
     locale: locale;
     loop_nest: nat (* for tracking break/continue *)
  |>
 
-val STDIN : fd
-val STDOUT : fd
-val STDERR : fd
-let STDIN = 0
-let STDOUT = 1
-let STDERR = 2
-
-(**********************************************************************)
-(* AST HELPERS/SMART CONSTRUCTORS *************************************)
-(**********************************************************************)
-
-val pushredir : stmt -> saved_fds -> stmt
-let pushredir stmt saved_fds =
-  if null saved_fds
-  then stmt
-  else Pushredir stmt saved_fds
-
-val with_redirs : stmt -> list expanded_redir -> stmt
-let with_redirs stmt ers =
-  if null ers
-  then stmt
-  else Redir stmt (ers,Nothing,[])
-
-val close_fd_and_then : fd -> stmt -> stmt
-let close_fd_and_then fd stmt =
-  Semi (Pushredir Done [(fd, Close)]) stmt
-
-val is_terminating_control : stmt -> bool
-let is_terminating_control c =
-  match c with
-  | Exit -> true
-  | Return -> true
-  | Break _ -> true
-  | Continue _ -> true
-  | Done -> true
-  | _ -> false
-  end
-
-val get_expanding_redir_state : expanding_redir -> expansion_state
-let get_expanding_redir_state er =
-  match er with
-  | XRFile _ _ es -> es
-  | XRHeredoc _ _ es -> es
-  end
-
-val is_heredoc : expanding_redir -> bool
-let is_heredoc er =
-  match er with
-  | XRFile _ _ _ -> false
-  | XRHeredoc _ _ _ -> true
-  end
-
-val set_expanding_redir_state : expansion_state -> expanding_redir -> expanding_redir
-let set_expanding_redir_state es er =
-  match er with
-  | XRFile ty src _ -> XRFile ty src es
-  | XRHeredoc ty src _ -> XRHeredoc ty src es
-  end
-
-val expand_redir : expanding_redir -> fields -> expanded_redir
-let expand_redir er f =
-  match er with
-  | XRFile ty src _ -> ERFile ty src f
-  | XRHeredoc ty src _ -> ERHeredoc ty src f
-  end
-
 (**********************************************************************)
 (* SYMBOLIC STRING FUNCTIONS ******************************************)
 (**********************************************************************)
 
-val first_is_slash : path -> bool
-let first_is_slash path = 
-  path <> "" && nth path 0 = #'/'
-
-val last_is_slash : path -> bool
-let last_is_slash path = 
-  path <> "" && nth path (stringLength path - 1) = #'/'
-
-val join_path : path -> path -> path
-let join_path root ext = root ^ (if last_is_slash root then "" else "/") ^ ext
-
-val null_sym : sym -> maybe bool
+val null_sym : symbolic -> maybe bool
 let null_sym sym =
   match sym with
   | SymArith _ -> Just false
@@ -569,23 +378,7 @@ let rec try_concrete vs =
   | Sym _::_ -> Nothing
   end
 
-val try_concrete_fields : fields -> maybe string
-let rec try_concrete_fields fs =
-  match fs with
-  | [] -> Just ""
-  | [ss] -> try_concrete ss
-  | ss::fs' ->
-     match try_concrete ss with
-     | Nothing -> Nothing
-     | Just s -> 
-        match try_concrete_fields fs' with
-        | Nothing -> Nothing
-        | Just s' -> Just (s ^ " " ^ s')
-        end
-     end
-  end       
-
-val symbolic_to_string : sym -> string
+val symbolic_to_string : symbolic -> string
 let symbolic_to_string _sym = "<<SYMBOLIC>>"
 
 val symbolic_char_to_string : symbolic_char -> string
@@ -610,12 +403,12 @@ let rec string_of_symbolic_string sym_str =
   | c::cs -> symbolic_char_to_string c ^ string_of_symbolic_string cs
   end
 
-val string_of_fields : fields -> string
-let rec string_of_fields fs = 
+val fields_to_string : fields -> string
+let rec fields_to_string fs = 
   match fs with
-  | [] -> ""
+  | [] -> "f"
   | [f] -> string_of_symbolic_string f
-  | f::fs' -> string_of_symbolic_string f ^ " " ^ string_of_fields fs'
+  | f::fs' -> string_of_symbolic_string f ^ "<<FB>>" ^ fields_to_string fs'
   end
 
 val concat_expanded : expanded_words -> symbolic_string
@@ -624,31 +417,13 @@ let rec concat_expanded w =
   | [] -> symbolic_string_of_string ""
   | UsrF::ws -> symbolic_string_of_string " " ++ concat_expanded ws
   | ExpS s::ws -> symbolic_string_of_string s ++ concat_expanded ws
-  | DQuo ss::ws -> ss ++ concat_expanded ws
-    (* we don't include the quotes, since they'll be ultimately erased! *)
+  | DQuo s::ws -> symbolic_string_of_string s ++ concat_expanded ws
   | EWSym sym::ws -> Sym sym::concat_expanded ws
   | UsrS _::_ -> symbolic_string_of_string "TODO: broken invariant"
   end
 
 val fields_of_expanded_words : expanded_words -> fields
 let fields_of_expanded_words w = [concat_expanded w]
-
-val split_equal : string -> symbolic_string -> string * maybe symbolic_string
-let rec split_equal var ss =
-  match ss with
-  | [] -> (var, Nothing)
-  | (C #'=')::ss' -> (var, Just ss')
-  | (C c)::ss' -> split_equal (var ^ toString [c]) ss'
-  | _ -> (var ^ string_of_symbolic_string ss, Nothing)
-  end
-
-val try_split_assign : symbolic_string -> string * maybe symbolic_string
-let try_split_assign ss = split_equal "" ss
-
-val quote : string -> string
-let rec quote s = 
-  (* TODO 2018-09-05 implement *)
-  s
                                     
 (* Number type helpers *)
 
@@ -662,263 +437,15 @@ val int64ToFields : int64 -> fields
 let int64ToFields n = [symbolic_string_of_string (write n)]
 
 (**********************************************************************)
-(* PRETTY PRINTING ****************************************************)
-(**********************************************************************)
-
-val string_of_stmt : stmt -> string
-val string_of_words : words -> string
-val string_of_entry : entry -> string
-val string_of_expansion_step : expansion_step -> string
-val string_of_evaluation_step : evaluation_step -> string
-
-let braces s = "{ " ^ s ^ " ; }"
-
-(* we translate 
-           cmds... &
-   to
-           { cmds & }
-   this avoids issues with parsing; in particular,
-     cmd1 & ; cmd2 & ; cmd3
-   doesn't parse; it must be:
-     cmd1 & cmd2 & cmd3
-   it's a little too annoying to track "was the last thing
-   backgrounded?" so the braces resolve the issue. testing
-   indicates that they're semantically equivalent.
-*)
-let background s = "{ " ^ s ^ " & }"
-
-let show_unless expected actual =
-  if expected = actual
-  then ""
-  else stringFromNat actual
-
-(* TODO 2018-02-02 finish string rendering for technical runtime terms *)
-let rec string_of_stmt c = 
-  match c with
-  | Command assigns cmds redirs ->
-     let s_assigns = 
-       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_words a) assigns) 
-     in
-     let s_cmds = string_of_words cmds in
-     let s_redirs = string_of_redirs redirs in
-     spaced_many [s_assigns; s_cmds; s_redirs]
-  | CommandExpAssign assigns cmds redirs -> 
-     let s_assigns = 
-       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_expansion_state a) assigns) 
-     in
-     let s_cmds = string_of_words cmds in
-     let s_redirs = string_of_redirs redirs in
-     spaced_many [s_assigns; s_cmds; s_redirs]
-  | CommandExpArgs assigns cmds redirs -> 
-     let s_assigns = 
-       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_fields a) assigns) 
-     in
-     let s_cmds = string_of_expansion_state cmds in
-     let s_redirs = string_of_redirs redirs in
-     spaced_many [s_assigns; s_cmds; s_redirs]
-  | CommandExpRedirs assigns cmds redir_state ->
-     let s_assigns = 
-       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_fields a) assigns) 
-     in
-     let s_cmds = string_of_fields cmds in
-     let s_redirs = string_of_redir_state redir_state in
-     spaced_many [s_assigns; s_cmds; s_redirs]
-  | Pipe bg cmds ->
-     let p = concat " | " (List.map string_of_stmt cmds) in
-     if bg then background p else p
-  | Redir cmd redir_state -> 
-     spaced (string_of_stmt cmd) (string_of_redir_state redir_state)
-  | Background cmd redir_state -> 
-     background (spaced (string_of_stmt cmd) (string_of_redir_state redir_state))
-  | Subshell cmd redir_state ->
-     parens (spaced (string_of_stmt cmd) (string_of_redir_state redir_state))
-  | And cmd1 cmd2 ->
-     string_of_stmt cmd1 ^ " && " ^ string_of_stmt cmd2
-  | Or cmd1 cmd2 ->
-     string_of_stmt cmd1 ^ " || " ^ string_of_stmt cmd2
-  | Semi cmd1 cmd2 ->
-     string_of_stmt cmd1 ^ " ; " ^ string_of_stmt cmd2
-  | Not cmd ->
-     "! " ^ string_of_stmt cmd
-  | If c1 c2 c3 ->
-     string_of_if c1 c2 c3
-  | While (Not c1) c2 ->
-     "until " ^ string_of_stmt c1 ^ "; do " ^ string_of_stmt c2 ^ "; done "
-  | While c1 c2 ->
-     "while " ^ string_of_stmt c1 ^ "; do " ^ string_of_stmt c2 ^ "; done "
-  | WhileCond _c _cur _body -> "TODO WhileCond"
-  | WhileRunning _c _body _cur -> "TODO WhileRunning"
-  | For x w c ->
-     "for " ^ x ^ " in " ^ string_of_words w ^ "; do " ^ string_of_stmt c ^ "; done"
-  | ForExpArgs _ _ _ -> "TODO ForExpArgs"
-  | ForExpanded _ _ _ -> "TODO ForExpanded"
-  | ForRunning _ _ _ _ -> "TODO ForRunning"
-  | Case w cs ->
-     "case " ^ string_of_words w ^ " in " ^ concat " " (List.map string_of_case cs) ^ " esac"
-  | CaseExpArg _exp _cs -> "TODO CaseExpArg"
-  | CaseMatch _s _cs -> "TODO CaseMatch"
-  | CaseCheckMatch _s _exp _c _cs -> "TODO CaseCheckMatch"
-  | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
-  | Call _loopnest _argv _f _body _c -> "TODO Call"
-  | Break n -> "break " ^ show n
-  | Continue n -> "continue " ^ show n
-  | Return -> "return"
-  | Exit -> "exit"
-  | Exec cmd args _env -> spaced "exec" (string_of_fields (cmd::args))
-  | Wait n -> "wait " ^ stringFromNat n
-  | Pushredir s _saved -> string_of_stmt s (* TODO fixme *)
-  | Done -> "Done"
-  end
-
-and string_of_if c t e =
-  "if " ^ string_of_stmt c ^
-  "; then " ^ string_of_stmt t ^
-  (match e with
-   | Command [] [] [] -> "; fi" (* one-armed if *)
-   | If c t e -> "; el" ^ string_of_if c t e
-   | _ -> "; else " ^ string_of_stmt e ^ "; fi"
-   end)
-
-and string_of_case (w,c) =
-  concat "|" (List.map string_of_words w) ^ ") " ^ string_of_stmt c ^ ";;"
-
-and string_of_rfile ty fd =
-  match ty with
-  | To      -> show_unless 1 fd ^ ">"
-  | Clobber -> show_unless 1 fd ^ ">|"
-  | From    -> show_unless 0 fd ^ "<"
-  | FromTo  -> show_unless 0 fd ^ "<>"
-  | Append  -> show_unless 1 fd ^ ">>"
-  end
-
-and string_of_rdup ty fd =
-  match ty with
-  | ToFD -> show_unless 1 fd ^ ">&"
-  | FromFD -> show_unless 0 fd ^ "<&"
-  end
-
-and string_of_heredoc ty fd heredoc =
-  (* TODO 2018-09-04 use sound marker *)
-  let marker = "EOF" in
-  show_unless 0 fd ^ "<<" ^
-  (if ty = XHere then marker else "'" ^ marker ^ "'") ^ "\n" ^ heredoc ^ marker ^ "\n"
-
-and string_of_redir r = 
-  match r with
-  | RFile ty fd a    -> string_of_rfile ty fd ^ string_of_words a
-  | RDup ty fd tgt   -> 
-     string_of_rdup ty fd ^ 
-       match tgt with
-       | Nothing -> "-"
-       | Just fd_tgt -> stringFromNat fd_tgt
-       end
-  | RHeredoc ty fd a -> string_of_heredoc ty fd (string_of_words a)
-  end 
-
-and string_of_expanding_redir exp_redir =
-  match exp_redir with
-  | Nothing -> ""
-  | Just (XRFile ty fd exp_state) -> 
-     string_of_rfile ty fd ^ string_of_expansion_state exp_state
-  | Just (XRHeredoc ty fd exp_state) ->
-     string_of_heredoc ty fd (string_of_expansion_state exp_state)
-  end
-
-and string_of_expanded_redir er =
-  match er with
-  | ERFile ty fd a   ->  string_of_rfile ty fd ^ string_of_fields a
-  | ERDup ty _close_orig fd tgt  -> 
-     string_of_rdup ty fd ^ 
-       match tgt with
-       | Nothing -> "-"
-       | Just fd_tgt -> stringFromNat fd_tgt
-       end
-  | ERHeredoc ty fd a -> string_of_heredoc ty fd (string_of_fields a)
-  end 
-
-and string_of_expanded_redirs ers =
-  concat " " (List.map string_of_expanded_redir ers)
-and string_of_redirs rs = 
-  concat " " (List.map string_of_redir rs)
-
-and string_of_redir_state (ers, exp_redir, rs) =
-  let s_ers = string_of_expanded_redirs ers in
-  let s_exp_redir = string_of_expanding_redir exp_redir in
-  let s_rs = string_of_redirs rs in
-  spaced_many [s_ers; s_exp_redir; s_rs]
-
-and string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
-and string_of_entry e =
-  match e with
-  | S str -> str
-  | ESym _ -> "<<SYMBOLIC>>" (* TODO "R(" ^ string_of_symbolic_string c ^ ")" *)
-  | K _ -> "<<CTRL>>" (* TODO 2018-08-24 need to implement correctly to support Here heredocs *)
-
-  | F -> " "
-  end
-
-and string_of_expansion_state _exp_state =
-  (* TODO 2018-09-04 TODO implement *)
-  "string_of_expansion_state"
-
-and string_of_expansion_step estep =
-  match estep with
-  | ESTilde s -> "Tilde " ^ s
-  | ESParam s -> "Param " ^ s
-  | ESCommand s -> "Command " ^ s
-  | ESArith s -> "Arith " ^ s
-  | ESSplit s -> "Split " ^ s
-  | ESPath s -> "Path " ^ s
-  | ESQuote s -> "Quote " ^ s
-  | ESStep s -> "Step " ^ s
-  | ESNested estep_outer estep_inner ->
-     parens (string_of_expansion_step estep_outer) ^ " " ^
-     parens (string_of_expansion_step estep_inner)
-  | ESEval estep' step ->
-     parens (string_of_expansion_step estep') ^ " " ^
-     parens (string_of_evaluation_step step)
-  end
-
-and string_of_evaluation_step step =
-  match step with
-  | XSSimple s -> "Simple " ^ s
-  | XSPipe s -> "Pipe " ^ s
-  | XSRedir s -> "Redir " ^ s
-  | XSBackground s -> "Background " ^ s
-  | XSSubshell s -> "Subshell " ^ s
-  | XSAnd s -> "And " ^ s
-  | XSOr s -> "Or " ^ s
-  | XSNot s -> "Not " ^ s
-  | XSSemi s -> "Semi " ^ s
-  | XSIf s -> "If " ^ s
-  | XSWhile s -> "While " ^ s
-  | XSFor s -> "For " ^ s
-  | XSCase s -> "Case " ^ s
-  | XSDefun s -> "Defun " ^ s
-  | XSStack s step' -> "Stack " ^ s ^ parens (string_of_evaluation_step step')
-  | XSStep s -> "Step " ^ s
-  | XSExec s -> "Exec " ^ s
-  | XSWait s -> "Wait " ^ s
-  | XSProc c -> "Proc " ^ string_of_stmt c
-  | XSNested step_outer step_inner -> 
-     parens (string_of_evaluation_step step_outer) ^ " " ^ 
-     parens (string_of_evaluation_step step_inner)
-  | XSExpand step' estep ->
-     parens (string_of_evaluation_step step') ^ " " ^ 
-     parens (string_of_expansion_step estep)
-  end
-
-(**********************************************************************)
 (* DEFAULT SHELL STATE ************************************************)
 (**********************************************************************)
 
 let env_default : env = Map.insert "?" (symbolic_string_of_string "0") Map.empty
 
 let default_shell_state = <|
-      positional_params = []; (* $0, $1, $2, $3 ... *)
+      script_name = "fsh"; (* $0 *)
+      positional_params = []; (* $1, $2, $3 ... *)
       env = env_default;
-      readonly = Set.empty;
-      export = Set.empty;
       funcs = Map.empty;
       cwd = "/";
       locale = lc_ambient;
