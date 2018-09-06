@@ -59,7 +59,11 @@ let initialize_env s0 : real os_state =
   let s2 = Os.real_set_param "$" (string_of_int (Unix.getpid ())) s1 in
   (* override the prompt by default *)
   let s3 = Os.real_set_param "PS1" "$ " s2 in
-  { s3 with sh = { s3.sh with cwd = Unix.getcwd () } }
+  { s3 with sh = { s3.sh with cwd = Unix.getcwd (); 
+                              (* If a variable is initialized from the
+                                 environment, it shall be marked for
+                                 export immediately. *)
+                              export = Pset.from_list compare (List.map fst environ) } }
 
 let finish_up s0 =
   (* TODO 2018-08-14 trap on EXIT etc. goes here? *)

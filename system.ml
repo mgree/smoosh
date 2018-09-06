@@ -12,11 +12,8 @@ let real_getpwnam (nam : string) : string option =
   try Some ((Unix.getpwnam nam).pw_dir)
   with Not_found -> None
 
-let real_fork_and_execve (cmd : string) (argv : string list) (environ : string list) : int =
-  match Unix.fork () with
-  | 0 -> 
-     Unix.execve cmd (Array.of_list (cmd::argv)) (Array.of_list environ)
-  | pid -> pid
+let real_execve (cmd : string) (argv : string list) (environ : string list) : 'a =
+  Unix.execve cmd (Array.of_list (cmd::argv)) (Array.of_list environ)
 
 let real_fork_and_call (f : 'a -> int) (v : 'a) : int =
   match Unix.fork () with

@@ -3,12 +3,19 @@ open import Fsh
 import Debug
 
 val run_command : forall 'a. OS 'a => 
+                  (os_state 'a -> stmt -> nat) -> (* eval, for fork_and_execve *)
                   os_state 'a -> 
                   symbolic_string (* prog *) -> 
                   fields (* argv *) ->
                   env ->
-                  either (os_state 'a * string) (os_state 'a * stmt)
-   
+                  either (os_state 'a * string) 
+                         (os_state 'a * stmt * bool (* restore redirs *))
+
+(* NB that special builtins have to return the restore_redirs bool,
+   but it'll automatically get set to true for everything else.  all
+   of this is a bunch of silliness to properly allow exec its two
+   (rather different) behaviors *)
+
 val is_special_builtin : string -> bool
 let is_special_builtin s =
   elem s ["break";":";"continue";".";"eval";"exec";"exit";"export";"readonly";
@@ -26,6 +33,10 @@ let is_unspecified_utility s =
        
 let builtin_unimplemented s0 _argv _env = Left (s0,"unimplemented")
 
+(**********************************************************************)
+(* PATH RESOLUTION ****************************************************)
+(**********************************************************************)
+
 val resolve_path_with : (path -> bool) -> list path -> string -> maybe path
 let rec resolve_path_with ok path name = 
   let attempt altered path' = 
@@ -38,6 +49,40 @@ let rec resolve_path_with ok path name =
   | ""::path' -> attempt ("./" ^ name) path' (* 'legacy feature' in PATH per 8.3 *)
   | pwd::path' -> attempt (join_path pwd name) path'
   end
+
+val resolve_command_name : forall 'a. OS 'a =>
+                           os_state 'a ->
+                           string ->
+                           maybe string
+let resolve_command_name s0 prog =
+  if elem #'/' (toCharList prog)
+  then 
+    (* If the command name contains at least one <slash>, the shell
+       shall execute the utility in a separate utility environment
+       with actions equivalent to calling the execl() function defined
+       in the System Interfaces volume of POSIX.1-2008 with the path
+       and arg0 arguments set to the command name, and the remaining
+       execl() arguments set to the command arguments (if any) and the
+       null terminator. *)
+    Just prog
+  else
+    (* Otherwise, the command shall be searched for using the PATH
+       environment variable as described in XBD Environment Variables *)
+    match lookup_concrete_param s0 "PATH" with
+    | Nothing -> 
+       (* no PATH, just see if we can find the file *)
+       if file_exists s0 prog
+       then Just prog
+       else Nothing
+    | Just path -> 
+       (* try to resolve the file in the path *)
+       let paths = split_string_on true (* escapable *) #':' path in
+       resolve_path_with (file_exists s0) paths prog
+    end
+
+(**********************************************************************)
+(* ARGUMENT PROCESSING ************************************************)
+(**********************************************************************)
 
 val getopt : list char -> fields -> maybe (maybe char * fields)
 let rec getopt opts fields =
@@ -82,16 +127,18 @@ let rec getopts opts fields =
 (* SPECIAL BUILTINS ***************************************************)
 (**********************************************************************)
 
-let builtin_colon s0 _argv _env = Right (exit_with 0 s0,Done)
+let builtin_colon s0 _argv _env = Right (exit_with 0 s0, Done, true)
              
 let builtin_break s0 argv _env =
   match argv with
-  | [] -> Right (exit_with 0 s0, Break 1) (* default to just breaking the immediate loop *)
+  | [] -> 
+     (* default to just breaking the immediate loop *)
+     Right (exit_with 0 s0, Break 1, true) 
   | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 1
               then Left (s0,"break: " ^ write n ^ ": loop count out of range")
-              else Right (exit_with 0 s0,Break (toNat n))
+              else Right (exit_with 0 s0, Break (toNat n), true)
            | Left _ -> Left (s0,"break: " ^ string_of_symbolic_string s ^ ": numeric argument required")
            end
   | _ -> Left (s0,"break: too many arguments")
@@ -99,9 +146,11 @@ let builtin_break s0 argv _env =
 
 let builtin_continue s0 argv _env =
   match argv with
-  | [] -> Right (exit_with 0 s0,Continue 1) (* default to just continuing the immediate loop *)
+  | [] -> 
+     (* default to just continuing the immediate loop *)
+     Right (exit_with 0 s0, Continue 1, true) 
   | [s] -> match readNat (char_list_of_symbolic_string s) with
-           | Right n -> Right (exit_with 0 s0,Continue n)
+           | Right n -> Right (exit_with 0 s0, Continue n, true)
            | Left _ -> Left (s0,"continue: " ^ string_of_symbolic_string s ^ ": numeric argument required")
            end
   | _ -> Left (s0,"continue: too many arguments")
@@ -109,12 +158,12 @@ let builtin_continue s0 argv _env =
 
 let builtin_exit s0 argv _env =
   match argv with
-  | [] -> Right (s0,Exit) (* default to exit code of last command *)
+  | [] -> Right (s0, Exit, true) (* default to exit code of last command *)
   | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 0 || n > 255
               then Left (s0,"exit: " ^ write n ^ ": illegal number")
-              else Right (exit_with (toNat n) s0,Exit)
+              else Right (exit_with (toNat n) s0, Exit, true)
            | Left _ -> Left (s0,"exit: " ^ string_of_symbolic_string s ^ ": numeric argument required")
            end
   | _ -> Left (s0,"exit: too many arguments")
@@ -124,9 +173,9 @@ let builtin_return s0 argv _env =
   (* 2018-03-2 the present arrangement yields exit code of 1 on error; bash gives 255 for return; dash does 2.
         unspecified in POSIX docs *)
   match argv with
-  | [] -> Right (s0,Return) (* just keep the last command's return status *)
+  | [] -> Right (s0, Return, true) (* just keep the last command's return status *)
   | [s] -> match readNat (char_list_of_symbolic_string s) with
-           | Right n -> Right (exit_with n s0,Return)
+           | Right n -> Right (exit_with n s0, Return, true)
            | Left _ -> Left (s0,"return: " ^ string_of_symbolic_string s ^ ": numeric argument required")
            end
   | _ -> Left (s0,"return: too many arguments")
@@ -151,7 +200,7 @@ let builtin_shift s0 argv _env =
          <| s0 with sh = 
             <| s0.sh with positional_params = drop n s0.sh.positional_params |> |>
        in
-       Right (exit_with 0 s1, Done)
+       Right (exit_with 0 s1, Done, true)
   end
 
 val unset_var : 
@@ -188,10 +237,10 @@ val unset_all : forall 'a. OS 'a =>
                   (symbolic_string -> os_state 'a -> either string (os_state 'a)) ->
                   list symbolic_string ->
                   os_state 'a ->
-                  either (os_state 'a * string) (os_state 'a * stmt)
+                  either (os_state 'a * string) (os_state 'a * stmt * bool)
 let rec unset_all unsetter names s0 =
   match names with
-  | [] -> Right (exit_with 0 s0, Done)
+  | [] -> Right (exit_with 0 s0, Done, true)
   | name::names' ->
      match unsetter name s0 with
      | Left err -> Left (s0, err)
@@ -225,10 +274,10 @@ let rec show_varlist s0 cmd vs =
 val update_varlist : forall 'a. OS 'a => 
    os_state 'a -> string -> (os_state 'a -> string -> os_state 'a) -> 
    list symbolic_string -> 
-   either (os_state 'a * string) (os_state 'a * stmt)
+   either (os_state 'a * string) (os_state 'a * stmt * bool)
 let rec update_varlist s0 cmd update args =
   match args with
-  | [] -> Right (s0, Done)
+  | [] -> Right (s0, Done, true)
   | arg::args' ->
      let (var,mvalue) = try_split_assign arg in
      (* first, try to set. if it's readonly, we're borked! *)
@@ -248,7 +297,7 @@ let builtin_export s0 argv _env =
   if elem #'p' opts || null argv'
   then (* print out current export vars *)
     let vars = Set_extra.toOrderedList s0.sh.export in
-    Right (show_varlist s0 "export" vars, Done)
+    Right (show_varlist s0 "export" vars, Done, true)
   else (* mark export and possibly set *)
     update_varlist 
       s0 
@@ -262,7 +311,7 @@ let builtin_readonly s0 argv _env =
   if elem #'p' opts || null argv'
   then (* print out current readonly vars *)
     let vars = Set_extra.toOrderedList s0.sh.readonly in
-    Right (show_varlist s0 "readonly" vars, Done)
+    Right (show_varlist s0 "readonly" vars, Done, true)
   else (* mark readonly and possibly set *)
     update_varlist 
       s0 
@@ -273,7 +322,9 @@ let builtin_readonly s0 argv _env =
 
 let builtin_times s0 _argv _env = 
   let (utime, stime, cutime, cstime) = times s0 in
-  Right (write_stdout (utime ^ " " ^ stime ^ "\n" ^ cutime ^ " " ^ cstime ^ "\n") s0, Done)
+  Right (write_stdout (utime ^ " " ^ stime ^ "\n" ^ cutime ^ " " ^ cstime ^ "\n") s0, 
+         Done,
+         true)
 
 val parse_string : string -> list stmt
 declare ocaml target_rep function parse_string = `Shim.parse_string`
@@ -283,11 +334,11 @@ declare ocaml target_rep function parse_file = `Shim.parse_file`
 
 let builtin_eval s0 argv _env = 
   if null argv
-  then Right (exit_with 0 s0, Done)
+  then Right (exit_with 0 s0, Done, true)
   else 
     let stmts = parse_string (string_of_fields argv) in
     (* TODO 2018-09-05 won't do the right thing for, e.g., alias *)
-    Right (s0, foldr Semi (Command [] [] []) stmts)
+    Right (s0, foldr Semi (Command [] [] []) stmts, true)
 
 let builtin_source s0 argv _env = 
   match argv with
@@ -310,13 +361,39 @@ let builtin_source s0 argv _env =
                   end
                end in
         let stmts = parse_file path in
-        (* TODO 2018-09-05 won't do the right thing for, e.g., alias *)
-        Right (s0, foldr Semi (Command [] [] []) stmts)
+        (* TODO 2018-09-05 won't do the right thing for, e.g., alias 
+           really, we should call setinputstring
+           call an appropriate parsecmd in Dash
+           then process that line and continue
+
+           pretty tricky when there are all kinds of subshells, but our popfile() discipline should work it out
+         *)
+        Right (s0, foldr Semi (Command [] [] []) stmts, true)
      end
   end
 
+let builtin_exec s0 argv env =
+  match argv with
+  | [] -> 
+     Right (s0, Done, false (* don't restore *))
+  | scmd::args ->
+     (* resolve the command path *)
+     let cmd_path = 
+       match try_concrete scmd with
+       | Nothing -> scmd
+       | Just cmd ->
+          match resolve_command_name s0 cmd with
+          | Nothing -> scmd
+          | Just path -> symbolic_string_of_string path
+          end
+       end in
+     (* leave behind an exec to the full command *)
+     Right (s0, 
+            Exec cmd_path args env, 
+            false (* but it doesn't matter, we'll never return *))
+  end
+
 (* TODO 2018-08-13 *)
-let builtin_exec = builtin_unimplemented
 let builtin_set = builtin_unimplemented
 let builtin_trap = builtin_unimplemented
    
@@ -324,7 +401,7 @@ val special_builtins :
   forall 'a. OS 'a =>
     Map.map string 
       (os_state 'a -> fields (* argv *) -> env -> 
-       either (os_state 'a * string) (os_state 'a * stmt))
+       either (os_state 'a * string) (os_state 'a * stmt * bool))
 let special_builtins =  
   Map.fromList
     [ (".", builtin_source)
@@ -562,10 +639,11 @@ let builtins =
     ; ("wait", builtin_wait)
     ]
 
-let run_command s0 prog_name argv env =
+let run_command eval s0 prog_name argv env =
   match try_concrete prog_name with
   | Nothing -> Left (s0,"can't run symbolic command")
   | Just prog ->
+     (* TODO 2018-09-06 if there's a slash, we can skip ahead. but shouldn't hurt. *)
   (*  1a. If the command name matches the name of a special built-in utility, that special built-in utility shall be invoked. *)
      match Map.lookup prog special_builtins with
      | Just fn -> fn s0 argv env
@@ -573,7 +651,7 @@ let run_command s0 prog_name argv env =
         (* 1b. b. If the command name matches the name of a utility
            listed in the following table, the results are unspecified. *)
         if is_unspecified_utility prog
-        then Right (s0,Done)
+        then Right (s0, Done, true)
         else 
           (* 1c. If the command name matches the name of a function
              known to this shell, the function shall be invoked as
@@ -585,135 +663,67 @@ let run_command s0 prog_name argv env =
           match lookup_function prog s0 with
           | Just body ->
              Right (set_function_params 0 argv s0,
-                    Call s0.sh.loop_nest s0.sh.positional_params prog body body)
+                    Call s0.sh.loop_nest s0.sh.positional_params prog body body,
+                    true)
           | Nothing -> 
              (* 1d. If the command name matches the name [XSI] [Option
                 Start] of the type or ulimit utility, or [Option End]
                 of a utility listed in the following table, that
                 utility shall be invoked. *)
              match Map.lookup prog builtins with
-             | Just fn -> fn s0 argv env
+             | Just fn -> 
+                (* force a restore *)
+                match fn s0 argv env with
+                | Left err -> Left err
+                | Right (s1, stmt) -> Right (s1, stmt, true)
+                end
              | Nothing ->
-                (* Otherwise, the command shall be searched for using
-                   the PATH environment variable as described in XBD
-                   Environment Variables:
-
-                   If the search is successful:
-
-                   If the system has implemented the utility as a
-                   regular built-in or as a shell function, it shall
-                   be invoked at this point in the path search.
-
-                   Otherwise, the shell executes the utility in a
-                   separate utility environment (see Shell Execution
-                   Environment) with actions equivalent to calling the
-                   execl() function as defined in the System
-                   Interfaces volume of POSIX.1-2008 with the path
-                   argument set to the pathname resulting from the
-                   search, arg0 set to the command name, and the
-                   remaining execl() arguments set to the command
-                   arguments (if any) and the null terminator.
-
-                   If the execl() function fails due to an error
-                   equivalent to the [ENOEXEC] error defined in the
-                   System Interfaces volume of POSIX.1-2008, the shell
-                   shall execute a command equivalent to having a
-                   shell invoked with the pathname resulting from the
-                   search as its first operand, with any remaining
-                   arguments passed to the new shell, except that the
-                   value of "$0" in the new shell may be set to the
-                   command name. If the executable file is not a text
-                   file, the shell may bypass this command
-                   execution. In this case, it shall write an error
-                   message, and shall return an exit status of 126.
-
-                   It is unspecified whether environment variables
-                   that were passed to the shell when it was invoked,
-                   but were not used to initialize shell variables
-                   (see Shell Variables) because they had invalid
-                   names, are included in the environment passed to
-                   execl() and (if execl() fails as described above)
-                   to the new shell.
-
-                   Once a utility has been searched for and found
-                   (either as a result of this specific search or as
-                   part of an unspecified shell start-up activity), an
-                   implementation may remember its location and need
-                   not search for the utility again unless the PATH
-                   variable has been the subject of an assignment. If
-                   the remembered location fails for a subsequent
-                   invocation, the shell shall repeat the search to
-                   find the new location for the utility, if any.
-
-                   If the search is unsuccessful, the command shall
-                   fail with an exit status of 127 and the shell shall
-                   write an error message.
-
-                   If the command name contains at least one <slash>,
-                   the shell shall execute the utility in a separate
-                   utility environment with actions equivalent to
-                   calling the execl() function defined in the System
-                   Interfaces volume of POSIX.1-2008 with the path and
-                   arg0 arguments set to the command name, and the
-                   remaining execl() arguments set to the command
-                   arguments (if any) and the null terminator.
-
-                   If the execl() function fails due to an error
-                   equivalent to the [ENOEXEC] error, the shell shall
-                   execute a command equivalent to having a shell
-                   invoked with the command name as its first operand,
-                   with any remaining arguments passed to the new
-                   shell. If the executable file is not a text file,
-                   the shell may bypass this command execution. In
-                   this case, it shall write an error message and
-                   shall return an exit status of 126.
-
-                   It is unspecified whether environment variables
-                   that were passed to the shell when it was invoked,
-                   but were not used to initialize shell variables
-                   (see Shell Variables) because they had invalid
-                   names, are included in the environment passed to
-                   execl() and (if execl() fails as described above)
-                   to the new shell.
-
-                   If the utility would be executed with file
-                   descriptor 0, 1, or 2 closed, implementations may
-                   execute the utility with the file descriptor open
-                   to an unspecified file. If a standard utility or a
-                   conforming application is executed with file
-                   descriptor 0 not open for reading or with file
-                   descriptor 1 or 2 not open for writing, the
-                   environment in which the utility or application is
-                   executed shall be deemed non-conforming, and
-                   consequently the utility or application might not
-                   behave as described in this standard.  *)
-                let prog_path = 
-                  match lookup_concrete_param s0 "PATH" with
-                  | Nothing -> 
-                     if file_exists s0 prog
-                     then Just prog
-                     else Nothing
-                  | Just path -> 
-                     let paths = split_string_on true (* escapable *) #':' path in
-                     resolve_path_with (file_exists s0) paths prog
-                  end in
-                match prog_path with
+                match resolve_command_name s0 prog with
                 | Nothing -> 
+                   (* If the search is unsuccessful, the command shall
+                      fail with an exit status of 127 and the shell
+                      shall write an error message. *)
                    let s1 = write_stderr (prog ^ ": command not found\n") s0 in
-                   Right (exit_with 127 s1, Done)
+                   Right (exit_with 127 s1, Done, true)
                 | Just executable ->
                    if isexec s0 executable
                    then 
+                     (* TODO 2018-09-06 support this? *)
+                     (* If the execl() function fails due to an error
+                        equivalent to the [ENOEXEC] error defined in
+                        the System Interfaces volume of POSIX.1-2008,
+                        the shell shall execute a command equivalent
+                        to having a shell invoked with the pathname
+                        resulting from the search as its first
+                        operand, with any remaining arguments passed
+                        to the new shell, except that the value of
+                        "$0" in the new shell may be set to the
+                        command name. If the executable file is not a
+                        text file, the shell may bypass this command
+                        execution. In this case, it shall write an
+                        error message, and shall return an exit status
+                        of 126. *)
                      let (s1,pid) = fork_and_execve 
+                                      eval
                                       s0 
                                       (symbolic_string_of_string executable) 
                                       argv 
                                       env 
                      in
-                     Right (s1,Wait pid)
+                     Right (s1, Wait pid, true)
                    else (* TODO 2018-08-20 test for text file? *)
+                     (* If the execl() function fails due to an error
+                        equivalent to the [ENOEXEC] error, the shell
+                        shall execute a command equivalent to having a
+                        shell invoked with the command name as its
+                        first operand, with any remaining arguments
+                        passed to the new shell. If the executable
+                        file is not a text file, the shell may bypass
+                        this command execution. In this case, it shall
+                        write an error message and shall return an
+                        exit status of 126. *)
                      let s1 = write_stderr (executable ^ ": command not executable\n") s0 in
-                     Right (exit_with 126 s1,Done)
+                     Right (exit_with 126 s1, Done, true)
                 end
              end
           end

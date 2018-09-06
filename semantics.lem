@@ -217,14 +217,14 @@ let quote_removal f =
 
 let rec do_redirs os0 ers =
   match ers with
-  | [] -> Right (os0, Map.empty)
+  | [] -> Right (os0, [])
   | (er::ers') ->
      match redirect os0 er with
      | Left err -> Left err
      | Right (os1,saved) -> 
         match do_redirs os1 ers' with
         | Left err -> Left err
-        | Right (os2,saved') -> Right (os2, Map.(union) saved saved')
+        | Right (os2,saved') -> Right (os2, saved ++ saved')
         end
      end
   end
@@ -378,9 +378,9 @@ let rec expand_control s0 q k =
        let cmd = 
          pushredir 
            (* set up redirects [skipping expansion] *)
-           (with_redirs c [ERDup ToFD true (* close orig *) fd_write (Just STDOUT)])
+           (with_redirs c [ERDup ToFD true (* close orig *) STDOUT (Just fd_write)])
            (* make sure to close the pipe when we're done *)
-           (Map.singleton fd_write Close)
+           [(fd_write, Close)]
        in
        let (s2, pid) = fork_and_subshell eval s1 cmd in
        Right (ESCommand "initializing subshell", 
@@ -739,17 +739,17 @@ and step_eval s0 stmt =
        end in
      match do_redirs s1 ers with
      | Left msg -> 
-        Right (XSRedir "error in redirection", 
+        Right (XSSimple ("error in redirection: " ^ msg), 
                fail_with msg s1, 
                (* TODO 2018-09-05 implement table 2.8.1: non-interactive shells may exit *)
                Done)
      | Right (s2, saved_fds) ->
        (* run command *)
-       match run_command s2 prog args env with
-       | Right (s3,stmt') -> 
+       match run_command eval s2 prog args env with
+       | Right (s3, stmt', restore) -> 
           Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
                  s3, 
-                 pushredir stmt' saved_fds)
+                 if restore then pushredir stmt' saved_fds else stmt')
        | Left (s3,msg) -> 
           Right (XSSimple "couldn't run command", 
                  fail_with msg s3, 
@@ -780,7 +780,7 @@ and step_eval s0 stmt =
      match do_redirs s0 ers with
      | Left msg -> 
         (* dash doesn't set the variables if the redirect failed *)
-        Right (XSRedir "error in redirection", 
+        Right (XSSimple ("error in redirection"), 
                fail_with msg s0, 
                Done)
      | Right (s1, saved_fds) ->
@@ -1171,6 +1171,15 @@ and step_eval s0 stmt =
         Right (XSStack f step,
                s1,
                Call old_loop_nest old_positional_params f orig c')
+     end
+
+  (* EXEC *********************************************************************)
+  | Exec cmd args env -> 
+     match execve s0 cmd args env with
+     | (_s1, _stmt) -> 
+        (* we'll only actually return if we're running symbolically.
+           with real OS calls, that execve never comes back! *)
+        Left (XSExec "symbolic execve unimplemented", s0)
      end
 
   (* WAIT *********************************************************************)

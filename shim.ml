@@ -407,6 +407,11 @@ let rec json_of_stmt = function
   | Break n -> Assoc [tag "Break"; ("n", Int n)]
   | Continue n -> Assoc [tag "Continue"; ("n", Int n)]
   | Return -> Assoc [tag "Return"]
+  | Exec (cmd, args, env) -> 
+     Assoc [tag "Exec";
+            ("cmd", json_of_symbolic_string cmd);
+            ("args", json_of_fields args);
+            ("env", json_of_env env)]
   | Wait n -> Assoc [tag "Wait"; ("pid", Int n)]
   | Pushredir (c, saved_fds) -> 
      Assoc [tag "Pushredir"; 
@@ -556,8 +561,10 @@ and json_of_tmp_field = function
   | QField s -> Assoc [tag "QField"; ("s", json_of_symbolic_string s)]
 and json_of_intermediate_fields fs = List (List.map json_of_tmp_field fs)
 and json_of_saved_fds saved_fds =
-  Assoc (Pmap.fold (fun fd info l -> (string_of_int fd, json_of_saved_fd_info info)::l)
-         saved_fds [])
+  List (List.map 
+          (fun (fd, info) -> 
+            Assoc [("fd", Int fd); ("info", json_of_saved_fd_info info)])
+          saved_fds)
 and json_of_saved_fd_info = function
   | Saved fd -> Int fd
   | Close -> String "close"
@@ -606,6 +613,7 @@ and json_of_evaluation_step = function
                                    ("func", String func);
                                    ("inner", json_of_evaluation_step inner)]
   | XSStep s -> Assoc [tag "XSStep"; ("msg", String s)]
+  | XSExec s -> Assoc [tag "XSExec"; ("msg", String s)]
   | XSWait s -> Assoc [tag "XSWait"; ("msg", String s)]
   | XSProc stmt -> Assoc [tag "XSProc"; ("c", json_of_stmt stmt)]
   | XSNested (outer, inner) -> Assoc [tag "XSNested"; ("inner", json_of_evaluation_step inner); ("outer", json_of_evaluation_step outer)]

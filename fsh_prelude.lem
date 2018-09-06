@@ -235,6 +235,7 @@ and stmt =
   | Continue of nat
   | Return
   | Exit
+  | Exec of symbolic_string * list symbolic_string * env
   | Wait of nat (* pid *)
   | Pushredir of stmt * saved_fds
   | Done
@@ -328,6 +329,7 @@ and evaluation_step =
   | XSDefun of string
   | XSStack of string (* function name *) * evaluation_step 
   | XSStep of string
+  | XSExec of string
   | XSWait of string
   | XSProc of stmt
   | XSNested of evaluation_step * evaluation_step
@@ -354,7 +356,7 @@ and path = string
 
 and saved_fd_info = Saved of fd | Close 
 
-and saved_fds = Map.map fd saved_fd_info
+and saved_fds = list (fd * saved_fd_info)
 
 (* environments *)       
 and env = Map.map string symbolic_string
@@ -387,7 +389,7 @@ let STDERR = 2
 
 val pushredir : stmt -> saved_fds -> stmt
 let pushredir stmt saved_fds =
-  if Map.null saved_fds
+  if null saved_fds
   then stmt
   else Pushredir stmt saved_fds
 
@@ -399,7 +401,7 @@ let with_redirs stmt ers =
 
 val close_fd_and_then : fd -> stmt -> stmt
 let close_fd_and_then fd stmt =
-  Semi (Pushredir Done (Map.singleton fd Close)) stmt
+  Semi (Pushredir Done [(fd, Close)]) stmt
 
 val is_terminating_control : stmt -> bool
 let is_terminating_control c =
@@ -443,6 +445,17 @@ let expand_redir er f =
 (**********************************************************************)
 (* SYMBOLIC STRING FUNCTIONS ******************************************)
 (**********************************************************************)
+
+val first_is_slash : path -> bool
+let first_is_slash path = 
+  path <> "" && nth path 0 = #'/'
+
+val last_is_slash : path -> bool
+let last_is_slash path = 
+  path <> "" && nth path (stringLength path - 1) = #'/'
+
+val join_path : path -> path -> path
+let join_path root ext = root ^ (if last_is_slash root then "" else "/") ^ ext
 
 val null_sym : sym -> maybe bool
 let null_sym sym =
@@ -751,6 +764,7 @@ let rec string_of_stmt c =
   | Continue n -> "continue " ^ show n
   | Return -> "return"
   | Exit -> "exit"
+  | Exec cmd args _env -> spaced "exec" (string_of_fields (cmd::args))
   | Wait n -> "wait " ^ stringFromNat n
   | Pushredir s _saved -> string_of_stmt s (* TODO fixme *)
   | Done -> "Done"
@@ -883,6 +897,7 @@ and string_of_evaluation_step step =
   | XSDefun s -> "Defun " ^ s
   | XSStack s step' -> "Stack " ^ s ^ parens (string_of_evaluation_step step')
   | XSStep s -> "Step " ^ s
+  | XSExec s -> "Exec " ^ s
   | XSWait s -> "Wait " ^ s
   | XSProc c -> "Proc " ^ string_of_stmt c
   | XSNested step_outer step_inner -> 
