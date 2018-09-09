@@ -59,7 +59,8 @@ let initialize_env s0 : real os_state =
   let s2 = Os.real_set_param "$" (string_of_int (Unix.getpid ())) s1 in
   (* override the prompt by default *)
   let s3 = Os.real_set_param "PS1" "$ " s2 in
-  { s3 with sh = { s3.sh with cwd = Unix.getcwd (); 
+  let s4 = if !interactive then real_set_sh_opt s3 Sh_interactive else s3 in
+  { s4 with sh = { s4.sh with cwd = Unix.getcwd (); 
                               (* If a variable is initialized from the
                                  environment, it shall be marked for
                                  export immediately. *)
@@ -102,6 +103,7 @@ let rec repl s0 =
        | ("?",_) -> ()
        | ("!",_) -> ()
        | ("$",_) -> ()
+       | ("-",_) -> ()
        | (_,None) -> ()
        | (_,Some s) -> Dash.setvar x s
      in
