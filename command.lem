@@ -137,11 +137,11 @@ let builtin_break s0 argv _env =
   | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 1
-              then Left (s0,"break: " ^ write n ^ ": loop count out of range")
+              then Left (s0,write n ^ ": loop count out of range")
               else Right (exit_with 0 s0, Break (toNat n), true)
-           | Left _ -> Left (s0,"break: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+           | Left _ -> Left (s0,string_of_symbolic_string s ^ ": numeric argument required")
            end
-  | _ -> Left (s0,"break: too many arguments")
+  | _ -> Left (s0,"too many arguments")
   end
 
 let builtin_continue s0 argv _env =
@@ -151,9 +151,9 @@ let builtin_continue s0 argv _env =
      Right (exit_with 0 s0, Continue 1, true) 
   | [s] -> match readNat (char_list_of_symbolic_string s) with
            | Right n -> Right (exit_with 0 s0, Continue n, true)
-           | Left _ -> Left (s0,"continue: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+           | Left _ -> Left (s0,string_of_symbolic_string s ^ ": numeric argument required")
            end
-  | _ -> Left (s0,"continue: too many arguments")
+  | _ -> Left (s0, "too many arguments")
   end
 
 let builtin_exit s0 argv _env =
@@ -162,11 +162,11 @@ let builtin_exit s0 argv _env =
   | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 0 || n > 255
-              then Left (s0,"exit: " ^ write n ^ ": illegal number")
+              then Left (s0, write n ^ ": illegal number")
               else Right (exit_with (toNat n) s0, Exit, true)
-           | Left _ -> Left (s0,"exit: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+           | Left _ -> Left (s0,string_of_symbolic_string s ^ ": numeric argument required")
            end
-  | _ -> Left (s0,"exit: too many arguments")
+  | _ -> Left (s0, "too many arguments")
   end
 
 let builtin_return s0 argv _env =
@@ -176,9 +176,9 @@ let builtin_return s0 argv _env =
   | [] -> Right (s0, Return, true) (* just keep the last command's return status *)
   | [s] -> match readNat (char_list_of_symbolic_string s) with
            | Right n -> Right (exit_with n s0, Return, true)
-           | Left _ -> Left (s0,"return: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+           | Left _ -> Left (s0,string_of_symbolic_string s ^ ": numeric argument required")
            end
-  | _ -> Left (s0,"return: too many arguments")
+  | _ -> Left (s0,"too many arguments")
   end
 
 let builtin_shift s0 argv _env =
@@ -186,15 +186,15 @@ let builtin_shift s0 argv _env =
     | [] -> Right 1
     | [s] -> match readNat (char_list_of_symbolic_string s) with
           | Right n -> Right n
-          | Left _ -> Left ("shift: " ^ string_of_symbolic_string s ^ ": numeric argument required")
+          | Left _ -> Left (string_of_symbolic_string s ^ ": numeric argument required")
           end
-    | _  -> Left ("shift: too many arguments")
+    | _  -> Left ("too many arguments")
     end in 
   match n with
   | Left err -> Left (s0,err)
   | Right n -> 
      if n >= length s0.sh.positional_params
-     then Left (exit_with 1 s0, "shift: can't shift that many")
+     then Left (exit_with 1 s0, "can't shift that many")
      else
        let s1 = 
          <| s0 with sh = 
@@ -456,16 +456,14 @@ let rec set_getopt opts fields =
      end
    end
 
-val set_getopts : list sh_opt * list sh_opt -> fields -> (list sh_opt * list sh_opt) * fields
+val set_getopts : list sh_opt * list sh_opt -> fields -> maybe ((list sh_opt * list sh_opt) * fields)
 let rec set_getopts opts fields = 
   match set_getopt opts fields with
-  | Nothing -> (opts,fields)
+  | Nothing -> Nothing (* bad parse is a failure. need explict -- for args *)
   | Just (Nothing, fields') ->
      (* stop! we hit -- or some such *)
-     (opts, fields')
-  | Just (Just opts',fields') -> 
-     let (opts'',fields'') = set_getopts opts' fields' in
-     (opts'',fields'')
+     Just (opts, fields')
+  | Just (Just opts',fields') -> set_getopts opts' fields'
   end
 
 let set_showopts s0 show = 
@@ -503,11 +501,15 @@ OR
             write_stdout (msg ^ "\n") os
          end)
   | _ ->
-     let ((on,off),params) = set_getopts ([],[]) argv in
-     let s1 = foldr (fun opt os -> set_sh_opt os opt) s0 on in
-     let s2 = foldr (fun opt os -> unset_sh_opt os opt) s1 off in
-     let s3 = set_function_params s2.sh.loop_nest (* keep the same *) params s2 in
-     Right (s3, Done, true) 
+     match set_getopts ([],[]) argv with
+     | Nothing ->
+        Left (s0, "illegal option")
+     | Just ((on,off),params) ->
+        let s1 = foldr (fun opt os -> set_sh_opt os opt) s0 on in
+        let s2 = foldr (fun opt os -> unset_sh_opt os opt) s1 off in
+        let s3 = set_function_params s2.sh.loop_nest (* keep the same *) params s2 in
+        Right (s3, Done, true) 
+     end
   end
 
 (* TODO 2018-08-13 *)

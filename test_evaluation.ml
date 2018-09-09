@@ -109,6 +109,10 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   ; ("f() { exit $# ; } ; f a b c", os_empty, 3)
   ; ("f() { $@ ; } ; f exit 12", os_empty, 12)
   ; ("f() { $* ; } ; f exit 12", os_empty, 12)
+
+  (* set *)
+  ; ("set -- a b c; exit $#", os_empty, 3)
+  ; ("set -- ; exit $#", os_empty, 0)
   ]
 
 (***********************************************************************)

@@ -752,7 +752,7 @@ and step_eval s0 stmt =
                  if restore then pushredir stmt' saved_fds else stmt')
        | Left (s3,msg) -> 
           Right (XSSimple "couldn't run command", 
-                 fail_with msg s3, 
+                 fail_with (string_of_symbolic_string prog ^ ": " ^ msg) s3, 
                  pushredir Done saved_fds)
        end
      end
