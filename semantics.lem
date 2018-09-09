@@ -251,6 +251,7 @@ let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat
  * and allow for both cases to progress.
  *)
 let expand_param s0 _q str f =
+  (* TODO 2018-09-06 use _q, fix support for $* and $@ *)
   let value = lookup_param s0 str in
   match (value, f) with
   (* NORMAL *)

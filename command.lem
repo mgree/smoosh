@@ -587,25 +587,36 @@ let builtin_cd s0 argv _env =
   end
 
 (* TODO 2018-08-13 *)
+
+(* interface with dash :( *)
 let builtin_alias = builtin_unimplemented
-let builtin_bg = builtin_unimplemented
-let builtin_chdir = builtin_unimplemented
+let builtin_unalias = builtin_unimplemented
+
+(* command understanding *)
 let builtin_command = builtin_unimplemented
-let builtin_fg = builtin_unimplemented
-let builtin_getopts = builtin_unimplemented
 let builtin_hash = builtin_unimplemented
+let builtin_type = builtin_unimplemented
+
+(* job control *)
+let builtin_bg = builtin_unimplemented
+let builtin_fg = builtin_unimplemented
+let builtin_fc = builtin_unimplemented
 let builtin_jobs = builtin_unimplemented
+let builtin_wait = builtin_unimplemented
 let builtin_kill = builtin_unimplemented
-let builtin_local = builtin_unimplemented
+
+(* parsing/printing *)
+let builtin_getopts = builtin_unimplemented
+let builtin_local = builtin_unimplemented (* unspec *)
 let builtin_printf = builtin_unimplemented
 let builtin_read = builtin_unimplemented
 let builtin_test = builtin_unimplemented
-let builtin_type = builtin_unimplemented
+
+(* POSIX user control *)
 let builtin_ulimit = builtin_unimplemented
 let builtin_umask = builtin_unimplemented
-let builtin_unalias = builtin_unimplemented
-let builtin_wait = builtin_unimplemented
-  
+let builtin_newgrp = builtin_unimplemented
+ 
 val builtins :
   forall 'a. OS 'a =>
     Map.map string 
@@ -617,16 +628,17 @@ let builtins =
     ; ("alias", builtin_alias)
     ; ("bg", builtin_bg)
     ; ("cd", builtin_cd)
-    ; ("chdir", builtin_chdir)
     ; ("command", builtin_command)
     ; ("echo", builtin_echo)
     ; ("false", builtin_false)    
+    ; ("fc", builtin_fc)
     ; ("fg", builtin_fg)
     ; ("getopts", builtin_getopts)
     ; ("hash", builtin_hash)
     ; ("jobs", builtin_jobs)
     ; ("kill", builtin_kill)
     ; ("local", builtin_local)
+    ; ("newgrp", builtin_newgrp)
     ; ("printf", builtin_printf)
     ; ("pwd", builtin_pwd)
     ; ("read", builtin_read)
