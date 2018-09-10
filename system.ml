@@ -76,7 +76,9 @@ let append_flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_APPEND]
 
 let real_open (file:string) (flags:open_flags) : (string,int) Either.either =
   try Right (int_of_fd (Unix.openfile file flags 0o666))
-  with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
+  with 
+  | Unix.Unix_error(Unix.EEXIST,_,_) -> Left ("cannot create " ^ file ^ ": file exists")
+  | Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
 
 let real_close (fd:int) : unit =
   try Unix.close (fd_of_int fd)

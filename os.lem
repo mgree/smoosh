@@ -791,10 +791,10 @@ declare ocaml target_rep function fromto_flags = `System.fromto_flags`
 val append_flags : open_flags
 declare ocaml target_rep function append_flags = `System.append_flags`
 
-val flags_of_redir_type : redir_type -> open_flags
-let flags_of_redir_type rt =
+val flags_of_redir_type : forall 'a. os_state 'a -> redir_type -> open_flags
+let flags_of_redir_type s0 rt =
   match rt with
-  | To -> to_flags
+  | To -> if Set.member Sh_noclobber s0.sh.opts then to_flags else clobber_flags
   | Clobber -> clobber_flags
   | From -> from_flags
   | FromTo -> fromto_flags
@@ -913,7 +913,7 @@ instance (OS unit)
   let times _os = real_times ()
 
   let open_file_for_redir os ty sfile =
-    let flags = flags_of_redir_type ty in
+    let flags = flags_of_redir_type os ty in
     match real_open (force_concrete sfile) flags with
     | Left err -> Left err
     | Right new_fd -> Right (os,new_fd)

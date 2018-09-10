@@ -434,7 +434,7 @@ let set_add_opt (on,off) add_to_on res =
 val set_getopt : list sh_opt * list sh_opt -> fields -> maybe (maybe (list sh_opt * list sh_opt) * fields)
 let rec set_getopt opts fields =
   match fields with
-  | [] -> Nothing
+  | [] -> Just (Nothing, [])
   | arg::fields' ->
      match try_concrete arg with
      | Nothing -> Nothing
@@ -451,7 +451,7 @@ let rec set_getopt opts fields =
            set_add_opt opts false (set_getopt_longopt fields')
         | #'+'::c::cs -> 
            set_add_opt opts false (set_getopt_shortopt c cs fields')
-        | _ -> Nothing
+        | _ -> Just (Nothing, arg::fields')
         end
      end
    end
