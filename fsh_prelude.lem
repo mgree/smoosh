@@ -22,6 +22,19 @@ let trimr_newlines s =
   let cl = toCharList s in
   toString (reverse (ltrim_newlines_cl (reverse cl)))
 
+val pad_right : string -> nat -> string
+let pad_right s len =
+  let padding = max (len - stringLength s) 0 in
+  s ^ toString (replicate padding #' ') 
+
+val maximum : forall 'a. OrdMaxMin 'a => list 'a -> 'a
+let rec maximum xs =
+  match xs with
+  | [] -> failwith "maximum got empty list"
+  | [x] -> x
+  | x::xs' -> max x (maximum xs')
+  end
+
 val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
 let rec break p ls =
   match ls with
@@ -197,21 +210,21 @@ let unimplemented_sh_opts =
 
 let string_of_sh_opt o =
   match o with
-  | Sh_allexport -> "allexport"
-  | Sh_errexit -> "errexit"
-  | Sh_ignoreeof -> "ignoreeof"
-  | Sh_earlyhash -> "earlyhash"
+  | Sh_allexport   -> "allexport"
+  | Sh_errexit     -> "errexit"
+  | Sh_ignoreeof   -> "ignoreeof"
+  | Sh_earlyhash   -> "earlyhash"
   | Sh_interactive -> "interactive"
-  | Sh_monitor  -> "monitor "
-  | Sh_noclobber -> "noclobber"
-  | Sh_noglob -> "noglob"
-  | Sh_noexec -> "noexec"
-  | Sh_nolog -> "nolog"
-  | Sh_notify  -> "notify "
-  | Sh_nounset -> "nounset"
-  | Sh_verbose -> "verbose"
-  | Sh_vi -> "vi"
-  | Sh_xtrace -> "xtrace"
+  | Sh_monitor     -> "monitor"
+  | Sh_noclobber   -> "noclobber"
+  | Sh_noglob      -> "noglob"
+  | Sh_noexec      -> "noexec"
+  | Sh_nolog       -> "nolog"
+  | Sh_notify      -> "notify"
+  | Sh_nounset     -> "nounset"
+  | Sh_verbose     -> "verbose"
+  | Sh_vi          -> "vi"
+  | Sh_xtrace      -> "xtrace"
   end
 
 let char_of_sh_opt o =

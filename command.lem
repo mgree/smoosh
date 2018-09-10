@@ -470,6 +470,10 @@ let set_showopts s0 show =
   let opt_vals = map (fun opt -> (opt, Set.member opt s0.sh.opts)) all_sh_opts in
   Right (foldr show s0 opt_vals, Done, true)
 
+val string_of_sh_opt_max_len : nat
+let string_of_sh_opt_max_len = 
+  maximum (map (comb stringLength string_of_sh_opt) all_sh_opts)
+
 let builtin_set s0 argv _env =
   (* set [-abCefhmnuvx] [-o option] [argument...]
      set [+abCefhmnuvx] [+o option] [argument...]
@@ -486,7 +490,8 @@ OR
      (* print in human readable format; following dash *)
      set_showopts s0 
        (fun (opt,is_set) os ->
-         let msg = string_of_sh_opt opt ^ " " ^ if is_set then "on" else "off" in
+         let msg = pad_right (string_of_sh_opt opt) string_of_sh_opt_max_len ^
+                   "\t" ^ if is_set then "on" else "off" in
          write_stdout (msg ^ "\n") os)
   | [[C #'+'; C #'o']] -> 
      (* print in shell readable format *)
