@@ -1,0 +1,1 @@
+shell=echo+%24%7Bx%3D5%7D+%24((x%2B1))&env=%7B%22PATH%22%3A+%22%2Fusr%2Fbin%22%2C+%22HOME%22%3A+%22%2FUsers%2Fmgree%22%7D&users=%7B%22mgree%22%3A+%22%2FUsers%2Fmgree%22%2C+%22root%22%3A+%22%2Fvar%2Froot%22%7D

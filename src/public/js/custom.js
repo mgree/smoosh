@@ -1562,7 +1562,7 @@ function renderEvaluationStep(info, step) {
   console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
                   'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
                   'XSFor', 'XSCase', 'XSDefun', 'XSStack', 'XSStep', 
-                  'XSExec' 'XSWait', 'XSNested', 'XSExpand'].includes(step['tag']),
+                  'XSExec', 'XSWait', 'XSNested', 'XSExpand'].includes(step['tag']),
                  'got weird step tag ' + step['tag']);
 
   switch (step['tag']) {
