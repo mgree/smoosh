@@ -830,37 +830,30 @@ let show_unless expected actual =
   then ""
   else stringFromNat actual
 
-(* TODO 2018-02-02 finish string rendering for technical runtime terms *)
+val string_of_simple 
+    : forall 'a 'c 'r. 
+      ('a -> string) -> ('c -> string) -> ('r -> string) ->
+      list (string * 'a) -> 'c -> 'r -> string
+let string_of_simple f_a f_c f_r assigns cmds redirs =
+  let s_assigns = concat " " (List.map (fun (v,a) -> v ^ "=" ^ f_a a) assigns) in
+  let s_cmds = f_c cmds in
+  let s_redirs = f_r redirs in
+  spaced_many [s_assigns; s_cmds; s_redirs]
+
 let rec string_of_stmt c = 
   match c with
   | Command assigns cmds redirs ->
-     let s_assigns = 
-       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_words a) assigns) 
-     in
-     let s_cmds = string_of_words cmds in
-     let s_redirs = string_of_redirs redirs in
-     spaced_many [s_assigns; s_cmds; s_redirs]
+     string_of_simple string_of_words string_of_words string_of_redirs
+       assigns cmds redirs
   | CommandExpAssign assigns cmds redirs -> 
-     let s_assigns = 
-       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_expansion_state a) assigns) 
-     in
-     let s_cmds = string_of_words cmds in
-     let s_redirs = string_of_redirs redirs in
-     spaced_many [s_assigns; s_cmds; s_redirs]
+     string_of_simple string_of_expansion_state string_of_words string_of_redirs
+       assigns cmds redirs
   | CommandExpArgs assigns cmds redirs -> 
-     let s_assigns = 
-       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_fields a) assigns) 
-     in
-     let s_cmds = string_of_expansion_state cmds in
-     let s_redirs = string_of_redirs redirs in
-     spaced_many [s_assigns; s_cmds; s_redirs]
+     string_of_simple string_of_fields string_of_expansion_state string_of_redirs
+       assigns cmds redirs
   | CommandExpRedirs assigns cmds redir_state ->
-     let s_assigns = 
-       concat " " (List.map (fun (v,a) -> v ^ "=" ^ string_of_fields a) assigns) 
-     in
-     let s_cmds = string_of_fields cmds in
-     let s_redirs = string_of_redir_state redir_state in
-     spaced_many [s_assigns; s_cmds; s_redirs]
+     string_of_simple string_of_fields string_of_fields string_of_redir_state
+       assigns cmds redir_state
   | Pipe bg cmds ->
      let p = concat " | " (List.map string_of_stmt cmds) in
      if bg then background p else p
@@ -880,32 +873,52 @@ let rec string_of_stmt c =
      "! " ^ string_of_stmt cmd
   | If c1 c2 c3 ->
      string_of_if c1 c2 c3
-  | While (Not c1) c2 ->
-     "until " ^ string_of_stmt c1 ^ "; do " ^ string_of_stmt c2 ^ "; done "
-  | While c1 c2 ->
-     "while " ^ string_of_stmt c1 ^ "; do " ^ string_of_stmt c2 ^ "; done "
-  | WhileCond _c _cur _body -> "TODO WhileCond"
-  | WhileRunning _c _body _cur -> "TODO WhileRunning"
+  | While c1 c2 -> string_of_while c1 c2
+  | WhileCond c cur body -> 
+     "if " ^ string_of_stmt cur ^ 
+     "; then " ^ string_of_stmt body ^ "; " ^ string_of_while c body ^ "; fi"
+  | WhileRunning c body cur -> 
+     string_of_stmt cur ^ "; " ^ string_of_while c body
   | For x w c ->
      "for " ^ x ^ " in " ^ string_of_words w ^ "; do " ^ string_of_stmt c ^ "; done"
-  | ForExpArgs _ _ _ -> "TODO ForExpArgs"
-  | ForExpanded _ _ _ -> "TODO ForExpanded"
-  | ForRunning _ _ _ _ -> "TODO ForRunning"
+  | ForExpArgs x exp_state body ->
+     "for " ^ x ^ " in " ^ string_of_expansion_state exp_state ^ "; do " ^ 
+       string_of_stmt body ^ "; done"
+  | ForExpanded x f body -> 
+     "for " ^ x ^ " in " ^ string_of_fields f ^ "; do " ^ 
+       string_of_stmt body ^ "; done"
+  | ForRunning x f body cur -> 
+     string_of_stmt cur ^ "; " ^ 
+     "for " ^ x ^ " in " ^ string_of_fields f ^ "; do " ^ string_of_stmt body ^ "; done"
   | Case w cs ->
-     "case " ^ string_of_words w ^ " in " ^ concat " " (List.map string_of_case cs) ^ " esac"
-  | CaseExpArg _exp _cs -> "TODO CaseExpArg"
-  | CaseMatch _s _cs -> "TODO CaseMatch"
-  | CaseCheckMatch _s _exp _c _cs -> "TODO CaseCheckMatch"
+     "case " ^ string_of_words w ^ " in " ^ 
+       concat " " (List.map string_of_case cs) ^ " esac"
+  | CaseExpArg exp cs -> 
+     "case " ^ string_of_expansion_state exp ^ " in " ^ 
+       concat " " (List.map string_of_case cs) ^ " esac"
+  | CaseMatch s cs ->
+     "case " ^ string_of_symbolic_string s ^ " in " ^ 
+       concat " " (List.map string_of_case cs) ^ " esac"
+  | CaseCheckMatch s exp c cs -> 
+     "case " ^ string_of_symbolic_string s ^ " in " ^ 
+       string_of_expansion_state exp ^ ") " ^ string_of_stmt c ^ ";; " ^
+       concat " " (List.map string_of_case cs) ^ " esac"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
-  | Call _loopnest _argv _f _body _c -> "TODO Call"
+  | Call _loopnest _argv _f _body c -> string_of_stmt c (* TODO leaving stuff out *)
   | Break n -> "break " ^ show n
   | Continue n -> "continue " ^ show n
   | Return -> "return"
   | Exit -> "exit"
   | Exec cmd args _env -> spaced "exec" (string_of_fields (cmd::args))
   | Wait n -> "wait " ^ stringFromNat n
-  | Pushredir s _saved -> string_of_stmt s (* TODO fixme *)
+  | Pushredir s _saved -> string_of_stmt s (* TODO leaving stuff out *)
   | Done -> "Done"
+  end
+
+and string_of_while c body =
+  match c with
+  | Not c' -> "until " ^ string_of_stmt c' ^ "; do " ^ string_of_stmt body ^ "; done "
+  | _ ->  "while " ^ string_of_stmt c ^ "; do " ^ string_of_stmt body ^ "; done "
   end
 
 and string_of_if c t e =
@@ -985,19 +998,80 @@ and string_of_redir_state (ers, exp_redir, rs) =
   let s_rs = string_of_redirs rs in
   spaced_many [s_ers; s_exp_redir; s_rs]
 
+and string_of_tmp_field tf =
+  match tf with
+  | WFS -> " "
+  | FS -> " "
+  | Field s -> string_of_symbolic_string s
+  | QField s -> "\"" ^ string_of_symbolic_string s ^ "\""
+  end
+
+and string_of_intermediate_fields ifs =
+  match ifs with
+  | [] -> ""
+  | tf::ifs' -> string_of_tmp_field tf ^ string_of_intermediate_fields ifs'
+  end
+
+and string_of_expanded_words ew = string_of_symbolic_string (concat_expanded ew)
 and string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
 and string_of_entry e =
   match e with
   | S str -> str
   | ESym _ -> "<<SYMBOLIC>>" (* TODO "R(" ^ string_of_symbolic_string c ^ ")" *)
-  | K _ -> "<<CTRL>>" (* TODO 2018-08-24 need to implement correctly to support Here heredocs *)
-
+  | K code -> string_of_control code
   | F -> " "
   end
 
-and string_of_expansion_state _exp_state =
-  (* TODO 2018-09-04 TODO implement *)
-  "string_of_expansion_state"
+and string_of_control code =
+  match code with
+  | Tilde -> "~"
+  | TildeUser user -> "~" ^ user
+  | Param var Normal -> "$" ^ var
+  | Param var Length -> "${#" ^ var ^ "}"
+  | Param var fmt -> "${" ^ var ^ string_of_format fmt ^ "}"
+  | LAssign var ew w -> 
+     "${" ^ var ^ "=" ^ string_of_expanded_words ew ^ string_of_words w ^ "}"
+  | LMatch f _side _mode _ew _w -> string_of_fields f (* TODO leaving stuff out *)
+  | LError var ew w ->
+     "${" ^ var ^ "?" ^ string_of_expanded_words ew ^ string_of_words w ^ "}"
+  | Backtick c -> 
+     "$( " ^ string_of_stmt c ^ " )" (* spaces to prevent arith parsing issues *)
+  | LBacktick c _pid _fd -> "$( " ^ string_of_stmt c ^ " )"
+  | Arith ew w -> "$(( " ^ string_of_expanded_words ew ^ string_of_words w ^ " ))"
+  | Quote ew w -> "\"" ^ string_of_expanded_words ew ^ string_of_words w ^ "\""
+  end
+
+and string_of_format fmt = 
+  match fmt with
+  | Normal -> "" (* but is special case *)
+  | Length -> "#" (* but is special case *)
+  | Default w -> "-" ^ string_of_words w
+  | NDefault w-> ":-" ^ string_of_words w
+  | Assign w -> "=" ^ string_of_words w
+  | NAssign w -> ":=" ^ string_of_words w
+  | Error w -> "?" ^ string_of_words w
+  | NError w -> ":?" ^ string_of_words w
+  | Alt w -> "+" ^ string_of_words w
+  | NAlt w -> ":+" ^ string_of_words w
+  | Substring side mode w -> string_of_substring side mode ^ string_of_words w
+  end
+
+and string_of_substring side mode =
+  match side with
+  | Prefix -> if mode = Longest then "##" else "#"
+  | Suffix -> if mode = Longest then "%%" else "%"
+  end
+
+and string_of_expansion_state exp_state =
+  match exp_state with
+  | ExpStart w -> string_of_words w
+  | ExpExpand ew w -> string_of_expanded_words ew ^ string_of_words w
+  | ExpSplit ew -> string_of_expanded_words ew
+  | ExpPath ifs -> string_of_intermediate_fields ifs
+  | ExpQuote ifs -> string_of_intermediate_fields ifs
+  | ExpError f -> string_of_fields f
+  | ExpDone f -> string_of_fields f
+  end
 
 and string_of_expansion_step estep =
   match estep with
