@@ -215,19 +215,24 @@ let quote_removal f =
   let no_quotes = combine_fields (remove_quotes f) in
   finalize_fields no_quotes
 
-let rec do_redirs os0 ers =
+let rec really_do_redirs os0 ers =
   match ers with
   | [] -> Right (os0, [])
   | (er::ers') ->
      match redirect os0 er with
      | Left err -> Left err
      | Right (os1,saved) -> 
-        match do_redirs os1 ers' with
+        match really_do_redirs os1 ers' with
         | Left err -> Left err
         | Right (os2,saved') -> Right (os2, saved ++ saved')
         end
      end
   end
+
+let do_redirs os0 ers =
+  if Set.member Sh_noexec os0.sh.opts
+  then Right (os0, [])
+  else really_do_redirs os0 ers
 
 (**********************************************************************)   
 (* EXPANSION **********************************************************)   
@@ -686,6 +691,9 @@ and step_eval s0 stmt =
   (* COMMAND: Redirect expansion **********************************************)
   (* expansion is done, try to run command *)
   | CommandExpRedirs assigns (prog::args) (ers, Nothing, []) ->
+     if Set.member Sh_noexec s0.sh.opts
+     then Right (XSSimple "set -n: skipping command", s0, Done)
+     else
      (* load exported variables, perform assignments *)
      let exported = 
        Map_extra.mapMaybe 

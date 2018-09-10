@@ -46,6 +46,9 @@ let prepare_command () : string list (* positional args *) =
      | cmd::args' -> Dash.setinputstring cmd; args'
      end
 
+let set_param x v s0 =
+  Os.internal_set_param x (symbolic_string_of_string v) s0
+
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
 let initialize_env s0 : real os_state =
   (* TODO 2018-08-23 set $- [option flags] *)
@@ -53,12 +56,12 @@ let initialize_env s0 : real os_state =
   let environ = System.real_environment () in
   let set (x,v) os = 
     Dash.setvar x v;
-    Os.real_set_param x v os
+    set_param x v os
   in
   let s1 = List.fold_right set environ s0 in
-  let s2 = Os.real_set_param "$" (string_of_int (Unix.getpid ())) s1 in
+  let s2 = set_param "$" (string_of_int (Unix.getpid ())) s1 in
   (* override the prompt by default *)
-  let s3 = Os.real_set_param "PS1" "$ " s2 in
+  let s3 = set_param "PS1" "$ " s2 in
   let s4 = if !interactive then real_set_sh_opt s3 Sh_interactive else s3 in
   { s4 with sh = { s4.sh with cwd = Unix.getcwd (); 
                               (* If a variable is initialized from the
@@ -68,7 +71,7 @@ let initialize_env s0 : real os_state =
 
 let finish_up s0 =
   (* TODO 2018-08-14 trap on EXIT etc. goes here? *)
-  match Os.real_lookup_concrete_param s0 "?" with
+  match Os.lookup_concrete_param s0 "?" with
   | None -> failwith "BROKEN INVARIANT: missing or symbolic exit code"
   | Some s -> 
      try exit (int_of_string s)
@@ -82,15 +85,10 @@ let run_cmds s0 =
 
 let rec repl s0 =
   (* TODO 2018-08-14 all kinds of interactive nonsense here *)
-  let prompt = 
-    match real_lookup_concrete_param s0 "PS1" with
-    | None -> "$ "
-    | Some ps1 -> ps1
-  in
-  print_string prompt; flush stdout;
-  (* TODO 2018-08-15 to get appropriate prompting, we need to set
-     dash's actual environment up correctly, since the parser makes
-     reference to ps1val, etc. *)
+  print_string (Os.ps1 s0); flush stdout;
+  (* TODO 2018-08-15 to get appropriate prompting w/PS2, we need to
+     set dash's actual environment up correctly, since the parser
+     makes reference to ps1val, etc. *)
   match Dash.parse_next () with
   | `Done -> finish_up s0
   | `Null -> repl s0

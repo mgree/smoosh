@@ -218,13 +218,13 @@ let run_pipe eval s0 stmts =
      run_pipe_loop eval s3 stmts' fd_next
   end
    
-val printable_shell_env : forall 'a. OS 'a => os_state 'a -> string
+val printable_shell_env : forall 'a. os_state 'a -> string
 let printable_shell_env os = 
   foldr (fun (k, v) s -> k ^ "=" ^ quote (string_of_symbolic_string v) ^ "\n" ^ s) 
     "" 
     (Map_extra.toList os.sh.env)
 
-val lookup_positional_param : forall 'a. OS 'a => nat -> os_state 'a -> maybe symbolic_string
+val lookup_positional_param : forall 'a. nat -> os_state 'a -> maybe symbolic_string
 let lookup_positional_param num os = index os.sh.positional_params num
 
 val is_special_param : string -> bool
@@ -235,7 +235,7 @@ let is_special_param x =
   end
 
 (* The result is nothing if the parameter is unset, and the empty string if it's null. *)
-val lookup_nonat_param : forall 'a. OS 'a => os_state 'a -> string -> maybe symbolic_string
+val lookup_nonat_param : forall 'a. os_state 'a -> string -> maybe symbolic_string
 let lookup_nonat_param os str =
   match (readNat (toCharList str),str) with
   | (Right num,_) -> lookup_positional_param num os
@@ -252,7 +252,7 @@ let lookup_nonat_param os str =
   | (Left _,_) -> Map.lookup str os.sh.env
   end
 
-val lookup_param : forall 'a. OS 'a => os_state 'a -> string -> maybe fields
+val lookup_param : forall 'a. os_state 'a -> string -> maybe fields
 let lookup_param os str =
   if str = "@"
   then match os.sh.positional_params with
@@ -264,29 +264,43 @@ let lookup_param os str =
        | Just v -> Just [v]
        end
 
-val lookup_concrete_param : forall 'a. OS 'a => os_state 'a -> string -> maybe string
+val lookup_concrete_param : forall 'a. os_state 'a -> string -> maybe string
 let lookup_concrete_param os str =
   match lookup_param os str with
   | Nothing -> Nothing
   | Just fs -> try_concrete_fields fs
   end
 
-val is_readonly : forall 'a. OS 'a => string -> os_state 'a -> bool
+val ps1 : forall 'a. os_state 'a -> string
+let ps1 os =
+  match lookup_concrete_param os "PS1" with
+  | Nothing -> "$ "
+  | Just prompt -> prompt
+  end
+
+val ps4 : forall 'a. os_state 'a -> string
+let ps4 os =
+  match lookup_concrete_param os "PS4" with
+  | Nothing -> "+ "
+  | Just prompt -> prompt
+  end
+
+val is_readonly : forall 'a. string -> os_state 'a -> bool
 let is_readonly var os = Set.member var os.sh.readonly
    
-val defun : forall 'a. OS 'a => string -> stmt -> os_state 'a -> os_state 'a
+val defun : forall 'a. string -> stmt -> os_state 'a -> os_state 'a
 let defun name body os = 
   <| os with sh = <| os.sh with funcs = Map.insert name body os.sh.funcs |> |>
 
-val lookup_function : forall 'a. OS 'a => string -> os_state 'a -> maybe stmt
+val lookup_function : forall 'a. string -> os_state 'a -> maybe stmt
 let lookup_function name os = Map.lookup name os.sh.funcs
 
-val internal_set_param : forall 'a. OS 'a => 
-                           string -> symbolic_string -> os_state 'a -> os_state 'a
+val internal_set_param 
+    : forall 'a. string -> symbolic_string -> os_state 'a -> os_state 'a
 let internal_set_param x v os = 
   <| os with sh = <| os.sh with env = Map.insert x v os.sh.env |> |>
 
-val set_param : forall 'a. OS 'a => 
+val set_param : forall 'a.
                   string -> symbolic_string -> os_state 'a -> either string (os_state 'a)
 let set_param x v os0 = 
   if is_readonly x os0
@@ -302,7 +316,7 @@ let set_param x v os0 =
     in
     Right os2
   
-val set_function_params : forall 'a. OS 'a => nat -> fields -> os_state 'a -> os_state 'a
+val set_function_params : forall 'a. nat -> fields -> os_state 'a -> os_state 'a
 let set_function_params ln argv os =
   let new_params =
     match os.sh.positional_params with
@@ -311,22 +325,22 @@ let set_function_params ln argv os =
     end in
   <| os with sh = <| os.sh with loop_nest = ln; positional_params = new_params |> |>
 
-val enter_loop : forall 'a. OS 'a => os_state 'a -> os_state 'a
+val enter_loop : forall 'a. os_state 'a -> os_state 'a
 let enter_loop os = 
   <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest + 1 |> |>
 
-val exit_loop : forall 'a. OS 'a => os_state 'a -> os_state 'a
+val exit_loop : forall 'a. os_state 'a -> os_state 'a
 let exit_loop os = 
   <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest - 1 |> |>
 
-val exit_with : forall 'a. OS 'a => nat -> os_state 'a -> os_state 'a
+val exit_with : forall 'a. nat -> os_state 'a -> os_state 'a
 let exit_with ec os = 
   internal_set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
 
 val fail_with : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let fail_with msg os = exit_with 1 (write_stderr (msg ^ "\n") os)
 
-val get_last_exit_code : forall 'a. OS 'a => os_state 'a -> maybe nat
+val get_last_exit_code : forall 'a. os_state 'a -> maybe nat
 let get_last_exit_code os =
   match lookup_concrete_param os "?" with
   | Nothing -> Nothing
@@ -337,7 +351,7 @@ let get_last_exit_code os =
      end
   end
 
-val set_last_pid : forall 'a. OS 'a => nat -> os_state 'a -> os_state 'a
+val set_last_pid : forall 'a. nat -> os_state 'a -> os_state 'a
 let set_last_pid pid os = 
   internal_set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
 
@@ -357,12 +371,12 @@ let set_sh_opt os opt =
   internal_fixup_dollardash
     <| os' with sh = <| os.sh with opts = Set.insert opt os.sh.opts |> |>
 
-val unset_sh_opt : forall 'a. OS 'a => os_state 'a -> sh_opt -> os_state 'a
+val unset_sh_opt : forall 'a. os_state 'a -> sh_opt -> os_state 'a
 let unset_sh_opt os opt =
   internal_fixup_dollardash
     <| os with sh = <| os.sh with opts = Set.delete opt os.sh.opts |> |>
 
-val is_interactive : forall 'a. OS 'a => os_state 'a -> bool
+val is_interactive : forall 'a. os_state 'a -> bool
 let is_interactive os = Set.member Sh_interactive os.sh.opts
 
 (**********************************************************************)
@@ -718,16 +732,6 @@ end
 val set_pwdir : string -> string -> os_state symbolic -> os_state symbolic
 let set_pwdir u d os = 
   <| os with symbolic = <| os.symbolic with passwd = Map.insert u d (os.symbolic.passwd) |> |>
-   
-(* specialized functions to avoid manual instantiation of typeclasses in OCaml *)   
-val symbolic_lookup_concrete_param : os_state symbolic -> string -> maybe string
-let symbolic_lookup_concrete_param = lookup_concrete_param
-
-val symbolic_set_param : string -> symbolic_string -> os_state symbolic -> os_state symbolic
-let symbolic_set_param x v os = internal_set_param x v os
-
-val symbolic_printable_shell_env : os_state symbolic -> string
-let symbolic_printable_shell_env os = printable_shell_env os
 
 (**********************************************************************)
 (* REAL OS STATE INSTANCE *********************************************)
@@ -958,12 +962,6 @@ instance (OS unit)
     os    
 
 end
-
-val real_lookup_concrete_param : os_state real -> string -> maybe string
-let real_lookup_concrete_param = lookup_concrete_param
-
-val real_set_param : string -> string -> os_state real -> os_state real
-let real_set_param x v os = internal_set_param x (symbolic_string_of_string v) os
 
 val real_set_sh_opt : os_state real -> sh_opt -> os_state real
 let real_set_sh_opt os opt = set_sh_opt os opt

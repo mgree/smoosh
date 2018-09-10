@@ -193,7 +193,6 @@ let unimplemented_sh_opts =
     (* need an equivalent of EV_TESTED: extra param to step_eval? *)
   ; Sh_errexit
 
-  ; Sh_noexec
   ; Sh_nolog
   ; Sh_nounset
   ; Sh_verbose
