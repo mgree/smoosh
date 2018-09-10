@@ -194,7 +194,6 @@ let unimplemented_sh_opts =
   ; Sh_errexit
 
   ; Sh_nolog
-  ; Sh_nounset
   ; Sh_verbose
   ; Sh_xtrace ]
 

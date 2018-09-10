@@ -260,7 +260,11 @@ let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat
  *)
 let expand_param s0 _q str f =
   let value = lookup_param s0 str in
-  match (value, f) with
+  if not (elem str ["@"; "*"]) && 
+     Set.member Sh_nounset s0.sh.opts &&
+     value = Nothing
+  then [K (LError str [ExpS "parameter not set"] [])]
+  else match (value, f) with
   (* NORMAL *)
   | (Nothing, Normal)     -> [S ""] (* null *)
   | (Just fs, Normal)     -> words_of_fields fs
