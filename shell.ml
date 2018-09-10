@@ -10,7 +10,9 @@ type input_mode = NoFlag | SFlag | CFlag
 
 let input_mode : input_mode ref = ref NoFlag
 
-let interactive : bool ref = ref false
+let opts : sh_opt list ref = ref []
+let add_opt (opt : sh_opt) : unit = opts := opt::!opts
+let del_opt (opt : sh_opt) : unit = opts := List.filter (fun opt' -> opt <> opt') !opts
 
 let args : string list ref = ref []
 
@@ -25,19 +27,70 @@ let parse_args () =
   Arg.parse
     [ "-c", Arg.Unit (fun () -> input_mode := CFlag), "set input command"
     ; "-s", Arg.Unit (fun () -> input_mode := SFlag), "set input source to STDIN"
-    ; "-i", Arg.Unit (fun () -> interactive := true), "interactive shell"
+
+    ; "-i", Arg.Unit (fun () -> add_opt Sh_interactive), "interactive shell"
+    ; "+i", Arg.Unit (fun () -> del_opt Sh_interactive), ""
+
+    ; "-a", Arg.Unit (fun () -> add_opt Sh_allexport), "export by default [allexport]"
+    ; "+a", Arg.Unit (fun () -> del_opt Sh_allexport), ""
+
+    ; "-b", Arg.Unit (fun () -> add_opt Sh_notify), "notify mode [notify]"
+    ; "+b", Arg.Unit (fun () -> del_opt Sh_notify), ""
+
+    ; "-C", Arg.Unit (fun () -> add_opt Sh_noclobber), "do not clobber files with > [noclobber]"
+    ; "+C", Arg.Unit (fun () -> del_opt Sh_noclobber), ""
+
+    ; "-e", Arg.Unit (fun () -> add_opt Sh_errexit), "exit on error [errexit]"
+    ; "+e", Arg.Unit (fun () -> del_opt Sh_errexit), ""
+
+    ; "-f", Arg.Unit (fun () -> add_opt Sh_noglob), "turn off pathname expansion [noglob]"
+    ; "+f", Arg.Unit (fun () -> del_opt Sh_noglob), ""
+
+    ; "-h", Arg.Unit (fun () -> add_opt Sh_earlyhash), "hash commands during function definition"
+    ; "+h", Arg.Unit (fun () -> del_opt Sh_earlyhash), ""
+
+    ; "-m", Arg.Unit (fun () -> add_opt Sh_monitor), "monitor mode [monitor]"
+    ; "+m", Arg.Unit (fun () -> del_opt Sh_monitor), ""
+
+    ; "-n", Arg.Unit (fun () -> add_opt Sh_noexec), "do not execute commands [noexec]"
+    ; "+n", Arg.Unit (fun () -> del_opt Sh_noexec), ""
+
+    ; "-u", Arg.Unit (fun () -> add_opt Sh_nounset), "error on unset parameters [nounset]"   
+    ; "+u", Arg.Unit (fun () -> del_opt Sh_nounset), ""
+
+    ; "-v", Arg.Unit (fun () -> add_opt Sh_verbose), "print input to stderr [verbose]"
+    ; "+v", Arg.Unit (fun () -> del_opt Sh_verbose), ""
+
+    ; "-x", Arg.Unit (fun () -> add_opt Sh_xtrace), "trace commands"
+    ; "+x", Arg.Unit (fun () -> del_opt Sh_xtrace), ""
+
+    ; "-o", Arg.String 
+              (fun lo ->
+                match sh_opt_of_longopt lo with
+                | None -> raise (Arg.Bad ("unrecognized -o flag: " ^ lo))
+                | Some opt -> add_opt opt), 
+      "enable long format option"
+
+    ; "+o", Arg.String 
+              (fun lo ->
+                match sh_opt_of_longopt lo with
+                | None -> raise (Arg.Bad ("unrecognized -o flag: " ^ lo))
+                | Some opt -> del_opt opt), 
+      "disable long format option; individual + flags disable short options, e.g., +i turns off interactivity"
     ]
     (fun arg -> args := !args @ [arg])
-    ("[command_file [argument...]]                     (no flag)\n" ^
-     "[command_string [command_name [argument...]]]    (-c)\n" ^
-     "[argument...]                                    (-s)")
+    (let prog = Filename.basename Sys.executable_name in
+     let flags = " [-abCefhimnuvx] [-o option]... [+abCefhimnuvx] [+o option]... " in
+     prog ^ "   " ^ flags ^ "[command_file [argument...]] \n" ^
+     prog ^ " -c" ^ flags ^ "[command_string [command_name [argument...]]]\n" ^
+     prog ^ " -s" ^ flags ^ "[argument...]")
 
 (* sets Dash input src, returns positional params *)
 let prepare_command () : string list (* positional args *) =
   match !input_mode with
   | NoFlag -> 
      begin match !args with
-     | [] -> interactive := true; Dash.setinputtostdin (); [] 
+     | [] -> add_opt Sh_interactive; Dash.setinputtostdin (); [] 
      | cmd::args -> Dash.setinputfile cmd; cmd::args
      end
   | SFlag -> Dash.setinputtostdin (); Sys.argv.(0)::!args 
@@ -63,7 +116,8 @@ let initialize_env s0 : real os_state =
   let s2 = set_param "$" (string_of_int (Unix.getpid ())) s1 in
   (* override the prompt by default *)
   let s3 = set_param "PS1" "$ " s2 in
-  let s4 = if !interactive then real_set_sh_opt s3 Sh_interactive else s3 in
+  (* set up shell options *)
+  let s4 = List.fold_right (fun opt os -> real_set_sh_opt os opt) !opts s3 in
   { s4 with sh = { s4.sh with cwd = Unix.getcwd (); 
                               (* If a variable is initialized from the
                                  environment, it shall be marked for
@@ -96,7 +150,14 @@ let rec repl s0 =
      set dash's actual environment up correctly, since the parser
      makes reference to ps1val, etc. *)
   match Dash.parse_next () with
-  | `Done -> finish_up s0
+  | `Done -> 
+     if Pset.mem Sh_ignoreeof s0.sh.opts
+     then 
+       begin
+         prerr_endline "Use \"exit\" to leave shell."; 
+         repl s0
+       end
+     else finish_up s0
   | `Null -> repl s0
   | `Parsed n -> 
      (* TODO 2018-08-31 record trace in a logfile *)
@@ -146,7 +207,7 @@ let main () =
                        positional_params = sym_positional };
              Os.symbolic = () } in
   let s1 = initialize_env s0 in
-  if !interactive
+  if is_interactive s1
   then repl s1
   else run_cmds s1
 ;;

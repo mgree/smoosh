@@ -188,9 +188,7 @@ let unimplemented_sh_opts =
   ; Sh_notify
   ; Sh_vi
 
-    (* TODO 2018-09-10 implement these *)
-    (* set it up in shell.ml *)
-  ; Sh_ignoreeof
+    (* TODO 2018-09-10 implement remaining set flags *)
     (* need an equivalent of EV_TESTED: extra param to step_eval? *)
   ; Sh_errexit
     (* need history *)

@@ -7,7 +7,6 @@
   + properly handle errors in the dash parser 
     (fork lib: setjmp before parsing, longjmp on error, return appropriate value)
   + write more tests
-- set flags
 - trap
 
 - other built-ins
@@ -22,6 +21,7 @@
 - faithful handling of PATH_MAX
 
 - shell history
+  can implement Sh_nolog
 
 - expansion: make null more explicit... simplify matches?
 
