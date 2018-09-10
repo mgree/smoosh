@@ -1,20 +1,16 @@
 ### Last of the shell semantics
 
-- test differentiating $* and $@
-- pipes and redirects
-  + write more tests
+- tests differentiating $* and $@, fix impl
+- tests that read stdout
+  + tests for pipes and redirects
 - eval/.
   + properly handle errors in the dash parser 
     (fork lib: setjmp before parsing, longjmp on error, return appropriate value)
   + write more tests
-    
-- special built-ins
-  + trap
-    need to add trap listing to the shell representation
+- set flags
+- trap
+
 - other built-ins
-- special variables and shell flags
-  + need to add to the shell representation
-  + need to sort out the difference between $* and $@
 - non-special shell variables
   LINENO
   ENV (interactive only)
