@@ -182,18 +182,21 @@ let all_sh_opts =
   ; Sh_xtrace ]
 
 let unimplemented_sh_opts = 
-  [ Sh_errexit
-  ; Sh_ignoreeof
-  ; Sh_earlyhash
+  [ (* will not support these *)
+    Sh_earlyhash
   ; Sh_monitor 
-  ; Sh_noglob
-  ; Sh_noexec
-  ; Sh_errexit
-  ; Sh_nolog
   ; Sh_notify
+  ; Sh_vi
+
+    (* set it up in shell.ml *)
+  ; Sh_ignoreeof
+    (* need an equivalent of EV_TESTED: extra param to step_eval? *)
+  ; Sh_errexit
+
+  ; Sh_noexec
+  ; Sh_nolog
   ; Sh_nounset
   ; Sh_verbose
-  ; Sh_vi
   ; Sh_xtrace ]
 
 let string_of_sh_opt o =

@@ -486,7 +486,10 @@ and step_expansion (os0,st) =
      | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
   | ExpSplit f0 -> (ESSplit "", os0, ExpPath (field_splitting os0 f0))
-  | ExpPath ifs0 -> (ESPath "", os0, ExpQuote (pathname_expansion os0 ifs0))
+  | ExpPath ifs0 -> 
+     if Set.member Sh_noglob os0.sh.opts
+     then (ESPath "set -f: pathname expansion disabled", os0, ExpQuote ifs0)
+     else (ESPath "", os0, ExpQuote (pathname_expansion os0 ifs0))
   | ExpQuote ifs0 -> (ESQuote "", os0, ExpDone (quote_removal ifs0))
   (* the following cases should never occur in calls from trace_expansion: *)
   | ExpError _ -> (ESStep "done in error state", os0, st)
