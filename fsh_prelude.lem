@@ -188,14 +188,14 @@ let unimplemented_sh_opts =
   ; Sh_notify
   ; Sh_vi
 
+    (* TODO 2018-09-10 implement these *)
     (* set it up in shell.ml *)
   ; Sh_ignoreeof
     (* need an equivalent of EV_TESTED: extra param to step_eval? *)
   ; Sh_errexit
-
+    (* need history *)
   ; Sh_nolog
-  ; Sh_verbose
-  ; Sh_xtrace ]
+  ]
 
 let string_of_sh_opt o =
   match o with

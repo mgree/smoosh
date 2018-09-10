@@ -20,6 +20,7 @@ let args : string list ref = ref []
 
 let handle_arg arg = args := !args @ arg
 
+(* TODO 2018-09-10 need to support all of the Sh options *)
 let parse_args () =
   Arg.parse
     [ "-c", Arg.Unit (fun () -> input_mode := CFlag), "set input command"
@@ -80,6 +81,11 @@ let finish_up s0 =
 let run_cmds s0 = 
   let ns = Dash.parse_all () in
   let cs = List.map Shim.of_node ns in
+  begin
+    if Pset.mem Sh_verbose s0.sh.opts
+    then List.iter (fun c -> prerr_endline (string_of_stmt c)) cs
+    else ()
+  end;
   let s1 = List.fold_right (fun c os -> real_eval os c) cs s0 in
   finish_up s1
 
@@ -94,7 +100,12 @@ let rec repl s0 =
   | `Null -> repl s0
   | `Parsed n -> 
      (* TODO 2018-08-31 record trace in a logfile *)
-     let s1 = real_eval s0 (Shim.of_node n) in
+     let c = Shim.of_node n in
+     begin 
+       if Pset.mem Sh_verbose s0.sh.opts
+       then prerr_endline (string_of_stmt c)
+     end;
+     let s1 = real_eval s0 c in
      let set x v = 
        match try_concrete v with
        (* don't copy over special variables *)

@@ -113,6 +113,8 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   (* set *)
   ; ("set -- a b c; exit $#", os_empty, 3)
   ; ("set -- ; exit $#", os_empty, 0)
+  ; ("set -n ; exit 5", os_empty, 0)
+  ; ("set -u ; echo $x", os_empty, 1)
   ]
 
 (***********************************************************************)
