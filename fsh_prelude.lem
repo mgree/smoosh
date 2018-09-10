@@ -182,8 +182,7 @@ let all_sh_opts =
   ; Sh_xtrace ]
 
 let unimplemented_sh_opts = 
-  [ Sh_allexport
-  ; Sh_errexit
+  [ Sh_errexit
   ; Sh_ignoreeof
   ; Sh_earlyhash
   ; Sh_monitor 

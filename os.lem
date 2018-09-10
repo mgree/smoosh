@@ -288,12 +288,19 @@ let internal_set_param x v os =
 
 val set_param : forall 'a. OS 'a => 
                   string -> symbolic_string -> os_state 'a -> either string (os_state 'a)
-let set_param x v os = 
-  if is_readonly x os
+let set_param x v os0 = 
+  if is_readonly x os0
   then Left (x ^ ": is read only")
   else if is_special_param x
   then Left (x ^ ": is a special parameter and not a valid identifier")
-  else Right (internal_set_param x v os)
+  else 
+    let os1 = internal_set_param x v os0 in
+    let os2 = 
+      if Set.member Sh_allexport os1.sh.opts 
+      then <| os1 with sh = <| os1.sh with export = Set.insert x os1.sh.export |> |>
+      else os1
+    in
+    Right os2
   
 val set_function_params : forall 'a. OS 'a => nat -> fields -> os_state 'a -> os_state 'a
 let set_function_params ln argv os =

@@ -98,14 +98,10 @@ let rec repl s0 =
      (* TODO 2018-08-31 record trace in a logfile *)
      let s1 = real_eval s0 (Shim.of_node n) in
      let set x v = 
-       match (x,try_concrete v) with
-         (* don't copy over special variables *)
-       | ("?",_) -> ()
-       | ("!",_) -> ()
-       | ("$",_) -> ()
-       | ("-",_) -> ()
-       | (_,None) -> ()
-       | (_,Some s) -> Dash.setvar x s
+       match try_concrete v with
+       (* don't copy over special variables *)
+       | Some s when not (is_special_param x) -> Dash.setvar x s 
+       | _ -> ()
      in
      Pmap.iter set s1.sh.env;
      repl s1

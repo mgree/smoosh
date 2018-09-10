@@ -732,9 +732,22 @@ and step_eval s0 stmt =
         *)
      let s1 = 
        match try_concrete prog with
-       | Just prog_name -> if is_special_builtin prog_name
-                           then <| s0 with sh = <| s0.sh with env = Map.(union) env s0.sh.env |> |>
-                           else s0
+       | Just prog_name -> 
+          if is_special_builtin prog_name
+          then 
+            (* need a call to set_param, which has the right logic for Sh_allexport 
+
+               we don't need to worry about bad variable names in this setting because
+               the parser rejects forms like `?=1 :`
+             *)
+            let set (x,v) os = 
+              match set_param x v os with
+              | Left _ -> os
+              | Right os' -> os'
+              end
+            in
+            foldr set s0 (Map_extra.toList env)
+          else s0
        | Nothing -> s0 
        end in
      match do_redirs s1 ers with
