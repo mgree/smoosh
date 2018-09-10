@@ -341,8 +341,14 @@ let internal_fixup_dollardash os =
 
 val set_sh_opt : forall 'a. OS 'a => os_state 'a -> sh_opt -> os_state 'a
 let set_sh_opt os opt =
+  let os' = 
+    if List.elem opt unimplemented_sh_opts
+    then
+      write_stderr ("set: warning: " ^ string_of_sh_opt opt ^ " is unimplemented\n") os
+    else os
+  in
   internal_fixup_dollardash
-    <| os with sh = <| os.sh with opts = Set.insert opt os.sh.opts |> |>
+    <| os' with sh = <| os.sh with opts = Set.insert opt os.sh.opts |> |>
 
 val unset_sh_opt : forall 'a. OS 'a => os_state 'a -> sh_opt -> os_state 'a
 let unset_sh_opt os opt =
