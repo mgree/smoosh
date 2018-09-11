@@ -7,7 +7,6 @@ SIGNALS="SIGABRT SIGALRM SIGBUS SIGCHLD SIGCONT SIGFPE SIGHUP SIGILL SIGINT SIGK
 
 cat <<EOF 
 open import Fsh_prelude
-open import Signal
 
 val platform_int_of_signal : signal -> nat
 let platform_int_of_signal signal =

@@ -517,8 +517,31 @@ OR
      end
   end
 
-(* TODO 2018-08-13 *)
-let builtin_trap = builtin_unimplemented
+let builtin_trap s0 argv _env =
+  (* The value of "$?" after the trap action completes shall be the
+     value it had before trap was invoked. *)
+  match argv with
+  | [] -> 
+     (* TODO 2018-09-11 show current traps *)
+     Right (s0, Done, true)
+  | arg::_conds ->
+     match readNat (char_list_of_symbolic_string arg) with
+     | Right _n -> 
+       (* unset n and all other conditions *) 
+        Right (s0, Done, true)
+     | Left _ -> 
+        match try_concrete arg with
+        | Nothing -> 
+           Left (s0, "couldn't set symbolic trap: " ^ string_of_symbolic_string arg)
+        | Just "-" ->
+           (* unset conditions *)
+           Right (s0, Done, true)
+        | Just _action ->
+           (* set conditions *)
+           Right (s0, Done, true)
+        end
+     end
+  end
    
 val special_builtins :
   forall 'a. OS 'a =>

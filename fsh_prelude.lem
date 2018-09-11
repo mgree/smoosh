@@ -1,5 +1,6 @@
 include import Pervasives_extra
 include import Fsh_num
+include import Signal
 
 (* ??? What character set does lem use for strings? Does it matter? *)
 
@@ -503,6 +504,7 @@ and funcs = Map.map string stmt
 
 and shell_state = <|
     opts: set sh_opt;
+    traps: map signal (maybe symbolic_string);
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
@@ -1128,6 +1130,7 @@ let env_default : env = Map.insert "?" (symbolic_string_of_string "0") Map.empty
 
 let default_shell_state = <|
       opts = Set.empty;
+      traps = Map.empty;
       positional_params = []; (* $0, $1, $2, $3 ... *)
       env = env_default;
       readonly = Set.empty;
