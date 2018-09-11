@@ -1,4 +1,6 @@
 open import Fsh_prelude
+include import Signal
+include import Signal_platform
 import Debug
                                    
 (**********************************************************************)

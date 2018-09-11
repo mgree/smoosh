@@ -1,4 +1,4 @@
-PRELUDEFILES=fsh_num.lem fsh_prelude.lem os.lem 
+PRELUDEFILES=fsh_num.lem fsh_prelude.lem signal.lem signal_platform.lem os.lem 
 LEMFILES=fsh.lem arith.lem pattern.lem path.lem command.lem semantics.lem
 
 OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48
@@ -12,7 +12,7 @@ TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_eval
 
 OCAMLARGS=$(OCAMLOPTS) $(OCAMLINCLUDES) $(OCAMLLIBS) $(OCAMLGENLIBS) dash.cmxa
 
-.PHONY : all clean test
+.PHONY : all clean test dash.cmxa
 
 all : expand shell runtest
 
@@ -27,6 +27,11 @@ shell : $(MLFILES) shell.ml
 
 runtest : $(MLFILES) $(TESTFILES) runtest.ml
 	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
+
+signal_platform.lem : mk_signal_platform.sh
+	./mk_signal_platform.sh >signal_platform.lem
+
+dash.cmxa : ../libdash/dash.cmxa
 
 ../libdash/dash.cmxa :
 	make -C ../libdash dash.cmxa
