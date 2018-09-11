@@ -9,6 +9,16 @@
   + write more tests
 - trap
 
+  When a subshell is entered, traps that are not being ignored shall
+  be set to the default actions, except in the case of a command
+  substitution containing only a single trap command, when the traps
+  need not be altered. Implementations may check for this case using
+  only lexical analysis; for example, if `trap` and $( trap -- ) do
+  not alter the traps in the subshell, cases such as assigning
+  var=trap and then using $($var) may still alter them. This does not
+  imply that the trap command cannot be used within the subshell to
+  set new traps.
+
 - other built-ins
 - non-special shell variables
   LINENO

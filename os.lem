@@ -776,6 +776,9 @@ declare ocaml target_rep function real_fork_and_call = `System.real_fork_and_cal
 val real_waitpid : nat -> nat
 declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 
+val real_handle_signal : int -> maybe string -> unit
+declare ocaml target_rep function real_handle_signal = `System.real_handle_signal`
+
 val real_exit : forall 'a. nat -> 'a
 declare ocaml target_rep function real_exit = `exit`
 
@@ -943,7 +946,13 @@ instance (OS unit)
 
   let handle_signal os0 signal action =
     let s1 = update_trap os0 signal action in
-    (* TODO 2018-09-11 actually install signal handler *)
+    let actual_action =
+      match action with
+      | Nothing -> Nothing
+      | Just ss -> Just (string_of_symbolic_string ss)
+      end
+    in
+    let _ = real_handle_signal (ocaml_signal_of_signal signal) actual_action in
     s1
 
   let times _os = real_times ()

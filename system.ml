@@ -1,3 +1,9 @@
+(* for backpatching the real_eval function 
+   takes a command to its exit code
+ *)
+let real_eval_fun : (string -> int) ref = 
+  ref (fun _ -> failwith "real eval knot is untied")
+
 let parse_keqv s = 
   let eq = String.index s '=' in
   let k = String.sub s 0 eq in
@@ -164,4 +170,20 @@ let real_openhere (s : string) : (string,int) Either.either =
            Right (int_of_fd fd_read)
          end
   with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
-               
+
+let current_traps : (int * string) list ref = ref []
+
+let handler signal =
+  match List.assoc_opt signal !current_traps with
+  | None -> ()
+  | Some cmd -> ignore (!real_eval_fun cmd)
+
+let real_handle_signal signal action =
+  let new_traps = List.remove_assoc signal !current_traps in
+  match action with
+  | None ->
+     current_traps := new_traps;
+     if signal <> 0 then Sys.set_signal signal Signal_default
+  | Some cmd ->
+     current_traps := (signal,cmd)::new_traps;
+     if signal <> 0 then Sys.set_signal signal (Signal_handle handler)

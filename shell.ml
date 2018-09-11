@@ -103,6 +103,23 @@ let prepare_command () : string list (* positional args *) =
 let set_param x v s0 =
   Os.internal_set_param x (symbolic_string_of_string v) s0
 
+(* track the last shell state---used for signal handling, at_exit *)
+let last_state = ref { Os.sh = default_shell_state; Os.symbolic = () }
+
+let setup_handlers () =
+  System.real_eval_fun := 
+    (fun cmd -> 
+      real_eval_for_exit_code !last_state 
+        (CommandExpRedirs 
+           ([],
+            [ symbolic_string_of_string "eval"
+            ; symbolic_string_of_string cmd],
+            ([], None, []))));
+  at_exit (fun () -> 
+      match List.assoc_opt 0 !System.current_traps with
+      | None -> ()
+      | Some cmd -> ignore (!System.real_eval_fun cmd))
+
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
 let initialize_env s0 : real os_state =
   (* TODO 2018-08-23 set $- [option flags] *)
@@ -140,7 +157,12 @@ let run_cmds s0 =
     then List.iter (fun c -> prerr_endline (string_of_stmt c)) cs
     else ()
   end;
-  let s1 = List.fold_right (fun c os -> real_eval os c) cs s0 in
+  let run c os =
+    let os' = real_eval os c in
+    last_state := os';
+    os'
+  in
+  let s1 = List.fold_right run cs s0 in
   finish_up s1
 
 let rec repl s0 =
@@ -167,6 +189,7 @@ let rec repl s0 =
        then prerr_endline (string_of_stmt c)
      end;
      let s1 = real_eval s0 c in
+     last_state := s1;
      let set x v = 
        match try_concrete v with
        (* don't copy over special variables *)
@@ -179,6 +202,7 @@ let rec repl s0 =
 (* TODO lots of special casing at http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sh.html *)
 let main () =
   Dash.initialize ();
+  setup_handlers ();
   parse_args ();
   (* TODO 2018-08-14 when !interactive is true, need to look at ENV, etc. [UP: optional]
 
@@ -203,10 +227,11 @@ let main () =
   *)
   let positional = prepare_command () in
   let sym_positional = List.map symbolic_string_of_string positional in
-  let s0 = { Os.sh = { default_shell_state with 
-                       positional_params = sym_positional };
-             Os.symbolic = () } in
+  let s0 = { !last_state with 
+             Os.sh = { !last_state.Os.sh with 
+                       positional_params = sym_positional } } in
   let s1 = initialize_env s0 in
+  last_state := s1;
   if is_interactive s1
   then repl s1
   else run_cmds s1
