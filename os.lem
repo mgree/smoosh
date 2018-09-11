@@ -51,6 +51,7 @@ class ( OS 'a )
     (* need to be passed step_eval to close recursive knot for the symbolic OS *)
     (os_state 'a -> stmt -> either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)) ->
     os_state 'a -> nat -> os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
+  val handle_signal : os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
   val times : os_state 'a -> 
               (string (* utime *)            * string (* stime *) * 
                string (* utime + children *) * string (* stime + children *))
@@ -219,6 +220,16 @@ let run_pipe eval s0 stmts =
      run_pipe_loop eval s3 stmts' fd_next
   end
    
+val update_trap : forall 'a. os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
+let update_trap os0 signal action =
+  match action with
+  | Nothing -> 
+     <| os0 with sh = <| os0.sh with traps = Map.delete signal os0.sh.traps |> |>
+  | Just str ->
+     <| os0 with sh = <| os0.sh with traps = Map.insert signal str os0.sh.traps |> |>
+  end
+
+
 val printable_shell_env : forall 'a. os_state 'a -> string
 let printable_shell_env os = 
   foldr (fun (k, v) s -> k ^ "=" ^ quote (string_of_symbolic_string v) ^ "\n" ^ s) 
@@ -584,6 +595,8 @@ instance (OS symbolic)
        end
     end
 
+  let handle_signal = update_trap
+
   let times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
 
   let readdir os path =
@@ -927,6 +940,11 @@ instance (OS unit)
   let waitpid _step_eval os pid =
     let code = real_waitpid pid in
     (os, Just (Right code))
+
+  let handle_signal os0 signal action =
+    let s1 = update_trap os0 signal action in
+    (* TODO 2018-09-11 actually install signal handler *)
+    s1
 
   let times _os = real_times ()
 

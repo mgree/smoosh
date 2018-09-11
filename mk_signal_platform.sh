@@ -11,6 +11,7 @@ open import Fsh_prelude
 val platform_int_of_signal : signal -> nat
 let platform_int_of_signal signal =
   match signal with  
+  | EXIT    -> 0
 EOF
 for sig in $SIGNALS; do
     if [ ${#sig} -lt 7 ]; then sig="$sig "; fi
@@ -26,6 +27,7 @@ cat <<EOF
 val signal_of_platform_int : nat -> maybe signal
 let signal_of_platform_int n =
   match n with
+  | 0  -> Just    EXIT
 EOF
 (for sig in $SIGNALS; do 
      code=$(kill -l $sig)

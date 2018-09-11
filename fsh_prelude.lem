@@ -504,7 +504,7 @@ and funcs = Map.map string stmt
 
 and shell_state = <|
     opts: set sh_opt;
-    traps: map signal (maybe symbolic_string);
+    traps: map signal symbolic_string;
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;

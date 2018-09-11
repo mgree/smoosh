@@ -517,28 +517,75 @@ OR
      end
   end
 
-let builtin_trap s0 argv _env =
+let trap_parse_signal arg =
+  match try_concrete arg with
+  | Nothing -> 
+     Left ("couldn't recognize symbolic signal " ^ string_of_symbolic_string arg)
+  | Just sig_name ->
+     match readNat (toCharList sig_name) with
+     | Right num -> 
+        match signal_of_platform_int num with
+        | Nothing -> Left ("couldn't recognize signal number " ^ sig_name)
+        | Just signal -> Right signal
+        end
+     | Left _    -> 
+        match signal_of_string sig_name with
+        | Nothing -> Left ("couldn't recognize signal " ^ sig_name)
+        | Just signal -> Right signal
+        end
+     end
+  end
+
+let rec trap_parse_signals argv =
+  match argv with
+  | [] -> Right []
+  | arg::argv' -> 
+     match trap_parse_signal arg with
+     | Left err -> Left err
+     | Right signal ->
+        match trap_parse_signals argv' with
+        | Left err -> Left err
+        | Right rest -> Right (signal::rest)
+        end
+     end
+   end
+
+let rec builtin_trap s0 argv _env =
   (* The value of "$?" after the trap action completes shall be the
      value it had before trap was invoked. *)
   match argv with
   | [] -> 
-     (* TODO 2018-09-11 show current traps *)
-     Right (s0, Done, true)
-  | arg::_conds ->
+     let show (trap,cmd) os =
+       let quoted_cmd = "'" ^ string_of_symbolic_string cmd ^ "'" in
+       let msg = "trap -- " ^ quoted_cmd ^ " " ^ string_of_signal trap in
+       write_stdout (msg ^ "\n") os
+     in
+     let s1 = foldr show s0 (Map_extra.toList s0.sh.traps) in
+     Right (s1, Done, true)
+  | [C #'-'; C #'-']::argv' -> builtin_trap s0 argv' _env
+  | arg::signals ->
      match readNat (char_list_of_symbolic_string arg) with
      | Right _n -> 
        (* unset n and all other conditions *) 
-        Right (s0, Done, true)
+        match trap_parse_signals (arg::signals) with
+        | Left err -> Left (s0, err)
+        | Right conds ->
+           let s1 = foldr (fun cond os -> handle_signal os cond Nothing) s0 conds in
+           Right (s1, Done, true)
+        end
      | Left _ -> 
-        match try_concrete arg with
-        | Nothing -> 
+        match (try_concrete arg, trap_parse_signals signals) with
+        | (Nothing, _) -> 
            Left (s0, "couldn't set symbolic trap: " ^ string_of_symbolic_string arg)
-        | Just "-" ->
+        | (_, Left err) -> Left (s0, err)
+        | (Just "-", Right conds) ->
            (* unset conditions *)
-           Right (s0, Done, true)
-        | Just _action ->
+           let s1 = foldr (fun cond os -> handle_signal os cond Nothing) s0 conds in
+           Right (s1, Done, true)
+        | (Just _, Right conds) ->
            (* set conditions *)
-           Right (s0, Done, true)
+           let s1 = foldr (fun cond os -> handle_signal os cond (Just arg)) s0 conds in
+           Right (s1, Done, true)
         end
      end
   end
