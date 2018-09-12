@@ -110,12 +110,7 @@ let setup_handlers () =
   System.real_eval := Obj.magic real_eval_for_exit_code;
   System.real_eval_string := 
     (fun cmd -> 
-      real_eval_for_exit_code !last_state 
-        (CommandExpRedirs 
-           ([],
-            [ symbolic_string_of_string "eval"
-            ; symbolic_string_of_string cmd],
-            ([], None, []))));
+      real_eval_for_exit_code !last_state (command_eval (symbolic_string_of_string cmd)));
   at_exit (fun () -> 
       match List.assoc_opt 0 !System.current_traps with
       | None -> ()
@@ -123,7 +118,6 @@ let setup_handlers () =
 
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
 let initialize_env s0 : real os_state =
-  (* TODO 2018-08-23 set $- [option flags] *)
   (* will bork if we have privileges *)
   let environ = System.real_environment () in
   let set (x,v) os = 
@@ -134,7 +128,7 @@ let initialize_env s0 : real os_state =
   let s2 = set_param "$" (string_of_int (Unix.getpid ())) s1 in
   (* override the prompt by default *)
   let s3 = set_param "PS1" "$ " s2 in
-  (* set up shell options *)
+  (* set up shell options, will set up $- *)
   let s4 = List.fold_right (fun opt os -> real_set_sh_opt os opt) !opts s3 in
   { s4 with sh = { s4.sh with cwd = Unix.getcwd (); 
                               (* If a variable is initialized from the

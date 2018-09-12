@@ -504,6 +504,11 @@ and funcs = Map.map string stmt
 
 and shell_state = <|
     opts: set sh_opt;
+    (* each signal is either:
+         not present (default)
+         ""          (ignore)
+         cmd         (handle)
+    *)
     traps: map signal symbolic_string;
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
@@ -522,65 +527,6 @@ val STDERR : fd
 let STDIN = 0
 let STDOUT = 1
 let STDERR = 2
-
-(**********************************************************************)
-(* AST HELPERS/SMART CONSTRUCTORS *************************************)
-(**********************************************************************)
-
-val pushredir : stmt -> saved_fds -> stmt
-let pushredir stmt saved_fds =
-  if null saved_fds
-  then stmt
-  else Pushredir stmt saved_fds
-
-val with_redirs : stmt -> list expanded_redir -> stmt
-let with_redirs stmt ers =
-  if null ers
-  then stmt
-  else Redir stmt (ers,Nothing,[])
-
-val close_fd_and_then : fd -> stmt -> stmt
-let close_fd_and_then fd stmt =
-  Semi (Pushredir Done [(fd, Close)]) stmt
-
-val is_terminating_control : stmt -> bool
-let is_terminating_control c =
-  match c with
-  | Exit -> true
-  | Return -> true
-  | Break _ -> true
-  | Continue _ -> true
-  | Done -> true
-  | _ -> false
-  end
-
-val get_expanding_redir_state : expanding_redir -> expansion_state
-let get_expanding_redir_state er =
-  match er with
-  | XRFile _ _ es -> es
-  | XRHeredoc _ _ es -> es
-  end
-
-val is_heredoc : expanding_redir -> bool
-let is_heredoc er =
-  match er with
-  | XRFile _ _ _ -> false
-  | XRHeredoc _ _ _ -> true
-  end
-
-val set_expanding_redir_state : expansion_state -> expanding_redir -> expanding_redir
-let set_expanding_redir_state es er =
-  match er with
-  | XRFile ty src _ -> XRFile ty src es
-  | XRHeredoc ty src _ -> XRHeredoc ty src es
-  end
-
-val expand_redir : expanding_redir -> fields -> expanded_redir
-let expand_redir er f =
-  match er with
-  | XRFile ty src _ -> ERFile ty src f
-  | XRHeredoc ty src _ -> ERHeredoc ty src f
-  end
 
 (**********************************************************************)
 (* SYMBOLIC STRING FUNCTIONS ******************************************)
@@ -800,6 +746,73 @@ let int32ToFields n = [symbolic_string_of_string (write n)]
 
 val int64ToFields : int64 -> fields
 let int64ToFields n = [symbolic_string_of_string (write n)]
+
+(**********************************************************************)
+(* AST HELPERS/SMART CONSTRUCTORS *************************************)
+(**********************************************************************)
+
+val command_eval : symbolic_string -> stmt
+let command_eval cmd =
+  CommandExpRedirs 
+    [] 
+    [ symbolic_string_of_string "eval"
+    ; cmd]
+    ([], Nothing, [])
+
+val pushredir : stmt -> saved_fds -> stmt
+let pushredir stmt saved_fds =
+  if null saved_fds
+  then stmt
+  else Pushredir stmt saved_fds
+
+val with_redirs : stmt -> list expanded_redir -> stmt
+let with_redirs stmt ers =
+  if null ers
+  then stmt
+  else Redir stmt (ers,Nothing,[])
+
+val close_fd_and_then : fd -> stmt -> stmt
+let close_fd_and_then fd stmt =
+  Semi (Pushredir Done [(fd, Close)]) stmt
+
+val is_terminating_control : stmt -> bool
+let is_terminating_control c =
+  match c with
+  | Exit -> true
+  | Return -> true
+  | Break _ -> true
+  | Continue _ -> true
+  | Done -> true
+  | _ -> false
+  end
+
+val get_expanding_redir_state : expanding_redir -> expansion_state
+let get_expanding_redir_state er =
+  match er with
+  | XRFile _ _ es -> es
+  | XRHeredoc _ _ es -> es
+  end
+
+val is_heredoc : expanding_redir -> bool
+let is_heredoc er =
+  match er with
+  | XRFile _ _ _ -> false
+  | XRHeredoc _ _ _ -> true
+  end
+
+val set_expanding_redir_state : expansion_state -> expanding_redir -> expanding_redir
+let set_expanding_redir_state es er =
+  match er with
+  | XRFile ty src _ -> XRFile ty src es
+  | XRHeredoc ty src _ -> XRHeredoc ty src es
+  end
+
+val expand_redir : expanding_redir -> fields -> expanded_redir
+let expand_redir er f =
+  match er with
+  | XRFile ty src _ -> ERFile ty src f
+  | XRHeredoc ty src _ -> ERHeredoc ty src f
+  end
 
 (**********************************************************************)
 (* PRETTY PRINTING ****************************************************)

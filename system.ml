@@ -188,6 +188,9 @@ let real_handle_signal signal action =
   | None ->
      current_traps := new_traps;
      if signal <> 0 then Sys.set_signal signal Signal_default
+  | Some "" ->
+     current_traps := (signal,"")::new_traps;
+     if signal <> 0 then Sys.set_signal signal Signal_ignore
   | Some cmd ->
      current_traps := (signal,cmd)::new_traps;
      if signal <> 0 then Sys.set_signal signal (Signal_handle handler)

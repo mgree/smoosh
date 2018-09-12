@@ -133,7 +133,7 @@ let builtin_break s0 argv _env =
   | [] -> 
      (* default to just breaking the immediate loop *)
      Right (exit_with 0 s0, Break 1, true) 
-  | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
+  | [s] -> match readInteger 10 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 1
               then Left (s0,write n ^ ": loop count out of range")
@@ -158,7 +158,7 @@ let builtin_continue s0 argv _env =
 let builtin_exit s0 argv _env =
   match argv with
   | [] -> Right (s0, Exit, true) (* default to exit code of last command *)
-  | [s] -> match readInteger 10 0 (char_list_of_symbolic_string s) with
+  | [s] -> match readInteger 10 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 0 || n > 255
               then Left (s0, write n ^ ": illegal number")
@@ -582,7 +582,7 @@ let rec builtin_trap s0 argv _env =
            let s1 = foldr (fun cond os -> handle_signal os cond Nothing) s0 conds in
            Right (s1, Done, true)
         | (Just _, Right conds) ->
-           (* set conditions *)
+           (* set conditions (if arg is "", we'll ignore it appropriately) *)
            let s1 = foldr (fun cond os -> handle_signal os cond (Just arg)) s0 conds in
            Right (s1, Done, true)
         end

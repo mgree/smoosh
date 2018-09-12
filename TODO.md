@@ -1,6 +1,12 @@
+### Important bugs
+
+- ignoreable traps, subshell trap resets
+- $* vs $@
+- rm *~ (only sometimes do tilde expansion)
+
 ### Last of the shell semantics
 
-- tests differentiating $* and $@, fix impl
+- tests differentiating $* and $@
 - tests that read stdout
   + tests for pipes and redirects
 - eval/.

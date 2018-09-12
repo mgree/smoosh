@@ -42,9 +42,8 @@ class ( OS 'a )
   val getpwnam : os_state 'a -> string -> maybe string
   val execve : 
     os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * stmt
-  val fork_and_subshell : 
-    os_state 'a -> stmt -> os_state 'a * nat
-  val exit : os_state 'a -> os_state 'a
+  val fork_and_subshell : os_state 'a -> stmt -> os_state 'a * nat
+  val exit : os_state 'a -> os_state 'a * maybe stmt
   val waitpid : 
     (* need to be passed step_eval to close recursive knot for the symbolic OS *)
     (os_state 'a -> stmt -> either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)) ->
@@ -219,10 +218,9 @@ let update_trap os0 signal action =
   match action with
   | Nothing -> 
      <| os0 with sh = <| os0.sh with traps = Map.delete signal os0.sh.traps |> |>
-  | Just str ->
-     <| os0 with sh = <| os0.sh with traps = Map.insert signal str os0.sh.traps |> |>
+  | Just cmd ->
+     <| os0 with sh = <| os0.sh with traps = Map.insert signal cmd os0.sh.traps |> |>
   end
-
 
 val printable_shell_env : forall 'a. os_state 'a -> string
 let printable_shell_env os = 
@@ -537,12 +535,28 @@ instance (OS symbolic)
   let fork_and_subshell os stmt =
     let proc_num = length os.symbolic.procs in
     let proc = Shell stmt os.sh os.symbolic.sh_fds in
-    (<| os with symbolic =
-            <| os.symbolic with 
-                 procs = os.symbolic.procs ++ [proc] |> |>, 
+    (* When a subshell is entered, traps that are not being ignored
+       shall be set to the default actions, except in the case of a
+       command substitution containing only a single trap command,
+       when the traps need not be altered. Implementations may check
+       for this case using only lexical analysis; for example, if
+       `trap` and $( trap -- ) do not alter the traps in the subshell,
+       cases such as assigning var=trap and then using $($var) may
+       still alter them. This does not imply that the trap command
+       cannot be used within the subshell to set new traps.  *) 
+    (<| os with symbolic = <| os.symbolic with procs = os.symbolic.procs ++ [proc] |> |>, 
      proc_num)
 
-  let exit os = <| os with symbolic = <| os.symbolic with exited = true |> |>
+  let exit os0 = 
+    if os0.symbolic.exited
+    then (os0, Nothing)
+    else
+      match Map.lookup EXIT os0.sh.traps with
+      | Nothing -> (os0, Nothing)
+      | Just cmd -> 
+         let os1 = <| os0 with symbolic = <| os0.symbolic with exited = true |> |> in
+         (os1, Just (command_eval cmd))
+      end
 
   let waitpid step_eval os0 pid =
     match index os0.symbolic.procs pid with
