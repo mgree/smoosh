@@ -19,6 +19,8 @@ let expansion_tests : (string * symbolic os_state * entry list * fields)list=
  ([
     ("plain string foo", os_empty, [S "foo"], concrete ["foo"]);
     ("expand tilde without username", add_literal_env_string "HOME" "/home/testuser" os_empty, [K Tilde], concrete ["/home/testuser"]);
+    ("don't expand tilde in string", add_literal_env_string "HOME" "/home/testuser" os_empty, [S "nope"; K Tilde], concrete ["nope~"]);
+
     ("normal paramater lookup of unset variable", os_empty, [K (Param("x", Normal))], []);
     ("paramter length of unset variable", os_empty, [K (Param("x", Length))], concrete ["0"]);
 

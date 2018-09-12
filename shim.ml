@@ -587,7 +587,7 @@ and json_of_expansion_step = function
 
 and json_of_expansion_state = function
   | ExpStart w -> obj_w "ExpStart" w
-  | ExpExpand (f, w) -> obj_fw "ExpExpand" f w
+  | ExpExpand (_tm, f, w) -> obj_fw "ExpExpand" f w
   | ExpSplit f -> obj_f "ExpSplit" f
   | ExpPath ifs -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
   | ExpQuote ifs -> Assoc [tag "ExpQuote"; ("ifs", json_of_intermediate_fields ifs)]

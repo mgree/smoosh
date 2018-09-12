@@ -25,13 +25,14 @@ type redir_exp_result 'a =
   | REStep of expansion_step * 'a * expanding_redir
 
 val expand_control : forall 'a. OS 'a => 
-                     os_state 'a -> quoting_mode -> control ->
+                     os_state 'a -> quoting_mode -> tilde_mode -> control ->
                      either (expansion_step * os_state 'a * expanded_words) 
-                            (expansion_step * os_state 'a * expanded_words * words) 
+                            (expansion_step * os_state 'a * tilde_mode * expanded_words * words) 
 val expand_words : forall 'a. OS 'a => 
-                   os_state 'a -> quoting_mode -> string_mode -> (expanded_words * words) ->
+                   os_state 'a -> quoting_mode -> tilde_mode -> string_mode -> 
+                   (expanded_words * words) ->
                    either (expansion_step * os_state 'a * expanded_words) 
-                          (expansion_step * os_state 'a * expanded_words * words) 
+                          (expansion_step * os_state 'a * tilde_mode * expanded_words * words) 
 val step_expansion : forall 'a. OS 'a =>
                      os_state 'a * expansion_state -> 
                      expansion_step * os_state 'a * expansion_state 
@@ -320,10 +321,11 @@ let expand_param s0 _q str f =
   | (Just fs, Substring s m w) -> [K (LMatch fs s m [] w)]
   end
 
-let rec expand_control s0 q k =
+let rec expand_control s0 q tm k =
     match k with
-    | Tilde ->
-       let (msg, dir) = match expand_param s0 Unquoted "HOME" Normal with
+    | Tilde -> 
+       if tm = YesTilde then
+         let (msg, dir) = match expand_param s0 Unquoted "HOME" Normal with
          (* if HOME is unset, results are unspecified---we return "~" 
             dash:
               $ unset HOME
@@ -349,36 +351,55 @@ let rec expand_control s0 q k =
 
             lol
           *)
-         | [S ""] -> ("defaulting to dash behavior for unset HOME (unspec per 2.6.1)", [S "~"])
-         | dir -> ("", dir)
-         end in
-       Right (ESTilde msg, s0, [], dir)
+           | [S ""] -> ("defaulting to dash behavior for unset HOME (unspec per 2.6.1)", [S "~"])
+           | dir -> ("", dir)
+           end in
+           Right (ESTilde msg, s0, NoTilde, [], dir)
+        else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [], [S "~"])
     | TildeUser usr -> 
-       match getpwnam s0 usr with
-       | Nothing -> Right (ESTilde "defaulting to dash behavior for failed getpwnam (unspec per 2.6.1)", s0, [], [S ("~" ^ usr)]) (* unspec per 2.6.1, but we follow dash *)
-       | Just path -> Right (ESTilde "", s0, [], [S path])
-       end
-    | Param s f -> expand_words s0 q GeneratedString ([], expand_param s0 q s f)
+       if tm = YesTilde
+       then
+         match getpwnam s0 usr with
+         | Nothing ->
+            (* unspec per 2.6.1, but we follow dash *)
+            Right (ESTilde ("defaulting to dash behavior for failed getpwnam " ^
+                            "(unspec per 2.6.1)"), 
+                   s0, NoTilde, [], [S ("~" ^ usr)]) 
+         | Just path -> Right (ESTilde "", s0, NoTilde, [], [S path])
+         end
+       else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [], [S ("~" ^ usr)])
+    | Param s f -> expand_words s0 q YesTilde GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
        match set_param s (concat_expanded f) s0 with
        | Left err -> Left (ESParam "bad or readonly variable", s0, ExpS err::f)
-       | Right s1 -> Right (ESParam "finished assignment", s1, f, [])
+       | Right s1 -> Right (ESParam "finished assignment", s1, NoTilde, f, [])
        end
     | LAssign s f w ->
-       match expand_words s0 q GeneratedString ([], w) with
-       | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "assignment") step, s1, [], [K (LAssign s (f ++ f1) w1)])
+       match expand_words s0 q NoTilde GeneratedString ([], w) with
+       | Right (step, s1, tm1, f1, w1) ->
+          Right (ESNested (ESParam "assignment") step, 
+                 s1, tm1, [], [K (LAssign s (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | LMatch str side mode f [] -> Right (ESParam "finished match", s0, [], words_of_symbolic_string (match_substring s0.sh.locale side mode f str))
+    | LMatch str side mode f [] -> 
+       Right (ESParam "finished match", 
+              s0, NoTilde, [], 
+              words_of_symbolic_string (match_substring s0.sh.locale side mode f str))
     | LMatch s side mode f w ->
-       match expand_words s0 q GeneratedString ([], w) with
-       | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "match") step, s1, [], [K (LMatch s side mode (f ++ f1) w1)])
+       match expand_words s0 q NoTilde GeneratedString ([], w) with
+       | Right (step, s1, tm1, f1, w1) -> 
+          Right (ESNested (ESParam "match") step, 
+                 s1, tm1, [], [K (LMatch s side mode (f ++ f1) w1)])
        | Left err -> Left err
        end
-    | LError str f [] -> Left (ESParam "raising requested error", s0, ExpS (str ^ ": ")::f) (* dash seems to print erroring variable name; TODO should we also have linno? *)
+    | LError str f [] -> 
+       (* dash seems to print erroring variable name; TODO should we also have linno? *)
+       Left (ESParam "raising requested error", s0, ExpS (str ^ ": ")::f) 
     | LError str f w ->
-       match expand_words s0 q GeneratedString ([], w) with
-       | Right (step, s1, f1, w1) -> Right (ESNested (ESParam "error") step, s1, [], [K (LError str (f ++ f1) w1)])
+       match expand_words s0 q NoTilde GeneratedString ([], w) with
+       | Right (step, s1, tm1, f1, w1) -> 
+          Right (ESNested (ESParam "error") step, 
+                 s1, tm1, [], [K (LError str (f ++ f1) w1)])
        | Left err -> Left err
        end
     | Backtick c ->
@@ -393,7 +414,8 @@ let rec expand_control s0 q k =
        in
        let (s2, pid) = fork_and_subshell s1 cmd in
        Right (ESCommand "initializing subshell", 
-              s2, 
+              s2,
+              NoTilde,
               [], 
               [K (LBacktick c pid fd_read)])
     | LBacktick corig pid fd_read ->
@@ -407,6 +429,7 @@ let rec expand_control s0 q k =
           Right (ESEval (ESCommand ("process with pid " ^ stringFromNat pid ^ " stepped"))
                          step,
                  s1,
+                 NoTilde,
                  [],
                  [K (LBacktick corig pid fd_read)])
        | (s1, Just (Right _code)) ->
@@ -421,57 +444,53 @@ let rec expand_control s0 q k =
              let s_trimmed = trimr_newlines s in
              Right (ESCommand "command exited successfully",
                     s3, 
+                    NoTilde,
                     [ExpS s_trimmed], 
                     [])
           end
        end            
     | Arith f [] ->
         match arith64 s0 (concat_expanded f) with
-        | Right (s1, result) -> Right (ESArith "computed arithmetic result", s1, expanded_words_of_fields result, [])
+        | Right (s1, result) -> 
+           Right (ESArith "computed arithmetic result", 
+                  s1, NoTilde, expanded_words_of_fields result, [])
         | Left e -> Left (ESArith "arithmetic error", s0, [ExpS e])
         end
     | Arith f w ->
-       match expand_words s0 q GeneratedString ([],w) with
-       | Right (step, s1, f1, w1) -> Right (ESNested (ESArith "before arithmetic parsing") step, s1, [], [K (Arith (f ++ f1) w1)])
+       match expand_words s0 q YesTilde GeneratedString ([],w) with
+       | Right (step, s1, tm1, f1, w1) -> 
+          Right (ESNested (ESArith "before arithmetic parsing") step, 
+                 s1, tm1, [], [K (Arith (f ++ f1) w1)])
        | Left err -> Left err
         end
    | Quote f [] ->
-      Right (ESQuote "finished quote expansion", s0, [DQuo (concat_expanded f)], [])
+      Right (ESQuote "finished quote expansion", 
+             s0, NoTilde, [DQuo (concat_expanded f)], [])
    | Quote f w -> 
-       match expand_words s0 Quoted GeneratedString ([],w) with
-       | Right (step, s1, f1, w1) -> Right (step, s1, [], [K (Quote (f ++ f1) w1)])
+       match expand_words s0 Quoted NoTilde GeneratedString ([],w) with
+       | Right (step, s1, _tm1, f1, w1) -> 
+          Right (step, s1, NoTilde, [], [K (Quote (f ++ f1) w1)])
        | Left err -> Left err
        end
   end
 
-and expand_words s0 q sm (f,w) =
+and expand_words s0 q tm sm (f,w) =
   match w with
-    | [] -> Right (ESStep "done", s0, f, w)
-    | (F::ws) -> Right (ESStep "user field separator", s0, f ++ [UsrF], ws)
+    | [] -> Right (ESStep "done", s0, YesTilde, f, w)
+    | (F::ws) -> Right (ESStep "user field separator", s0, YesTilde, f ++ [UsrF], ws)
     | (S(s)::ws) ->
        let f1 = match (q, sm) with
          | (Quoted, _) -> [DQuo (symbolic_string_of_string s)]
          | (Unquoted, UserString) -> [UsrS s]
          | (Unquoted, GeneratedString) -> [ExpS s]
        end in
-        Right (ESStep "plain string", s0, f ++ f1, ws)
+       Right (ESStep "plain string", s0, NoTilde, f ++ f1, ws)
     | (K(k)::ws) ->
-       match expand_control s0 q k with
-       | Right (step, s1, f1, w1) -> Right (step, s1, f++f1, (w1 ++ ws))
+       match expand_control s0 q tm k with
+       | Right (step, s1, _tm1, f1, w1) -> Right (step, s1, NoTilde, f++f1, (w1 ++ ws))
        | Left err -> Left err
        end
-    | (ESym(c)::ws) -> Right (ESStep "skipping symbolic result", s0, f ++ [EWSym c], ws)
-  end
-
-and control_code_expansion s0 q w =
-  match expand_words s0 q UserString ([],w) with
-  | Right (_step, s1, f1, w1) ->
-     match w1 with
-     | [] -> (s1, f1)
-     | _ -> let (s2, f2) = control_code_expansion s1 q w1 in
-            (s2, (f1 ++ f2))
-     end
-  | Left (_step, s1, err1) -> (s1, err1)
+    | (ESym(c)::ws) -> Right (ESStep "skipping symbolic result", s0, NoTilde, f ++ [EWSym c], ws)
   end
 
 (**********************************************************************)
@@ -481,16 +500,16 @@ and control_code_expansion s0 q w =
 and step_expansion (os0,st) =
   match st with
   | ExpStart w0 -> 
-     match expand_words os0 Unquoted UserString ([],w0) with
-     | Right (step, os1, f1, w1) -> (step, os1, ExpExpand f1 w1)
+     match expand_words os0 Unquoted YesTilde UserString ([],w0) with
+     | Right (step, os1, tm, f1, w1) -> (step, os1, ExpExpand tm f1 w1)
      | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
-  | ExpExpand f0 w0 -> 
-     match expand_words os0 Unquoted UserString (f0,w0) with
-     | Right (step, os1, f1, w1) ->
+  | ExpExpand tm0 f0 w0 -> 
+     match expand_words os0 Unquoted tm0 UserString (f0,w0) with
+     | Right (step, os1, tm1, f1, w1) ->
         match w1 with
         | [] -> (step, os1, ExpSplit f1)
-        | _ ->  (step, os1, ExpExpand f1 w1)
+        | _ ->  (step, os1, ExpExpand tm1 f1 w1)
         end
      | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end

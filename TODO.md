@@ -1,7 +1,6 @@
 ### Important bugs
 
 - $* vs $@
-- rm *~ (only sometimes do tilde expansion)
 
 ### Last of the shell semantics
 
