@@ -55,11 +55,12 @@ class ( Read 'a )
   val write : 'a -> string
 end
 
-let readConstant dec hex oct acc chars =
+let readConstant dec hex oct chars =
   match chars with
-  | #'0'::#'x'::cs -> hex acc cs
-  | #'0'::cs -> oct acc cs
-  | _ -> dec acc chars
+  | [#'0'] -> dec chars (* doesn't matter *)
+  | #'0'::#'x'::cs -> hex cs
+  | #'0'::cs -> oct cs
+  | _ -> dec chars
   end
 
 let int64Max = ((int64FromNat 2) ** 63) - 1
@@ -68,29 +69,36 @@ let int64Min = ~((int64FromNat 2) ** 63)
 let int32Max = ((int32FromNat 2) ** 31) - 1
 let int32Min = ~((int32FromNat 2) ** 31)
 
-val readInteger : nat -> integer -> (list char) -> either string integer
-let rec readInteger base acc chars =
+val readInteger_loop : nat -> integer -> (list char) -> either string integer
+let rec readInteger_loop base acc chars =
   match chars with
   | [] -> Right acc
   | (c::cs) ->
      let num = hexalpha_to_num c in
       if num > base - 1 || num < 0
       then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
-      else readInteger base (((integerFromNat base) * acc) + (integerFromNat num)) cs
+      else readInteger_loop base (((integerFromNat base) * acc) + (integerFromNat num)) cs
+  end
+
+val readInteger : nat -> (list char) -> either string integer
+let readInteger base chars =
+  match chars with
+  | [] -> Left "empty string is not numeric"
+  | _ -> readInteger_loop base 0 chars
   end
 
 (* only use this for base 10 literals *)
 val readNat : (list char) -> either string nat
 let readNat cs =
   if is_numeric cs
-  then match readInteger 10 0 cs with
+  then match readInteger 10 cs with
        | Right n -> Right (toNat n)
        | Left e -> Left e
        end
   else Left (toString cs ^ " is non-numeric")
 
-val readInt64 : nat -> int64 -> (list char) -> either string int64
-let rec readInt64 base acc chars =
+val readInt64_loop : nat -> int64 -> (list char) -> either string int64
+let rec readInt64_loop base acc chars =
   match chars with
   | [] -> Right acc
   | (c::cs) ->
@@ -100,11 +108,18 @@ let rec readInt64 base acc chars =
       else let acc1 = ((int64FromNat base) * acc) + (int64FromNat num) in
            if acc1 < 0
            then Right int64Max
-           else readInt64 base acc1 cs
+           else readInt64_loop base acc1 cs
   end
 
-val readInt32 : nat -> int32 -> (list char) -> either string int32
-let rec readInt32 base acc chars =
+val readInt64 : nat -> (list char) -> either string int64
+let readInt64 base chars =
+  match chars with
+  | [] -> Left "empty string is not numeric"
+  | _ -> readInt64_loop base (int64FromNat 0) chars
+  end
+
+val readInt32_loop : nat -> int32 -> (list char) -> either string int32
+let rec readInt32_loop base acc chars =
   match chars with
   | [] -> Right acc
   | (c::cs) ->
@@ -114,7 +129,14 @@ let rec readInt32 base acc chars =
       else let acc1 = ((int32FromNat base) * acc) + (int32FromNat num) in
            if acc1 < 0
            then Right int32Max
-           else readInt32 base acc1 cs
+           else readInt32_loop base acc1 cs
+  end
+
+val readInt32 : nat -> (list char) -> either string int32
+let readInt32 base chars =
+  match chars with
+  | [] -> Left "empty string is not numeric"
+  | _ -> readInt32_loop base (int32FromNat 0) chars
   end
 
 
@@ -141,16 +163,16 @@ declare ocaml target_rep function write32 = `Int32.to_string`
 declare ocaml target_rep function write64 = `Int64.to_string`
 
 instance ( Read integer )
-  let read cs = readConstant (readInteger 10) (readInteger 16) (readInteger 8) 0 cs
+  let read cs = readConstant (readInteger 10) (readInteger 16) (readInteger 8) cs
   let write = unbounded_write
 end
 
 instance ( Read int64 )
-  let read cs = readConstant (readInt64 10) (readInt64 16) (readInt64 8) (int64FromNat 0) cs
+  let read cs = readConstant (readInt64 10) (readInt64 16) (readInt64 8) cs
   let write = write64
 end
 
 instance ( Read int32 )
-  let read cs = readConstant (readInt32 10) (readInt32 16) (readInt32 8) (int32FromNat 0) cs
+  let read cs = readConstant (readInt32 10) (readInt32 16) (readInt32 8) cs
   let write = write32
 end
