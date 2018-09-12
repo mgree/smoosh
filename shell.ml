@@ -107,7 +107,8 @@ let set_param x v s0 =
 let last_state = ref { Os.sh = default_shell_state; Os.symbolic = () }
 
 let setup_handlers () =
-  System.real_eval := Obj.magic real_eval_for_exit_code;
+  System.real_eval := 
+    (fun os stmt -> real_eval_for_exit_code (Obj.magic os) (Obj.magic stmt));
   System.real_eval_string := 
     (fun cmd -> 
       real_eval_for_exit_code !last_state (command_eval (symbolic_string_of_string cmd)));

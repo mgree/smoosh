@@ -1,9 +1,9 @@
 (* for backpatching the real_eval function 
    takes a command to its exit code
  *)
-type dummy = Dummy
+type dummy = Dummy (* to make sure we don't get funny unboxing *)
 let real_eval : (dummy -> dummy -> int) ref =
-  ref (fun _ -> failwith "real_eval knot is untied")
+  ref (fun _ _ -> failwith "real_eval knot is untied")
 
 let real_eval_string : (string -> int) ref = 
   ref (fun _ -> failwith "real_eval_string knot is untied")
@@ -25,9 +25,10 @@ let real_getpwnam (nam : string) : string option =
 let real_execve (cmd : string) (argv : string list) (environ : string list) : 'a =
   Unix.execve cmd (Array.of_list (cmd::argv)) (Array.of_list environ)
 
-let real_fork_and_eval (os : 'a) (stmt : 'b) : int =
+let real_fork_and_eval (handlers : int list) (os : 'a) (stmt : 'b) : int =
   match Unix.fork () with
   | 0 -> 
+     List.iter (fun signal -> Sys.set_signal signal Signal_ignore) handlers;
      let status = !real_eval (Obj.magic os) (Obj.magic stmt) in 
      exit status
   | pid -> pid
@@ -38,6 +39,7 @@ let rec real_waitpid (pid : int) : int =
   | (_,Unix.WSIGNALED signal) -> 130 (* bash, dash behavior *)
   | (_,Unix.WSTOPPED signal) -> 146 (* bash, dash behavior *)
   with Unix.Unix_error(EINTR,_,_) -> real_waitpid pid (* actually keep waiting *)
+     | Unix.Unix_error(ECHILD,_,_) -> 0
 
 let show_time time =
   let mins = time /. 60.0 in

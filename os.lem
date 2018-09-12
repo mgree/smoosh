@@ -222,6 +222,17 @@ let update_trap os0 signal action =
      <| os0 with sh = <| os0.sh with traps = Map.insert signal cmd os0.sh.traps |> |>
   end
 
+val clear_traps_for_subshell : shell_state -> shell_state * list signal
+let clear_traps_for_subshell sh =
+  let traps = Map_extra.toList sh.traps in
+  let (ignored,handled) = 
+    partition (fun (_signal,cmd) -> string_of_symbolic_string cmd = "") traps 
+  in
+   (* clear handled traps (but keep ignored ones) *)
+  (<| sh with traps = Map.fromList ignored |>,
+   (* indicate which handled traps are now cleared *)
+   map fst handled)
+
 val printable_shell_env : forall 'a. os_state 'a -> string
 let printable_shell_env os = 
   foldr (fun (k, v) s -> k ^ "=" ^ quote (string_of_symbolic_string v) ^ "\n" ^ s) 
@@ -534,7 +545,8 @@ instance (OS symbolic)
 
   let fork_and_subshell os stmt =
     let proc_num = length os.symbolic.procs in
-    let proc = Shell stmt os.sh os.symbolic.sh_fds in
+    let (sh,_handlers) = clear_traps_for_subshell os.sh in
+    let proc = Shell stmt sh os.symbolic.sh_fds in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
        command substitution containing only a single trap command,
@@ -778,7 +790,7 @@ declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
 val real_execve : forall 'a. string -> list string -> list string -> 'a
 declare ocaml target_rep function real_execve = `System.real_execve`
 
-val real_fork_and_eval : os_state real -> stmt -> nat
+val real_fork_and_eval : list int -> os_state real -> stmt -> nat
 declare ocaml target_rep function real_fork_and_eval = `System.real_fork_and_eval`
 
 val real_waitpid : nat -> nat
@@ -893,7 +905,12 @@ instance (OS unit)
     (os, real_execve (force_concrete prog) (map force_concrete argv) (environ env))
 
   let fork_and_subshell os stmt =
-    let pid = real_fork_and_eval os stmt in
+    let (subsh,handlers) = clear_traps_for_subshell os.sh in
+    let pid = 
+      real_fork_and_eval 
+        (List.map ocaml_signal_of_signal handlers) (* ignore these signals! *)
+        (<| os with sh = subsh |>) (* update the traps *)
+        stmt in
     (os, pid)
 
   let physical_cwd _os = real_physical_cwd ()

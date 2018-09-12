@@ -1,6 +1,5 @@
 ### Important bugs
 
-- subshell trap resets
 - $* vs $@
 - rm *~ (only sometimes do tilde expansion)
 
