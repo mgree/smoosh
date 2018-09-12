@@ -3,7 +3,6 @@ open import Fsh
 import Debug
 
 val run_command : forall 'a. OS 'a => 
-                  (os_state 'a -> stmt -> nat) -> (* eval, for fork_and_execve *)
                   os_state 'a -> 
                   symbolic_string (* prog *) -> 
                   fields (* argv *) ->
@@ -844,7 +843,7 @@ let builtins =
     ; ("wait", builtin_wait)
     ]
 
-let run_command eval s0_init prog_name argv env =
+let run_command s0_init prog_name argv env =
   let s0 =
     if Set.member Sh_xtrace s0_init.sh.opts
     then 
@@ -916,7 +915,6 @@ let run_command eval s0_init prog_name argv env =
                         error message, and shall return an exit status
                         of 126. *)
                      let (s1,pid) = fork_and_execve 
-                                      eval
                                       s0 
                                       (symbolic_string_of_string executable) 
                                       argv 

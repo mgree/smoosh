@@ -1,8 +1,12 @@
 (* for backpatching the real_eval function 
    takes a command to its exit code
  *)
-let real_eval_fun : (string -> int) ref = 
-  ref (fun _ -> failwith "real eval knot is untied")
+type dummy = Dummy
+let real_eval : (dummy -> dummy -> int) ref =
+  ref (fun _ -> failwith "real_eval knot is untied")
+
+let real_eval_string : (string -> int) ref = 
+  ref (fun _ -> failwith "real_eval_string knot is untied")
 
 let parse_keqv s = 
   let eq = String.index s '=' in
@@ -21,10 +25,10 @@ let real_getpwnam (nam : string) : string option =
 let real_execve (cmd : string) (argv : string list) (environ : string list) : 'a =
   Unix.execve cmd (Array.of_list (cmd::argv)) (Array.of_list environ)
 
-let real_fork_and_call (f : 'a -> int) (v : 'a) : int =
+let real_fork_and_eval (os : 'a) (stmt : 'b) : int =
   match Unix.fork () with
   | 0 -> 
-     let status = f v in 
+     let status = !real_eval (Obj.magic os) (Obj.magic stmt) in 
      exit status
   | pid -> pid
 
@@ -176,7 +180,7 @@ let current_traps : (int * string) list ref = ref []
 let handler signal =
   match List.assoc_opt signal !current_traps with
   | None -> ()
-  | Some cmd -> ignore (!real_eval_fun cmd)
+  | Some cmd -> ignore (!real_eval_string cmd)
 
 let real_handle_signal signal action =
   let new_traps = List.remove_assoc signal !current_traps in

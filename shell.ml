@@ -107,7 +107,8 @@ let set_param x v s0 =
 let last_state = ref { Os.sh = default_shell_state; Os.symbolic = () }
 
 let setup_handlers () =
-  System.real_eval_fun := 
+  System.real_eval := Obj.magic real_eval_for_exit_code;
+  System.real_eval_string := 
     (fun cmd -> 
       real_eval_for_exit_code !last_state 
         (CommandExpRedirs 
@@ -118,7 +119,7 @@ let setup_handlers () =
   at_exit (fun () -> 
       match List.assoc_opt 0 !System.current_traps with
       | None -> ()
-      | Some cmd -> ignore (!System.real_eval_fun cmd))
+      | Some cmd -> ignore (!System.real_eval_string cmd))
 
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
 let initialize_env s0 : real os_state =

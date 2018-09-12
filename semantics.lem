@@ -391,7 +391,7 @@ let rec expand_control s0 q k =
            (* make sure to close the pipe when we're done *)
            [(fd_write, Close)]
        in
-       let (s2, pid) = fork_and_subshell eval s1 cmd in
+       let (s2, pid) = fork_and_subshell s1 cmd in
        Right (ESCommand "initializing subshell", 
               s2, 
               [], 
@@ -773,7 +773,7 @@ and step_eval s0 stmt =
                Done)
      | Right (s2, saved_fds) ->
        (* run command *)
-       match run_command eval s2 prog args env with
+       match run_command s2 prog args env with
        | Right (s3, stmt', restore) -> 
           Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
                  s3, 
@@ -834,7 +834,7 @@ and step_eval s0 stmt =
 
   (* PIPE *********************************************************************)
   | Pipe bg stmts ->
-     let (s1, last_pid) = run_pipe eval s0 stmts in
+     let (s1, last_pid) = run_pipe s0 stmts in
      let (s2, c) =
        if bg
        then (set_last_pid last_pid s1, Done)
@@ -875,7 +875,7 @@ and step_eval s0 stmt =
   (* BACKGROUND ***************************************************************)
   | Background stmt' ((_, Nothing, []) as redir_state) ->
      (* defer to Redir to load redirs *)
-     let (s1,pid) = fork_and_subshell eval s0 (Redir stmt' redir_state) in
+     let (s1,pid) = fork_and_subshell s0 (Redir stmt' redir_state) in
      let s2 = set_last_pid pid s1 in
      Right (XSBackground ("started background process with pid " ^ (stringFromNat pid)), 
             s2, 
@@ -898,7 +898,7 @@ and step_eval s0 stmt =
  
   (* SUBSHELL *****************************************************************)
   | Subshell stmt' ((_, Nothing, []) as redir_state) ->
-     let (s1,pid) = fork_and_subshell eval s0 (Redir stmt' redir_state) in
+     let (s1,pid) = fork_and_subshell s0 (Redir stmt' redir_state) in
      Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
             s1, 
             Wait pid)
