@@ -18,6 +18,14 @@ let rec ltrim_newlines_cl cl =
   | _ -> cl
   end
 
+val intersperse : forall 'a. 'a -> list 'a -> list 'a
+let rec intersperse sep xs =
+  match xs with
+  | [] -> []
+  | [x] -> [x]
+  | x::xs' -> x::sep::intersperse sep xs'
+  end
+
 val trimr_newlines : string -> string
 let trimr_newlines s =
   let cl = toCharList s in

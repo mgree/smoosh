@@ -368,7 +368,55 @@ let rec expand_control s0 q tm k =
          | Just path -> Right (ESTilde "", s0, NoTilde, [], [S path])
          end
        else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [], [S ("~" ^ usr)])
-    | Param s f -> expand_words s0 q YesTilde GeneratedString ([], expand_param s0 q s f)
+    | Param s f -> 
+       (* TODO 2018-09-12 still broken 
+          getting everything but the last behavior
+set -- "arg  1" "arg  2" "arg  3"
+for x in $*; do echo "$x"; done # arg\n1\n...
+for x in $@; do echo "$x"; done # arg\n1\n...
+for x in "$*"; do echo "$x"; done # arg  1 arg  2 arg  3
+for x in "$@"; do echo "$x"; done # arg  1\narg  2\narg  3
+        *)
+       if s = "@" && q = Quoted
+       then 
+         (* we'll expand into $1F$2F$3...$n params 
+
+            no need to actually quote them, since we got here from q = Quoted
+          *)
+         (* first, how may do we have? *)
+         let num_params = max (length s0.sh.positional_params - 1) 0 in
+         (* here's how to build the variable for it *)
+         let mk_var n = K (Param (stringFromNat n) Normal) in
+         (* build the list of var refs (genlist counts from 0) *)
+         let param_vars = genlist (fun n -> mk_var (n+1)) num_params in
+         (* put the field separators in *)
+         let exps = intersperse F param_vars in
+         (* TODO it doesn't seem specified what happens with the various formats.
+
+            -, = and ? don't seem to adhere, since $@ is never unset/null
+            + should always just expand the words, since $@ is never unset/null
+            # should expand everything, convert to a string, and count. same as *.
+            %/%% operates on the last param and #/## on the first param (in dash)
+          *)
+         let formatted_exps = 
+           match f with
+           | Length -> [K (Param "*" Length)] (* just cheat it *)
+           | Alt w -> w
+           | NAlt w -> w
+           | Substring Prefix _ _ -> 
+              match exps with
+              | _::exps' -> K (Param "1" f)::exps'
+              | _ -> exps
+              end
+           | Substring Suffix _ _ ->
+              match dest_init exps with
+              | Just (exps', _) -> exps' ++ [K (Param (stringFromNat num_params) f)]
+              | Nothing -> exps
+              end
+           | _ -> exps
+           end in
+         expand_words s0 q NoTilde GeneratedString ([], formatted_exps)
+       else expand_words s0 q YesTilde GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
        match set_param s (concat_expanded f) s0 with
        | Left err -> Left (ESParam "bad or readonly variable", s0, ExpS err::f)
