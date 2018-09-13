@@ -953,7 +953,7 @@ function renderIntermediateFields(info, elt, ifs) {
 function renderExpandedWord(info, elt, w) {
   console.assert(typeof w === 'object', 'expected expanded word character, got ' + w);
   console.assert('tag' in w, 'expected tag field in expanded word character');
-  console.assert(['UsrF','ExpS','DQuo','UsrS','EWSym'].includes(w['tag']));
+  console.assert(['UsrF','ExpS','At','DQuo','UsrS','EWSym'].includes(w['tag']));
 
   elt.addClass('expanded-word-' + w['tag']);
 
@@ -971,6 +971,15 @@ function renderExpandedWord(info, elt, w) {
       elt.addClass('generated');
       elt.append(w['v']);
 
+      break;
+
+    case 'At':
+      // | At f -> obj_f "At" f
+
+      elt.addClass('generated dollar-at');
+      const f = $('<span></span>').appendTo(elt);
+      renderFields(info, f, w['f']);
+      
       break;
 
     case 'DQuo':
