@@ -2,6 +2,8 @@ include import Pervasives_extra
 include import Fsh_num
 include import Signal
 
+import Debug
+
 (* ??? What character set does lem use for strings? Does it matter? *)
 
 (**********************************************************************)
@@ -44,13 +46,14 @@ let rec maximum xs =
   | x::xs' -> max x (maximum xs')
   end
 
+(* puts the thing that the predicate matches on the right (for easy access) *)
 val break : forall 'a. ('a -> bool) -> list 'a -> (list 'a) * (list 'a)
 let rec break p ls =
   match ls with
   | [] -> ([], [])
   | x::xs ->
     if p x
-    then ([], xs)
+    then ([], x::xs)
     else let (xs', xs'') = break p xs in (x::xs', xs'')
   end
 
@@ -415,6 +418,7 @@ and expanded_word =
    UsrF
  | ExpS of string
  | UsrS of string
+ | At of fields
  | DQuo of symbolic_string
  | EWSym of sym
 
@@ -722,10 +726,29 @@ let rec concat_expanded w =
   | [] -> symbolic_string_of_string ""
   | UsrF::ws -> symbolic_string_of_string " " ++ concat_expanded ws
   | ExpS s::ws -> symbolic_string_of_string s ++ concat_expanded ws
-  | DQuo ss::ws -> ss ++ concat_expanded ws
-    (* we don't include the quotes, since they'll be ultimately erased! *)
+  | DQuo ss::ws -> 
+    (* we don't include the quotes, since they'll be ultimately erased anyway! *)
+     ss ++ concat_expanded ws
+  | At fs::ws -> 
+     (* we collapse the result of $@ expansion, too. special cased in expand_control *)
+     symbolic_string_of_fields fs ++ concat_expanded ws
   | EWSym sym::ws -> Sym sym::concat_expanded ws
-  | UsrS _::_ -> symbolic_string_of_string "TODO: broken invariant"
+  | UsrS _::_ -> symbolic_string_of_string "!!! broken invariant"
+  end
+
+val collapse_quoted : expanded_words -> expanded_words
+let collapse_quoted w = 
+  let is_at e = 
+    match e with
+    | At _ -> true
+    | _ -> false
+  end in
+  match break is_at w with
+  | (w',[]) -> [DQuo (concat_expanded w')] (* no At anywhere, just collapse it *)
+  | (pre_w, (At fs)::post_w) ->
+     (* we have an At---attach pre_w to the first one, post_w to the last one *)
+     pre_w ++ intersperse UsrF (map DQuo fs) ++ post_w
+  | _ -> Assert_extra.failwith "!!! broken invariant: collapse_quoted"
   end
 
 val fields_of_expanded_words : expanded_words -> fields

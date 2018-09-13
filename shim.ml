@@ -535,6 +535,7 @@ and json_of_expanded_words f = List (List.map json_of_expanded_word f)
 and json_of_expanded_word = function
   | UsrF -> obj "UsrF"
   | ExpS s -> obj_v "ExpS" s
+  | At f -> Assoc [tag "At"; ("f", json_of_fields f)]
   | DQuo s -> Assoc [tag "DQuo"; ("s", json_of_symbolic_string s)]
   | UsrS s -> obj_v "UsrS" s
   | EWSym sym -> Assoc [tag "EWSym"; ("s", json_of_symbolic sym)]

@@ -1,11 +1,7 @@
-### Important bugs
-
-- $* vs $@
-
 ### Last of the shell semantics
 
-- tests differentiating $* and $@
 - tests that read stdout
+  + tests differentiating $* and $@
   + tests for pipes and redirects
 - eval/.
   + properly handle errors in the dash parser 
@@ -45,6 +41,7 @@
 
 ### Long-term
 
+- use Assert_extra.fail_with on broken invariants
 - refactor semantics.lem to use is_terminating_control
     don't immediately step! Break _n -> Done
   follow dash on break/continue behavior

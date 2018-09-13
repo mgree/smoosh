@@ -106,6 +106,7 @@ let rec split_word ifs p =
       let new_fields = split_expstring ifs (toCharList s) in
       split_word ifs (f ++ new_fields, wrds)
   | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (symbolic_string_of_string s)], wrds)
+  | (f, At(fs)::wrds) -> split_word ifs (f ++ map Field fs, wrds)
   | (f, DQuo(ss)::wrds) -> split_word ifs (f ++ [QField ss], wrds)
   | (f, EWSym sym::wrds) -> split_word ifs (f ++ [Field [Sym sym]], wrds)
   end
@@ -370,6 +371,7 @@ let rec expand_control s0 q tm k =
        else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [], [S ("~" ^ usr)])
     | Param s f -> 
        (* TODO 2018-09-12 still broken 
+          PICK UP HERE
           getting everything but the last behavior
 set -- "arg  1" "arg  2" "arg  3"
 for x in $*; do echo "$x"; done # arg\n1\n...
@@ -379,18 +381,11 @@ for x in "$@"; do echo "$x"; done # arg  1\narg  2\narg  3
         *)
        if s = "@" && q = Quoted
        then 
-         (* we'll expand into $1F$2F$3...$n params 
-
-            no need to actually quote them, since we got here from q = Quoted
-          *)
-         (* first, how may do we have? *)
-         let num_params = max (length s0.sh.positional_params - 1) 0 in
-         (* here's how to build the variable for it *)
-         let mk_var n = K (Param (stringFromNat n) Normal) in
-         (* build the list of var refs (genlist counts from 0) *)
-         let param_vars = genlist (fun n -> mk_var (n+1)) num_params in
-         (* put the field separators in *)
-         let exps = intersperse F param_vars in
+         let param_vars : fields = 
+           match s0.sh.positional_params with
+           | [] -> []
+           | _prog_name::params -> params
+           end in
          (* TODO it doesn't seem specified what happens with the various formats.
 
             -, = and ? don't seem to adhere, since $@ is never unset/null
@@ -398,24 +393,30 @@ for x in "$@"; do echo "$x"; done # arg  1\narg  2\narg  3
             # should expand everything, convert to a string, and count. same as *.
             %/%% operates on the last param and #/## on the first param (in dash)
           *)
-         let formatted_exps = 
-           match f with
-           | Length -> [K (Param "*" Length)] (* just cheat it *)
-           | Alt w -> w
-           | NAlt w -> w
-           | Substring Prefix _ _ -> 
-              match exps with
-              | _::exps' -> K (Param "1" f)::exps'
-              | _ -> exps
-              end
-           | Substring Suffix _ _ ->
-              match dest_init exps with
-              | Just (exps', _) -> exps' ++ [K (Param (stringFromNat num_params) f)]
-              | Nothing -> exps
-              end
-           | _ -> exps
-           end in
-         expand_words s0 q NoTilde GeneratedString ([], formatted_exps)
+         let expand_more w = expand_words s0 q NoTilde GeneratedString ([],w) in
+         let build_at v = 
+           Right (ESParam "expanding @", s0, NoTilde, [At v], []) 
+         in
+         match f with
+         | Length -> expand_more [K (Param "*" Length)]
+         | Alt w -> expand_more w
+         | NAlt w -> expand_more w
+         | Substring Prefix mode w -> 
+            match param_vars with
+            | v1::vars -> 
+               let v1' = K (Quote [] [K (LMatch [v1] Prefix mode [] w)]) in
+               expand_more (v1'::words_of_fields vars)
+            | _ -> build_at []
+            end
+         | Substring Suffix mode w ->
+            match dest_init param_vars with
+            | Just (vars', vn) -> 
+               let vn' = K (Quote [] [K (LMatch [vn] Suffix mode [] w)]) in
+               expand_more (words_of_fields vars' ++ [vn'])
+            | Nothing -> build_at []
+            end
+         | _ -> build_at param_vars
+         end         
        else expand_words s0 q YesTilde GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
        match set_param s (concat_expanded f) s0 with
@@ -513,7 +514,7 @@ for x in "$@"; do echo "$x"; done # arg  1\narg  2\narg  3
         end
    | Quote f [] ->
       Right (ESQuote "finished quote expansion", 
-             s0, NoTilde, [DQuo (concat_expanded f)], [])
+             s0, NoTilde, collapse_quoted f, [])
    | Quote f w -> 
        match expand_words s0 Quoted NoTilde GeneratedString ([],w) with
        | Right (step, s1, _tm1, f1, w1) -> 
