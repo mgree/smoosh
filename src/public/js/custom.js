@@ -709,7 +709,7 @@ function renderStmt(info, elt, stmt) {
 
       var cmd = $('<span></span>').addClass('function call').appendTo(elt);
       var comment = $('<span></span>').addClass('comment').appendTo(elt);
-      comment.append('# in call to ' + stmt['f']);
+      comment.append('in call to ' + stmt['f']);
 
       renderStmt(info, cmd, stmt['c']);
       
@@ -977,8 +977,8 @@ function renderExpandedWord(info, elt, w) {
       // | At f -> obj_f "At" f
 
       elt.addClass('generated dollar-at');
-      const f = $('<span></span>').appendTo(elt);
-      renderFields(info, f, w['f']);
+      const fs = $('<span></span>').appendTo(elt);
+      renderFields(info, fs, w['f']);
       
       break;
 
@@ -1243,7 +1243,9 @@ function renderControl(info, elt, control) {
       elt.append('$(');
       var stmt = $('<span></span>').addClass('stmt').appendTo(elt);
       renderStmt(info, stmt, control['orig']);
-      elt.append(') # running with pid ' + pid.toString());
+      elt.append(') ');
+      var comment = $('<span></span>').addClass('comment').appendTo(elt);
+      comment.append('running with pid ' + control['pid'].toString());
 
       break;
 
@@ -1570,7 +1572,7 @@ function renderEvaluationStep(info, step) {
   console.assert('tag' in step, 'expected tag for step object');
   console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
                   'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
-                  'XSFor', 'XSCase', 'XSDefun', 'XSStack', 'XSStep', 
+                  'XSFor', 'XSCase', 'XSDefun', 'XSStack', 'XSStep', 'XSProc',
                   'XSExec', 'XSWait', 'XSNested', 'XSExpand'].includes(step['tag']),
                  'got weird step tag ' + step['tag']);
 
@@ -1671,6 +1673,11 @@ function renderEvaluationStep(info, step) {
       if (step['msg'] !== '') {
         renderMessage(info, 'Evaluation step', step);
       }
+
+      break;
+
+    case 'XSProc':
+      renderMessage(info, 'Process step', step);
 
       break;
 

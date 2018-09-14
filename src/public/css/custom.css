@@ -21,3 +21,7 @@ span.field-separator::after, span.tmp-field-FS::after {
 pre.redir-Heredoc-text {
     margin: 0px;
 }
+
+span.comment {
+    background-color: seashell;
+}
