@@ -166,6 +166,12 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("set -- 'arg  1' 'arg  2' 'arg  3' ; for x in \"$@\"; do echo $x; done",
      os_empty,
      "arg 1\narg 2\narg 3\n")
+
+    (* command types *)
+  ; ("type type", os_empty, "type is a shell builtin\n")
+  ; ("type :", os_empty, ": is a special shell builtin\n")
+  ; ("f() : ; type f", os_empty, "f is a shell function\n")
+  ; ("type nonesuch", os_empty, "nonesuch: not found\n")
   ]
 
 

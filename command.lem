@@ -56,11 +56,13 @@ let rec resolve_path_with ok path name =
   | pwd::path' -> attempt (join_path pwd name) path'
   end
 
+val resolve_command_name_in_path 
+    : forall 'a. OS 'a =>
+        os_state 'a -> string (* PATH *) -> string (* program *) -> maybe string
 val resolve_command_name : forall 'a. OS 'a =>
-                           os_state 'a ->
-                           string ->
-                           maybe string
-let resolve_command_name s0 prog =
+                           os_state 'a -> string -> maybe string
+
+let resolve_command_name_in_path s0 path prog =
   if elem #'/' (toCharList prog)
   then 
     (* If the command name contains at least one <slash>, the shell
@@ -74,17 +76,11 @@ let resolve_command_name s0 prog =
   else
     (* Otherwise, the command shall be searched for using the PATH
        environment variable as described in XBD Environment Variables *)
-    match lookup_concrete_param s0 "PATH" with
-    | Nothing -> 
-       (* no PATH, just see if we can find the file *)
-       if file_exists s0 prog
-       then Just prog
-       else Nothing
-    | Just path -> 
-       (* try to resolve the file in the path *)
-       let paths = split_string_on true (* escapable *) #':' path in
-       resolve_path_with (file_exists s0) paths prog
-    end
+    let paths = split_string_on true (* escapable *) #':' path in
+    resolve_path_with (file_exists s0) paths prog
+
+let resolve_command_name s0 prog =
+  resolve_command_name_in_path s0 (get_path s0) prog
 
 (**********************************************************************)
 (* ARGUMENT PROCESSING ************************************************)
@@ -804,42 +800,113 @@ type command_type =
     CmdSpecial
   | CmdBuiltin
   | CmdFunction
+  | CmdAlias of string
   | CmdPath of string 
   | CmdNotFound
 
-let command_type s0 cmd =
+(* TODO 2018-09-17 need to check alias table *)
+let command_type s0 path cmd =
   if is_special_builtin cmd
   then CmdSpecial
   else if is_builtin cmd
   then CmdBuiltin
   else if Map.member cmd s0.sh.funcs
   then CmdFunction
-  else match resolve_command_name s0 cmd with
+  else match resolve_command_name_in_path s0 path cmd with
        | Nothing -> CmdNotFound
        | Just executable -> CmdPath executable
        end
+
+let concise_command_type s0 path cmd =
+  match try_concrete cmd with
+  | Nothing -> string_of_symbolic_string cmd
+  | Just name ->
+     match command_type s0 path name with
+     | CmdSpecial -> name
+     | CmdBuiltin -> name
+     | CmdFunction -> name
+     | CmdPath path -> path
+     | CmdAlias exp -> "alias " ^ name ^ "='" ^ exp ^ "'"
+     | CmdNotFound -> ""
+     end 
+  end
+
+let human_readable_command_type s0 path cmd =
+  match try_concrete cmd with
+  | Nothing -> 
+     string_of_symbolic_string cmd ^ " is a symbolic command"
+  | Just name ->
+     let msg = 
+       match command_type s0 path name with
+       | CmdSpecial -> " is a special shell builtin"
+       | CmdBuiltin -> " is a shell builtin"
+       | CmdFunction -> " is a shell function"
+       | CmdPath path -> " is " ^ path
+       | CmdAlias exp -> " is an alias for " ^ exp
+       | CmdNotFound -> ": not found"
+       end 
+     in
+     name ^ msg 
+  end
 
 let rec builtin_type s0 argv _env = 
   match argv with
   | [] -> Right (s0, Done)
   | cmd::argv' ->
-     let s1 =
-       match try_concrete cmd with
-       | Nothing -> 
-          write_stdout (string_of_symbolic_string cmd ^ " is a symbolic command\n") s0
-       | Just name ->
-          let msg = 
-            match command_type s0 name with
-            | CmdSpecial -> " is a special shell builtin"
-            | CmdBuiltin -> " is a shell builtin"
-            | CmdFunction -> " is a shell function"
-            | CmdPath path -> " is " ^ path
-            | CmdNotFound -> ": not found"
-            end in
-          write_stdout (name ^ msg ^ "\n") s0
-       end in
-     builtin_type s1 argv' _env
+     let msg = human_readable_command_type s0 (get_path s0) cmd in
+     builtin_type (write_stdout (msg ^ "\n") s0) argv' _env
   end
+
+type command_path = CPAmbient | CPDefault
+
+(* TODO 2018-09-17 generate this from `getconf PATH` *)
+let platform_default_path = "/usr/bin:/bin:/usr/sbin:/sbin"
+
+let command_path s0 cp =
+  match cp with
+  | CPAmbient -> get_path s0
+  | CPDefault -> platform_default_path
+  end
+
+type command_mode = CMRun | CMVerbose of bool (* human readable? -v = false; -V = true *)
+
+let command_mode opts =
+  let cp = if elem #'p' opts then CPDefault else CPAmbient in
+  let cm = 
+    if elem #'v' opts
+    then CMVerbose false
+    else if elem #'V' opts
+    then CMVerbose true
+    else CMRun
+  in
+  (cm, cp)
+
+let rec show_commands render s0 path argv =
+  match argv with
+  | [] -> Right (s0, Done)
+  | name::argv' -> 
+     show_commands render (write_stdout (render s0 path name ^ "\n") s0) path argv'
+  end
+
+let builtin_command s0 argv _env = 
+  let (opts,argv') = getopts [#'p';#'v';#'V'] argv in
+  let (mode, path) = command_mode opts in
+  match (mode,argv') with
+  | (CMRun, []) -> Right (s0, Done)
+  | (CMRun, _prog::_argv'') -> 
+     (* TODO 2018-09-17
+        recapitulate run_command, but without function lookup
+
+        trickiness: to run exec, we need to be able to control the popredir bool! *)
+     Right (s0, Done)
+  | (CMVerbose human_readable, _) ->
+     show_commands
+       (if human_readable then human_readable_command_type else concise_command_type)
+       s0
+       (command_path s0 path)
+       argv'
+  end
+
 
 (* TODO 2018-08-13 *)
 
@@ -848,7 +915,6 @@ let builtin_alias = builtin_unimplemented
 let builtin_unalias = builtin_unimplemented
 
 (* command understanding *)
-let builtin_command = builtin_unimplemented
 
 (* job control *)
 let builtin_bg = builtin_unimplemented

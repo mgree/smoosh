@@ -300,6 +300,13 @@ let ps4 os =
   | Just prompt -> prompt
   end
 
+val get_path : forall 'a. os_state 'a -> string
+let get_path os =
+  match lookup_concrete_param os "PATH" with
+  | Nothing -> ""
+  | Just path -> path
+  end
+
 val is_readonly : forall 'a. string -> os_state 'a -> bool
 let is_readonly var os = Set.member var os.sh.readonly
    
