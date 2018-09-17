@@ -722,7 +722,7 @@ and step_eval s0 stmt =
      end
   | CommandExpAssign [] [] redirs ->
      (* keep on expanding, since we have to actually expand the redirects no matter what *)
-     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] [] ([], Nothing, redirs))
+     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] [] ([], Nothing, redirs) true)
 
   (* GENERAL CASE: command with possible assignments, which no longer go in the general environment *)
   | CommandExpAssign assigns ws redirs ->
@@ -754,7 +754,7 @@ and step_eval s0 stmt =
            in
            Right (XSExpand (XSSimple msg) step, 
                   s1, 
-                  CommandExpRedirs assigns f ([], Nothing, redirs))
+                  CommandExpRedirs assigns f ([], Nothing, redirs) true)
         | _ ->
            Right(XSExpand (XSSimple "argument expansion step") step,
                  s1,
@@ -762,7 +762,7 @@ and step_eval s0 stmt =
       end
   (* COMMAND: Redirect expansion **********************************************)
   (* expansion is done, try to run command *)
-  | CommandExpRedirs assigns (prog::args) (ers, Nothing, []) ->
+  | CommandExpRedirs assigns (prog::args) (ers, Nothing, []) allow_fun ->
      if Set.member Sh_noexec s0.sh.opts
      then Right (XSSimple "set -n: skipping command", s0, Done)
      else
@@ -841,7 +841,7 @@ and step_eval s0 stmt =
                Done)
      | Right (s2, saved_fds) ->
        (* run command *)
-       match run_command s2 prog args env with
+       match run_command s2 allow_fun prog args env with
        | Right (s3, stmt', restore) -> 
           Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
                  s3, 
@@ -853,7 +853,7 @@ and step_eval s0 stmt =
        end
      end
   (* expansion is done, but there's no command *)
-  | CommandExpRedirs _assigns [] (ers, Nothing, []) ->
+  | CommandExpRedirs _assigns [] (ers, Nothing, []) _allow_fun ->
      (* we've already done whatever assignments above, in the special
         case.  it remains to set up redirects for side effects/file
         creation
@@ -885,7 +885,7 @@ and step_eval s0 stmt =
                pushredir Done saved_fds)
      end
    (* expand redirs *)
-   | CommandExpRedirs assigns args redir_state ->
+   | CommandExpRedirs assigns args redir_state allow_fun ->
       match step_redir_state s0 redir_state with
       | (s1, msg, Nothing) ->
          Right (XSSimple "error in redirect expansion", 
@@ -897,7 +897,7 @@ and step_eval s0 stmt =
            | Just estep -> XSExpand (XSSimple msg) estep
            | Nothing -> XSSimple msg
            end in
-         Right (step, s1, CommandExpRedirs assigns args redir_state')
+         Right (step, s1, CommandExpRedirs assigns args redir_state' allow_fun)
       end
 
   (* PIPE *********************************************************************)

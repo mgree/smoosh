@@ -4,6 +4,7 @@ import Debug
 
 val run_command : forall 'a. OS 'a => 
                   os_state 'a -> 
+                  bool (* allow functions? *) ->
                   symbolic_string (* prog *) -> 
                   fields (* argv *) ->
                   env ->
@@ -854,7 +855,7 @@ let rec builtin_type s0 argv _env =
   | [] -> Right (s0, Done)
   | cmd::argv' ->
      let msg = human_readable_command_type s0 (get_path s0) cmd in
-     builtin_type (write_stdout (msg ^ "\n") s0) argv' _env
+     builtin_type (write_stdout msg s0) argv' _env
   end
 
 type command_path = CPAmbient | CPDefault
@@ -895,43 +896,13 @@ let builtin_command s0 argv env =
   let (mode, path) = command_mode opts in
   match (mode,argv') with
   | (CMRun, []) -> Right (s0, Done)
-  | (CMRun, prog::argv'') -> 
-     match try_concrete prog with
-     | Nothing -> Left (s0, "symbolic program name: " ^ string_of_symbolic_string prog)
-     | Just cmd ->
-        (* The command utility shall cause the shell to treat the
-           arguments as a simple command, suppressing the shell
-           function lookup that is described in Command Search and
-           Execution, item 1b. *)
-        let path = command_path s0 path in
-        (* so: try to find out if we'd resolve to a function. if so, get the full path. 
-           then fixup the commands and return an expression that'll run_command again.
-           
-           trickiness #1: we want to reproduce the env, so use assigns_of_env
-           trickiness #2: we want to turn off function resolution, so use command_type
-         *)
-        let actual_cmd = 
-          match command_type s0 path cmd with
-          | CmdFunction -> resolve_command_name_in_path s0 path cmd
-          | _ -> Just cmd
-          end
-        in
-        (* did we get the path? *)
-        match actual_cmd with
-        | Nothing -> 
-           (* no path: that means if we use the encoding below, we'll call the function! 
-              
-              so we'll just error here, now *)
-           Right (write_stderr (cmd ^ ": not found\n") (exit_with 127 s0), Done)
-        | Just resolved_cmd ->
-           (* we won't resolve to a function---great! keep on trucking *)
-           Right (s0,
-                  CommandExpRedirs 
-                    (assigns_of_env env)
-                    (symbolic_string_of_string resolved_cmd :: argv'')
-                    ([],Nothing,[]))
-        end
-     end
+  | (CMRun, _::_) -> 
+     Right (s0,
+            CommandExpRedirs 
+              (assigns_of_env env) (* convert env *)
+              argv' (* copy over command args *)
+              ([],Nothing,[])
+              false (* don't allow functions *))
   | (CMVerbose human_readable, _) ->
      show_commands
        (if human_readable then human_readable_command_type else concise_command_type)
@@ -1003,7 +974,7 @@ let builtins =
     ; ("wait", builtin_wait)
     ]
 
-let run_command s0_init prog_name argv env =
+let run_command s0_init allow_fun prog_name argv env =
   let s0 =
     if Set.member Sh_xtrace s0_init.sh.opts
     then 
@@ -1031,12 +1002,12 @@ let run_command s0_init prog_name argv env =
              form of a function, it shall not be recognized at this
              point. It shall be invoked in conjunction with the path
              search in step 1e. *)
-          match lookup_function prog s0 with
-          | Just body ->
+          match (allow_fun, lookup_function prog s0) with
+          | (true, Just body) ->
              Right (set_function_params 0 argv s0,
                     Call s0.sh.loop_nest s0.sh.positional_params prog body body,
                     true)
-          | Nothing -> 
+          | _ -> 
              (* 1d. If the command name matches the name [XSI] [Option
                 Start] of the type or ulimit utility, or [Option End]
                 of a utility listed in the following table, that

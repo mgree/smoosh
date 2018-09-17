@@ -345,7 +345,7 @@ let rec json_of_stmt = function
             ("assigns", List (List.map json_of_expanded_assign assigns));
             ("args", json_of_expansion_state args);
             ("rs", json_of_redirs rs)]
-  | CommandExpRedirs (assigns, args, redir_state) ->
+  | CommandExpRedirs (assigns, args, redir_state, _allow_fun) ->
      Assoc ([tag "CommandExpRedirs"; 
              ("assigns", List (List.map json_of_expanded_assign assigns));
              ("args", json_of_fields args)]

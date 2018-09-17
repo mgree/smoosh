@@ -361,7 +361,7 @@ and stmt =
     Command of list (string * words) * words * list redir
   | CommandExpAssign of list (string * expansion_state) * words * list redir
   | CommandExpArgs of list (string * fields) * expansion_state * list redir
-  | CommandExpRedirs of list (string * fields) * fields * redir_state
+  | CommandExpRedirs of list (string * fields) * fields * redir_state * bool (* allow function ? *)
   | Pipe of bool (* bg? *) * list stmt
   | Redir of stmt * redir_state
   | Background of stmt * redir_state
@@ -796,6 +796,7 @@ let command_eval cmd =
     [ symbolic_string_of_string "eval"
     ; cmd]
     ([], Nothing, [])
+    true (* allow functions *)
 
 val pushredir : stmt -> saved_fds -> stmt
 let pushredir stmt saved_fds =
@@ -904,7 +905,7 @@ let rec string_of_stmt c =
   | CommandExpArgs assigns cmds redirs -> 
      string_of_simple string_of_fields string_of_expansion_state string_of_redirs
        assigns cmds redirs
-  | CommandExpRedirs assigns cmds redir_state ->
+  | CommandExpRedirs assigns cmds redir_state _allow_fun ->
      string_of_simple string_of_fields string_of_fields string_of_redir_state
        assigns cmds redir_state
   | Pipe bg cmds ->

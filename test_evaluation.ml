@@ -172,6 +172,9 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("type :", os_empty, ": is a special shell builtin\n")
   ; ("f() : ; type f", os_empty, "f is a shell function\n")
   ; ("type nonesuch", os_empty, "nonesuch: not found\n")
+  ; ("pwd() echo florp ; pwd", os_empty, "florp\n")
+  ; ("pwd() echo florp ; command pwd", os_empty, "/\n")
+  ; ("pwd() echo florp ; command -p pwd", os_empty, "/\n")
   ]
 
 
