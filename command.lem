@@ -20,6 +20,13 @@ let is_special_builtin s =
   elem s ["break";":";"continue";".";"eval";"exec";"exit";"export";"readonly";
           "return";"set";"shift";"times";"trap";"unset"]
 
+val is_builtin : string -> bool
+let is_builtin s =
+  elem s ["["; "alias"; "bg"; "cd"; "command"; "echo"; "false"; "fc"; "fg"; 
+          "getopts"; "hash"; "jobs"; "kill"; "local"; "newgrp"; "printf"; 
+          "pwd"; "read"; "test"; "true"; "type"; "ulimit"; "umask"; "unalias"; 
+          "wait"]
+
 val is_unspecified_utility : string -> bool
 let is_unspecified_utility s =
   elem s ["alloc";"autoload";"bind";"bindkey";"builtin";"bye";"caller";"cap";
@@ -793,6 +800,47 @@ let builtin_hash s0 argv _env =
   | _ -> Right (s0, Done)
   end
 
+type command_type = 
+    CmdSpecial
+  | CmdBuiltin
+  | CmdFunction
+  | CmdPath of string 
+  | CmdNotFound
+
+let command_type s0 cmd =
+  if is_special_builtin cmd
+  then CmdSpecial
+  else if is_builtin cmd
+  then CmdBuiltin
+  else if Map.member cmd s0.sh.funcs
+  then CmdFunction
+  else match resolve_command_name s0 cmd with
+       | Nothing -> CmdNotFound
+       | Just executable -> CmdPath executable
+       end
+
+let rec builtin_type s0 argv _env = 
+  match argv with
+  | [] -> Right (s0, Done)
+  | cmd::argv' ->
+     let s1 =
+       match try_concrete cmd with
+       | Nothing -> 
+          write_stdout (string_of_symbolic_string cmd ^ " is a symbolic command\n") s0
+       | Just name ->
+          let msg = 
+            match command_type s0 name with
+            | CmdSpecial -> " is a special shell builtin"
+            | CmdBuiltin -> " is a shell builtin"
+            | CmdFunction -> " is a shell function"
+            | CmdPath path -> " is " ^ path
+            | CmdNotFound -> ": not found"
+            end in
+          write_stdout (name ^ msg ^ "\n") s0
+       end in
+     builtin_type s1 argv' _env
+  end
+
 (* TODO 2018-08-13 *)
 
 (* interface with dash :( *)
@@ -801,7 +849,6 @@ let builtin_unalias = builtin_unimplemented
 
 (* command understanding *)
 let builtin_command = builtin_unimplemented
-let builtin_type = builtin_unimplemented
 
 (* job control *)
 let builtin_bg = builtin_unimplemented
