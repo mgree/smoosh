@@ -778,6 +778,21 @@ let builtin_cd s0 argv _env =
      end
   end
 
+(* TODO 2018-09-17 implement hashing? it's optional... *)
+(* Once a utility has been searched for and found (either as a result
+   of this specific search or as part of an unspecified shell start-up
+   activity), an implementation may remember its location and need not
+   search for the utility again unless the PATH variable has been the
+   subject of an assignment. If the remembered location fails for a
+   subsequent invocation, the shell shall repeat the search to find
+   the new location for the utility, if any. *)
+let builtin_hash s0 argv _env = 
+  match argv with
+  | [] -> Right (write_stdout "No commands hashed.\n" s0, Done)
+  | [C #'-'; C #'r']::_ -> Right (s0, Done)
+  | _ -> Right (s0, Done)
+  end
+
 (* TODO 2018-08-13 *)
 
 (* interface with dash :( *)
@@ -786,7 +801,6 @@ let builtin_unalias = builtin_unimplemented
 
 (* command understanding *)
 let builtin_command = builtin_unimplemented
-let builtin_hash = builtin_unimplemented
 let builtin_type = builtin_unimplemented
 
 (* job control *)
