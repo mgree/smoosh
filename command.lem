@@ -886,7 +886,17 @@ let rec show_commands render s0 path argv =
   match argv with
   | [] -> Right (s0, Done)
   | name::argv' -> 
-     show_commands render (write_stdout (render s0 path name) s0) path argv'
+     let msg = render s0 path name in
+     let s1 = write_stdout msg s0 in
+     let s2 = 
+       match try_concrete name with
+       | Nothing -> s1
+       | Just cmd ->        
+          if command_type s1 path cmd = CmdNotFound 
+          then exit_with 127 s1 
+          else s1 
+       end in
+     show_commands render s2 path argv'
   end
 
 val builtin_command : forall 'a. OS 'a => os_state 'a -> fields -> env ->                  
