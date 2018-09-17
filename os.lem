@@ -767,6 +767,9 @@ val set_pwdir : string -> string -> os_state symbolic -> os_state symbolic
 let set_pwdir u d os = 
   <| os with symbolic = <| os.symbolic with passwd = Map.insert u d (os.symbolic.passwd) |> |>
 
+val get_stdout : os_state symbolic -> string
+let get_stdout os = fromMaybe "" (index os.symbolic.fifos 1)
+
 (**********************************************************************)
 (* REAL OS STATE INSTANCE *********************************************)
 (**********************************************************************)
@@ -906,6 +909,15 @@ instance (OS unit)
 
   let fork_and_subshell os stmt =
     let (subsh,handlers) = clear_traps_for_subshell os.sh in
+    (* When a subshell is entered, traps that are not being ignored
+       shall be set to the default actions, except in the case of a
+       command substitution containing only a single trap command,
+       when the traps need not be altered. Implementations may check
+       for this case using only lexical analysis; for example, if
+       `trap` and $( trap -- ) do not alter the traps in the subshell,
+       cases such as assigning var=trap and then using $($var) may
+       still alter them. This does not imply that the trap command
+       cannot be used within the subshell to set new traps.  *) 
     let pid = 
       real_fork_and_eval 
         (List.map ocaml_signal_of_signal handlers) (* ignore these signals! *)

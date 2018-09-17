@@ -20,10 +20,10 @@ let run_cmd_for_exit_code (cmd : string) (os0 : symbolic os_state) : int =
   let cs = Shim.parse_string cmd in
   let os1 = Semantics.full_evaluation_multi os0 cs in
   get_exit_code os1
-              
+
 let check_exit_code (cmd, state, expected) =
   checker (run_cmd_for_exit_code cmd) (=) (cmd, state, expected)
-  
+ 
 let exit_code_tests : (string * symbolic os_state * int) list =
   (* basic logic *)
   [ ("true", os_empty, 0)
@@ -118,6 +118,58 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   ]
 
 (***********************************************************************)
+(* STDOUT TESTS ********************************************************)
+(***********************************************************************)
+
+
+let run_cmd_for_stdout (cmd : string) (os0 : symbolic os_state) : string =
+  let cs = Shim.parse_string cmd in
+  let os1 = Semantics.full_evaluation_multi os0 cs in
+  get_stdout os1
+
+let check_stdout (cmd, state, expected) =
+  checker (run_cmd_for_stdout cmd) (=) (cmd, state, expected)
+
+let stdout_tests : (string * symbolic os_state * string) list =
+    (* basic logic *)
+  [ ("true", os_empty, "")
+  ; ("false", os_empty, "")
+  ; ("echo hi ; echo there", os_empty, "hi\nthere\n")
+  ; ("echo -n hi ; echo there", os_empty, "hithere\n")
+  ; ("echo -n \"hi \" ; echo there", os_empty, "hi there\n")
+  ; ("x=${y:=1} ; echo $((x+=`echo 2`))", os_empty, "3\n")
+
+    (* redirects and pipes *)
+  ; ("( echo ${x?oops} ) 2>&1", os_empty, "x: oops\n")
+  ; ("echo hi | echo no", os_empty, "no\n")
+  ; ("echo ${y?oh no}", os_empty, "")
+  ; ("exec 2>&1; echo ${y?oh no}", os_empty, "y: oh no\n")
+  ; ("echo ${y?oh no}", os_empty, "")
+  ; ("exec 1>&2; echo ${y?oh no}", os_empty, "")
+
+    (* $* vs $@ 
+
+       e.g.s from https://stackoverflow.com/questions/12314451/accessing-bash-command-line-args-vs/12316565
+     *)
+  ; ("set -- 'arg  1' 'arg  2' 'arg  3' ; for x in $*; do echo \"$x\"; done",
+     os_empty,
+     "arg\n1\narg\n2\narg\n3\n")
+  ; ("set -- 'arg  1' 'arg  2' 'arg  3' ; for x in $@; do echo \"$x\"; done",
+     os_empty,
+     "arg\n1\narg\n2\narg\n3\n")
+  ; ("set -- 'arg  1' 'arg  2' 'arg  3' ; for x in \"$*\"; do echo \"$x\"; done",
+     os_empty,
+     "arg  1 arg  2 arg  3\n")
+  ; ("set -- 'arg  1' 'arg  2' 'arg  3' ; for x in \"$@\"; do echo \"$x\"; done",
+     os_empty,
+     "arg  1\narg  2\narg  3\n")
+  ; ("set -- 'arg  1' 'arg  2' 'arg  3' ; for x in \"$@\"; do echo $x; done",
+     os_empty,
+     "arg 1\narg 2\narg 3\n")
+  ]
+
+
+(***********************************************************************)
 (* DRIVER **************************************************************)
 (***********************************************************************)
 
@@ -128,6 +180,6 @@ let run_tests () =
   Dash.initialize ();
   print_endline "=== Running evaluation tests...";
   test_part "Exit code" check_exit_code string_of_int exit_code_tests test_count failed;
-
+  test_part "Output on STDOUT" check_stdout (fun s -> s) stdout_tests test_count failed;
   printf "=== ...ran %d evaluation tests with %d failures.\n\n" !test_count !failed
 
