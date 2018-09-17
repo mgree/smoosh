@@ -822,11 +822,11 @@ let concise_command_type s0 path cmd =
   | Nothing -> string_of_symbolic_string cmd
   | Just name ->
      match command_type s0 path name with
-     | CmdSpecial -> name
-     | CmdBuiltin -> name
-     | CmdFunction -> name
-     | CmdPath path -> path
-     | CmdAlias exp -> "alias " ^ name ^ "='" ^ exp ^ "'"
+     | CmdSpecial -> name ^ "\n"
+     | CmdBuiltin -> name ^ "\n"
+     | CmdFunction -> name ^ "\n"
+     | CmdPath path -> path ^ "\n"
+     | CmdAlias exp -> "alias " ^ name ^ "='" ^ exp ^ "'\n"
      | CmdNotFound -> ""
      end 
   end
@@ -846,7 +846,7 @@ let human_readable_command_type s0 path cmd =
        | CmdNotFound -> ": not found"
        end 
      in
-     name ^ msg 
+     name ^ msg ^ "\n"
   end
 
 let rec builtin_type s0 argv _env = 
@@ -885,20 +885,53 @@ let rec show_commands render s0 path argv =
   match argv with
   | [] -> Right (s0, Done)
   | name::argv' -> 
-     show_commands render (write_stdout (render s0 path name ^ "\n") s0) path argv'
+     show_commands render (write_stdout (render s0 path name) s0) path argv'
   end
 
-let builtin_command s0 argv _env = 
+val builtin_command : forall 'a. OS 'a => os_state 'a -> fields -> env ->                  
+                      either (os_state 'a * string) (os_state 'a * stmt)
+let builtin_command s0 argv env = 
   let (opts,argv') = getopts [#'p';#'v';#'V'] argv in
   let (mode, path) = command_mode opts in
   match (mode,argv') with
   | (CMRun, []) -> Right (s0, Done)
-  | (CMRun, _prog::_argv'') -> 
-     (* TODO 2018-09-17
-        recapitulate run_command, but without function lookup
-
-        trickiness: to run exec, we need to be able to control the popredir bool! *)
-     Right (s0, Done)
+  | (CMRun, prog::argv'') -> 
+     match try_concrete prog with
+     | Nothing -> Left (s0, "symbolic program name: " ^ string_of_symbolic_string prog)
+     | Just cmd ->
+        (* The command utility shall cause the shell to treat the
+           arguments as a simple command, suppressing the shell
+           function lookup that is described in Command Search and
+           Execution, item 1b. *)
+        let path = command_path s0 path in
+        (* so: try to find out if we'd resolve to a function. if so, get the full path. 
+           then fixup the commands and return an expression that'll run_command again.
+           
+           trickiness #1: we want to reproduce the env, so use assigns_of_env
+           trickiness #2: we want to turn off function resolution, so use command_type
+         *)
+        let actual_cmd = 
+          match command_type s0 path cmd with
+          | CmdFunction -> resolve_command_name_in_path s0 path cmd
+          | _ -> Just cmd
+          end
+        in
+        (* did we get the path? *)
+        match actual_cmd with
+        | Nothing -> 
+           (* no path: that means if we use the encoding below, we'll call the function! 
+              
+              so we'll just error here, now *)
+           Right (write_stderr (cmd ^ ": not found\n") (exit_with 127 s0), Done)
+        | Just resolved_cmd ->
+           (* we won't resolve to a function---great! keep on trucking *)
+           Right (s0,
+                  CommandExpRedirs 
+                    (assigns_of_env env)
+                    (symbolic_string_of_string resolved_cmd :: argv'')
+                    ([],Nothing,[]))
+        end
+     end
   | (CMVerbose human_readable, _) ->
      show_commands
        (if human_readable then human_readable_command_type else concise_command_type)

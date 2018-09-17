@@ -786,6 +786,9 @@ let int64ToFields n = [symbolic_string_of_string (write n)]
 (* AST HELPERS/SMART CONSTRUCTORS *************************************)
 (**********************************************************************)
 
+val assigns_of_env : env -> list (string * fields)
+let assigns_of_env env = map (fun (x,v) -> (x,[v])) (Map_extra.toList env)
+
 val command_eval : symbolic_string -> stmt
 let command_eval cmd =
   CommandExpRedirs 
