@@ -29,10 +29,11 @@
 
 ### Long-term
 
+- support filesystems in symbolic stepper
 - use Assert_extra.fail_with on broken invariants
 - refactor semantics.lem to use is_terminating_control
     don't immediately step! Break _n -> Done
-  follow dash on break/continue behavior
+  follow dash on break/continue behavior inside of functions
 - use monads (better parsing, etc.)
 - support for nondeterminism (move to K?)
 
@@ -79,7 +80,7 @@ JS/webpage
 CLI
   + pretty printer for JSON output
 
-include ENTIRE shell info in JSON output
+include ENTIRE shell info in JSON output, stdout, etc.
 
 ### Bugs
 
