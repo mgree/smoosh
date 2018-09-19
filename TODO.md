@@ -30,7 +30,6 @@
 ### Long-term
 
 - support filesystems in symbolic stepper
-- use Assert_extra.fail_with on broken invariants
 - refactor semantics.lem to use is_terminating_control
     don't immediately step! Break _n -> Done
   follow dash on break/continue behavior inside of functions
