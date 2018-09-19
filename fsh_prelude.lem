@@ -733,7 +733,7 @@ let rec concat_expanded w =
      (* we collapse the result of $@ expansion, too. special cased in expand_control *)
      symbolic_string_of_fields fs ++ concat_expanded ws
   | EWSym sym::ws -> Sym sym::concat_expanded ws
-  | UsrS _::_ -> symbolic_string_of_string "!!! broken invariant"
+  | UsrS _::_ -> Assert_extra.failwith "broken invariant in concat_expanded: no UsrS should be found"
   end
 
 val collapse_quoted : expanded_words -> expanded_words
@@ -748,7 +748,7 @@ let collapse_quoted w =
   | (pre_w, (At fs)::post_w) ->
      (* we have an At---attach pre_w to the first one, post_w to the last one *)
      pre_w ++ intersperse UsrF (map DQuo fs) ++ post_w
-  | _ -> Assert_extra.failwith "!!! broken invariant: collapse_quoted"
+  | _ -> Assert_extra.failwith "broken invariant in collapse_quoted: couldn't find At anywhere, but got weird output"
   end
 
 val fields_of_expanded_words : expanded_words -> fields

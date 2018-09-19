@@ -203,8 +203,10 @@ let rec to_fields f =
      fs::(to_fields rst)
   | FS::rst      -> to_fields rst
   (* TODO 2017-12-01 Preferably we need an AST that doesn't have WFS or QField's at this point, or lem failure *)
-  | WFS::_       -> [symbolic_string_of_string "broken invariant"]
-  | QField _::_  -> [symbolic_string_of_string "broken invariant"]
+  | WFS::_       -> 
+     Assert_extra.failwith "broken invariant in to_fields: didn't expect WFS"
+  | QField _::_  -> 
+     Assert_extra.failwith "broken invariant in to_fields: didn't expect QField"
   end
 
 let rec finalize_fields f =
@@ -1395,7 +1397,8 @@ let full_expansion s0 w0 =
   match f1 with
   | ExpError f -> (s1, f)
   | ExpDone f -> (s1, f)
-  | _ -> (s1, [symbolic_string_of_string "!!! broken invariant"])
+  | _ -> 
+     Assert_extra.failwith "broken invariant in full_expansion: got a tag other than Error or Done for the end of a trace"
   end
    
 val run_trace_evaluation : nat -> os_state symbolic -> stmt -> list (evaluation_step * os_state symbolic * stmt)
