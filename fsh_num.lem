@@ -23,6 +23,9 @@ instance (Nat int64)
   let toNat = natFromInt64
 end
 
+val has_bit : nat -> nat -> bool
+let has_bit n bit = (n / (2 ** bit)) mod 2 = 0
+
 (*--------------------------------*)
 (* Read class                     *)
 (*--------------------------------*)

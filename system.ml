@@ -53,6 +53,15 @@ let real_times () : string * string * string * string =
    show_time ptimes.tms_cutime,
    show_time ptimes.tms_cstime)
 
+let real_get_umask () : int =
+  (* TODO 2018-09-19 INTOFF/INTON *)
+  let mask = Unix.umask 0 in
+  ignore (Unix.umask mask);
+  mask
+
+let real_set_umask (mask : int) : unit =
+  ignore (Unix.umask mask)
+
 let real_exists (path : string) : bool = Sys.file_exists path
 
 let real_isexec (path : string) : bool =

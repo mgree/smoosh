@@ -168,6 +168,106 @@ let lc_ambient =
   <| name = "ambient" ; collates = collates ; equiv = equiv ; charclass = ambient_charclass ; range = range |>
 
 (**********************************************************************)
+(* FILE PERMISSIONS ***************************************************)
+(**********************************************************************)
+
+type file_perm = Read | Write | Execute
+
+(* can be interpreted as a mask or as actual permissions *)
+type perms = <|
+    setuid: bool;
+    setgid: bool;
+    sticky: bool;
+    user: set file_perm;
+    group: set file_perm;
+    other: set file_perm
+  |>
+
+val all_file_perms : set file_perm
+let all_file_perms = Set.fromList [Read; Write; Execute]
+
+val default_umask : perms
+let default_umask = <| setuid = false; setgid = false; sticky = false;
+                       user = Set.empty;
+                       group = Set.singleton Write;
+                       other = Set.singleton Write |>
+
+val invert_file_perms : set file_perm -> set file_perm
+let invert_file_perms fperms = Set.difference all_file_perms fperms
+
+val nat_of_file_perms : set file_perm -> nat
+let nat_of_file_perms fperms =
+  let bit0 = if Set.member Read    fperms then 1 else 0 in
+  let bit1 = if Set.member Write   fperms then 2 else 0 in
+  let bit2 = if Set.member Execute fperms then 4 else 0 in
+  bit0 + bit1 + bit2
+
+val file_perms_of_nat : nat -> set file_perm
+let file_perms_of_nat n =
+  let r = if has_bit n 0 then Set.singleton Read    else Set.empty in
+  let w = if has_bit n 1 then Set.singleton Write   else Set.empty in
+  let x = if has_bit n 2 then Set.singleton Execute else Set.empty in
+  Set.(union) r (Set.(union) w x)
+
+val perms_of_nat : nat -> perms
+let perms_of_nat n =
+  <| other  = file_perms_of_nat n;
+     group  = file_perms_of_nat (n / 8);
+     user   = file_perms_of_nat (n / 64);
+     sticky = has_bit n 9;
+     setgid = has_bit n 10;
+     setuid = has_bit n 11
+  |>
+
+val nat_of_perms : perms -> nat
+let nat_of_perms perms =
+  let bit0 = if perms.sticky then 1 else 0 in
+  let bit1 = if perms.setgid then 2 else 0 in
+  let bit2 = if perms.setuid then 4 else 0 in
+  let first  = bit0 + bit1 + bit2 in
+  let second = nat_of_file_perms perms.user in
+  let third  = nat_of_file_perms perms.group in
+  let fourth = nat_of_file_perms perms.other in
+  (2**9 * first) + (2**6 * second) + (2**3 * third) + fourth
+
+val perms_of_mask : perms -> perms
+let perms_of_mask perms =
+  <| setuid = not perms.setuid;
+     setgid = not perms.setgid;
+     sticky = not perms.sticky;
+     user   = invert_file_perms perms.user;
+     group  = invert_file_perms perms.group;
+     other  = invert_file_perms perms.other
+  |>
+
+val octal_string_of_perms : perms -> string
+let octal_string_of_perms perms =
+  let bit0 = if perms.sticky then 1 else 0 in
+  let bit1 = if perms.setgid then 2 else 0 in
+  let bit2 = if perms.setuid then 4 else 0 in
+  let first  = stringFromNat (bit0 + bit1 + bit2) in
+  let second = stringFromNat (nat_of_file_perms perms.user) in
+  let third  = stringFromNat (nat_of_file_perms perms.group) in
+  let fourth = stringFromNat (nat_of_file_perms perms.other) in
+  first ^ second ^ third ^ fourth
+
+val string_of_file_perms : set file_perm -> string
+let string_of_file_perms fperms = 
+  let r = if Set.member Read    fperms then "r" else "" in
+  let w = if Set.member Write   fperms then "w" else "" in
+  let x = if Set.member Execute fperms then "x" else "" in
+  r ^ w ^ x
+
+val string_of_perms : perms -> string
+let string_of_perms perms =
+  let u = string_of_file_perms perms.user in
+  let g = string_of_file_perms perms.group in
+  let o = string_of_file_perms perms.other in
+  "u=" ^ u ^ "," ^
+  "g=" ^ g ^ "," ^
+  "o=" ^ o
+
+(**********************************************************************)
 (* SHELL OPTIONS ******************************************************)
 (**********************************************************************)
   

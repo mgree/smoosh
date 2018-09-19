@@ -53,6 +53,9 @@ class ( OS 'a )
               (string (* utime *)            * string (* stime *) * 
                string (* utime + children *) * string (* stime + children *))
 
+  val get_umask : os_state 'a -> perms
+  val set_umask : os_state 'a -> perms -> os_state 'a
+
   (* FS CALLS *)
   val physical_cwd : os_state 'a -> string
   val chdir : os_state 'a -> path -> os_state 'a * maybe string
@@ -478,7 +481,8 @@ and symbolic = <|
     fs_root: fs;
     fifos: list fifo;
     procs: list proc;
-    exited: bool
+    exited: bool;
+    umask: perms
   |>
     
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
@@ -497,7 +501,8 @@ let symbolic_empty : symbolic = <|
             ;"" (* STDERR *)
             ];
     procs = [];
-    exited = false
+    exited = false;
+    umask = default_umask
  |>
 
 let os_empty : os_state symbolic = <| symbolic = symbolic_empty; sh = default_shell_state |>
@@ -625,6 +630,11 @@ instance (OS symbolic)
   let handle_signal = update_trap
 
   let times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
+
+  let get_umask os0 = os0.symbolic.umask
+
+  let set_umask os0 mask = 
+    <| os0 with symbolic = <| os0.symbolic with umask = mask |> |>
 
   let readdir os path =
     (* TODO 2018-08-21 will be buggy on non-absolute paths *)
@@ -815,6 +825,12 @@ declare ocaml target_rep function real_exit = `exit`
 val real_times : unit -> string * string * string * string
 declare ocaml target_rep function real_times = `System.real_times`
 
+val real_get_umask : unit -> nat
+declare ocaml target_rep function real_get_umask = `System.real_get_umask`
+
+val real_set_umask : nat -> unit
+declare ocaml target_rep function real_set_umask = `System.real_set_umask`
+
 val real_physical_cwd : unit -> string
 declare ocaml target_rep function real_physical_cwd = `Unix.getcwd`
 
@@ -1000,6 +1016,12 @@ instance (OS unit)
     s1
 
   let times _os = real_times ()
+
+  let get_umask _os = perms_of_nat (real_get_umask ())
+
+  let set_umask os mask = 
+    let _ = real_set_umask (nat_of_perms mask) in
+    os
 
   let open_file_for_redir os ty sfile =
     let flags = flags_of_redir_type os ty in

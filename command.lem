@@ -850,6 +850,7 @@ let human_readable_command_type s0 path cmd =
      name ^ msg ^ "\n"
   end
 
+(* technically part of XSI, but useful *)
 let rec builtin_type s0 argv _env = 
   match argv with
   | [] -> Right (s0, Done)
@@ -922,13 +923,21 @@ let builtin_command s0 argv env =
   end
 
 
+let builtin_umask = builtin_unimplemented
+(* TODO 2018-09-19 PICK UP HERE
+  let (opts, argv') = getopts [#'S'] argv in
+  match argv with
+  | [] -> 
+     let umask_str =
+       if elem #'S' opts
+       then string_of_umask_symbolic 
+*)
+
 (* TODO 2018-08-13 *)
 
 (* interface with dash :( *)
 let builtin_alias = builtin_unimplemented
 let builtin_unalias = builtin_unimplemented
-
-(* command understanding *)
 
 (* job control *)
 let builtin_bg = builtin_unimplemented
@@ -940,14 +949,13 @@ let builtin_kill = builtin_unimplemented
 
 (* parsing/printing *)
 let builtin_getopts = builtin_unimplemented
-let builtin_local = builtin_unimplemented (* unspec *)
+let builtin_local = builtin_unimplemented (* unspec, but nice to have *)
 let builtin_printf = builtin_unimplemented
 let builtin_read = builtin_unimplemented
 let builtin_test = builtin_unimplemented
 
 (* POSIX user control *)
-let builtin_ulimit = builtin_unimplemented
-let builtin_umask = builtin_unimplemented
+let builtin_ulimit = builtin_unimplemented (* XSI *)
 let builtin_newgrp = builtin_unimplemented
  
 val builtins :

@@ -18,6 +18,8 @@
   HISTFILE?
 - faithful handling of PATH_MAX
 
+- correct application of INTON/INTOFF
+
 - shell history
   can implement Sh_nolog
 
