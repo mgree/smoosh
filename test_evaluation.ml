@@ -181,6 +181,12 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("umask -S", os_empty, "u=rwx,g=rx,o=rx\n")
   ; ("umask 0044 ; umask", os_empty, "0044\n")
   ; ("umask 0044 ; umask -S", os_empty, "u=rwx,g=wx,o=wx\n")
+  ; ("umask a= ; umask", os_empty, "0777\n")
+  ; ("umask a= ; umask u+rwx ; umask", os_empty, "0077\n")
+  ; ("umask a= ; umask u+rwx,go+rx ; umask", os_empty, "0022\n")
+  ; ("umask u=o; umask", os_empty, "0222\n")
+  ; ("umask u=g; umask", os_empty, "0222\n")
+  ; ("umask g+u; umask", os_empty, "0002\n")
   ]
 
 

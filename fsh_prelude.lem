@@ -183,6 +183,13 @@ type perms = <|
     other: set file_perm
   |>
 
+val perms_all_clear : perms
+let perms_all_clear =
+  <| setuid = false; setgid = false; sticky = false;
+     user = Set.empty;
+     group = Set.empty;
+     other = Set.empty |>
+
 val all_file_perms : set file_perm
 let all_file_perms = Set.fromList [Read; Write; Execute]
 
@@ -286,6 +293,28 @@ type perms_who = WhoU | WhoG | WhoO
 
 let perms_wholist_all = Set.fromList [WhoU; WhoG; WhoO]
 
+val perms_who : perms_who -> perms -> set file_perm
+let perms_who who perms =
+  match who with
+  | WhoU -> perms.user
+  | WhoG -> perms.group
+  | WhoO -> perms.other
+  end
+
+val perms_for : (set file_perm -> set file_perm) -> perms_who -> perms -> perms
+let perms_for f who perms =
+  match who with
+  | WhoU -> <| perms with user = f perms.user |>
+  | WhoG -> <| perms with group = f perms.group |>
+  | WhoO -> <| perms with other = f perms.other |>
+  end
+
+val perms_for_many : (set file_perm -> set file_perm) -> set perms_who -> perms -> perms
+let perms_for_many f who perms = List.foldr (perms_for f) perms (Set_extra.toList who)
+
+val perms_clear : set perms_who -> perms -> perms
+let perms_clear who perms = perms_for_many (fun _ -> Set.empty) who perms
+
 val perms_wholist_of_cl 
     : set perms_who -> list char -> either string (set perms_who * list char)
 let rec perms_wholist_of_cl who cs = 
@@ -304,18 +333,27 @@ let rec perms_wholist_of_cl who cs =
 permlist         : perm | perm permlist
 perm             : 'r' | 'w' | 'x' | 'X' | 's' | 't'  
 *)
-type perms_perm = PermR | PermW | PermX | PermBigX | PermS | PermT
+(* renaming to perms_flag just for clarity *)
+type perms_flag = PermR | PermW | PermX | PermBigX | PermS | PermT
 
-val perms_permlist_of_cl
-  : set perms_perm -> list char -> either string (set perms_perm * list char)
-let rec perms_permlist_of_cl perms cs =
+val flag_of_file_perm : file_perm -> perms_flag
+let flag_of_file_perm fp =
+  match fp with
+  | Read -> PermR
+  | Write -> PermW
+  | Execute -> PermX
+  end
+
+val perms_flaglist_of_cl
+  : set perms_flag -> list char -> either string (set perms_flag * list char)
+let rec perms_flaglist_of_cl perms cs =
   match cs with
-  | #'r'::cs' -> perms_permlist_of_cl (Set.insert PermR perms) cs'
-  | #'w'::cs' -> perms_permlist_of_cl (Set.insert PermW perms) cs'
-  | #'x'::cs' -> perms_permlist_of_cl (Set.insert PermX perms) cs'
-  | #'X'::cs' -> perms_permlist_of_cl (Set.insert PermBigX perms) cs'
-  | #'s'::cs' -> perms_permlist_of_cl (Set.insert PermS perms) cs'
-  | #'t'::cs' -> perms_permlist_of_cl (Set.insert PermT perms) cs'
+  | #'r'::cs' -> perms_flaglist_of_cl (Set.insert PermR perms) cs'
+  | #'w'::cs' -> perms_flaglist_of_cl (Set.insert PermW perms) cs'
+  | #'x'::cs' -> perms_flaglist_of_cl (Set.insert PermX perms) cs'
+  | #'X'::cs' -> perms_flaglist_of_cl (Set.insert PermBigX perms) cs'
+  | #'s'::cs' -> perms_flaglist_of_cl (Set.insert PermS perms) cs'
+  | #'t'::cs' -> perms_flaglist_of_cl (Set.insert PermT perms) cs'
   | _ -> 
      if Set.null perms 
      then Left "empty permlist: need to specify one of rwxXst"
@@ -332,7 +370,7 @@ op               : '+' | '-' | '='
 type perms_op = OpPlus | OpMinus | OpEqual
 type perms_action = 
     ActOp of perms_op 
-  | ActPerms of perms_op * set perms_perm
+  | ActPerms of perms_op * set perms_flag
   | ActCopy of perms_op * perms_who
 
 val perms_op_of_cl : list char -> either string (perms_op * list char)
@@ -352,7 +390,7 @@ let rec perms_actionlist_of_cl actions cs =
   | Right (op, cs') ->
      (* we need to check whether we have a list of perms, a ugo to copy, or nothing 
       *)
-     match (cs', perms_permlist_of_cl Set.empty cs') with
+     match (cs', perms_flaglist_of_cl Set.empty cs') with
        (* ugo? *)
      | (#'u'::cs'', _) -> perms_actionlist_of_cl ((ActCopy op WhoU)::actions) cs''
      | (#'g'::cs'', _) -> perms_actionlist_of_cl ((ActCopy op WhoG)::actions) cs''
@@ -377,14 +415,16 @@ let rec perms_actionlist_of_cl actions cs =
 clause           : actionlist | wholist actionlist
 *)
 
-type perms_clause = maybe (set perms_who) * list perms_action
+type perms_clause = (set perms_who) * list perms_action
 
 val perms_clause_of_cl : list char -> either string (perms_clause * list char)
 let perms_clause_of_cl cs =
   let (who, cs') =
     match perms_wholist_of_cl Set.empty cs with
-    | Right (who, cs') -> (Just who, cs')
-    | Left _ -> (Nothing, cs)
+    | Right (who, cs') -> (who, cs')
+    | Left _ -> 
+       (* when unspecified, perms mean ALL *)
+       (perms_wholist_all, cs)
     end 
   in
   match perms_actionlist_of_cl [] cs' with
@@ -399,11 +439,11 @@ val perms_symbolic_of_cl
     : perms_symbolic -> list char -> either string (perms_symbolic * list char)
 let rec perms_symbolic_of_cl perms cs =
   match perms_clause_of_cl cs with
-  | Left msg ->
-     if null perms
-     then Left ("no clauses found: " ^ msg)
-     else Right (perms, cs)
-  | Right (clause, cs') -> perms_symbolic_of_cl (clause::perms) cs'
+  | Left msg -> Left ("no clauses found: " ^ msg)
+  | Right (clause, []) -> Right (clause::perms, [])
+  | Right (clause, #','::cs') -> perms_symbolic_of_cl (clause::perms) cs'
+  | Right (_,c::_) -> 
+     Left ("expected comma between clauses, found '" ^ toString [c] ^ "'")
   end
 
 val perms_symbolic_of_string : string -> either string perms_symbolic

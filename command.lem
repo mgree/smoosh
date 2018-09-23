@@ -922,6 +922,65 @@ let builtin_command s0 argv env =
        argv'
   end
 
+let umask_fix_flag flag =
+  match flag with
+  | PermR -> Just Read
+  | PermW -> Just Write
+  | PermX -> Just Execute
+  | PermBigX -> Just Execute (* following dash *)
+  | PermS -> Nothing
+  | PermT -> Nothing
+  end
+
+let umask_add_flags who flags perms =
+  perms_for_many 
+    (fun old -> Set.(union) old (Set.mapMaybe umask_fix_flag flags))
+    who
+    perms
+
+let umask_delete_flags who flags perms =
+  perms_for_many 
+    (fun old -> Set.difference old (Set.mapMaybe umask_fix_flag flags))
+    who
+    perms
+
+let rec umask_eval_action who action perms =
+  match action with
+  (** ACTOP **)
+  (* plain + and - do nothing *)
+  | ActOp OpPlus -> perms
+  | ActOp OpMinus -> perms
+  (* plain = resets all of the bits in who *)
+  | ActOp OpEqual -> perms_clear who perms
+  (** ACTPERMS **)                   
+  | ActPerms OpPlus flags -> umask_add_flags who flags perms
+  | ActPerms OpMinus flags -> umask_delete_flags who flags perms
+  | ActPerms OpEqual flags -> umask_add_flags who flags (perms_clear who perms)
+  (** ACTCOPY **)
+  | ActCopy OpPlus src -> 
+     umask_add_flags who (Set.map flag_of_file_perm (perms_who src perms)) perms
+  | ActCopy OpMinus src -> 
+     umask_delete_flags who (Set.map flag_of_file_perm (perms_who src perms)) perms
+  | ActCopy OpEqual src -> 
+     umask_add_flags who 
+       (Set.map flag_of_file_perm (perms_who src perms)) 
+       (perms_clear who perms)
+  end
+
+let rec umask_eval_actions who actions perms =
+  match actions with
+  | [] -> perms
+  | action::actions' -> 
+     let perms' = umask_eval_action who action perms in
+     umask_eval_actions who actions' perms'
+  end
+
+let rec umask_eval_symbolic clauses perms =
+  match clauses with
+  | [] -> perms
+  | (who,actions)::clauses' -> 
+     umask_eval_symbolic clauses' (umask_eval_actions who actions perms)
+  end
 
 let builtin_umask s0 argv _env =
   let (opts, argv') = getopts [#'S'] argv in
@@ -938,7 +997,7 @@ let builtin_umask s0 argv _env =
             permissions>, <other permissions>
 
             where the three values shall be combinations of letters
-            from the set { r, w, x}; the presence of a letter shall
+            from the set { r, w, x }; the presence of a letter shall
             indicate that the corresponding bit is clear in the file
             mode creation mask.  *)
          string_of_perms (invert_perms umask)
@@ -957,12 +1016,22 @@ let builtin_umask s0 argv _env =
           let s1 = set_umask s0 new_mask in
           Right (exit_with 0 s1, Done)
         | Left _ -> 
-           (* it's not a number: do the symbolic conversion *)
-           Left (s0, "TODO convert from symbolic")
+           match perms_symbolic_of_string mask with
+           | Left msg -> Left (s0, msg)
+           | Right ps ->
+              (* load the mask and invert to permissions *)
+              let mask = get_umask s0 in
+              let perms = invert_perms mask in
+              (* evaluate the permissions *)
+              let new_perms = umask_eval_symbolic ps perms in
+              (* invert back and set *)
+              let new_mask = invert_perms new_perms in
+              let s1 = set_umask s0 new_mask  in
+              Right (exit_with 0 s1, Done)
+           end
         end
      end
   end
-       
 
 (* TODO 2018-08-13 *)
 
