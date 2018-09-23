@@ -1017,7 +1017,9 @@ instance (OS unit)
 
   let times _os = real_times ()
 
-  let get_umask _os = perms_of_nat (real_get_umask ())
+  let get_umask _os = 
+    let umask = real_get_umask () in
+    perms_of_nat umask
 
   let set_umask os mask = 
     let _ = real_set_umask (nat_of_perms mask) in

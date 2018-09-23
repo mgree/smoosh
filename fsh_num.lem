@@ -24,7 +24,7 @@ instance (Nat int64)
 end
 
 val has_bit : nat -> nat -> bool
-let has_bit n bit = (n / (2 ** bit)) mod 2 = 0
+let has_bit n bit = (n / (2 ** bit)) mod 2 = 1
 
 (*--------------------------------*)
 (* Read class                     *)

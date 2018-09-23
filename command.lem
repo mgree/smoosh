@@ -923,15 +923,37 @@ let builtin_command s0 argv env =
   end
 
 
-let builtin_umask = builtin_unimplemented
-(* TODO 2018-09-19 PICK UP HERE
+let builtin_umask s0 argv _env =
   let (opts, argv') = getopts [#'S'] argv in
-  match argv with
+  match argv' with
   | [] -> 
+     let umask = get_umask s0 in
      let umask_str =
        if elem #'S' opts
-       then string_of_umask_symbolic 
-*)
+       then 
+         (* If -S is specified, the message shall be in the following
+            format:
+
+           "u=%s,g=%s,o=%s\n", <owner permissions>, <group
+            permissions>, <other permissions>
+
+            where the three values shall be combinations of letters
+            from the set { r, w, x}; the presence of a letter shall
+            indicate that the corresponding bit is clear in the file
+            mode creation mask.  *)
+         string_of_perms (perms_of_mask umask)
+       else octal_string_of_perms umask in
+     Right (exit_with 0 (write_stdout (umask_str ^ "\n") s0), Done)
+  | smask::_ ->
+     match try_concrete smask with
+     | Nothing -> Left (s0, "can't set symbolic mask")
+     | Just mask ->
+        if is_numeric (toCharList mask)
+        then Left (s0, "TODO convert from octal")
+        else Left (s0, "TODO convert from symbolic")
+     end
+  end
+       
 
 (* TODO 2018-08-13 *)
 
