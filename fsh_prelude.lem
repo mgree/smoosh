@@ -195,18 +195,32 @@ let default_umask = <| setuid = false; setgid = false; sticky = false;
 val invert_file_perms : set file_perm -> set file_perm
 let invert_file_perms fperms = Set.difference all_file_perms fperms
 
+val invert_perms : perms -> perms
+let invert_perms perms =
+  <| setuid = not perms.setuid;
+     setgid = not perms.setgid;
+     sticky = not perms.sticky;
+     user   = invert_file_perms perms.user;
+     group  = invert_file_perms perms.group;
+     other  = invert_file_perms perms.other
+  |>
+
+(**********************************************************************)
+(* Basic parsing and rendering of perms *******************************)
+(**********************************************************************)
+
 val nat_of_file_perms : set file_perm -> nat
 let nat_of_file_perms fperms =
-  let bit0 = if Set.member Read    fperms then 1 else 0 in
+  let bit0 = if Set.member Execute fperms then 1 else 0 in
   let bit1 = if Set.member Write   fperms then 2 else 0 in
-  let bit2 = if Set.member Execute fperms then 4 else 0 in
+  let bit2 = if Set.member Read    fperms then 4 else 0 in
   bit0 + bit1 + bit2
 
 val file_perms_of_nat : nat -> set file_perm
 let file_perms_of_nat n =
-  let r = if has_bit n 0 then Set.singleton Read    else Set.empty in
+  let r = if has_bit n 0 then Set.singleton Execute else Set.empty in
   let w = if has_bit n 1 then Set.singleton Write   else Set.empty in
-  let x = if has_bit n 2 then Set.singleton Execute else Set.empty in
+  let x = if has_bit n 2 then Set.singleton Read    else Set.empty in
   Set.(union) r (Set.(union) w x)
 
 val perms_of_nat : nat -> perms
@@ -229,16 +243,6 @@ let nat_of_perms perms =
   let third  = nat_of_file_perms perms.group in
   let fourth = nat_of_file_perms perms.other in
   (2**9 * first) + (2**6 * second) + (2**3 * third) + fourth
-
-val perms_of_mask : perms -> perms
-let perms_of_mask perms =
-  <| setuid = not perms.setuid;
-     setgid = not perms.setgid;
-     sticky = not perms.sticky;
-     user   = invert_file_perms perms.user;
-     group  = invert_file_perms perms.group;
-     other  = invert_file_perms perms.other
-  |>
 
 val octal_string_of_perms : perms -> string
 let octal_string_of_perms perms =
@@ -267,16 +271,12 @@ let string_of_perms perms =
   "g=" ^ g ^ "," ^
   "o=" ^ o
 
+(**********************************************************************)
+(* Symbolic file permissions a la chmod *******************************)
+(**********************************************************************)
+
 (* Grammar fragments taken from chmod spec
    http://pubs.opengroup.org/onlinepubs/9699919799/utilities/chmod.html *)
-
-(* 
-symbolic_mode    : clause | symbolic_mode ',' clause
-
-clause           : actionlist | wholist actionlist
-
-*)
-
 
 (*
 wholist          : who | wholist who
@@ -319,7 +319,7 @@ let rec perms_permlist_of_cl perms cs =
   | _ -> 
      if Set.null perms 
      then Left "empty permlist: need to specify one of rwxXst"
-     else Right (perms, cs)
+     else Right (perms, cs) 
   end
 
 (*
@@ -367,15 +367,52 @@ let rec perms_actionlist_of_cl actions cs =
      (* we didn't get an op, so just make sure our list is nonempty *)
      if null actions
      then Left ("empty actionlist: " ^ msg)
-     else Right (actions, cs)
+     else 
+       (* reverse to get them back in the original order *)
+       Right (List.reverse actions, cs)
   end
 
-val perms_of_cl : list char -> either string perms
-let perms_of_cl _cs = Left "TODO"
 
-val perms_of_string : string -> either string perms
-let rec perms_of_string s = perms_of_cl (toCharList s)
+(* 
+clause           : actionlist | wholist actionlist
+*)
 
+type perms_clause = maybe (set perms_who) * list perms_action
+
+val perms_clause_of_cl : list char -> either string (perms_clause * list char)
+let perms_clause_of_cl cs =
+  let (who, cs') =
+    match perms_wholist_of_cl Set.empty cs with
+    | Right (who, cs') -> (Just who, cs')
+    | Left _ -> (Nothing, cs)
+    end 
+  in
+  match perms_actionlist_of_cl [] cs' with
+  | Right (actions, cs'') -> Right ((who, actions), cs'')
+  | Left msg -> Left ("bad clause: " ^ msg)
+  end
+
+(* symbolic_mode    : clause | symbolic_mode ',' clause *)
+type perms_symbolic = list perms_clause
+
+val perms_symbolic_of_cl 
+    : perms_symbolic -> list char -> either string (perms_symbolic * list char)
+let rec perms_symbolic_of_cl perms cs =
+  match perms_clause_of_cl cs with
+  | Left msg ->
+     if null perms
+     then Left ("no clauses found: " ^ msg)
+     else Right (perms, cs)
+  | Right (clause, cs') -> perms_symbolic_of_cl (clause::perms) cs'
+  end
+
+val perms_symbolic_of_string : string -> either string perms_symbolic
+let rec perms_symbolic_of_string s = 
+  match perms_symbolic_of_cl [] (toCharList s) with
+  | Left msg -> Left msg
+  | Right (perms,[]) -> Right perms
+  | Right (_,cs') -> Left ("invalid symbolic permissions: " ^ toString cs')
+  end
 
 (**********************************************************************)
 (* SHELL OPTIONS ******************************************************)

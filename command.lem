@@ -941,7 +941,7 @@ let builtin_umask s0 argv _env =
             from the set { r, w, x}; the presence of a letter shall
             indicate that the corresponding bit is clear in the file
             mode creation mask.  *)
-         string_of_perms (perms_of_mask umask)
+         string_of_perms (invert_perms umask)
        else octal_string_of_perms umask in
      Right (exit_with 0 (write_stdout (umask_str ^ "\n") s0), Done)
   | smask::_ ->
