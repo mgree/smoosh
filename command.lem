@@ -948,9 +948,18 @@ let builtin_umask s0 argv _env =
      match try_concrete smask with
      | Nothing -> Left (s0, "can't set symbolic mask")
      | Just mask ->
-        if is_numeric (toCharList mask)
-        then Left (s0, "TODO convert from octal")
-        else Left (s0, "TODO convert from symbolic")
+        (* try to convert the string to an octal number *)
+        match readInteger 8 (toCharList mask) with
+        | Right octal ->
+          (* convert the number to permissions *)
+          let new_mask = perms_of_nat (toNat octal) in
+          (* set the permissions *)
+          let s1 = set_umask s0 new_mask in
+          Right (exit_with 0 s1, Done)
+        | Left _ -> 
+           (* it's not a number: do the symbolic conversion *)
+           Left (s0, "TODO convert from symbolic")
+        end
      end
   end
        
