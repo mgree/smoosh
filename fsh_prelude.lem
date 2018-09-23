@@ -267,6 +267,116 @@ let string_of_perms perms =
   "g=" ^ g ^ "," ^
   "o=" ^ o
 
+(* Grammar fragments taken from chmod spec
+   http://pubs.opengroup.org/onlinepubs/9699919799/utilities/chmod.html *)
+
+(* 
+symbolic_mode    : clause | symbolic_mode ',' clause
+
+clause           : actionlist | wholist actionlist
+
+*)
+
+
+(*
+wholist          : who | wholist who
+who              : 'u' | 'g' | 'o' | 'a'
+*)
+type perms_who = WhoU | WhoG | WhoO
+
+let perms_wholist_all = Set.fromList [WhoU; WhoG; WhoO]
+
+val perms_wholist_of_cl 
+    : set perms_who -> list char -> either string (set perms_who * list char)
+let rec perms_wholist_of_cl who cs = 
+  match cs with
+  | #'u'::cs' -> perms_wholist_of_cl (Set.insert WhoU who) cs'
+  | #'g'::cs' -> perms_wholist_of_cl (Set.insert WhoG who) cs'
+  | #'o'::cs' -> perms_wholist_of_cl (Set.insert WhoO who) cs'
+  | #'a'::cs' -> perms_wholist_of_cl perms_wholist_all cs'
+  | _ -> 
+     if Set.null who 
+     then Left "empty wholist: need to specify one of ugoa"
+     else Right (who, cs)
+  end
+
+(* 
+permlist         : perm | perm permlist
+perm             : 'r' | 'w' | 'x' | 'X' | 's' | 't'  
+*)
+type perms_perm = PermR | PermW | PermX | PermBigX | PermS | PermT
+
+val perms_permlist_of_cl
+  : set perms_perm -> list char -> either string (set perms_perm * list char)
+let rec perms_permlist_of_cl perms cs =
+  match cs with
+  | #'r'::cs' -> perms_permlist_of_cl (Set.insert PermR perms) cs'
+  | #'w'::cs' -> perms_permlist_of_cl (Set.insert PermW perms) cs'
+  | #'x'::cs' -> perms_permlist_of_cl (Set.insert PermX perms) cs'
+  | #'X'::cs' -> perms_permlist_of_cl (Set.insert PermBigX perms) cs'
+  | #'s'::cs' -> perms_permlist_of_cl (Set.insert PermS perms) cs'
+  | #'t'::cs' -> perms_permlist_of_cl (Set.insert PermT perms) cs'
+  | _ -> 
+     if Set.null perms 
+     then Left "empty permlist: need to specify one of rwxXst"
+     else Right (perms, cs)
+  end
+
+(*
+actionlist       : action | actionlist action
+action           : op | op permlist | op permcopy
+permcopy         : 'u' | 'g' | 'o'
+op               : '+' | '-' | '='
+*)
+
+type perms_op = OpPlus | OpMinus | OpEqual
+type perms_action = 
+    ActOp of perms_op 
+  | ActPerms of perms_op * set perms_perm
+  | ActCopy of perms_op * perms_who
+
+val perms_op_of_cl : list char -> either string (perms_op * list char)
+let perms_op_of_cl cs =
+  match cs with
+  | #'+'::cs' -> Right (OpPlus, cs')
+  | #'-'::cs' -> Right (OpMinus, cs')
+  | #'='::cs' -> Right (OpEqual, cs')
+  | c::_ -> Left ("expected op (one of +-=), got '" ^ toString [c] ^ "'")
+  | [] -> Left ("expected op (one of +-=, got empty string")
+  end
+
+val perms_actionlist_of_cl 
+  : list perms_action -> list char -> either string (list perms_action * list char)
+let rec perms_actionlist_of_cl actions cs =
+  match perms_op_of_cl cs with
+  | Right (op, cs') ->
+     (* we need to check whether we have a list of perms, a ugo to copy, or nothing 
+      *)
+     match (cs', perms_permlist_of_cl Set.empty cs') with
+       (* ugo? *)
+     | (#'u'::cs'', _) -> perms_actionlist_of_cl ((ActCopy op WhoU)::actions) cs''
+     | (#'g'::cs'', _) -> perms_actionlist_of_cl ((ActCopy op WhoG)::actions) cs''
+     | (#'o'::cs'', _) -> perms_actionlist_of_cl ((ActCopy op WhoO)::actions) cs''
+       (* permlist? *)
+     | (_, Right (permlist,cs'')) ->
+        perms_actionlist_of_cl (ActPerms op permlist::actions) cs''
+       (* must be plain! *)
+     | _ -> perms_actionlist_of_cl (ActOp op::actions) cs'
+     end
+  | Left msg -> 
+     (* we didn't get an op, so just make sure our list is nonempty *)
+     if null actions
+     then Left ("empty actionlist: " ^ msg)
+     else Right (actions, cs)
+  end
+
+val perms_of_cl : list char -> either string perms
+let perms_of_cl _cs = Left "TODO"
+
+val perms_of_string : string -> either string perms
+let rec perms_of_string s = perms_of_cl (toCharList s)
+
+
 (**********************************************************************)
 (* SHELL OPTIONS ******************************************************)
 (**********************************************************************)

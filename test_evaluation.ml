@@ -175,6 +175,10 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("pwd() echo florp ; pwd", os_empty, "florp\n")
   ; ("pwd() echo florp ; command pwd", os_empty, "/\n")
   ; ("pwd() echo florp ; command -p pwd", os_empty, "/\n")
+
+    (* umask *)
+  ; ("umask", os_empty, "0022\n")
+  ; ("umask 0044 ; umask", os_empty, "0044\n")
   ]
 
 
