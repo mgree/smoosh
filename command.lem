@@ -1033,30 +1033,45 @@ let builtin_umask s0 argv _env =
      end
   end
 
+(* just like dash, we'll implement newgrp with the executable *)
+let builtin_newgrp s0 argv env = 
+  match builtin_exec s0 (symbolic_string_of_string "newgrp" :: argv) env with
+  | Left err -> Left err
+  | Right (s1, stmt, _) -> Right (s1, stmt)
+  end
+
 (* TODO 2018-08-13 *)
 
-(* interface with dash :( *)
+(* aliasing *)
+(* interfaces with dash, but otherwise simple *)
 let builtin_alias = builtin_unimplemented
 let builtin_unalias = builtin_unimplemented
 
 (* job control *)
+(* need job PID resolution: 
+   http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_204 *)
+(* bg/fg are implemented as the same command in dash. 
+   not too bad, need some fancy logic per restartjob *)
 let builtin_bg = builtin_unimplemented
 let builtin_fg = builtin_unimplemented
-let builtin_fc = builtin_unimplemented
-let builtin_jobs = builtin_unimplemented
-let builtin_wait = builtin_unimplemented
-let builtin_kill = builtin_unimplemented
+let builtin_jobs = builtin_unimplemented (* not terrible, need OS calls *)
+
+(* process control *)
+let builtin_wait = builtin_unimplemented (* easy *)
+let builtin_kill = builtin_unimplemented (* not so bad, may need to generate more for kill -l *)
+
+(* history *)
+let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stuff *)
 
 (* parsing/printing *)
-let builtin_getopts = builtin_unimplemented
-let builtin_local = builtin_unimplemented (* unspec, but nice to have *)
-let builtin_printf = builtin_unimplemented
-let builtin_read = builtin_unimplemented
-let builtin_test = builtin_unimplemented
+let builtin_getopts = builtin_unimplemented (* OPTIND, OPTARG. trickiness with ? and : *)
+let builtin_local = builtin_unimplemented (* unspec, but nice to have? *)
+let builtin_printf = builtin_unimplemented (* lots of weird formatting *)
+let builtin_read = builtin_unimplemented (* relatively easy, need to split fields *)
+let builtin_test = builtin_unimplemented (* need to build a parser, lots of OS stuff. but -o and -a are XSI, can skip for now *)
 
 (* POSIX user control *)
 let builtin_ulimit = builtin_unimplemented (* XSI *)
-let builtin_newgrp = builtin_unimplemented
  
 val builtins :
   forall 'a. OS 'a =>

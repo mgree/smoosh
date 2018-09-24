@@ -10,6 +10,9 @@ import Debug
 (* UTILITY FUNCTIONS **************************************************)
 (**********************************************************************)
 
+val uppercase : string -> string
+let uppercase s = toString (List.map uppercase_char (toCharList s))
+
 let parens s = "( " ^ s ^ " )"
 
 val ltrim_newlines_cl : list char -> list char

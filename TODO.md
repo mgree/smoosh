@@ -1,3 +1,7 @@
+### Bugs
+
+- PS2/PS4 not getting exported properly to the dash parser
+
 ### Last of the shell semantics
 
 - tests that read stdout
