@@ -1,6 +1,15 @@
-### Bugs
+### Paper TODO
 
-- PS2/PS4 not getting exported properly to the dash parser
+- fold out smoosh repo
+  + document
+- get server up
+  + install ruby
+  + fold out web repo
+  + run expander in a chroot jail
+- run POSIX tests on dash, bash, and smoosh
+- write paper
+
+### Bugs
 
 ### Last of the shell semantics
 
@@ -44,8 +53,6 @@
 
 ### Testing
 
-- Appropriate field splitting for generated strings (particularly parameters)
-
 - VM for POSIX testing
   run on dash, bash
 
@@ -63,7 +70,7 @@ turn model into its own repo?
 
 ### Parsing
 
-Should we write a custom parser?
+Should we write a custom parser? Use Ralf Treinen's?
 
 ### Expander tool
 
@@ -73,19 +80,17 @@ JS/webpage
   + use syntax highlighting in editor window
   + fancier output
     - favicon
-    - legend on the side, more color-coding
     - cleaner handling of environment, etc.
-      add positional variables
+      add positional variables to display  
     - presets
     - way to explore FS
+    - stdout and other FIFOs
+    - more shell info
   + use a JS contracts/types library 
   + error handling
   + mkdir for submissions
-  + docker container, provision shell.cs.pomona.edu
 CLI
   + pretty printer for JSON output
-
-include ENTIRE shell info in JSON output, stdout, etc.
 
 ### Bugs
 

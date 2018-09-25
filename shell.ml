@@ -125,10 +125,11 @@ let initialize_env s0 : real os_state =
     Dash.setvar x v;
     set_param x v os
   in
-  let s1 = List.fold_right set environ s0 in
+  let s0_defaults = set ("PS2","> ") (set ("PS4","+ ") s0) in
+  let s1 = List.fold_right set environ s0_defaults in
   let s2 = set_param "$" (string_of_int (Unix.getpid ())) s1 in
   (* override the prompt by default *)
-  let s3 = set_param "PS1" "$ " s2 in
+  let s3 = set ("PS1","$ ") s2 in
   (* set up shell options, will set up $- *)
   let s4 = List.fold_right (fun opt os -> real_set_sh_opt os opt) !opts s3 in
   { s4 with sh = { s4.sh with cwd = Unix.getcwd (); 
@@ -163,11 +164,8 @@ let run_cmds s0 =
 
 let rec repl s0 =
   (* TODO 2018-08-14 all kinds of interactive nonsense here *)
-  print_string (Os.ps1 s0); flush stdout;
-  (* TODO 2018-08-15 to get appropriate prompting w/PS2, we need to
-     set dash's actual environment up correctly, since the parser
-     makes reference to ps1val, etc. *)
-  match Dash.parse_next () with
+  (* no need to actually print PS1: the dash parser will do it for us *)
+  match Dash.parse_next ~interactive:true () with
   | `Done -> 
      if Pset.mem Sh_ignoreeof s0.sh.opts
      then 
