@@ -25,10 +25,7 @@
   LINENO
   ENV (interactive only)
   PPID
-  PS1-4
-  PWD
-  
-  HISTFILE?
+  HISTFILE
 - faithful handling of PATH_MAX
 
 - correct application of INTON/INTOFF
