@@ -60,7 +60,10 @@ class ExpansionWeb < Sinatra::Base
 
     # run expander for JSON
     #   /path/to/expand -env-file env -user-file users shell
-    expand = Command.new(settings.expand_executable, '-env-file', File.path(env), '-user-file', File.path(user), File.path(shell))
+    expand = Command.new(settings.expand_executable, 
+                         '-env-file', File.path(env), 
+                         '-user-file', File.path(user), 
+                         File.path(shell))
     result = expand.execute!
 
     log.write result
