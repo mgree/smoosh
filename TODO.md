@@ -2,12 +2,19 @@
 
 - fold out smoosh repo
   + document
+- fold out libdash
+  + create a fork of kernel.org's dash, track it
+  + remove main, have proper handler abort
+  + offer ocaml bindings
+  + clearer shim, with more functions for poking dash internals (e.g., env, aliases, etc.)
 - get server up
   + install ruby
   + fold out web repo
   + run expander in a chroot jail
 - run POSIX tests on dash, bash, and smoosh
 - write paper
+- build artifact
+  + copy install instructions into top-level readme
 
 ### Bugs
 
@@ -17,7 +24,7 @@
   + tests for pipes and redirects
 - eval/.
   + properly handle errors in the dash parser 
-    (fork lib: setjmp before parsing, longjmp on error, return appropriate value)
+    
   + write more tests
 
 - other built-ins
@@ -52,18 +59,6 @@
 
 - VM for POSIX testing
   run on dash, bash
-
-### Organizational issues
-
-- libdash
-  + create a fork of kernel.org's dash, track it
-  + remove main, have proper handler abort
-  + offer ocaml bindings
-  + clearer shim, with more functions for poking dash internals (e.g., env, aliases, etc.)
-
-copy install instructions into top-level readme
-
-turn model into its own repo?
 
 ### Parsing
 
