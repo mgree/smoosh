@@ -404,6 +404,22 @@ let unset_sh_opt os opt =
 val is_interactive : forall 'a. os_state 'a -> bool
 let is_interactive os = Set.member Sh_interactive os.sh.opts
 
+val dash_setalias : string -> string -> unit
+declare ocaml target_rep function dash_setalias = `Dash.setalias`
+
+val dash_unalias : string -> unit
+declare ocaml target_rep function dash_unalias = `Dash.unalias`
+
+val set_alias : forall 'a. os_state 'a -> string -> string -> os_state 'a
+let set_alias os name mapping =
+  let _ = dash_setalias name mapping in
+  <| os with sh = <| os.sh with aliases = Map.insert name mapping os.sh.aliases |> |>
+
+val free_alias : forall 'a. os_state 'a -> string -> os_state 'a
+let free_alias os name =
+  let _ = dash_unalias name in
+  <| os with sh = <| os.sh with aliases = Map.delete name os.sh.aliases |> |>
+  
 (**********************************************************************)
 (* SYMBOLIC FS STATE **************************************************)
 (**********************************************************************)

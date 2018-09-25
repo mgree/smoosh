@@ -805,9 +805,6 @@ and saved_fds = list (fd * saved_fd_info)
 (* environments *)       
 and env = Map.map string symbolic_string
 
-(* function definitions *)
-and funcs = Map.map string stmt        
-
 and shell_state = <|
     opts: set sh_opt;
     (* each signal is either:
@@ -821,7 +818,8 @@ and shell_state = <|
     env: env;
     readonly: set string;
     export: set string;
-    funcs: funcs;                 
+    funcs: Map.map string stmt;                 
+    aliases: Map.map string string;
     cwd: string;
     locale: locale;
     loop_nest: nat (* for tracking break/continue *)
@@ -1478,6 +1476,7 @@ let default_shell_state = <|
       readonly = Set.empty;
       export = Set.empty;
       funcs = Map.empty;
+      aliases = Map.empty;
       cwd = "/";
       locale = lc_ambient;
       loop_nest = 0

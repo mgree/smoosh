@@ -1033,19 +1033,77 @@ let builtin_umask s0 argv _env =
      end
   end
 
-(* just like dash, we'll implement newgrp with the executable *)
+(* just like dash, we'll implement newgrp with the executable;
+   just call 'exec' *)
 let builtin_newgrp s0 argv env = 
   match builtin_exec s0 (symbolic_string_of_string "newgrp" :: argv) env with
   | Left err -> Left err
   | Right (s1, stmt, _) -> Right (s1, stmt)
   end
 
-(* TODO 2018-08-13 *)
+let show_alias os (name,mapping) = 
+  write_stdout (name ^ "=" ^ mapping ^ "\n") os
 
-(* aliasing *)
-(* interfaces with dash, but otherwise simple *)
-let builtin_alias = builtin_unimplemented
-let builtin_unalias = builtin_unimplemented
+let rec add_aliases s0 args =
+  match args with
+  | [] -> Right (exit_with 0 s0, Done)
+  | arg::args' ->
+    match try_split_assign arg with
+    | (name, Just smapping) ->
+       match try_concrete smapping with
+       | Nothing -> Left (s0,
+                          "couldn't symbolically alias " ^ name ^ " to " ^ 
+                            string_of_symbolic_string smapping)
+       | Just mapping -> add_aliases (set_alias s0 name mapping) args'
+       end
+    | (name, Nothing) ->
+       match Map.lookup name s0.sh.aliases with
+       | Nothing -> Left (s0, name ^ " not found")
+       | Just mapping ->
+          let s1 = show_alias s0 (name,mapping) in
+          add_aliases s1 args'
+       end
+    end
+  end
+
+let builtin_alias s0 argv _env =
+  match argv with
+  | [] -> 
+     let aliases = Set_extra.toList (Map.toSet s0.sh.aliases) in
+     let s1 = foldl show_alias s0 aliases in
+     Right (exit_with 0 s1, Done)
+  | _ -> add_aliases s0 argv
+  end
+
+let rec remove_aliases s0 names =
+  match names with
+  | [] -> Right (exit_with 0 s0, Done)
+  | sname::names' ->
+     match try_concrete sname with
+     | Nothing -> 
+        let s1 = write_stderr ("unalias: can't remove symbolic alias '" ^ 
+                              string_of_symbolic_string sname ^ "'") s0 in
+        remove_aliases s1 names'
+     | Just name ->
+        let s1 = 
+          if Map.member name s0.sh.aliases
+          then free_alias s0 name
+          else write_stderr ("unalias: " ^ name ^ " not found\n") s0
+        in
+        remove_aliases s1 names'
+     end
+  end
+
+let builtin_unalias s0 argv _env = 
+  match argv with
+  | [[C #'-'; C #'a']] ->
+     (* remove all aliases *)
+     let all_aliases = Set_extra.toList (Map.domain s0.sh.aliases) in
+     remove_aliases s0 (map symbolic_string_of_string all_aliases)
+  | _ -> remove_aliases s0 argv
+  end
+
+(* TODO 2018-08-13 *)
 
 (* job control *)
 (* need job PID resolution: 
