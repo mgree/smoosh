@@ -90,9 +90,11 @@ let main () =
   Dash.initialize ();
   parse_args ();
   set_input_src ();
-  let ns = Dash.parse_all () in
-  let cs = List.map Shim.of_node ns in
-  show_trace (trace_evaluation_multi !gas !initial_os_state cs);;
+  try 
+    let ns = Dash.parse_all () in
+    let cs = List.map Shim.of_node ns in
+    show_trace (trace_evaluation_multi !gas !initial_os_state cs)
+  with Dash.Parse_error -> exit 1;;
 
 main ()
 

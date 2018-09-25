@@ -72,8 +72,6 @@ Should we write a custom parser? Use Ralf Treinen's?
 ### Expander tool
 
 JS/webpage
-  + debug weird issues with newlines
-  + run expander in a chroot jail
   + use syntax highlighting in editor window
   + fancier output
     - favicon
@@ -84,7 +82,6 @@ JS/webpage
     - stdout and other FIFOs
     - more shell info
   + use a JS contracts/types library 
-  + error handling
   + mkdir for submissions
 CLI
   + pretty printer for JSON output

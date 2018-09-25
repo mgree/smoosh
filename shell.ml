@@ -166,7 +166,7 @@ let rec repl s0 =
   (* TODO 2018-08-14 all kinds of interactive nonsense here *)
   (* no need to actually print PS1: the dash parser will do it for us *)
   match Dash.parse_next ~interactive:true () with
-  | `Done -> 
+  | Done -> 
      if Pset.mem Sh_ignoreeof s0.sh.opts
      then 
        begin
@@ -174,8 +174,9 @@ let rec repl s0 =
          repl s0
        end
      else finish_up s0
-  | `Null -> repl s0
-  | `Parsed n -> 
+  | Error -> repl s0
+  | Null -> repl s0
+  | Parsed n -> 
      (* TODO 2018-08-31 record trace in a logfile *)
      let c = Shim.of_node n in
      begin 
