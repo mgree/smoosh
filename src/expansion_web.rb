@@ -30,18 +30,22 @@ class ExpansionWeb < Sinatra::Base
   post '/expand/submit' do
     require 'src/command'
 
+    # remove illegal characters, drop carriage returns from combos
+    script = params['shell'].scrub.encode({ universal_newline: true })
+
     # create temporary directory logging time and IP
     timestamp = DateTime.now.to_s.gsub(":", "+")
     ip = request.ip.gsub(":", "+") # just in case we're on the loop back interface
     d = Dir.mktmpdir("#{timestamp}_#{ip}", settings.submissions_tmpdir)
 
     # create files with provided info
-    shell = File.new(File.join(d, "shell"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
-    env   = File.new(File.join(d, "env"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
-    user  = File.new(File.join(d, "users"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
+    shell  = File.new(File.join(d, "shell"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
+    env    = File.new(File.join(d, "env"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
+    user   = File.new(File.join(d, "users"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
+    log    = File.new(File.join(d, "log"),  File::CREAT|File::TRUNC|File::WRONLY, 0644)
 
     # write files
-    shell.write params['shell']
+    shell.write script
     shell.close
 
     JSON.parse(params['env']).each do |k, v|
@@ -59,11 +63,13 @@ class ExpansionWeb < Sinatra::Base
     expand = Command.new(settings.expand_executable, '-env-file', File.path(env), '-user-file', File.path(user), File.path(shell))
     result = expand.execute!
 
+    log.write result
+    log.close
+
     if result[:exit_code].zero?
       result[:stdout]
     else
-      # TODO 2017-12-01 Error
-      ""
+      "[{ \"error\": #{result[:stderr].dump} }]"
     end
   end
 end

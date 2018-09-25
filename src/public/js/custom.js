@@ -1759,21 +1759,41 @@ $('#expansionForm').submit(function(e) {
 
     let steps = $('<div></div>').addClass('ui segments').appendTo(result);
 
+    console.log(data);
+
     for(var i = 0; i < data.length; i++) {
       var step = data[i];
 
-      console.info('%d: term %o env %o step %o', i, step['term'], step['env'], step['step']);
+      const hasError = 'error' in step;
 
-      const hasStep =  step['step']['tag'] !== 'XSStep' && step['step']['msg'] !== "";
+      const hasStep = 
+            'step' in step &&
+            step['step']['tag'] !== 'XSStep' && 
+            step['step']['msg'] !== "";
+
+      if (hasStep) {
+          console.info('%d: term %o env %o step %o', 
+                       i, step['term'], step['env'], step['step']);
+      }
+
+      const stepColor = hasError ? 'red' : 'pink';
 
       const info = 
-            hasStep 
-            ? $('<div></div>').addClass('ui segment').appendTo(steps)
+            hasError || hasStep 
+            ? $('<div></div>').addClass('ui segment tertiary inverted ' + stepColor + ' step').appendTo(steps)
             : $('<span></span>');
       const crumb = $('<div></div>').addClass('ui breadcrumb').appendTo(info);
 
       const elt = $('<div></div>').addClass('evaluation-step ui segment').appendTo(steps);      
-      renderEvaluationTraceEntry(crumb, elt, step);
+      if (hasError) {
+          $('<i></i>').addClass('thumbs down icon divider').appendTo(crumb);
+          crumb.append('Parse error');
+
+          elt.addClass('error');
+          elt.append(step.error);
+      } else {
+          renderEvaluationTraceEntry(crumb, elt, step);
+      }
     }
   }
 
