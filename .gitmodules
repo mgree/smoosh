@@ -1,3 +1,4 @@
 [submodule "libdash"]
 	path = libdash
 	url = https://github.com/mgree/libdash
+	branch = master
