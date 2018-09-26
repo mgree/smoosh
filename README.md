@@ -2,4 +2,10 @@ Smoosh (the Symbolic, Mechanized, Observable, Operational SHell) is a formalizat
 
 Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OCaml, using [libdash](https://github.com/mgree/libdash) to parse shell code.
 
+# How to build it
 
+You'll need to have [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) installed. Wherever you put it, you'll need to edit `src/Makefile` so that `LEMLIB` is defined to point to the Lem `ocaml-lib` directory.
+
+Smoosh depends on [libdash](https://github.com/mgree/libdash), but simply uses it as a submodule.
+
+The script `compile.sh` should compile the whole lot and run the unit tests. There will be two resulting executables: `src/expand` is the symbolic expander and `src/shell` is a usable shell.
