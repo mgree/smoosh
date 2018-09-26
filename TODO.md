@@ -1,12 +1,5 @@
 ### Paper TODO
 
-- fold out smoosh repo
-  + document
-- fold out libdash
-  + create a fork of kernel.org's dash, track it
-  + remove main, have proper handler abort
-  + offer ocaml bindings
-  + clearer shim, with more functions for poking dash internals (e.g., env, etc.)
 - get server up
   + install ruby
   + fold out web repo
