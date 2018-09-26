@@ -1,9 +1,12 @@
 PRELUDEFILES=fsh_num.lem signal.lem fsh_prelude.lem signal_platform.lem os.lem 
 LEMFILES=fsh.lem arith.lem pattern.lem path.lem command.lem semantics.lem
 
+LEMLIB=~/lem/ocaml-lib
+LIBDASH=../libdash
+
 OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48
 OCAMLLIB=$(shell opam config var lib)
-OCAMLINCLUDES=-I ocaml-lib -I ocaml-lib/dependencies/zarith -I ../libdash -I $(OCAMLLIB)/bytes -I $(OCAMLLIB)/ctypes -I ocaml-lib
+OCAMLINCLUDES=-I $(LEMLIB) -I $(LEMLIB)/dependencies/zarith -I $(LIBDASH)/ocaml -I $(OCAMLLIB)/bytes -I $(OCAMLLIB)/ctypes
 OCAMLLIBS=unix.cmxa bigarray.cmxa str.cmxa ctypes.cmxa ctypes-foreign-base.cmxa ctypes-foreign-unthreaded.cmxa
 OCAMLGENLIBS=zarith.cmxa nums.cmxa extract.cmxa
 
@@ -20,21 +23,27 @@ test : runtest
 	./runtest
 
 expand : $(MLFILES) expand.ml
+	$(MAKE) dash.cmxa
 	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
 
 shell : $(MLFILES) shell.ml
+	$(MAKE) dash.cmxa
 	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
 
 runtest : $(MLFILES) $(TESTFILES) runtest.ml
+	$(MAKE) dash.cmxa
 	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
 
 signal_platform.lem : mk_signal_platform.sh
 	./mk_signal_platform.sh >signal_platform.lem
 
-dash.cmxa : ../libdash/dash.cmxa
+dash.cmxa : $(LIBDASH)/ocaml/dash.cmxa libdash.a
 
-../libdash/dash.cmxa :
-	make -C ../libdash dash.cmxa
+libdash.a : $(LIBDASH)/ocaml/libdash.a
+	cp $< $@
+
+$(LIBDASH)/ocaml/dash.cmxa :
+	make -C $(LIBDASH)/ocaml dash.cmxa
 
 %.ml : %.lem
 	lem -ocaml $<
@@ -45,3 +54,4 @@ clean :
 
 veryclean : clean
 	-rm -f signal_platform.lem
+	-rm -f libdash.a
