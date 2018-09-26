@@ -27,6 +27,10 @@
     
   + write more tests
 
+- generate symbolic results of unknown executables
+- symbolic pathname expansion
+- mark symbolic OS changes/unspecified states/unsoundness and move on
+
 - other built-ins
 - non-special shell variables
   LINENO
@@ -41,10 +45,6 @@
   can implement Sh_nolog
 
 - expansion: make null more explicit... simplify matches?
-
-- symbolic pathname expansion
-
-- mark symbolic OS changes/unspecified states/unsoundness and move on
 
 ### Long-term
 
