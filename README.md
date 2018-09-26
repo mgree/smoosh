@@ -8,4 +8,8 @@ You'll need to have [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) installed. Where
 
 Smoosh depends on [libdash](https://github.com/mgree/libdash), but simply uses it as a submodule.
 
-The script `compile.sh` should compile the whole lot and run the unit tests. There will be two resulting executables: `src/expand` is the symbolic expander and `src/shell` is a usable shell.
+The default `all` target of the `Makefile` should compile the whole lot and run the unit tests. There will be two resulting executables of interest: `src/expand` is the symbolic expander and `src/shell` is a usable shell.
+
+# How to test it
+
+Run `make test`. It will run the tests in `libdash/ocaml` as well as those in `src/runtest`.
