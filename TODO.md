@@ -1,6 +1,9 @@
 ### Paper TODO
 
 - Dockerfile for installing smoosh
+  + change libdash to actually install things
+  + change libdash/ocaml to use ocamlfind/ocamlbuild
+  + change src to use ocamlfind/ocamlbuild
 - get server up
   + install ruby
   + fold out web repo
