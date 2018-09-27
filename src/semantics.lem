@@ -1436,10 +1436,10 @@ let rec full_evaluation_multi os0 stmts =
   end
 
 (* convenience functions for shell *)
-val real_eval : os_state real -> stmt -> os_state real
+val real_eval : os_state system -> stmt -> os_state system
 let real_eval os c = full_evaluation os c
 
-val real_eval_for_exit_code : os_state real -> stmt -> nat
+val real_eval_for_exit_code : os_state system -> stmt -> nat
 let real_eval_for_exit_code os = eval os
 
 (**********************************************************************)   

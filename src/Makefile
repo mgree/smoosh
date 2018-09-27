@@ -1,13 +1,15 @@
 # change these paths as necessary
-LEMLIB=~/lem/ocaml-lib
 LIBDASH=../libdash
+
+LEMOCAML=$(LEMLIB)/../ocaml-lib
 
 PRELUDEFILES=fsh_num.lem signal.lem fsh_prelude.lem signal_platform.lem os.lem 
 LEMFILES=fsh.lem arith.lem pattern.lem path.lem command.lem semantics.lem
 
 OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48
 OCAMLLIB=$(shell opam config var lib)
-OCAMLINCLUDES=-I $(LEMLIB) -I $(LEMLIB)/dependencies/zarith -I $(LIBDASH)/ocaml -I $(OCAMLLIB)/bytes -I $(OCAMLLIB)/ctypes
+# belt and suspenders here for the OCAML library directory... :(
+OCAMLINCLUDES=-I $(LEMOCAML) -I $(LEMOCAML)/dependencies/zarith -I $(LEMOCAML)/_build_num -I $(LIBDASH)/ocaml -I $(OCAMLLIB)/bytes -I $(OCAMLLIB)/ctypes
 OCAMLLIBS=unix.cmxa bigarray.cmxa str.cmxa ctypes.cmxa ctypes-foreign-base.cmxa ctypes-foreign-unthreaded.cmxa
 OCAMLGENLIBS=zarith.cmxa nums.cmxa extract.cmxa
 
@@ -33,7 +35,7 @@ shell : $(MLFILES) shell.ml
 
 runtest : $(MLFILES) $(TESTFILES) runtest.ml
 	$(MAKE) dash.cmxa
-	ocamlopt.opt $(OCAMLARGS) $^ -o $@ 
+	ocamlopt.opt $(OCAMLARGS) $^ -o $@
 
 signal_platform.lem : mk_signal_platform.sh
 	./mk_signal_platform.sh >signal_platform.lem
@@ -51,6 +53,7 @@ $(LIBDASH)/ocaml/dash.cmxa :
 
 clean :
 	-rm -f $(PRELUDEFILES:.lem=.ml) $(LEMFILES:.lem=.ml)
+	-rm expand shell runtest
 	-rm *.{cmi,cmo,cmx,o} *~
 
 veryclean : clean

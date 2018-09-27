@@ -24,3 +24,4 @@ signal_platform.lem
 signal_platform.ml
 signal.ml
 libdash.a
+runtest

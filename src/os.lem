@@ -807,7 +807,7 @@ let get_stdout os = fromMaybe "" (index os.symbolic.fifos 1)
 (* REAL OS STATE INSTANCE *********************************************)
 (**********************************************************************)
 
-type real = unit
+type system = unit
 
 let force_concrete ss =
   match try_concrete ss with
@@ -826,7 +826,7 @@ declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
 val real_execve : forall 'a. string -> list string -> list string -> 'a
 declare ocaml target_rep function real_execve = `System.real_execve`
 
-val real_fork_and_eval : list int -> os_state real -> stmt -> nat
+val real_fork_and_eval : list int -> os_state system -> stmt -> nat
 declare ocaml target_rep function real_fork_and_eval = `System.real_fork_and_eval`
 
 val real_waitpid : nat -> nat
@@ -1075,5 +1075,5 @@ instance (OS unit)
 
 end
 
-val real_set_sh_opt : os_state real -> sh_opt -> os_state real
+val real_set_sh_opt : os_state system -> sh_opt -> os_state system
 let real_set_sh_opt os opt = set_sh_opt os opt

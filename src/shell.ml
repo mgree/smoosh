@@ -118,7 +118,7 @@ let setup_handlers () =
       | Some cmd -> ignore (!System.real_eval_string cmd))
 
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
-let initialize_env s0 : real os_state =
+let initialize_env s0 : system os_state =
   (* will bork if we have privileges *)
   let environ = System.real_environment () in
   let set (x,v) os = 
