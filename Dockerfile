@@ -18,7 +18,7 @@ RUN sudo apt-get install -y libffi-dev && \
     opam install ctypes-foreign
 
 # system support for libdash
-RUN sudo apt-get install -y autoconf
+RUN sudo apt-get install -y autoconf libtool
 
 # set up lem
 # TODO fix a Lem version to use
@@ -32,8 +32,10 @@ ENV LEMLIB="/home/opam/lem/library"
 # we do this as late as possible so we don't have to redo the slow stuff above
 ADD --chown=opam:opam libdash libdash
 
-# build libdash
-RUN cd libdash; ./autogen.sh && ./configure && make
+# build libdash, expose shared object
+RUN cd libdash; libtoolize && ./autogen.sh && ./configure
+RUN cd libdash; make
+ENV LD_LIBRARY_PATH="/home/opam/libdash/src/.libs/:${LD_LIBARY_PATH}"
 # build ocaml bindings
 RUN cd libdash/ocaml; opam config exec -- make
 
