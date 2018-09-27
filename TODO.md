@@ -1,5 +1,6 @@
 ### Paper TODO
 
+- Dockerfile for installing smoosh
 - get server up
   + install ruby
   + fold out web repo
