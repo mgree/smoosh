@@ -1,9 +1,6 @@
 ### Paper TODO
 
 - Dockerfile for installing smoosh
-  + change libdash to actually install things
-  + change libdash/ocaml to use ocamlfind/ocamlbuild
-  + change src to use ocamlfind/ocamlbuild
 - get server up
   + install ruby
   + fold out web repo
@@ -14,6 +11,8 @@
   + copy install instructions into top-level readme
 
 ### Bugs
+
+- broken interaction in Lem leads to an invalid argument somewhere, probably due to Big_int
 
 ### Last of the shell semantics
 
