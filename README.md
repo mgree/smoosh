@@ -4,12 +4,16 @@ Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OC
 
 # How to build it
 
-You'll need to have [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) installed. Wherever you put it, you'll need to edit `src/Makefile` so that `LEMLIB` is defined to point to the Lem `ocaml-lib` directory.
+The easiest way to build the code is with Docker. The included `Dockerfile` will generate an image with Lem and all of the necessary libraries.
 
-Smoosh depends on [libdash](https://github.com/mgree/libdash), but simply uses it as a submodule.
-
-The default `all` target of the `Makefile` should compile the whole lot and run the unit tests. There will be two resulting executables of interest: `src/expand` is the symbolic expander and `src/shell` is a usable shell.
+To build by hand, you should more or less follow the steps in the Dockerfile, adapting to your system. (For example, on OS X, you'll probably want to install directly to `/usr/local`.)
 
 # How to test it
 
-Run `make test`. It will run the tests in `libdash/ocaml` as well as those in `src/runtest`.
+There are two sets of relevant tests: the libdash tests (in `libdash/test`) and the smoosh tests (in `src`). Both have directories have `Makefile`s with appropriate test targets, so you can test both by running:
+
+```
+make -C libdash/test test
+make -C src/ test
+```
+
