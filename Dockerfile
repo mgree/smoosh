@@ -25,6 +25,7 @@ RUN sudo apt-get install -y autoconf libtool
 RUN git clone https://github.com/rems-project/lem.git
 RUN cd ~/lem/ocaml-lib; opam config exec -- make install_dependencies
 RUN cd lem; opam config exec -- make
+RUN cd lem; opam config exec -- make install
 ENV PATH="/home/opam/lem/bin:${PATH}"
 ENV LEMLIB="/home/opam/lem/library"
 
@@ -44,7 +45,7 @@ ADD --chown=opam:opam src src
 ADD --chown=opam:opam README.md .
 
 # build smoosh
-#RUN cd src; opam config exec -- make
+RUN cd src; opam config exec -- make
 
 ENTRYPOINT [ "opam", "config", "exec", "--" ]
 CMD [ "bash" ]
