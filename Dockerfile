@@ -33,18 +33,18 @@ ENV LEMLIB="/home/opam/lem/library"
 ADD --chown=opam:opam libdash libdash
 
 # build libdash, expose shared object
-RUN cd libdash; libtoolize && ./autogen.sh && ./configure
+RUN cd libdash; ./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu
 RUN cd libdash; make
-ENV LD_LIBRARY_PATH="/home/opam/libdash/src/.libs/:${LD_LIBARY_PATH}"
+RUN cd libdash; sudo make install
 # build ocaml bindings
-RUN cd libdash/ocaml; opam config exec -- make
+RUN cd libdash/ocaml; opam config exec -- make && opam config exec -- make install
 
 # copy in repo files for smoosh to the WORKDIR
 ADD --chown=opam:opam src src
 ADD --chown=opam:opam README.md .
 
 # build smoosh
-RUN cd src; opam config exec -- make
+#RUN cd src; opam config exec -- make
 
 ENTRYPOINT [ "opam", "config", "exec", "--" ]
 CMD [ "bash" ]
