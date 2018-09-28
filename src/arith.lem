@@ -24,6 +24,57 @@ type arith_token 'a =
   | TVarBitAndEq | TVarBitOrEq | TVarBitXOrEq
   | TLParen | TRParen
 
+val tokenEqual : forall 'a. Eq 'a => arith_token 'a -> arith_token 'a -> bool
+let rec tokenEqual t1 t2 =
+  match (t1, t2) with
+  | (TNum n1, TNum n2) -> n1 = n2
+  | (TVar x1, TVar x2) -> x1 = x2
+  | (TPlus, TPlus) -> true
+  | (TMinus, TMinus) -> true
+  | (TTimes, TTimes) -> true
+  | (TDiv, TDiv) -> true
+  | (TMod, TMod) -> true
+  | (TBitNot, TBitNot) -> true
+  | (TBoolNot, TBoolNot) -> true
+  | (TLShift, TLShift) -> true
+  | (TRShift, TRShift) -> true
+  | (TLt, TLt) -> true
+  | (TLte, TLte) -> true
+  | (TGt, TGt) -> true
+  | (TGte, TGte) -> true
+  | (TEq, TEq) -> true
+  | (TNEq, TNEq) -> true
+  | (TBitAnd, TBitAnd) -> true
+  | (TBitOr, TBitOr) -> true
+  | (TBitXOr, TBitXOr) -> true
+  | (TBoolAnd, TBoolAnd) -> true
+  | (TBoolOr, TBoolOr) -> true
+  | (TQuestion, TQuestion) -> true
+  | (TColon, TColon) -> true
+  | (TVarEq, TVarEq) -> true
+  | (TVarPlusEq, TVarPlusEq) -> true
+  | (TVarMinusEq, TVarMinusEq) -> true
+  | (TVarTimesEq, TVarTimesEq) -> true
+  | (TVarDivEq, TVarDivEq) -> true
+  | (TVarModEq, TVarModEq) -> true
+  | (TVarLShiftEq, TVarLShiftEq) -> true
+  | (TVarRShiftEq, TVarRShiftEq) -> true
+  | (TVarBitAndEq, TVarBitAndEq) -> true
+  | (TVarBitOrEq, TVarBitOrEq) -> true
+  | (TVarBitXOrEq, TVarBitXOrEq) -> true
+  | (TLParen, TLParen) -> true
+  | (TRParen, TRParen) -> true
+  | _ -> false
+  end
+
+instance forall 'a. Eq 'a => (Eq (arith_token 'a))
+  let (=) = tokenEqual
+  let (<>) x y = not (tokenEqual x y)
+end            
+
+val eq_token_integer : arith_token integer -> arith_token integer -> bool
+let eq_token_integer t1 t2 = t1 = t2
+                  
 type BinaryOperator =
     Plus
   | Minus
@@ -54,6 +105,35 @@ type arith_exp 'a =
   | BinOp of BinaryOperator * arith_exp 'a * arith_exp 'a
   | AssignVar of string * (maybe BinaryOperator) * arith_exp 'a
 
+val arithEqual : forall 'a. Eq 'a => arith_exp 'a -> arith_exp 'a -> bool
+let rec arithEqual a1 a2 =
+  match (a1, a2) with
+  | (Num n1, Num n2) -> n1 = n2
+  | (Var x1, Var x2) -> x1 = x2
+  | (Neg a1', Neg a2') -> arithEqual a1' a2'
+  | (BitNot a1', BitNot a2') -> arithEqual a1' a2'
+  | (BoolNot a1', BoolNot a2') -> arithEqual a1' a2'
+  | (Conditional a11 a12 a13, Conditional a21 a22 a23) ->
+     arithEqual a11 a21 &&
+     arithEqual a12 a22 &&
+     arithEqual a13 a23 
+  | (BinOp op1 a11 a12, BinOp op2 a21 a22) ->
+     arithEqual a11 a21 &&
+     arithEqual a12 a22 &&
+     op1 = op2
+  | (AssignVar x1 op1 a1', AssignVar x2 op2 a2') ->
+     x1 = x2 && op1 = op2 && arithEqual a1' a2'
+  | _ -> false
+  end
+
+instance forall 'a. Eq 'a => (Eq (arith_exp 'a))
+  let (=) = arithEqual
+  let (<>) x y = not (arithEqual x y)
+end            
+
+val eq_arith_integer : arith_exp integer -> arith_exp integer -> bool
+let eq_arith_integer t1 t2 = t1 = t2
+               
 val lexer : forall 'a. Read 'a => (list char) -> either string (list (arith_token 'a))
 val span : (char -> bool) -> (list char) -> ((list char) * list char)
 

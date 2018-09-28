@@ -8,7 +8,7 @@ OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num -linkpkg
 MLFILES=config.ml system.ml $(PRELUDEFILES:.lem=.ml) shim.ml $(LEMFILES:.lem=.ml)
 TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_evaluation.ml
 
-.PHONY : all clean veryclean test
+.PHONY : all test clean veryclean
 
 all : expand shell runtest
 

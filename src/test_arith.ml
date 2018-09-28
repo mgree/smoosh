@@ -52,10 +52,16 @@ let rec token_list_to_string = function
 let rec string_of_aexp aexp : string = "Aexp" (* TODO 2018-08-10 fixme *)
 
 let check_lexer (name, input, expected_out) =
-  checker (lexer instance_Fsh_num_Read_Num_integer_dict) (=) (name, Xstring.explode input, expected_out)
+  checker 
+    (lexer instance_Fsh_num_Read_Num_integer_dict) 
+    (Either.eitherEqualBy (=) (Lem_list.listEqualBy eq_token_integer))
+    (name, Xstring.explode input, expected_out)
 
-let check_parser = checker (either_monad parse_arith_exp) (=)
-
+let check_parser = 
+  checker 
+    (either_monad parse_arith_exp) 
+    (Either.eitherEqualBy (=) eq_arith_integer)
+                 
 let eval_equals out expected =
   match (out, expected) with
   | (Either.Right (s1, n1), Either.Right (s2, n2)) -> n1 = n2 && (Pmap.equal (=) s1.sh.env s2.sh.env)
