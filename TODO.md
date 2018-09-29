@@ -1,14 +1,15 @@
 ### Paper TODO
 
-- Dockerfile for installing smoosh
+- Dockerfile
+  + lem as a git submodule (update locally?)
+  + rename fsh_*.lem
+  + Dockerfile.test to run the actual tests
 - get server up
   + install ruby
   + fold out web repo
-  + run expander in a chroot jail
+  + run expander in a chroot jail... or simply via Docker?
 - run POSIX tests on dash, bash, and smoosh
 - write paper
-- build artifact
-  + copy install instructions into top-level readme
 
 ### Bugs
 
