@@ -5,6 +5,7 @@
   + fold out web repo
   + run expander in a chroot jail... or simply via Docker?
 - run POSIX tests on dash, bash, and smoosh
+  + Dockerfile for loading POSIX tests
 - write paper
 
 ### Bugs
