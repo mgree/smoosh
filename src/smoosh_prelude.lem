@@ -1077,14 +1077,16 @@ let int64ToFields n = [symbolic_string_of_string (write n)]
 val assigns_of_env : env -> list (string * fields)
 let assigns_of_env env = map (fun (x,v) -> (x,[v])) (Map_extra.toList env)
 
-val command_eval : symbolic_string -> stmt
-let command_eval cmd =
+val simple_command : string -> fields -> stmt
+let simple_command cmd args =
   CommandExpRedirs 
     [] 
-    [ symbolic_string_of_string "eval"
-    ; cmd]
+    ((symbolic_string_of_string cmd)::args)
     ([], Nothing, [])
     true (* allow functions *)
+
+val command_eval : symbolic_string -> stmt
+let command_eval cmd = simple_command "eval" [cmd]
 
 val pushredir : stmt -> saved_fds -> stmt
 let pushredir stmt saved_fds =

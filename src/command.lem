@@ -127,6 +127,20 @@ let rec getopts opts fields =
   end
 
 (**********************************************************************)
+(* PID RESOLUTION *****************************************************)
+(**********************************************************************)
+
+let pid_of_symbolic_string _s0 ss =
+  match try_concrete ss with
+  | Nothing -> Left ("couldn't translate symbolic string '" ^ string_of_symbolic_string ss ^ "'")
+  | Just s ->
+     match readNat (toCharList s) with
+     | Left _ -> Left ("Illegal number: " ^ s)
+     | Right pid -> Right pid
+     end
+  end
+
+(**********************************************************************)
 (* SPECIAL BUILTINS ***************************************************)
 (**********************************************************************)
 
@@ -1116,6 +1130,28 @@ let builtin_unalias s0 argv _env =
   | _ -> remove_aliases s0 argv
   end
 
+let builtin_wait s0 argv _env = 
+  match argv with
+  | [] ->
+     (* TODO 2018-10-01 wait on all processes, return 0 *)
+     Right (exit_with 0 s0, Done)
+  | pid::pids' ->
+     match pid_of_symbolic_string s0 pid with
+     | Left msg -> Left (s0, msg)
+     | Right pid ->
+        (* some indirect recursion... 
+           waitpid in os.lem needs step_eval, which we don't have access to *)
+        let next = 
+          if null pids'
+          then Wait pid
+          else Semi 
+                 (Wait pid) 
+                 (simple_command "wait" pids')
+        in
+        Right (s0, next)
+     end
+  end
+
 (* TODO 2018-08-13 *)
 
 (* job control *)
@@ -1128,7 +1164,6 @@ let builtin_fg = builtin_unimplemented
 let builtin_jobs = builtin_unimplemented (* not terrible, need OS calls *)
 
 (* process control *)
-let builtin_wait = builtin_unimplemented (* easy *)
 let builtin_kill = builtin_unimplemented (* not so bad, may need to generate more for kill -l *)
 
 (* history *)
