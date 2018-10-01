@@ -51,5 +51,5 @@ let run_tests () =
   (* core path matching tests *)
   test_part "Match path" check_match_path show_list match_path_tests test_count failed;
 
-  printf "=== ...ran %d path/fs tests with %d failures.\n\n" !test_count !failed
-
+  printf "=== ...ran %d path/fs tests with %d failures.\n\n" !test_count !failed;
+  !failed = 0

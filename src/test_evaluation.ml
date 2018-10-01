@@ -202,5 +202,5 @@ let run_tests () =
   print_endline "=== Running evaluation tests...";
   test_part "Exit code" check_exit_code string_of_int exit_code_tests test_count failed;
   test_part "Output on STDOUT" check_stdout (fun s -> s) stdout_tests test_count failed;
-  printf "=== ...ran %d evaluation tests with %d failures.\n\n" !test_count !failed
-
+  printf "=== ...ran %d evaluation tests with %d failures.\n\n" !test_count !failed;
+  !failed = 0

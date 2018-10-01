@@ -318,5 +318,6 @@ let run_tests () =
   test_part "Eval int32" check_eval_int32 (Either.either_case id prnt) (eval_int32_tests Int32.of_int Int32.mul) test_count failed;
   test_part "Eval int64" check_eval_int64 (Either.either_case id prnt) (eval_int64_tests Int64.of_int Int64.mul) test_count failed;
 
-  printf "=== ...ran %d arithmetic tests with %d failures.\n\n" !test_count !failed
+  printf "=== ...ran %d arithmetic tests with %d failures.\n\n" !test_count !failed;
+  !failed = 0
 
