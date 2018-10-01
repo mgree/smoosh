@@ -10,15 +10,13 @@
 
 ### Bugs
 
-- broken interaction in Lem leads to an invalid argument somewhere, probably due to Big_int
+- eval and ./source should work in a line-oriented fashion
 
 ### Last of the shell semantics
 
 - tests that read stdout
   + tests for pipes and redirects
 - eval/.
-  + properly handle errors in the dash parser 
-    
   + write more tests
 
 - generate symbolic results of unknown executables

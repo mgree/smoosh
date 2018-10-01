@@ -340,7 +340,16 @@ let builtin_eval s0 argv _env =
   then Right (exit_with 0 s0, Done, true)
   else 
     let stmts = parse_string (string_of_fields argv) in
-    (* TODO 2018-09-05 won't do the right thing for, e.g., alias *)
+    (* TODO 2018-09-05 evalstring seems to allow arbitrary command here.
+
+       $ eval "alias x=echo
+       > x hi"
+       hi
+
+       with the alias remaining. current impl. here won't support that 
+       properly, since we won't set the alias in the first command for 
+       the parser to see it in the second
+     *)
     Right (s0, foldr Semi (Command [] [] []) stmts, true)
 
 let builtin_source s0 argv _env = 
@@ -811,11 +820,15 @@ let command_type s0 path cmd =
   then CmdSpecial
   else if is_builtin cmd
   then CmdBuiltin
-  else if Map.member cmd s0.sh.funcs
-  then CmdFunction
-  else match resolve_command_name_in_path s0 path cmd with
-       | Nothing -> CmdNotFound
-       | Just executable -> CmdPath executable
+  else match Map.lookup cmd s0.sh.aliases with
+       | Just mapping -> CmdAlias mapping
+       | Nothing ->
+          if Map.member cmd s0.sh.funcs
+          then CmdFunction
+          else match resolve_command_name_in_path s0 path cmd with
+               | Just executable -> CmdPath executable
+               | Nothing -> CmdNotFound
+               end
        end
 
 let concise_command_type s0 path cmd =
