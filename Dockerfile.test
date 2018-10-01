@@ -1,0 +1,7 @@
+FROM smoosh
+
+ENTRYPOINT [ "opam", "config", "exec", "--" ]
+CMD make -C libdash/test test && \
+    make -C src/ test && \
+    echo ======================================================================== \
+    && echo ALL TESTS PASSED >&2

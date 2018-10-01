@@ -1,7 +1,5 @@
 ### Paper TODO
 
-- Dockerfile
-  + Dockerfile.test to run the actual tests
 - get server up
   + install ruby
   + fold out web repo
