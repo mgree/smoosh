@@ -1130,10 +1130,26 @@ let builtin_unalias s0 argv _env =
   | _ -> remove_aliases s0 argv
   end
 
+(* TODO 2018-10-01
+
+   When a signal for which a trap has been set is received while the
+   shell is waiting for the completion of a utility executing a
+   foreground command, the trap associated with that signal shall not
+   be executed until after the foreground command has completed. When
+   the shell is waiting, by means of the wait utility, for
+   asynchronous commands to complete, the reception of a signal for
+   which a trap has been set shall cause the wait utility to return
+   immediately with an exit status >128, immediately after which the
+   trap associated with that signal shall be taken. *)
 let builtin_wait s0 argv _env = 
   match argv with
   | [] ->
-     (* TODO 2018-10-01 wait on all processes, return 0 *)
+     (* TODO 2018-10-01 wait on all processes
+
+        returns 0
+
+        once we have a job list, we should just iterate through each
+        of those and wait on each---see jobs.c:603 *)
      Right (exit_with 0 s0, Done)
   | pid::pids' ->
      match pid_of_symbolic_string s0 pid with
@@ -1152,29 +1168,34 @@ let builtin_wait s0 argv _env =
      end
   end
 
-(* TODO 2018-08-13 *)
+(* TODO 2018-10-01 remaining worthwhile operations *)
 
-(* job control *)
-(* need job PID resolution: 
-   http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_204 *)
-(* bg/fg are implemented as the same command in dash. 
-   not too bad, need some fancy logic per restartjob *)
-let builtin_bg = builtin_unimplemented
-let builtin_fg = builtin_unimplemented
-let builtin_jobs = builtin_unimplemented (* not terrible, need OS calls *)
+(* parsing/printing *)
+let builtin_getopts = builtin_unimplemented (* OPTIND, OPTARG. trickiness with ? and : *)
+let builtin_printf = builtin_unimplemented (* lots of weird formatting *)
+let builtin_read = builtin_unimplemented (* relatively easy, need to split fields *)
+let builtin_test = builtin_unimplemented (* need to build a parser, lots of OS stuff. but -o and -a are XSI, can skip for now *)
 
 (* process control *)
 let builtin_kill = builtin_unimplemented (* not so bad, may need to generate more for kill -l *)
 
 (* history *)
 let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stuff *)
+(* TODO 2018-08-13 job control *)
+(* need job PID resolution: 
+   http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_204 
 
-(* parsing/printing *)
-let builtin_getopts = builtin_unimplemented (* OPTIND, OPTARG. trickiness with ? and : *)
+   implemented in pid_of_symbolic_string, which takes the OS state already
+   just needs to parse things out   
+ *)
+(* bg/fg are implemented as the same command in dash. 
+   not too bad, need some fancy logic per restartjob *)
+let builtin_bg = builtin_unimplemented (* UP *)
+let builtin_fg = builtin_unimplemented (* UP *)
+let builtin_jobs = builtin_unimplemented (* UP *) (* not terrible, need OS calls *)
+
+(* LATER 2018-10-01 *)
 let builtin_local = builtin_unimplemented (* unspec, but nice to have? *)
-let builtin_printf = builtin_unimplemented (* lots of weird formatting *)
-let builtin_read = builtin_unimplemented (* relatively easy, need to split fields *)
-let builtin_test = builtin_unimplemented (* need to build a parser, lots of OS stuff. but -o and -a are XSI, can skip for now *)
 
 (* POSIX user control *)
 let builtin_ulimit = builtin_unimplemented (* XSI *)

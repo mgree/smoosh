@@ -26,6 +26,7 @@ let real_execve (cmd : string) (argv : string list) (environ : string list) : 'a
   Unix.execve cmd (Array.of_list (cmd::argv)) (Array.of_list environ)
 
 let real_fork_and_eval (handlers : int list) (os : 'a) (stmt : 'b) : int =
+  (* TODO 2018-10-01 use vfork? *)
   match Unix.fork () with
   | 0 -> 
      List.iter (fun signal -> Sys.set_signal signal Signal_ignore) handlers;

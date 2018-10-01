@@ -11,8 +11,16 @@
 ### Bugs
 
 - eval and ./source should work in a line-oriented fashion
+- not properly catching SIGINT at the toplevel
+  dash raises a top-level exception, handles it in main.c:123
+  probably wrong in system.ml:42
+  need to setup a handler in shell.ml
 
 ### Last of the shell semantics
+
+- job list
+  use fork_and_subshell to record jobs
+  need an interface to check current job statuses
 
 - tests that read stdout
   + tests for pipes and redirects
