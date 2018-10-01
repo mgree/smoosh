@@ -2,3 +2,6 @@
 	path = libdash
 	url = https://github.com/mgree/libdash
 	branch = master
+[submodule "lem"]
+	path = lem
+	url = https://github.com/rems-project/lem

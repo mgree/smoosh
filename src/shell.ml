@@ -1,5 +1,5 @@
 open Config
-open Fsh
+open Smoosh
 open Semantics
 
 (**********************************************************************)

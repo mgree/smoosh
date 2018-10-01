@@ -1,4 +1,4 @@
-open import Fsh
+open import Smoosh
 
 open import Arith
 open import Pattern
@@ -678,18 +678,18 @@ and step_eval s0 stmt =
 
      $ count() { echo $# ; }
      $ count ${x?one two three}                            # never runs count
-     /Users/mgree/fsh/dash/src/dash: 2: x: one two three
+     /Users/mgree/smoosh/dash/src/dash: 2: x: one two three
      $ count $(echo ${x?one two three})                    # subshell fails, but count will run!
-     /Users/mgree/fsh/dash/src/dash: 2: x: one two three
+     /Users/mgree/smoosh/dash/src/dash: 2: x: one two three
      0
      $ count $(echo ${x?one two three} four)
-     /Users/mgree/fsh/dash/src/dash: 3: x: one two three
+     /Users/mgree/smoosh/dash/src/dash: 3: x: one two three
      0
      $ count $(echo ${x?one two three}) four
-     /Users/mgree/fsh/dash/src/dash: 4: x: one two three
+     /Users/mgree/smoosh/dash/src/dash: 4: x: one two three
      1
      $ count $(${x? one two three}) four
-     /Users/mgree/fsh/dash/src/dash: 5: x:  one two three
+     /Users/mgree/smoosh/dash/src/dash: 5: x:  one two three
   *)
   match stmt with
   (* COMMAND ******************************************************************)

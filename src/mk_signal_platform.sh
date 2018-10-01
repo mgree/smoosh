@@ -6,7 +6,7 @@ set -e
 SIGNALS="SIGABRT SIGALRM SIGBUS SIGCHLD SIGCONT SIGFPE SIGHUP SIGILL SIGINT SIGKILL SIGPIPE SIGQUIT SIGSEGV SIGSTOP SIGTERM SIGTSTP SIGTTIN SIGTTOU SIGUSR1 SIGUSR2 SIGTRAP SIGURG SIGXCPU SIGXFSZ"
 
 cat <<EOF 
-open import Fsh_prelude
+open import Smoosh_prelude
 
 val platform_int_of_signal : signal -> nat
 let platform_int_of_signal signal =

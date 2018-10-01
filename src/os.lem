@@ -1,4 +1,4 @@
-open import Fsh_prelude
+open import Smoosh_prelude
 include import Signal_platform
 import Debug
                                    

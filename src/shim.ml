@@ -1,7 +1,7 @@
 open Ctypes
 open Foreign
 open Dash
-open Fsh_prelude
+open Smoosh_prelude
 open Os
 
 let skip = Command ([],[],[])

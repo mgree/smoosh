@@ -1,8 +1,8 @@
 (*
  * Parse and evaluate a string representing the arithmetic operation
  *)
-open import Fsh_num
-open import Fsh
+open import Smoosh_num
+open import Smoosh
 
 type arith_token 'a =
     TNum of 'a
@@ -212,6 +212,9 @@ let rec lexer str =
           else Left ((toString [c]) ^ " is an unrecognized character")
       end
   end
+
+val lexer_integer : (list char) -> either string (list (arith_token integer))
+let lexer_integer cs = lexer cs
 
 val parse_assignment : forall 'a. (list (arith_token 'a)) -> either string ((arith_exp 'a) * list (arith_token 'a))
 

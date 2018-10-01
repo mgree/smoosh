@@ -1,4 +1,4 @@
-open Fsh
+open Smoosh
    
 (***********************************************************************)
 (* TEST SCAFFOLDING ****************************************************)
@@ -30,7 +30,7 @@ let test_part name checker stringOfExpected tests count failed =
 (* OS UTILITY FUNCTIONS ************************************************)
 (***********************************************************************)
 
-let add_literal_env_string k v s0 = internal_set_param k (Fsh.symbolic_string_of_string v) s0
+let add_literal_env_string k v s0 = internal_set_param k (symbolic_string_of_string v) s0
                                   
 let os_var_x_null : symbolic os_state = add_literal_env_string "x" "" os_empty
 let os_var_x_set : symbolic os_state = add_literal_env_string "x" "bar" os_empty

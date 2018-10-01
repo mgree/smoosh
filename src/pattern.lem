@@ -1,4 +1,4 @@
-open import Fsh
+open import Smoosh
    
 type match_result 'a =
   NoMatch

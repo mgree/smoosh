@@ -1,6 +1,6 @@
 open Test_prelude
-open Fsh_num
-open Fsh
+open Smoosh_num
+open Smoosh
 open Arith
 open Printf
 
@@ -53,7 +53,7 @@ let rec string_of_aexp aexp : string = "Aexp" (* TODO 2018-08-10 fixme *)
 
 let check_lexer (name, input, expected_out) =
   checker 
-    (lexer instance_Fsh_num_Read_Num_integer_dict) 
+    lexer_integer
     (Either.eitherEqualBy (=) (Lem_list.listEqualBy eq_token_integer))
     (name, Xstring.explode input, expected_out)
 
@@ -69,15 +69,15 @@ let eval_equals out expected =
   | _ -> false
 
 let check_eval_big_num (name, state, input, expected_out) =
-  checker (symbolic_arith_big_num state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
+  checker (symbolic_arith_big_num state) eval_equals (name, List.map (fun c -> Smoosh.C c) (Xstring.explode input),
     either_monad (fun (st, n) -> Right (st, integerToFields n)) expected_out)
 
 let check_eval_int32 (name, state, input, expected_out) =
-  checker (symbolic_arith32 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
+  checker (symbolic_arith32 state) eval_equals (name, List.map (fun c -> Smoosh.C c) (Xstring.explode input),
     either_monad (fun (st, n) -> Right (st, int32ToFields n)) expected_out)
 
 let check_eval_int64 (name, state, input, expected_out) =
-  checker (symbolic_arith64 state) eval_equals (name, List.map (fun c -> Fsh.C c) (Xstring.explode input),
+  checker (symbolic_arith64 state) eval_equals (name, List.map (fun c -> Smoosh.C c) (Xstring.explode input),
     either_monad (fun (st, n) -> Right (st, int64ToFields n)) expected_out)
 
 let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either.either)list=
@@ -142,7 +142,7 @@ let lexer_tests:(string*string*(string, (Nat_big_num.num arith_token)list)Either
 
   ])
 
-let lex_string str = lexer instance_Fsh_num_Read_Num_integer_dict (Xstring.explode str)
+let lex_string str = lexer_integer (Xstring.explode str)
 let num n = Num (Nat_big_num.of_int n)
 
 let parser_tests:(string*(string,(Nat_big_num.num arith_token)list)Either.either*(string, Nat_big_num.num arith_exp)Either.either)list=
@@ -300,7 +300,7 @@ let eval_int32_tests ofNumLiteral mul : (string * symbolic os_state * string * (
 let run_tests () =
   let failed = ref 0 in
   let test_count = ref 0 in
-  let prnt = fun (s, n) -> ("<| " ^ (printable_shell_env s) ^ "; " ^ (Fsh.string_of_fields n) ^ " |>") in
+  let prnt = fun (s, n) -> ("<| " ^ (printable_shell_env s) ^ "; " ^ (string_of_fields n) ^ " |>") in
   print_endline "\n=== Running arithmetic tests...";
   (* Lexer tests *)
   test_part "Lexer" check_lexer (Either.either_case id token_list_to_string) lexer_tests test_count failed;

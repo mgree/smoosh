@@ -1,8 +1,6 @@
 ### Paper TODO
 
 - Dockerfile
-  + lem as a git submodule (update locally?)
-  + rename fsh_*.lem
   + Dockerfile.test to run the actual tests
 - get server up
   + install ruby

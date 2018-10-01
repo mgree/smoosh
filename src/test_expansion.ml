@@ -1,5 +1,5 @@
 open Test_prelude
-open Fsh
+open Smoosh
 open Semantics
 open Printf
 
@@ -9,7 +9,7 @@ let check_expansion (test_name, s0, w_in, f_expected) : fields result =
   then Ok
   else Err { msg = test_name; expected = f_expected; got = f_out }
 
-let concrete = List.map (fun x -> List.map (fun c -> Fsh.C c) (Xstring.explode x))
+let concrete = List.map (fun x -> List.map (fun c -> Smoosh.C c) (Xstring.explode x))
 
 let symcommand : symbolic_char = Sym (SymCommand (Command ([], [S "command"], [])))
 let os_var_x_foofoobarbar : symbolic os_state = add_literal_env_string "x" "foofoobarbar" os_empty

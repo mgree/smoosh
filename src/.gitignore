@@ -4,7 +4,7 @@
 *.cmi
 *.cmo
 expand
-fsh_prelude.ml
+smoosh_prelude.ml
 expansion.ml
 arith.ml
 path.ml
@@ -13,10 +13,10 @@ runtest
 _build
 pattern.ml
 locale.ml
-fsh.ml
+smoosh.ml
 evaluation.ml
 semantics.ml
-fsh_num.ml
+smoosh_num.ml
 os.ml
 command.ml
 shell

@@ -1,5 +1,5 @@
 open Test_prelude
-open Fsh
+open Smoosh
 open Path
 open Printf
 

@@ -21,8 +21,7 @@ RUN sudo apt-get install -y libffi-dev && \
 RUN sudo apt-get install -y autoconf libtool
 
 # set up lem
-# TODO fix a Lem version to use
-RUN git clone https://github.com/rems-project/lem.git
+ADD --chown=opam:opam lem lem
 RUN cd ~/lem/ocaml-lib; opam config exec -- make install_dependencies
 RUN cd lem; opam config exec -- make
 RUN cd lem; opam config exec -- make install

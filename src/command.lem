@@ -1,4 +1,4 @@
-open import Fsh
+open import Smoosh
 
 import Debug
 

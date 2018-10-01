@@ -1,5 +1,5 @@
 include import Pervasives_extra
-include import Fsh_num
+include import Smoosh_num
 include import Signal
 
 import Debug
