@@ -11,43 +11,58 @@
 ### Bugs
 
 - eval and ./source should work in a line-oriented fashion
+
 - not properly catching SIGINT at the toplevel
   dash raises a top-level exception, handles it in main.c:123
   probably wrong in system.ml:42
   need to setup a handler in shell.ml
 
+- fork_and_subshell should handle pgrps
+  + needs to know if we're FG or not
+    cf. jobs.c:869
+
 ### Last of the shell semantics
 
-- job list
-  use fork_and_subshell to record jobs
-  need an interface to check current job statuses
-
-- tests that read stdout
-  + tests for pipes and redirects
-- eval/.
-  + write more tests
-
-- generate symbolic results of unknown executables
-- symbolic pathname expansion
-- mark symbolic OS changes/unspecified states/unsoundness and move on
+- Sh_errexit
 
 - other built-ins
+  + getopts
+  + printf
+  + read
+  + test
+  + kill
+  + fc
+  
+- job control
+  + bg
+  + fg
+  + Sh_notify
+  need an interface to check current job statuses
+
+- history
+  + fc
+  + Sh_nolog
+  + HISTFILE
+
 - non-special shell variables
   LINENO
   ENV (interactive only)
   PPID
-  HISTFILE
 - faithful handling of PATH_MAX
 
 - correct application of INTON/INTOFF
 
-- shell history
-  can implement Sh_nolog
+- tests for pipes and redirects
+- eval/.
+  + write more tests
 
 - expansion: make null more explicit... simplify matches?
 
 ### Long-term
 
+- generate symbolic results of unknown executables
+- symbolic pathname expansion
+- mark symbolic OS changes/unspecified states/unsoundness and move on
 - support filesystems in symbolic stepper
 - refactor semantics.lem to use is_terminating_control
     don't immediately step! Break _n -> Done
@@ -81,7 +96,7 @@ JS/webpage
 CLI
   + pretty printer for JSON output
 
-### Bugs
+### Bugs in real shells
 
 Bash
   - Bug related to variable assignments before built in utilities

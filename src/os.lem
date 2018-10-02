@@ -131,6 +131,33 @@ let active_jobs os0 =
   (<| os0 with sh = <| os0.sh with jobs = real_jobs |> |>, 
    real_jobs)
 
+val add_job 
+    : forall 'a. OS 'a =>
+        os_state 'a ->
+        nat (* pid *) -> stmt (* cmd *) ->
+        os_state 'a
+let add_job os0 pid cmd =
+  let highest_job_num = 
+    match os0.sh.jobs with
+    | [] -> 0
+    | _ -> maximum (map (fun job -> job.id) os0.sh.jobs)
+    end in
+  let new_job = 
+    <| id = highest_job_num + 1;
+       pid = pid;
+       cmd = cmd;
+       status = JobRunning;
+       pgrp = pid (* TODO 2018-10-02 need real pgrp numbers *) |> 
+  in
+  let os1 =
+    if Set.member Sh_monitor os0.sh.opts
+    then 
+      let msg = "[" ^ stringFromNat new_job.id ^ "] " ^ stringFromNat pid ^ "\n" in
+      write_stdout msg os0 
+    else os0
+  in
+  <| os1 with sh = <| os1.sh with jobs = new_job::os1.sh.jobs |> |>
+
 val redirect : forall 'a. OS 'a => os_state 'a -> expanded_redir -> either string (os_state 'a * saved_fds)
 let redirect os0 er =
   match er with

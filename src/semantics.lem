@@ -907,7 +907,9 @@ and step_eval s0 stmt =
      let (s1, last_pid) = run_pipe s0 stmts in
      let (s2, c) =
        if bg
-       then (set_last_pid last_pid s1, Done)
+       then
+         let s1' = add_job s1 last_pid (Pipe bg stmts) in
+         (set_last_pid last_pid s1', Done)
        else 
          (* If the pipeline is not in the background (see Asynchronous
             Lists), the shell shall wait for the last command
@@ -952,9 +954,10 @@ and step_eval s0 stmt =
   | Background stmt' ((_, Nothing, []) as redir_state) ->
      (* defer to Redir to load redirs *)
      let (s1,pid) = fork_and_subshell s0 (Redir stmt' redir_state) in
-     let s2 = set_last_pid pid s1 in
+     let s2 = add_job s1 pid (Background stmt' redir_state) in
+     let s3 = set_last_pid pid s2 in
      Right (XSBackground ("started background process with pid " ^ (stringFromNat pid)), 
-            s2, 
+            s3, 
             Done)
   (* expand redirs *)
   | Background stmt' redir_state ->

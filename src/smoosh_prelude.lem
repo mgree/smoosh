@@ -509,9 +509,10 @@ let all_sh_opts =
 let unimplemented_sh_opts = 
   [ (* will not support these *)
     Sh_earlyhash
-  ; Sh_monitor 
-  ; Sh_notify
   ; Sh_vi
+
+    (* TODO 2018-10-02 job control *)
+  ; Sh_notify
 
     (* TODO 2018-09-10 implement remaining set flags *)
     (* need an equivalent of EV_TESTED: extra param to step_eval? *)
