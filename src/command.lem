@@ -133,26 +133,26 @@ let rec getopts opts fields =
 let current_job s0 msg = 
   match s0.sh.jobs with
   | [] -> Left (msg ^ ": no such job")
-  | job::_ -> Right job.pid
+  | job::_ -> Right job
   end
 
 let prev_job s0 =
   match s0.sh.jobs with
   | [] -> Left "%-: no such job"
-  | [job] -> Right job.pid (* pretend we have a circular buffer! *)
-  | _::job::_ -> Right job.pid
+  | [job] -> Right job (* pretend we have a circular buffer! *)
+  | _::job::_ -> Right job
   end
 
 let find_job s0 pred msg =
   match filter pred s0.sh.jobs with
   | [] -> Left (msg ^ ": no such job")
-  | [job] -> Right job.pid (* should only be one! *)
+  | [job] -> Right job (* should only be one! *)
   | _ -> Left ("ambiguous job spec " ^ msg)
   end
 
 let job_cmd_cs job = toCharList (string_of_stmt job.cmd)
 
-let pid_of_symbolic_string s0 ss =
+let job_of_symbolic_string s0 ss =
   match try_concrete ss with
   | Nothing -> Left ("couldn't translate symbolic string '" ^ string_of_symbolic_string ss ^ "'")
   | Just s ->
@@ -167,8 +167,7 @@ let pid_of_symbolic_string s0 ss =
              s0 
              (fun job -> isInfixOf cs (job_cmd_cs job)) 
              ("%?" ^ toString cs)
-        | _ ->
-           match readNat fmt with
+        | _ -> match readNat fmt with
            | Right num -> 
               find_job 
                 s0 
@@ -181,11 +180,25 @@ let pid_of_symbolic_string s0 ss =
                 ("%" ^ toString fmt)
            end
         end
+     | _ -> Left (s ^ ": no such job")
+     end
+  end
+
+let pid_of_symbolic_string s0 ss =
+  match try_concrete ss with
+  | Nothing -> Left ("couldn't translate symbolic string '" ^ string_of_symbolic_string ss ^ "'")
+  | Just s ->
+     match toCharList s with
+     | #'%'::_ ->
+        match job_of_symbolic_string s0 ss with
+        | Right job -> Right job.pid
+        | Left msg -> Left msg
+        end
      | cs -> 
         match readNat cs with
-       | Left _ -> Left ("Illegal number: " ^ s)
-       | Right pid -> Right pid
-       end
+        | Left _ -> Left ("Illegal number: " ^ s)
+        | Right pid -> Right pid
+        end
      end
   end
 
@@ -1217,50 +1230,69 @@ let builtin_wait s0 argv _env =
      end
   end
 
-let show_job terse idx job s0 = 
+type jobs_mode = JobsNormal | JobsTerse | JobsLong
+
+let rec jobs_mode opts =
+  match opts with
+  | [] -> JobsNormal
+  | #'l'::_ -> JobsLong
+  | #'p'::_ -> JobsTerse
+  | _::opts' -> jobs_mode opts'
+  end
+
+let cur_prev_jobs jobs = 
+  match jobs with
+  | [] -> (0,0) (* doesn't matter *)
+  | [job] -> (job.id, job.id)
+  | cur::prev::_ -> (cur.id, prev.id)
+  end
+
+let show_job mode (cur_id, prev_id) job s0 = 
   let msg = 
-    if terse
+    if mode = JobsTerse
     then stringFromNat job.pid
     else 
-      "[" ^ stringFromNat job.id ^ "] " ^ idx ^ " " ^
+      "[" ^ stringFromNat job.id ^ "] " ^ 
+      (if job.id = cur_id 
+       then "+" 
+       else if job.id = prev_id
+       then "-"
+       else " ") ^ " " ^
       pad_right (string_of_job_status job.status) 25 ^ (* width taken from bash *)
       string_of_stmt job.cmd
   in
   write_stdout (msg ^ "\n") s0
 
-let show_jobs terse jobs s0 =
-  let (cur_id,prev_id) = 
-    match jobs with
-    | [] -> (0,0) (* doesn't matter *)
-    | [job] -> (job.id, job.id)
-    | cur::prev::_ -> (cur.id, prev.id)
-    end
-  in
-  let job_idx job =
-    if job.id = cur_id 
-    then "+" 
-    else if job.id = prev_id
-    then "-"
-    else " "
-  in
-  foldl (fun os job -> show_job terse (job_idx job) job os) s0 (sort jobs)
+let show_jobs mode cur_prev jobs s0 =
+  foldl (fun os job -> show_job mode cur_prev job os) s0 (sort jobs)
+
+let rec show_job_specs mode cur_prev specs s0 =
+  match specs with
+  | [] -> Right (exit_with 0 s0, Done)
+  | spec::specs' ->
+     match job_of_symbolic_string s0 spec with
+     | Left msg -> Left (s0, msg)
+     | Right job -> 
+        let s1 = show_job mode cur_prev job s0 in
+        show_job_specs mode cur_prev specs' s1
+     end
+  end
 
 let builtin_jobs s0 argv _env =
   let (opts,argv') = getopts [#'l';#'p'] argv in
+  let mode = jobs_mode opts in
   let s1 = 
-    if elem #'l' opts
+    if mode = JobsLong
     then write_stderr "jobs: -l flag is unimplemented\n" s0
     else s0
   in
-  let terse = elem #'p' opts in
+  let (s2, jobs) = active_jobs s1 in
+  let cur_prev = cur_prev_jobs jobs in
   match argv' with
   | [] -> 
-     let (s2,jobs) = active_jobs s1 in
-     let s3 = show_jobs terse jobs s2 in
+     let s3 = show_jobs mode cur_prev jobs s2 in
      Right (exit_with 0 s3, Done)
-  | _spec::_specs' ->
-     (* TODO 2018-10-02 show each job spec in turn *)
-     Right (write_stderr "jobs: arguments unimplemented\n" s1, Done)
+  | _ -> show_job_specs mode cur_prev argv' s2
   end
 
 (* TODO 2018-10-01 remaining worthwhile operations *)
