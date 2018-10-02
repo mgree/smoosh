@@ -230,6 +230,12 @@ let rec run_pipe_loop s0 stmts fd_prev =
      run_pipe_loop s4 stmts' fd_next
   end
 
+(* TODO 2018-10-02 job control
+   in order to supports jobs -l, need detailed pid and command info 
+   if we just return a list of pids, that'll more or less cover us
+   we'll probably have to change the representation of jobs, too:
+     dash keeps a more detailed jobs spec, cf. jobs.h:66
+ *)
 val run_pipe : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt ->

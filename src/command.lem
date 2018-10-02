@@ -1217,6 +1217,52 @@ let builtin_wait s0 argv _env =
      end
   end
 
+let show_job terse idx job s0 = 
+  let msg = 
+    if terse
+    then stringFromNat job.pid
+    else 
+      "[" ^ stringFromNat job.id ^ "] " ^ idx ^ " " ^
+      pad_right (string_of_job_status job.status) 25 ^ (* width taken from bash *)
+      string_of_stmt job.cmd
+  in
+  write_stdout (msg ^ "\n") s0
+
+let show_jobs terse jobs s0 =
+  let (cur_id,prev_id) = 
+    match jobs with
+    | [] -> (0,0) (* doesn't matter *)
+    | [job] -> (job.id, job.id)
+    | cur::prev::_ -> (cur.id, prev.id)
+    end
+  in
+  let job_idx job =
+    if job.id = cur_id 
+    then "+" 
+    else if job.id = prev_id
+    then "-"
+    else " "
+  in
+  foldl (fun os job -> show_job terse (job_idx job) job os) s0 (sort jobs)
+
+let builtin_jobs s0 argv _env =
+  let (opts,argv') = getopts [#'l';#'p'] argv in
+  let s1 = 
+    if elem #'l' opts
+    then write_stderr "jobs: -l flag is unimplemented\n" s0
+    else s0
+  in
+  let terse = elem #'p' opts in
+  match argv' with
+  | [] -> 
+     let (s2,jobs) = active_jobs s1 in
+     let s3 = show_jobs terse jobs s2 in
+     Right (exit_with 0 s3, Done)
+  | _spec::_specs' ->
+     (* TODO 2018-10-02 show each job spec in turn *)
+     Right (write_stderr "jobs: arguments unimplemented\n" s1, Done)
+  end
+
 (* TODO 2018-10-01 remaining worthwhile operations *)
 
 (* parsing/printing *)
@@ -1231,17 +1277,10 @@ let builtin_kill = builtin_unimplemented (* not so bad, may need to generate mor
 (* history *)
 let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stuff *)
 (* TODO 2018-08-13 job control *)
-(* need job PID resolution: 
-   http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_204 
-
-   implemented in pid_of_symbolic_string, which takes the OS state already
-   just needs to parse things out   
- *)
 (* bg/fg are implemented as the same command in dash. 
    not too bad, need some fancy logic per restartjob *)
 let builtin_bg = builtin_unimplemented (* UP *)
 let builtin_fg = builtin_unimplemented (* UP *)
-let builtin_jobs = builtin_unimplemented (* UP *) (* not terrible, need OS calls *)
 
 (* LATER 2018-10-01 *)
 let builtin_local = builtin_unimplemented (* unspec, but nice to have? *)

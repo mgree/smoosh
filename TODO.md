@@ -37,7 +37,8 @@
   + bg
   + fg
   + Sh_notify
-  need an interface to check current job statuses
+  need to update current job statuses on ECHLD, every command loop
+  jobs command should also be checking!
 
 - history
   + fc

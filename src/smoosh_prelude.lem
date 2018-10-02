@@ -22,6 +22,16 @@ let rec tails xs =
         | _::xs' -> tails xs'
         end
 
+val insert : forall 'a. Ord 'a => 'a -> list 'a -> list 'a
+let rec insert x ys =
+  match ys with
+  | [] -> [x]
+  | y::ys' -> if x <= y then x::y::ys' else y::(insert x ys')
+  end
+
+val sort : forall 'a. Ord 'a => list 'a -> list 'a
+let sort xs = foldr insert [] xs
+
 val isInfixOf : forall 'a. Eq 'a => list 'a -> list 'a -> bool
 let isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
 
@@ -816,7 +826,13 @@ and saved_fds = list (fd * saved_fd_info)
 (* environments *)       
 and env = Map.map string symbolic_string
 
-and job_status = JobRunning | JobStopped | JobDone of nat
+and job_stopped = TSTP | STOP | TTIN | TTOU
+
+and job_status = 
+    JobRunning 
+  | JobStopped of job_stopped 
+  | JobTerminated of signal
+  | JobDone of nat
 
 and job_info = <| 
     id: nat; (* tricky invariant... shouldn't be any dups *)
@@ -853,6 +869,20 @@ val STDERR : fd
 let STDIN = 0
 let STDOUT = 1
 let STDERR = 2
+
+(* for sorting the job list *)
+instance (Eq job_info)
+  let (=) job1 job2 = job1.id = job2.id
+  let (<>) job1 job2 = job1.id <> job2.id
+end
+
+instance (Ord job_info)
+  let compare job1 job2 = compare job1.id job2.id
+  let (<) job1 job2 = job1.id < job2.id
+  let (<=) job1 job2 = job1.id <= job2.id
+  let (>) job1 job2 = job1.id > job2.id
+  let (>=) job1 job2 = job1.id >= job2.id
+end
 
 (**********************************************************************)
 (* SYMBOLIC STRING FUNCTIONS ******************************************)
@@ -1180,8 +1210,22 @@ val is_active_job : job_info -> bool
 let is_active_job job = 
   match job.status with
   | JobRunning -> true
-  | JobStopped -> true
+  | JobStopped _ -> true
+  | JobTerminated _ -> false
   | JobDone _ -> false
+  end
+
+val string_of_job_status : job_status -> string
+let string_of_job_status status =
+  match status with
+  | JobRunning -> "Running"
+  | JobStopped TSTP -> "Stopped (SIGTSTP)"
+  | JobStopped STOP -> "Stopped (SIGSTOP)"
+  | JobStopped TTIN -> "Stopped (SIGTTIN)"
+  | JobStopped TTOU -> "Stopped (SIGTTOU)"
+  | JobTerminated signal -> "Terminated (" ^ string_of_signal signal ^ ")"
+  | JobDone 0 -> "Done"
+  | JobDone code -> "Done (" ^ stringFromNat code ^ ")"
   end
 
 (**********************************************************************)
