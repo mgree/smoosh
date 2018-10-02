@@ -130,13 +130,62 @@ let rec getopts opts fields =
 (* PID RESOLUTION *****************************************************)
 (**********************************************************************)
 
-let pid_of_symbolic_string _s0 ss =
+let current_job s0 msg = 
+  match s0.sh.jobs with
+  | [] -> Left (msg ^ ": no such job")
+  | job::_ -> Right job.pid
+  end
+
+let prev_job s0 =
+  match s0.sh.jobs with
+  | [] -> Left "%-: no such job"
+  | [job] -> Right job.pid (* pretend we have a circular buffer! *)
+  | _::job::_ -> Right job.pid
+  end
+
+let find_job s0 pred msg =
+  match filter pred s0.sh.jobs with
+  | [] -> Left (msg ^ ": no such job")
+  | [job] -> Right job.pid (* should only be one! *)
+  | _ -> Left ("ambiguous job spec " ^ msg)
+  end
+
+let job_cmd_cs job = toCharList (string_of_stmt job.cmd)
+
+let pid_of_symbolic_string s0 ss =
   match try_concrete ss with
   | Nothing -> Left ("couldn't translate symbolic string '" ^ string_of_symbolic_string ss ^ "'")
   | Just s ->
-     match readNat (toCharList s) with
-     | Left _ -> Left ("Illegal number: " ^ s)
-     | Right pid -> Right pid
+     match toCharList s with
+     | #'%'::fmt -> 
+        match fmt with
+        | [#'%'] -> current_job s0 "%%"
+        | [#'+'] -> current_job s0 "%+"
+        | [#'-'] -> prev_job s0
+        | #'?'::cs -> 
+           find_job 
+             s0 
+             (fun job -> isInfixOf cs (job_cmd_cs job)) 
+             ("%?" ^ toString cs)
+        | _ ->
+           match readNat fmt with
+           | Right num -> 
+              find_job 
+                s0 
+                (fun job -> job.id = num) 
+                ("%" ^ stringFromNat num)
+           | Left _ -> 
+              find_job
+                s0 
+                (fun job -> isPrefixOf fmt (job_cmd_cs job))
+                ("%" ^ toString fmt)
+           end
+        end
+     | cs -> 
+        match readNat cs with
+       | Left _ -> Left ("Illegal number: " ^ s)
+       | Right pid -> Right pid
+       end
      end
   end
 
@@ -1144,19 +1193,19 @@ let builtin_unalias s0 argv _env =
 let builtin_wait s0 argv _env = 
   match argv with
   | [] ->
-     (* TODO 2018-10-01 wait on all processes
-
-        returns 0
-
-        once we have a job list, we should just iterate through each
-        of those and wait on each---see jobs.c:603 *)
-     Right (exit_with 0 s0, Done)
+     let (s1,jobs) = active_jobs s0 in
+     let waits = List.map (fun job -> Wait job.pid) jobs in
+     (* the skip on the end makes sure we return 0 *)
+     Right (s1, sequence (waits ++ [skip]))
   | pid::pids' ->
      match pid_of_symbolic_string s0 pid with
      | Left msg -> Left (s0, msg)
      | Right pid ->
         (* some indirect recursion... 
-           waitpid in os.lem needs step_eval, which we don't have access to *)
+           waitpid in os.lem needs step_eval, which we don't have access to 
+
+           this also gives us the delayed parsing errors that both bash and dash do
+         *)
         let next = 
           if null pids'
           then Wait pid

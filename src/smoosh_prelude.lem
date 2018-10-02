@@ -15,6 +15,16 @@ let uppercase s = toString (List.map uppercase_char (toCharList s))
 
 let parens s = "( " ^ s ^ " )"
 
+val tails : forall 'a. list 'a -> list (list 'a)
+let rec tails xs =
+  xs :: match xs with
+        | [] -> []
+        | _::xs' -> tails xs'
+        end
+
+val isInfixOf : forall 'a. Eq 'a => list 'a -> list 'a -> bool
+let isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
+
 val ltrim_newlines_cl : list char -> list char
 let rec ltrim_newlines_cl cl =
   match cl with
@@ -805,6 +815,15 @@ and saved_fds = list (fd * saved_fd_info)
 (* environments *)       
 and env = Map.map string symbolic_string
 
+and job_status = JobRunning | JobStopped | JobDone of nat
+
+and job_info = <| 
+    id: nat; (* tricky invariant... shouldn't be any dups *)
+    pid: nat;
+    cmd: stmt;
+    status: job_status;
+    pgrp: nat |>
+
 and shell_state = <|
     opts: set sh_opt;
     (* each signal is either:
@@ -813,6 +832,8 @@ and shell_state = <|
          cmd         (handle)
     *)
     traps: map signal symbolic_string;
+    (* tricky invariant with job ids! *)
+    jobs: list job_info;
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
@@ -1077,6 +1098,14 @@ let int64ToFields n = [symbolic_string_of_string (write n)]
 val assigns_of_env : env -> list (string * fields)
 let assigns_of_env env = map (fun (x,v) -> (x,[v])) (Map_extra.toList env)
 
+val sequence : list stmt -> stmt
+let rec sequence stmts =
+  match stmts with
+  | [] -> Done
+  | [stmt] -> stmt
+  | stmt::stmts' -> Semi stmt (sequence stmts')
+  end
+
 val simple_command : string -> fields -> stmt
 let simple_command cmd args =
   CommandExpRedirs 
@@ -1084,6 +1113,9 @@ let simple_command cmd args =
     ((symbolic_string_of_string cmd)::args)
     ([], Nothing, [])
     true (* allow functions *)
+
+val skip : stmt
+let skip = simple_command ":" []
 
 val command_eval : symbolic_string -> stmt
 let command_eval cmd = simple_command "eval" [cmd]
@@ -1141,6 +1173,14 @@ let expand_redir er f =
   match er with
   | XRFile ty src _ -> ERFile ty src f
   | XRHeredoc ty src _ -> ERHeredoc ty src f
+  end
+
+val is_active_job : job_info -> bool
+let is_active_job job = 
+  match job.status with
+  | JobRunning -> true
+  | JobStopped -> true
+  | JobDone _ -> false
   end
 
 (**********************************************************************)
@@ -1473,6 +1513,7 @@ let env_default : env = Map.insert "?" (symbolic_string_of_string "0") Map.empty
 let default_shell_state = <|
       opts = Set.empty;
       traps = Map.empty;
+      jobs = [];
       positional_params = []; (* $0, $1, $2, $3 ... *)
       env = env_default;
       readonly = Set.empty;

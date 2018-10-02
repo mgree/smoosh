@@ -123,6 +123,14 @@ let canonicalize_path os path =
   let components = split_string_on false (* not escapable *) #'/' path' in
   canonicalize_split_path os initial components
 
+val active_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info
+let active_jobs os0 =
+  let real_jobs = List.filter is_active_job os0.sh.jobs in
+  (* TODO 2018-10-02 check jobs more seriously? *)
+  (* TODO 2018-10-02 announce completed jobs? *)
+  (<| os0 with sh = <| os0.sh with jobs = real_jobs |> |>, 
+   real_jobs)
+
 val redirect : forall 'a. OS 'a => os_state 'a -> expanded_redir -> either string (os_state 'a * saved_fds)
 let redirect os0 er =
   match er with
