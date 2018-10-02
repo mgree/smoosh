@@ -908,7 +908,13 @@ and step_eval s0 stmt =
      let (s2, c) =
        if bg
        then (set_last_pid last_pid s1, Done)
-       else (s1, Wait last_pid) 
+       else 
+         (* If the pipeline is not in the background (see Asynchronous
+            Lists), the shell shall wait for the last command
+            specified in the pipeline to complete, and may also wait
+            for all commands to complete. *)
+         (* We don't bother waiting for everyone... unlike dash and bash. *)
+         (s1, Wait last_pid) 
      in
      Right (XSPipe "started pipe",
             s2,
