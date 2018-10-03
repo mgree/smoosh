@@ -1352,8 +1352,8 @@ let builtin_test s0 argv _env =
      match parse_test_expr strs with
      | Left msg -> Left (s0, "parse error: " ^ msg)
      | Right expr -> 
-        let (s1,result) = eval_test_expr s0 expr in
-        Right (exit_with (if result then 0 else 1) s1, Done)
+        let result = eval_test_expr s0 expr in
+        Right (exit_with (if result then 0 else 1) s0, Done)
      end
   end
 
