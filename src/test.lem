@@ -33,8 +33,61 @@ type test_expr =
   | TestOr of test_expr * test_expr  (* -o *)
   | TestNot of test_expr             (* ! *)
 
+val string_of_test_expr : test_expr -> string
+let rec string_of_test_expr _expr = Assert_extra.failwith "TODO 2018-10-03 string_of_test_expr unimplemented"
+
+val parse_test_expr_disjunction : list string -> either string (test_expr * list string)
+val parse_test_expr_conjunction : list string -> either string (test_expr * list string)
+val parse_test_expr_negation : list string -> either string (test_expr * list string)
+val parse_test_expr_equality : list string -> either string (test_expr * list string)
+val parse_test_expr_unary : list string -> either string (test_expr * list string)
+
+let rec parse_test_expr_disjunction _toks = Left "TODO 2018-10-03 parse_test_expr_disjunction unimplemented"
+and parse_test_expr_conjunction _toks = Left "TODO 2018-10-03 parse_test_expr_conjunction unimplemented"
+and parse_test_expr_negation _toks = Left "TODO 2018-10-03 parse_test_expr_negation unimplemented"
+and parse_test_expr_equality _toks = Left "TODO 2018-10-03 parse_test_expr_equality unimplemented"
+and parse_test_expr_unary toks =
+  match toks with
+  | "-b"::path::toks' -> Right (TestBlock path,toks')
+  | "-c"::path::toks' -> Right (TestCharacter path, toks')
+  | "-d"::path::toks' -> Right (TestDirectory path, toks')
+  | "-e"::path::toks' -> Right (TestExists path, toks')
+  | "-f"::path::toks' -> Right (TestFile path, toks')
+  | "-g"::path::toks' -> Right (TestSetgid path, toks')
+  | "-h"::path::toks' -> Right (TestSymlink path, toks')
+  | "-L"::path::toks' -> Right (TestSymlink path, toks')
+  | "-n"::str::toks'  -> Right (TestNonempty_str str, toks')
+  | "-p"::path::toks' -> Right (TestFifo path, toks')
+  | "-r"::path::toks' -> Right (TestReadable path, toks')
+  | "-S"::path::toks' -> Right (TestSocket path, toks')
+  | "-s"::path::toks' -> Right (TestNonempty_file path, toks')
+  | "-t"::fd_s::toks' -> 
+     match readNat (toCharList fd_s) with
+     | Left msg -> Left ("expected fd number after -t, found '" ^ fd_s ^ "' (" ^ msg ^ ")")
+     | Right fd -> Right (TestTerminalFD fd, toks')
+     end
+  | "-u"::path::toks' -> Right (TestSetuid path, toks')
+  | "-w"::path::toks' -> Right (TestWriteable path, toks')
+  | "-x"::path::toks' -> Right (TestExecutable path, toks')
+  | "-z"::str::toks'  -> Right (TestEmpty_str str, toks')
+  | "("::toks' -> 
+     match parse_test_expr_disjunction toks' with
+     | Left msg -> Left msg
+     | Right (expr,")"::toks'') -> Right (expr,toks'')
+     | Right (expr,tok::_) -> Left ("expected ')' after " ^ string_of_test_expr expr ^ ", found '" ^ tok ^ "'")
+     | Right (expr,[]) -> Left ("expected ')' after " ^ string_of_test_expr expr ^ ", found end of input")
+     end
+  | tok::toks' -> Right (TestNonempty_str tok,toks')
+  | [] -> Left "expected unary operator, found end of input"
+  end
+
 val parse_test_expr : list string -> either string test_expr
-let parse_test_expr _s = Left "TODO 2018-10-03 parse_test_expr unimplemented"
+let parse_test_expr toks = 
+  match parse_test_expr_disjunction toks with
+  | Left err -> Left err
+  | Right (expr,[]) -> Right expr
+  | Right (expr,toks) -> Left ("unexpected input after " ^ string_of_test_expr expr ^ ": " ^ concat " " toks)
+  end
 
 val eval_test_expr 
     : forall 'a. OS 'a => os_state 'a -> test_expr -> os_state 'a * bool
