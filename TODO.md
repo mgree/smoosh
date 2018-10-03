@@ -4,8 +4,11 @@
   + install ruby
   + fold out web repo
   + run expander in a chroot jail... or simply via Docker?
+  + postback JS errors
 - run POSIX tests on dash, bash, and smoosh
   + Dockerfile for loading POSIX tests
+  + export test journal summaries
+- strawman performance tests vs. dash and bash?
 - write paper
 
 ### Bugs
@@ -32,18 +35,18 @@
   + test
   + kill
   + fc
-  
+
+- history
+  + fc
+  + Sh_nolog
+  + HISTFILE
+
 - job control
   + bg
   + fg
   + Sh_notify
   need to update current job statuses on ECHLD, every command loop
   jobs command should also be checking!
-
-- history
-  + fc
-  + Sh_nolog
-  + HISTFILE
 
 - non-special shell variables
   LINENO

@@ -102,6 +102,7 @@ src/evaluation.ml
 src/semantics.ml
 src/fsh_num.ml
 src/os.ml
+src/fields.ml
 src/command.ml
 src/shell
 src/signal_platform.lem

@@ -25,3 +25,4 @@ signal_platform.ml
 signal.ml
 libdash.a
 runtest
+fields.ml

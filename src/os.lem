@@ -65,6 +65,7 @@ class ( OS 'a )
   val readdir : os_state 'a -> path -> set (path * file unit)
   val write_fd : os_state 'a -> fd -> string -> maybe (os_state 'a)
   val read_fd : os_state 'a -> fd -> maybe (os_state 'a * string)
+  val read_char_fd : os_state 'a -> fd -> maybe (os_state 'a * char)
   val close_fd : os_state 'a -> fd -> os_state 'a
   val pipe : os_state 'a -> os_state 'a * fd * fd
 
@@ -96,6 +97,28 @@ let write_stdout = try_write_fd STDOUT
 
 val write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let write_stderr = try_write_fd STDERR
+
+let rec read_line_loop s0 backslash_escapes fd cs = 
+  match (read_char_fd s0 fd, backslash_escapes) with
+  | (Nothing, _) -> (s0, toString (reverse cs), true) (* EOF *)
+  | (Just (s1, #'\n'), _) -> (s1, toString (reverse cs), false)
+  (* dash miscbltin.c:162 ignores nullchar? *)                           
+  | (Just (s1, #'\\'), true) ->
+     match read_char_fd s0 fd with
+     | Nothing -> (s1, toString (reverse (#'\\'::cs)), true)
+     | Just (s2, #'\n') -> (* line continuation *)
+        read_line_loop s2 backslash_escapes fd cs
+     | Just (s2, c) -> (* escaped char, whatevs *)
+        read_line_loop s2 backslash_escapes fd (c::cs)
+     end
+  | (Just (s1, c), _) -> (* just add the ordinary char *)
+     read_line_loop s1 backslash_escapes fd (c::cs)
+  end
+
+val read_line : forall 'a. OS 'a => os_state 'a -> bool (* allow backslash escapes? *) -> fd -> os_state 'a * string * bool (* EOF? *)
+let read_line s0 backslash_escapes fd =
+  read_line_loop s0 backslash_escapes fd []
+  
 
 val canonicalize_split_path : forall 'a. OS 'a => os_state 'a -> path -> list string -> maybe string
 let rec canonicalize_split_path os path components =
@@ -195,6 +218,28 @@ let restore_fds os saved_fds =
     (fun (orig_fd, info) os' -> restore_fd os' orig_fd info)
     os
     saved_fds 
+
+let rec really_do_redirs os0 ers =
+  match ers with
+  | [] -> Right (os0, [])
+  | (er::ers') ->
+     match redirect os0 er with
+     | Left err -> Left err
+     | Right (os1,saved) -> 
+        match really_do_redirs os1 ers' with
+        | Left err -> Left err
+        | Right (os2,saved') -> Right (os2, saved ++ saved')
+        end
+     end
+  end
+
+val do_redirs : forall 'a. OS 'a => os_state 'a -> list expanded_redir -> 
+                either string (os_state 'a * saved_fds)
+let do_redirs os0 ers =
+  if Set.member Sh_noexec os0.sh.opts
+  then Right (os0, [])
+  else really_do_redirs os0 ers
+
 
 val fork_and_execve : forall 'a. OS 'a =>
     os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * nat
@@ -592,11 +637,29 @@ let write_fifo symbolic fifo_num s =
   | Just (new_fifos,()) -> Just <| symbolic with fifos = new_fifos |>
   end
 
+(* TODO 2018-10-03 differentiate blocking and EOF 
+
+   really, we should use these reads as hints to the scheduler!
+*)
 val read_fifo : symbolic -> nat -> maybe (symbolic * string)
 let read_fifo symbolic fifo_num =
   match adjust_nth symbolic.fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
   | Nothing -> Nothing
   | Just (new_fifos,s) -> Just (<| symbolic with fifos = new_fifos |>, s)
+  end
+
+val read_char_fifo : symbolic -> nat -> maybe (symbolic * char)
+let read_char_fifo symbolic fifo_num =
+  let get_char fifo_cts =
+    match toCharList fifo_cts with
+    | [] -> ("", Nothing)
+    | c::cs -> (toString cs, Just c)
+    end
+  in
+  match adjust_nth symbolic.fifos fifo_num get_char with
+  | Nothing -> Nothing
+  | Just (new_fifos,Just c) -> Just (<| symbolic with fifos = new_fifos |>, c)
+  | Just (_, Nothing) -> Nothing
   end
 
 val symbolic_fresh_fd : fds -> fd
@@ -757,6 +820,16 @@ instance (OS symbolic)
     | Nothing -> Nothing
   end
 
+  let read_char_fd os fd =
+    match symbolic_resolve_fd os.symbolic fd with
+    | Just fifo_num -> 
+       match read_char_fifo os.symbolic fifo_num with
+       | Nothing -> Nothing
+       | Just (symbolic', c) -> Just (<| os with symbolic = symbolic' |>, c)
+       end
+    | Nothing -> Nothing
+  end
+
   let close_fd os fd = 
     <| os with symbolic = <| os.symbolic with sh_fds = Map.delete fd os.symbolic.sh_fds |> |>
 
@@ -912,6 +985,9 @@ declare ocaml target_rep function real_write_fd = `System.real_write_fd`
 val real_read_fd : fd -> maybe string
 declare ocaml target_rep function real_read_fd = `System.real_read_fd`
 
+val real_read_char_fd : fd -> maybe char
+declare ocaml target_rep function real_read_char_fd = `System.real_read_char_fd`
+
 val real_pipe : unit -> fd * fd
 declare ocaml target_rep function real_pipe = `System.real_pipe`
 
@@ -1031,6 +1107,12 @@ instance (OS unit)
     match real_read_fd fd with
     | Nothing -> Nothing
     | Just s -> Just (os,s)
+    end
+
+  let read_char_fd os fd =
+    match real_read_char_fd fd with
+    | Nothing -> Nothing
+    | Just c -> Just (os,c)
     end
 
   let close_fd os fd =

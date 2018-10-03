@@ -129,6 +129,18 @@ let real_read_fd (fd:int) : string option =
   then Some (Bytes.sub_string buff 0 read)
   else None
 
+(* TODO distinguish error and EOF *)
+let real_read_char_fd (fd:int) : char option =
+  let buff = Bytes.make 1 (Char.chr 0) in
+  try 
+    let read = Unix.read (fd_of_int fd) buff 0 1 in
+    if read <= 0
+    then None
+    else Some (Bytes.get buff 0)
+  with Unix.Unix_error(EPIPE,_,_) -> None
+     | Unix.Unix_error(EBADF,_,_) -> None
+     | Unix.Unix_error(EINTR,_,_) -> None
+
 let real_savefd (fd:int) : (string,int) Either.either =
   (* dash is careful to get a new fd>10 by using an explicit fcntl call.
      we don't have access to fcntl in Unix.cmx;

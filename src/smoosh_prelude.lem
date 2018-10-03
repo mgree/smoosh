@@ -51,6 +51,15 @@ let rec intersperse sep xs =
   | x::xs' -> x::sep::intersperse sep xs'
   end
 
+val trimr_one_newline : string -> string
+let trimr_one_newline s =
+  let cl = toCharList s in
+  match reverse cl with
+  | [] -> ""
+  | #'\n'::cl' -> toString (reverse cl')
+  | _ -> s
+  end
+
 val trimr_newlines : string -> string
 let trimr_newlines s =
   let cl = toCharList s in
@@ -1026,6 +1035,17 @@ let rec try_concrete_fields fs =
         end
      end
   end       
+
+val try_concrete_fields_list : fields -> maybe (list string)
+let rec try_concrete_fields_list fs =
+  match fs with
+  | [] -> Just []
+  | ss::fs' -> 
+     match (try_concrete ss, try_concrete_fields_list fs') with
+     | (Just s, Just rest) -> Just (s::rest)
+     | _ -> Nothing
+     end
+  end
 
 val symbolic_to_string : sym -> string
 let symbolic_to_string _sym = "<<SYMBOLIC>>"

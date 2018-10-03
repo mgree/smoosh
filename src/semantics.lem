@@ -1,8 +1,8 @@
 open import Smoosh
 
+open import Fields (* late stage expansion *)
 open import Arith
 open import Pattern
-open import Path
 open import Command
 
 import Debug
@@ -40,9 +40,6 @@ val step_redir : forall 'a. OS 'a =>
                    os_state 'a -> expanding_redir -> redir_exp_result (os_state 'a)
 val step_redir_state : forall 'a. OS 'a => os_state 'a -> redir_state -> 
                        os_state 'a * string * maybe (redir_state * maybe expansion_step)
-val do_redirs : forall 'a. OS 'a =>
-                     os_state 'a -> list expanded_redir -> 
-                     either string (os_state 'a * saved_fds)
 val step_assign : forall 'a. OS 'a => 
                   os_state 'a -> list (string * expansion_state) ->
                   either (os_state 'a * list (string * fields)) (* Done state *)
@@ -54,189 +51,6 @@ val step_eval : forall 'a. OS 'a =>
 
 val full_evaluation : forall 'a. OS 'a => os_state 'a -> stmt -> os_state 'a
 val eval : forall 'a. OS 'a => os_state 'a -> stmt -> nat
-
-(**********************************************************************)   
-(* LATE STAGE EXPANSION ***********************************************)   
-(**********************************************************************)
-(* These functions are kept out of the recursive knot of
-   expansion/evaluation, just to keep the file simple. Unfortunately,
-   that means they show up first, out of logical order. Sorry! *)
-   
-(*
- * Stage 2 Expansion: Field Splitting
- *)
-
-val is_ws : char -> bool
-val collect_non_ifs : list char -> list char -> (list char) * (list char)
-(*val collect_ifs_whitespace : list char -> list char -> list char*)
-val split_expstring : list char -> list char -> intermediate_fields
-val split_word : list char -> (intermediate_fields * expanded_words) -> (intermediate_fields * expanded_words)
-val split_fields : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields
-val clean_fields : intermediate_fields -> intermediate_fields
-val field_splitting : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields  
-  
-let is_ws c = elem c (toCharList " \n\t")
-           
-let rec collect_non_ifs ifs ls =
-  match ls with
-  | [] -> ([], [])
-  | (c::cs) ->
-      if elem c ifs
-      then ([], c::cs)
-      else let (f, remaining) = collect_non_ifs ifs cs in
-           (c::f, remaining)
-  end
-
-let rec split_expstring ifs clst =
-   match clst with
-   | [] -> []
-   | c::cs ->
-       if elem c ifs
-       then let fs = if is_ws c then WFS else FS 
-            in fs::split_expstring ifs cs
-       else let (cc, cs1) = collect_non_ifs ifs cs in 
-            (Field (symbolic_string_of_char_list (c::cc)))::(split_expstring ifs cs1)
-  end
-
-let rec split_word ifs p =
-  match p with
-  | (f, []) -> (f, [])
-  | (f, UsrF::wrds) -> split_word ifs (f ++ [FS], wrds)
-  | (f, ExpS(s)::wrds) ->
-      let new_fields = split_expstring ifs (toCharList s) in
-      split_word ifs (f ++ new_fields, wrds)
-  | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (symbolic_string_of_string s)], wrds)
-  | (f, At(fs)::wrds) -> split_word ifs (f ++ map Field fs, wrds)
-  | (f, DQuo(ss)::wrds) -> split_word ifs (f ++ [QField ss], wrds)
-  | (f, EWSym sym::wrds) -> split_word ifs (f ++ [Field [Sym sym]], wrds)
-  end
-
-let split_fields s0 exp_words =
-  let ifs = lookup_nonat_param s0 "IFS" in
-  let (f, _) = match ifs with
-    | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
-    | Just fs -> 
-       match try_concrete fs with
-       | Nothing -> 
-          (* TODO 2018-08-29 unsoundly usinsg default IFS. symbolic IFS is basically impossible. should record this unsoundness. *)
-          split_word (toCharList " \n\t") ([], exp_words)
-       | Just "" -> ([Field (concat_expanded exp_words)], [])
-       | Just s -> split_word (toCharList s) ([], exp_words)
-       end
-  end in f
-
-let rec combine_fields f =
-  match f with
-  | [] -> []
-  | [WFS] -> [] (* Remove trailing field separators *)
-  | (WFS::WFS::rst) -> combine_fields (WFS::rst) (* Combine adjacent whitespace separators *)
-  | (WFS::FS::rst) -> combine_fields (FS::rst)
-  | (FS::WFS::rst) -> combine_fields (FS::rst)
-  | (Field(s1)::Field(s2)::rst) -> combine_fields (Field(s1 ++ s2)::rst)
-  | (WFS::rst) -> FS::(combine_fields rst)
-  | (f::rst) -> f::(combine_fields rst)
-  end
-
-let rec clean_fields f =
-  match f with
-  | (WFS::rst) -> clean_fields rst
-  | _ -> combine_fields f
-  end
-
-let field_splitting s0 w = clean_fields (split_fields s0 w)
-
-(*
- * Stage 3 Expansion: Pathname expansion
- *)
-
-val insert_field_separators : list string -> intermediate_fields
-let rec insert_field_separators fs =
-  match fs with
-  | [] -> []
-  | [f] -> [Field (symbolic_string_of_string f)]
-  | f::fs' -> Field (symbolic_string_of_string f)::FS::insert_field_separators fs'
-  end
-
-val pathname_expansion : forall 'a. OS 'a => os_state 'a -> intermediate_fields -> intermediate_fields
-
-(* Parameter expansion only happens on unquoted fields *)
-let rec pathname_expansion s0 f =
-  match f with
-  | [] -> []
-  | (Field(s)::rst) -> 
-     let matches = 
-       match try_concrete s with
-       | Just pat -> match_path s0 pat
-       | Nothing -> [] (* slightly inaccurate: we're not modeling symbolic pathname expansions *)
-       end 
-     in
-     let expansions = 
-       if null matches 
-       then [Field s] 
-       else insert_field_separators matches 
-     in
-     expansions ++ pathname_expansion s0 rst
-  | (f::rst) -> f::(pathname_expansion s0 rst)
-  end
-
-(*
- * Stage 4 Expansion: Quote Removal
- *)
-
-val remove_quotes : intermediate_fields -> intermediate_fields
-val to_fields : intermediate_fields -> fields
-val finalize_fields : intermediate_fields -> fields
-val quote_removal : intermediate_fields -> fields
-
-let rec remove_quotes f =
-  match f with
-  | [] -> []
-  | (QField(s)::rst) -> Field(s)::(remove_quotes rst)
-  | (f::rst) -> f::(remove_quotes rst)
-  end
-
-let rec to_fields f =
-  match f with
-  | []           -> []
-  | FS::FS::rst  -> (symbolic_string_of_string "")::(to_fields rst)
-  | Field fs::rst -> 
-     fs::(to_fields rst)
-  | FS::rst      -> to_fields rst
-  (* TODO 2017-12-01 Preferably we need an AST that doesn't have WFS or QField's at this point, or lem failure *)
-  | WFS::_       -> 
-     Assert_extra.failwith "broken invariant in to_fields: didn't expect WFS"
-  | QField _::_  -> 
-     Assert_extra.failwith "broken invariant in to_fields: didn't expect QField"
-  end
-
-let rec finalize_fields f =
-  match f with
-  | (FS::rst) -> symbolic_string_of_string ""::finalize_fields rst
-  | _ -> to_fields f
-  end
-
-let quote_removal f =
-  let no_quotes = combine_fields (remove_quotes f) in
-  finalize_fields no_quotes
-
-let rec really_do_redirs os0 ers =
-  match ers with
-  | [] -> Right (os0, [])
-  | (er::ers') ->
-     match redirect os0 er with
-     | Left err -> Left err
-     | Right (os1,saved) -> 
-        match really_do_redirs os1 ers' with
-        | Left err -> Left err
-        | Right (os2,saved') -> Right (os2, saved ++ saved')
-        end
-     end
-  end
-
-let do_redirs os0 ers =
-  if Set.member Sh_noexec os0.sh.opts
-  then Right (os0, [])
-  else really_do_redirs os0 ers
 
 (**********************************************************************)   
 (* EXPANSION **********************************************************)   
