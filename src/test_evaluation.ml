@@ -115,6 +115,12 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   ; ("set -- ; exit $#", os_empty, 0)
   ; ("set -n ; exit 5", os_empty, 0)
   ; ("set -u ; echo $x", os_empty, 1)
+
+    (* test *)
+  ; ("test hi = hi", os_empty, 0)
+  ; ("test hi = bye", os_empty, 1)
+  ; ("test", os_empty, 1)
+  ; ("test 5 -eq 5", os_empty, 0)
   ]
 
 (***********************************************************************)

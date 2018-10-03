@@ -1348,6 +1348,8 @@ let builtin_test s0 argv _env =
      (* TODO 2018-10-03 handle some symbolics?
         we could in principle use, e.g., reflexivity on symbolic strings *)
      Left (s0, "couldn't handle symbolic test expression: " ^ string_of_fields argv)
+  (* shortcut *)
+  | Just [] -> Right (exit_with 1 s0, Done)
   | Just strs ->
      match parse_test_expr strs with
      | Left msg -> Left (s0, "parse error: " ^ msg)
