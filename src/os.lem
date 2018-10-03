@@ -100,12 +100,15 @@ let write_stderr = try_write_fd STDERR
 
 let rec read_line_loop s0 backslash_escapes fd cs = 
   match (read_char_fd s0 fd, backslash_escapes) with
-  | (Nothing, _) -> (s0, toString (reverse cs), true) (* EOF *)
-  | (Just (s1, #'\n'), _) -> (s1, toString (reverse cs), false)
+  | (Nothing, _) ->
+     (s0, toString (reverse cs), true) (* EOF *)
+  | (Just (s1, #'\n'), _) -> 
+     (s1, toString (reverse cs), false)
   (* dash miscbltin.c:162 ignores nullchar? *)                           
   | (Just (s1, #'\\'), true) ->
      match read_char_fd s0 fd with
-     | Nothing -> (s1, toString (reverse (#'\\'::cs)), true)
+     | Nothing -> 
+        (s1, toString (reverse (#'\\'::cs)), true)
      | Just (s2, #'\n') -> (* line continuation *)
         read_line_loop s2 backslash_escapes fd cs
      | Just (s2, c) -> (* escaped char, whatevs *)

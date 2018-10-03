@@ -1313,7 +1313,8 @@ let rec read_assign_vars s0 vars fs =
   | (_, []) -> read_set_empty_vars s0 vars
   | ([var], fs) ->
      match set_param var (symbolic_string_of_fields fs) s0 with
-     | Left msg -> Left (s0, msg)
+     | Left msg -> 
+        Left (s0, msg)
      | Right s1 -> Right (s1, Done)
      end
   | (var::vars', ss::fs') ->
@@ -1329,6 +1330,7 @@ let builtin_read s0 argv _env =
   match try_concrete_fields_list argv' with
   | Nothing ->
      Left (s0, "couldn't handle symbolic variable names: " ^ string_of_fields argv)
+  | Just [] -> Left (s0, "no variables specified")
   | Just vars ->
      let (s1, line, hit_eof) = read_line s0 backslash_escapes STDIN in
      let trimmed = trimr_one_newline line in
@@ -1338,7 +1340,6 @@ let builtin_read s0 argv _env =
      let ec = if hit_eof then 1 else 0 in
      read_assign_vars (exit_with ec s1) vars f
   end
-
 
 (* TODO 2018-10-01 remaining worthwhile operations *)
 

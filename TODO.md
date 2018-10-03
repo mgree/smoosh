@@ -24,6 +24,9 @@
   + needs to know if we're FG or not
     cf. jobs.c:869
 
+- read_fd/read_char_fd should trigger steps/set up scheduler plans
+  needed to get the right behavior on some tests for read
+
 ### Last of the shell semantics
 
 - Sh_errexit
@@ -31,7 +34,6 @@
 - other built-ins
   + getopts
   + printf
-  + read
   + test
   + kill
   + fc

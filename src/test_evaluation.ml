@@ -187,6 +187,13 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("umask u=o; umask", os_empty, "0222\n")
   ; ("umask u=g; umask", os_empty, "0222\n")
   ; ("umask g+u; umask", os_empty, "0002\n")
+
+    (* read *)
+  ; ("echo 1 | read x; echo ${x-subshell}", os_empty, "subshell\n")
+
+  (* failing in symbolic mode because of pipe/scheduler issues *)
+(*  ; ("echo 1 | { read x ; echo $x ; }", os_empty, "1\n")
+  ; ("echo 1 2 | { read x y ; echo $x ; echo $y ; }", os_empty, "1\n2\n") *)
   ]
 
 
