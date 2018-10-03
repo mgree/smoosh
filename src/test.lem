@@ -1,0 +1,42 @@
+open import Smoosh
+
+type test_expr =
+    (* UNARY *)
+    TestBlock of path                (* -b *)
+  | TestCharacter of path            (* -c *)
+  | TestDirectory of path            (* -d *)
+  | TestExists of path               (* -e *)
+  | TestFile of path                 (* -f *)
+  | TestSetgid of path               (* -g *)
+  | TestSymlink of path              (* -h, -L *)
+  | TestNonempty_str of string       (* -n, plain string (???) *)
+  | TestFifo of path                 (* -p *)
+  | TestReadable of path             (* -r *)
+  | TestSocket of path               (* -S *)
+  | TestNonempty_file of path        (* -s *)
+  | TestTerminalFD of fd             (* -t *)
+  | TestSetuid of path               (* -u *)
+  | TestWriteable of path            (* -w *)
+  | TestExecutable of path           (* -x *)
+  | TestEmpty_str of string          (* -z *)
+    (* BINARY *)
+  | TestEq_str of string * string    (* = *)
+  | TestNeq_str of string * string   (* != *)
+  | TestEq_num of nat * nat          (* -eq *)
+  | TestNeqq_num of nat * nat        (* -ne *)
+  | TestGt_num of nat * nat          (* -gt *)
+  | TestGe_num of nat * nat          (* -ge *)
+  | TestLt_num of nat * nat          (* -lt *)
+  | TestLe_num of nat * nat          (* -le *)
+    (* TRICKSY *)
+  | TestAnd of test_expr * test_expr (* -a *)
+  | TestOr of test_expr * test_expr  (* -o *)
+  | TestNot of test_expr             (* ! *)
+
+val parse_test_expr : list string -> either string test_expr
+let parse_test_expr _s = Left "TODO 2018-10-03 parse_test_expr unimplemented"
+
+val eval_test_expr 
+    : forall 'a. OS 'a => os_state 'a -> test_expr -> os_state 'a * bool
+let eval_test_expr s0 _t = 
+  (s0, Assert_extra.failwith "TODO 2018-10-03 eval_test_expr unimplemented")
