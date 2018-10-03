@@ -25,7 +25,7 @@
     cf. jobs.c:869
 
 - read_fd/read_char_fd should trigger steps/set up scheduler plans
-  needed to get the right behavior on some tests for read
+  needed to get the right behavior on some symbolic tests for read
 
 ### Last of the shell semantics
 
@@ -36,7 +36,6 @@
   + printf
   + test
   + kill
-  + fc
 
 - history
   + fc
