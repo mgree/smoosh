@@ -1,7 +1,7 @@
 open import Smoosh
 
 type test_expr =
-    (* UNARY *)
+    (* UNARY; encoding -n (nonempy string) *)
     TestBlock of path                (* -b *)
   | TestCharacter of path            (* -c *)
   | TestDirectory of path            (* -d *)
@@ -9,7 +9,6 @@ type test_expr =
   | TestFile of path                 (* -f *)
   | TestSetgid of path               (* -g *)
   | TestSymlink of path              (* -h, -L *)
-  | TestNonempty_str of string       (* -n, plain string (???) *)
   | TestFifo of path                 (* -p *)
   | TestReadable of path             (* -r *)
   | TestSocket of path               (* -S *)
@@ -19,22 +18,56 @@ type test_expr =
   | TestWriteable of path            (* -w *)
   | TestExecutable of path           (* -x *)
   | TestEmpty_str of string          (* -z *)
-    (* BINARY *)
+    (* BINARY; we encode negated forms, ge, lt, and le *)
   | TestEq_str of string * string    (* = *)
-  | TestNeq_str of string * string   (* != *)
-  | TestEq_num of nat * nat          (* -eq *)
-  | TestNeqq_num of nat * nat        (* -ne *)
-  | TestGt_num of nat * nat          (* -gt *)
-  | TestGe_num of nat * nat          (* -ge *)
-  | TestLt_num of nat * nat          (* -lt *)
-  | TestLe_num of nat * nat          (* -le *)
+  | TestEq_num of integer * integer  (* -eq *)
+  | TestGt_num of integer * integer  (* -gt *)
     (* TRICKSY *)
   | TestAnd of test_expr * test_expr (* -a *)
   | TestOr of test_expr * test_expr  (* -o *)
   | TestNot of test_expr             (* ! *)
 
 val string_of_test_expr : test_expr -> string
-let rec string_of_test_expr _expr = Assert_extra.failwith "TODO 2018-10-03 string_of_test_expr unimplemented"
+let rec string_of_test_expr expr = string_of_test_expr_disjunction expr
+and string_of_test_expr_disjunction expr =
+  match expr with
+  | TestOr lhs rhs -> string_of_test_expr_conjunction lhs ^ " -o " ^ string_of_test_expr_disjunction rhs
+  | _ -> string_of_test_expr_conjunction expr
+  end
+and string_of_test_expr_conjunction expr =
+  match expr with
+  | TestAnd lhs rhs -> string_of_test_expr_negation lhs ^ " -a " ^ string_of_test_expr_conjunction rhs
+  | _ -> string_of_test_expr_negation expr
+  end
+and string_of_test_expr_negation expr =
+  match expr with
+  | TestNot (TestEq_str str1 str2) -> str1 ^ " != " ^ str2
+  | TestNot (TestEq_num n1 n2) -> write n1 ^ " -ne " ^ write n2
+  | TestNot (TestGt_num n1 n2) -> write n2 ^ " -le " ^ write n1
+  | TestNot (TestEmpty_str str) -> "-n " ^ str
+  | TestNot expr -> "! " ^ string_of_test_expr_unary expr
+  | _ -> string_of_test_expr_unary expr
+  end
+and string_of_test_expr_unary expr =
+  match expr with
+  | TestBlock path         -> "-b " ^ path
+  | TestCharacter path     -> "-c " ^ path
+  | TestDirectory path     -> "-d " ^ path
+  | TestExists path        -> "-e " ^ path
+  | TestFile path          -> "-f " ^ path
+  | TestSetgid path        -> "-g " ^ path
+  | TestSymlink path       -> "-L " ^ path
+  | TestFifo path          -> "-p " ^ path
+  | TestReadable path      -> "-r " ^ path
+  | TestSocket path        -> "-S " ^ path
+  | TestNonempty_file path -> "-s " ^ path
+  | TestTerminalFD fd      -> "-t " ^ stringFromNat fd
+  | TestSetuid path        -> "-u " ^ path
+  | TestWriteable path     -> "-w " ^ path
+  | TestExecutable path    -> "-x " ^ path
+  | TestEmpty_str str      -> "-z " ^ str
+  | expr -> "\\(" ^ string_of_test_expr_disjunction expr ^ "\\)"
+  end
 
 val parse_test_expr_disjunction : list string -> either string (test_expr * list string)
 val parse_test_expr_conjunction : list string -> either string (test_expr * list string)
@@ -42,10 +75,65 @@ val parse_test_expr_negation : list string -> either string (test_expr * list st
 val parse_test_expr_equality : list string -> either string (test_expr * list string)
 val parse_test_expr_unary : list string -> either string (test_expr * list string)
 
-let rec parse_test_expr_disjunction _toks = Left "TODO 2018-10-03 parse_test_expr_disjunction unimplemented"
-and parse_test_expr_conjunction _toks = Left "TODO 2018-10-03 parse_test_expr_conjunction unimplemented"
-and parse_test_expr_negation _toks = Left "TODO 2018-10-03 parse_test_expr_negation unimplemented"
-and parse_test_expr_equality _toks = Left "TODO 2018-10-03 parse_test_expr_equality unimplemented"
+let read_two_nats num1 num2 op =
+  match (readInteger 10 (toCharList num1), readInteger 10 (toCharList num2)) with
+  | (Right n1, Right n2) -> Right (n1, n2)
+  | (Left msg, _) -> Left ("expected number before " ^ op ^ ", found '" ^ num1 ^ "' (" ^ msg ^ ")")
+  | (_, Left msg) -> Left ("expected number after " ^ op ^ ", found '" ^ num1 ^ "' (" ^ msg ^ ")")
+  end
+
+let rec parse_test_expr_disjunction toks = 
+  match parse_test_expr_negation toks with
+  | Left msg -> Left msg
+  | Right (lhs,"-o"::toks') ->
+     match parse_test_expr_conjunction toks' with
+     | Left msg -> Left msg
+     | Right (rhs, toks'') -> Right (TestOr lhs rhs, toks'')
+     end
+  | Right (expr,toks') -> Right (expr, toks')
+  end        
+and parse_test_expr_conjunction toks = 
+  match parse_test_expr_negation toks with
+  | Left msg -> Left msg
+  | Right (lhs,"-a"::toks') ->
+     match parse_test_expr_conjunction toks' with
+     | Left msg -> Left msg
+     | Right (rhs, toks'') -> Right (TestAnd lhs rhs, toks'')
+     end
+  | Right (expr,toks') -> Right (expr, toks')
+  end        
+and parse_test_expr_negation toks = 
+  match toks with
+  | "!"::toks' ->
+     match parse_test_expr_equality toks' with
+     | Left msg -> Left msg
+     | Right (expr, toks'') -> Right (TestNot expr, toks'')
+     end
+  | _ -> parse_test_expr_equality toks
+  end
+and parse_test_expr_equality toks = 
+  match toks with
+  | str1::"="::str2::toks' -> Right (TestEq_str str1 str2, toks')
+  | str1::"!="::str2::toks' -> Right (TestNot (TestEq_str str1 str2), toks')
+  | num1::op::num2::toks' -> 
+     if not (elem op ["-eq";"-neq";"-gt";"-ge";"-lt";"-le"])
+     then Left ("unexpected operator '" ^ op ^ "'")
+     else
+       match read_two_nats num1 num2 op with
+       | Left msg -> Left msg
+       | Right (n1,n2) ->
+          match op with
+          | "-eq"  -> Right (TestEq_num n1 n2, toks')
+          | "-neq" -> Right (TestNot (TestEq_num n1 n2), toks')
+          | "-gt"  -> Right (TestGt_num n1 n2, toks')
+          | "-ge"  -> Right (TestNot (TestGt_num n2 n1), toks')
+          | "-lt"  -> Right (TestGt_num n2 n1, toks')
+          | "-le"  -> Right (TestNot (TestGt_num n1 n2), toks')
+          | _      -> Assert_extra.failwith ("parse_test_expr_equality: unexpected operation " ^ op)
+          end
+       end
+   | _ -> parse_test_expr_unary toks
+  end
 and parse_test_expr_unary toks =
   match toks with
   | "-b"::path::toks' -> Right (TestBlock path,toks')
@@ -56,7 +144,7 @@ and parse_test_expr_unary toks =
   | "-g"::path::toks' -> Right (TestSetgid path, toks')
   | "-h"::path::toks' -> Right (TestSymlink path, toks')
   | "-L"::path::toks' -> Right (TestSymlink path, toks')
-  | "-n"::str::toks'  -> Right (TestNonempty_str str, toks')
+  | "-n"::str::toks'  -> Right (TestNot (TestEmpty_str str), toks')
   | "-p"::path::toks' -> Right (TestFifo path, toks')
   | "-r"::path::toks' -> Right (TestReadable path, toks')
   | "-S"::path::toks' -> Right (TestSocket path, toks')
@@ -77,7 +165,7 @@ and parse_test_expr_unary toks =
      | Right (expr,tok::_) -> Left ("expected ')' after " ^ string_of_test_expr expr ^ ", found '" ^ tok ^ "'")
      | Right (expr,[]) -> Left ("expected ')' after " ^ string_of_test_expr expr ^ ", found end of input")
      end
-  | tok::toks' -> Right (TestNonempty_str tok,toks')
+  | str::toks' -> Right (TestNot (TestEmpty_str str),toks')
   | [] -> Left "expected unary operator, found end of input"
   end
 
