@@ -1,5 +1,6 @@
 open import Smoosh
 open import Fields
+open import Test
 
 import Debug
 
@@ -1341,12 +1342,33 @@ let builtin_read s0 argv _env =
      read_assign_vars (exit_with ec s1) vars f
   end
 
+let builtin_test s0 argv _env = 
+  match try_concrete_fields_list argv with
+  | Nothing ->
+     (* TODO 2018-10-03 handle some symbolics?
+        we could in principle use, e.g., reflexivity on symbolic strings *)
+     Left (s0, "couldn't handle symbolic test expression: " ^ string_of_fields argv)
+  | Just strs ->
+     match parse_test_expr strs with
+     | Left msg -> Left (s0, "parse error: " ^ msg)
+     | Right expr -> 
+        let (s1,result) = eval_test_expr s0 expr in
+        Right (exit_with (if result then 0 else 1) s1, Done)
+     end
+  end
+
+let builtin_bracket s0 argv _env =
+  match reverse argv with
+  | [C #']']::rev_argv' ->
+    builtin_test s0 (reverse rev_argv') _env
+  | _ -> Left (s0, "expected matching ']'")
+  end
+
 (* TODO 2018-10-01 remaining worthwhile operations *)
 
 (* parsing/printing *)
 let builtin_getopts = builtin_unimplemented (* OPTIND, OPTARG. trickiness with ? and : *)
 let builtin_printf = builtin_unimplemented (* lots of weird formatting *)
-let builtin_test = builtin_unimplemented (* need to build a parser, lots of OS stuff. but -o and -a are XSI, can skip for now *)
 
 (* process control *)
 let builtin_kill = builtin_unimplemented (* not so bad, may need to generate more for kill -l *)
@@ -1372,7 +1394,7 @@ val builtins :
        either (os_state 'a * string) (os_state 'a * stmt))
 let builtins =
   Map.fromList
-    [ ("[", builtin_test)
+    [ ("[", builtin_bracket)
     ; ("alias", builtin_alias)
     ; ("bg", builtin_bg)
     ; ("cd", builtin_cd)

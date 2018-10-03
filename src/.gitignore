@@ -26,3 +26,4 @@ signal.ml
 libdash.a
 runtest
 fields.ml
+test.ml
