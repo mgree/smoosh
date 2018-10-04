@@ -1482,7 +1482,7 @@ let run_command s0_init allow_fun prog_name argv env =
                    let s1 = write_stderr (prog ^ ": command not found\n") s0 in
                    Right (exit_with 127 s1, Done, true)
                 | Just executable ->
-                   if isexec s0 executable
+                   if is_executable s0 executable
                    then 
                      (* TODO 2018-09-06 support this? *)
                      (* If the execl() function fails due to an error

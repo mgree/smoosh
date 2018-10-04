@@ -65,10 +65,24 @@ let real_set_umask (mask : int) : unit =
 
 let real_exists (path : string) : bool = Sys.file_exists path
 
-let real_isexec (path : string) : bool =
-  try if Sys.file_exists path 
-      then (Unix.access path [Unix.F_OK; Unix.X_OK]; true)
-      else false
+let real_file_perms (path : string) : int option =
+  try Some (Unix.stat path).st_perm
+  with Unix.Unix_error(_,_,_) -> None
+
+let real_file_size (path : string) : int option =
+  try Some (Unix.stat path).st_size
+  with Unix.Unix_error(_,_,_) -> None
+
+let real_is_readable (path : string) : bool =
+  try Unix.access path [Unix.F_OK; Unix.R_OK]; true
+  with Unix.Unix_error(_,_,_) -> false
+
+let real_is_writeable (path : string) : bool =
+  try Unix.access path [Unix.F_OK; Unix.R_OK]; true
+  with Unix.Unix_error(_,_,_) -> false
+
+let real_is_executable (path : string) : bool =
+  try Unix.access path [Unix.F_OK; Unix.X_OK]; true
   with Unix.Unix_error(_,_,_) -> false
 
 let real_file_type (path : string) : Unix.file_kind option =
@@ -92,6 +106,8 @@ let real_chdir (path : string) : string option =
 (* NB on Unix systems, the abstract type `file_descriptor` is just an int *)
 let fd_of_int : int -> Unix.file_descr = Obj.magic
 let int_of_fd : Unix.file_descr -> int = Obj.magic
+
+let real_is_tty (fd : int) = Unix.isatty (fd_of_int fd)
 
 type open_flags = Unix.open_flag list
 

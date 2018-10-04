@@ -79,7 +79,10 @@ class ( OS 'a )
   val chdir : os_state 'a -> path -> os_state 'a * maybe string
   val file_exists : os_state 'a -> path -> bool
   val file_type : os_state 'a -> path -> maybe file_type
-  val isexec : os_state 'a -> path -> bool
+  val is_tty : os_state 'a -> fd -> bool
+  val is_readable : os_state 'a -> path -> bool
+  val is_writeable : os_state 'a -> path -> bool
+  val is_executable : os_state 'a -> path -> bool
   val readdir : os_state 'a -> path -> set (path * file unit)
   val write_fd : os_state 'a -> fd -> string -> maybe (os_state 'a)
   val read_fd : os_state 'a -> fd -> maybe (os_state 'a * string)
@@ -836,7 +839,29 @@ instance (OS symbolic)
     | Just (Dir _) -> Just FileDirectory
     end
 
-  let isexec os path =
+  let is_tty os fd =
+    match symbolic_resolve_fd os.symbolic fd with
+    | Just fifo_num ->
+       (* if it points to our original TTY and we're interactive, yup! *)
+       elem fifo_num [STDIN; STDOUT; STDERR] && 
+       Set.member Sh_interactive os.sh.opts
+    | Nothing -> false
+    end
+
+   (* TODO 2018-10-04 real permissions? *)
+  let is_readable os path =
+    match symbolic_fs_resolve_path os.symbolic.fs_root path with
+    | Nothing -> false
+    | Just _ -> true
+    end
+
+  let is_writeable os path =
+    match symbolic_fs_resolve_path os.symbolic.fs_root path with
+    | Nothing -> false
+    | Just _ -> true
+    end
+
+  let is_executable os path =
     match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> false
     | Just _ -> true
@@ -1015,8 +1040,17 @@ declare ocaml target_rep function real_exists = `System.real_exists`
 val real_file_type : path -> maybe file_type
 declare ocaml target_rep function real_file_type = `System.real_file_type`
 
-val real_isexec : path -> bool
-declare ocaml target_rep function real_isexec = `System.real_isexec`
+val real_is_tty : fd -> bool
+declare ocaml target_rep function real_is_tty = `System.real_is_tty`
+
+val real_is_readable : path -> bool
+declare ocaml target_rep function real_is_readable = `System.real_is_readable`
+
+val real_is_writeable : path -> bool
+declare ocaml target_rep function real_is_writeable = `System.real_is_writeable`
+
+val real_is_executable : path -> bool
+declare ocaml target_rep function real_is_executable = `System.real_is_executable`
 
 val real_readdir : string -> list (string * bool)
 declare ocaml target_rep function real_readdir = `System.real_readdir`
@@ -1132,8 +1166,14 @@ instance (OS unit)
     end
       
   let file_exists _os path = real_exists path
+
   let file_type _os path = real_file_type path
-  let isexec _os path = real_isexec path
+
+  let is_tty _os fd = real_is_tty fd
+
+  let is_readable _os path = real_is_readable path
+  let is_writeable _os path = real_is_writeable path
+  let is_executable _os path = real_is_executable path
 
   let readdir _os path = 
     let contents = real_readdir path in
