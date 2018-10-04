@@ -14,8 +14,26 @@ type os_state 'a = <|
 (* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)           
 type file 'a = File | Dir of 'a
 
+type file_type = 
+    FileRegular 
+  | FileDirectory 
+  | FileCharacter
+  | FileBlock
+  | FileLink
+  | FileFIFO
+  | FileSocket
+
+declare ocaml target_rep type file_type = `Unix.file_kind`
+declare ocaml target_rep function FileRegular   = `Unix.S_REG`
+declare ocaml target_rep function FileDirectory = `Unix.S_DIR`
+declare ocaml target_rep function FileCharacter = `Unix.S_CHR`
+declare ocaml target_rep function FileBlock     = `Unix.S_BLK`
+declare ocaml target_rep function FileLink      = `Unix.S_LNK`
+declare ocaml target_rep function FileFIFO      = `Unix.S_FIFO`
+declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
+
 (* Data structures for symbolic FDs *)
-(* TODO 2018-09-04 have Fifo record which end we're working on
+(* TODO 2018-09-04 have FIFO record which end we're working on
 
    trickiness: renumber_fd then needs to save some of that data.
    it's bigger refactor than you'd hope
@@ -60,7 +78,7 @@ class ( OS 'a )
   val physical_cwd : os_state 'a -> string
   val chdir : os_state 'a -> path -> os_state 'a * maybe string
   val file_exists : os_state 'a -> path -> bool
-  val isdir : os_state 'a -> path -> bool
+  val file_type : os_state 'a -> path -> maybe file_type
   val isexec : os_state 'a -> path -> bool
   val readdir : os_state 'a -> path -> set (path * file unit)
   val write_fd : os_state 'a -> fd -> string -> maybe (os_state 'a)
@@ -83,6 +101,8 @@ end
 (**********************************************************************)
 (* SHELL/OS STATE FUNCTIONS *******************************************)
 (**********************************************************************)
+
+(* Reading and writing FDs ********************************************)
 
 val try_write_fd : forall 'a. OS 'a => fd -> string -> os_state 'a -> os_state 'a
 let try_write_fd fd s os =
@@ -121,7 +141,11 @@ let rec read_line_loop s0 backslash_escapes fd cs =
 val read_line : forall 'a. OS 'a => os_state 'a -> bool (* allow backslash escapes? *) -> fd -> os_state 'a * string * bool (* EOF? *)
 let read_line s0 backslash_escapes fd =
   read_line_loop s0 backslash_escapes fd []
-  
+
+(* FS and path manipulation *******************************************)
+
+val isdir : forall 'a. OS 'a => os_state 'a -> path -> bool
+let isdir os path = file_type os path = Just FileDirectory
 
 val canonicalize_split_path : forall 'a. OS 'a => os_state 'a -> path -> list string -> maybe string
 let rec canonicalize_split_path os path components =
@@ -148,6 +172,8 @@ let canonicalize_path os path =
   in
   let components = split_string_on false (* not escapable *) #'/' path' in
   canonicalize_split_path os initial components
+
+(* Job control ********************************************************)
 
 val active_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info
 let active_jobs os0 =
@@ -183,6 +209,8 @@ let add_job os0 pid cmd =
     else os0
   in
   <| os1 with sh = <| os1.sh with jobs = new_job::os1.sh.jobs |> |>
+
+(* Redirects **********************************************************)
 
 val redirect : forall 'a. OS 'a => os_state 'a -> expanded_redir -> either string (os_state 'a * saved_fds)
 let redirect os0 er =
@@ -243,6 +271,7 @@ let do_redirs os0 ers =
   then Right (os0, [])
   else really_do_redirs os0 ers
 
+(* Pipes and forking **************************************************)
 
 val fork_and_execve : forall 'a. OS 'a =>
     os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * nat
@@ -304,6 +333,8 @@ let run_pipe s0 stmts =
      (* hand off to the loop *)
      run_pipe_loop s3 stmts' fd_next
   end
+
+(* Traps **************************************************************)
    
 val update_trap : forall 'a. os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
 let update_trap os0 signal action =
@@ -324,6 +355,8 @@ let clear_traps_for_subshell sh =
   (<| sh with traps = Map.fromList ignored |>,
    (* indicate which handled traps are now cleared *)
    map fst handled)
+
+(* Parameters and the environment *************************************)
 
 val printable_shell_env : forall 'a. os_state 'a -> string
 let printable_shell_env os = 
@@ -402,13 +435,6 @@ let get_path os =
 val is_readonly : forall 'a. string -> os_state 'a -> bool
 let is_readonly var os = Set.member var os.sh.readonly
    
-val defun : forall 'a. string -> stmt -> os_state 'a -> os_state 'a
-let defun name body os = 
-  <| os with sh = <| os.sh with funcs = Map.insert name body os.sh.funcs |> |>
-
-val lookup_function : forall 'a. string -> os_state 'a -> maybe stmt
-let lookup_function name os = Map.lookup name os.sh.funcs
-
 val internal_set_param 
     : forall 'a. string -> symbolic_string -> os_state 'a -> os_state 'a
 let internal_set_param x v os = 
@@ -429,6 +455,15 @@ let set_param x v os0 =
       else os1
     in
     Right os2
+
+(* Functions and positional param management **************************)
+
+val defun : forall 'a. string -> stmt -> os_state 'a -> os_state 'a
+let defun name body os = 
+  <| os with sh = <| os.sh with funcs = Map.insert name body os.sh.funcs |> |>
+
+val lookup_function : forall 'a. string -> os_state 'a -> maybe stmt
+let lookup_function name os = Map.lookup name os.sh.funcs
   
 val set_function_params : forall 'a. nat -> fields -> os_state 'a -> os_state 'a
 let set_function_params ln argv os =
@@ -446,6 +481,8 @@ let enter_loop os =
 val exit_loop : forall 'a. os_state 'a -> os_state 'a
 let exit_loop os = 
   <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest - 1 |> |>
+
+(* Special variables ($?, $!, $-) **************************************)
 
 val exit_with : forall 'a. nat -> os_state 'a -> os_state 'a
 let exit_with ec os = 
@@ -492,6 +529,8 @@ let unset_sh_opt os opt =
 
 val is_interactive : forall 'a. os_state 'a -> bool
 let is_interactive os = Set.member Sh_interactive os.sh.opts
+
+(* Aliases ************************************************************)
 
 val dash_setalias : string -> string -> unit
 declare ocaml target_rep function dash_setalias = `Dash.setalias`
@@ -790,11 +829,11 @@ instance (OS symbolic)
     | Just _ -> true
     end
 
-  let isdir os path =
+  let file_type os path =
     match symbolic_fs_resolve_path os.symbolic.fs_root path with
-    | Just (Dir _) -> true
-    | Just File -> false
-    | Nothing -> false
+    | Nothing -> Nothing
+    | Just File -> Just FileRegular
+    | Just (Dir _) -> Just FileDirectory
     end
 
   let isexec os path =
@@ -973,8 +1012,8 @@ declare ocaml target_rep function real_chdir = `System.real_chdir`
 val real_exists : path -> bool
 declare ocaml target_rep function real_exists = `System.real_exists`
 
-val real_isdir : path -> bool
-declare ocaml target_rep function real_isdir = `System.real_isdir`
+val real_file_type : path -> maybe file_type
+declare ocaml target_rep function real_file_type = `System.real_file_type`
 
 val real_isexec : path -> bool
 declare ocaml target_rep function real_isexec = `System.real_isexec`
@@ -1093,7 +1132,7 @@ instance (OS unit)
     end
       
   let file_exists _os path = real_exists path
-  let isdir _os path = real_isdir path
+  let file_type _os path = real_file_type path
   let isexec _os path = real_isexec path
 
   let readdir _os path = 

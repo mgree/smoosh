@@ -71,11 +71,16 @@ let real_isexec (path : string) : bool =
       else false
   with Unix.Unix_error(_,_,_) -> false
 
-let real_isdir (path : string) : bool = Sys.file_exists path && Sys.is_directory path
+let real_file_type (path : string) : Unix.file_kind option =
+  try Some (Unix.lstat path).st_kind
+  with Unix.Unix_error(_,_,_) -> None
+
+let real_isdir (path : string) : bool = 
+  Sys.file_exists path && Sys.is_directory path
 
 let real_readdir (path : string) : (string * bool) list =
   let contents = Sys.readdir path in
-  let dir_info file = (file, real_isdir (Filename.concat path file)) in
+  let dir_info file = (file, Sys.is_directory (Filename.concat path file)) in
   Array.to_list (Array.map dir_info contents)
 
 let real_chdir (path : string) : string option =
