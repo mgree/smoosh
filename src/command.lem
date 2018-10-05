@@ -1404,6 +1404,60 @@ let printf_esc s0 fmt =
     end in        
   (write_stdout str s0, fmt')
 
+(* TODO 2018-10-05
+
+Each conversion specification is introduced by the <percent-sign> character ( '%' ). After the character '%', the following shall appear in sequence:
+
+flags
+Zero or more flags, in any order, that modify the meaning of the conversion specification.
+field width
+An optional string of decimal digits to specify a minimum field width. For an output field, if the converted value has fewer bytes than the field width, it shall be padded on the left (or right, if the left-adjustment flag ( '-' ), described below, has been given) to the field width.
+precision
+Gives the minimum number of digits to appear for the d, o, i, u, x, or X conversion specifiers (the field is padded with leading zeros), the number of digits to appear after the radix character for the e and f conversion specifiers, the maximum number of significant digits for the g conversion specifier; or the maximum number of bytes to be written from a string in the s conversion specifier. The precision shall take the form of a <period> ( '.' ) followed by a decimal digit string; a null digit string is treated as zero.
+conversion specifier characters
+A conversion specifier character (see below) that indicates the type of conversion to be applied.
+The flag characters and their meanings are:
+
+-
+The result of the conversion shall be left-justified within the field.
++
+The result of a signed conversion shall always begin with a sign ( '+' or '-' ).
+<space>
+If the first character of a signed conversion is not a sign, a <space> shall be prefixed to the result. This means that if the <space> and '+' flags both appear, the <space> flag shall be ignored.
+#
+The value shall be converted to an alternative form. For c, d, i, u, and s conversion specifiers, the behavior is undefined. For the o conversion specifier, it shall increase the precision to force the first digit of the result to be a zero. For x or X conversion specifiers, a non-zero result has 0x or 0X prefixed to it, respectively. For a, A, e, E, f, F, g, and G conversion specifiers, the result shall always contain a radix character, even if no digits follow the radix character. For g and G conversion specifiers, trailing zeros shall not be removed from the result as they usually are.
+0
+For a, A, d, e, E, f, F, g, G, i, o, u, x, and X conversion specifiers, leading zeros (following any indication of sign or base) shall be used to pad to the field width rather than performing space padding, except when converting an infinity or NaN. If the '0' and '-' flags both appear, the '0' flag shall be ignored. For d, i , o, u, x, and X conversion specifiers, if a precision is specified, the '0' flag shall be ignored. For other conversion specifiers, the behavior is undefined.
+Each conversion specifier character shall result in fetching zero or more arguments. The results are undefined if there are insufficient arguments for the format. If the format is exhausted while arguments remain, the excess arguments shall be ignored.
+
+The conversion specifiers and their meanings are:
+
+d,i,o,u,x,X
+The integer argument shall be written as signed decimal ( d or i ), unsigned octal ( o ), unsigned decimal ( u ), or unsigned hexadecimal notation ( x and X ). The d and i specifiers shall convert to signed decimal in the style "[-]dddd". The x conversion specifier shall use the numbers and letters "0123456789abcdef" and the X conversion specifier shall use the numbers and letters "0123456789ABCDEF". The precision component of the argument shall specify the minimum number of digits to appear. If the value being converted can be represented in fewer digits than the specified minimum, it shall be expanded with leading zeros. The default precision shall be 1. The result of converting a zero value with a precision of 0 shall be no characters. If both the field width and precision are omitted, the implementation may precede, follow, or precede and follow numeric arguments of types d, i, and u with <blank> characters; arguments of type o (octal) may be preceded with leading zeros.
+
+c
+The single-byte character argument shall be written.
+The argument to the c conversion specifier can be a string containing zero or more bytes. If it contains one or more bytes, the first byte shall be written and any additional bytes shall be ignored. If the argument is an empty string, it is unspecified whether nothing is written or a null byte is written.
+
+b
+An additional conversion specifier character, b, shall be supported as follows. The argument shall be taken to be a string that can contain <backslash>-escape sequences. The following <backslash>-escape sequences shall be supported:
+
+The escape sequences listed in XBD File Format Notation ( '\\', '\a', '\b', '\f', '\n', '\r', '\t', '\v' ), which shall be converted to the characters they represent
+
+"\0ddd", where ddd is a zero, one, two, or three-digit octal number that shall be converted to a byte with the numeric value specified by the octal number
+
+'\c', which shall not be written and shall cause printf to ignore any remaining characters in the string operand containing it, any remaining string operands, and any additional characters in the format operand
+
+The interpretation of a <backslash> followed by any other sequence of characters is unspecified.
+
+Bytes from the converted string shall be written until the end of the string or the number of bytes indicated by the precision specification is reached. If the precision is omitted, it shall be taken to be infinite, so all bytes up to the end of the converted string shall be written.
+
+The format operand shall be reused as often as necessary to satisfy the argument operands. Any extra b, c, or s conversion specifiers shall be evaluated as if a null string argument were supplied; other extra conversion specifications shall be evaluated as if a zero argument were supplied. If the format operand contains no conversion specifications and argument operands are present, the results are unspecified.
+
+If a character sequence in the format operand begins with a '%' character, but does not form a valid conversion specification, the behavior is unspecified.
+
+*)
+
 let printf_format s0 fmt args =
   match fmt with
   | [] -> 
