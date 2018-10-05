@@ -1,5 +1,12 @@
 open import Smoosh
 
+(* TODO dash supports other flags:
+   -O, -G (owner/group tests)
+   -k (sticky bit test)
+   <
+   >
+ *)
+
 type test_expr =
     (* UNARY; encoding -n (nonempy string) *)
     TestBlock of path                (* -b *)
@@ -182,26 +189,39 @@ val eval_test_expr
     : forall 'a. OS 'a => os_state 'a -> test_expr -> bool
 let rec eval_test_expr s0 expr = 
   match expr with
-  | TestBlock path          -> file_type s0 path = Just FileBlock     
-  | TestCharacter path      -> file_type s0 path = Just FileCharacter
-  | TestDirectory path      -> file_type s0 path = Just FileDirectory
-  | TestExists path         -> file_exists s0 path
-  | TestFile path           -> file_type s0 path = Just FileRegular
-  | TestSetgid _path        -> Assert_extra.failwith "TODO 2018-10-03 eval_test_expr unimplemented"
-  | TestSymlink path        -> file_type s0 path = Just FileLink
-  | TestFifo path           -> file_type s0 path = Just FileFIFO
-  | TestReadable path       -> is_readable s0 path
-  | TestSocket path         -> file_type s0 path = Just FileSocket
-  | TestNonempty_file _path -> Assert_extra.failwith "TODO 2018-10-03 eval_test_expr unimplemented"
-  | TestTerminalFD fd       -> is_tty s0 fd
-  | TestSetuid _path        -> Assert_extra.failwith "TODO 2018-10-03 eval_test_expr unimplemented"
-  | TestWriteable path      -> is_writeable s0 path
-  | TestExecutable path     -> is_executable s0 path
-  | TestEmpty_str str       -> str = ""
-  | TestEq_str str1 str2    -> str1 = str2
-  | TestEq_num n1 n2        -> n1 = n2 
-  | TestGt_num n1 n2        -> n1 > n2
-  | TestAnd expr1 expr2     -> eval_test_expr s0 expr1 && eval_test_expr s0 expr2
-  | TestOr expr1 expr2      -> eval_test_expr s0 expr1 || eval_test_expr s0 expr2
-  | TestNot expr'           -> not (eval_test_expr s0 expr')
+  | TestBlock path         -> file_type s0 path = Just FileBlock     
+  | TestCharacter path     -> file_type s0 path = Just FileCharacter
+  | TestDirectory path     -> file_type s0 path = Just FileDirectory
+  | TestExists path        -> file_exists s0 path
+  | TestFile path          -> file_type s0 path = Just FileRegular
+  | TestSetgid path        -> 
+     match file_perms s0 path with
+     | Nothing -> false
+     | Just perms -> perms.setgid
+     end
+  | TestSymlink path       -> file_type s0 path = Just FileLink
+  | TestFifo path          -> file_type s0 path = Just FileFIFO
+  | TestReadable path      -> is_readable s0 path
+  | TestSocket path        -> file_type s0 path = Just FileSocket
+  | TestNonempty_file path -> 
+     match file_size s0 path with
+     | Nothing -> false
+     | Just 0 -> false
+     | Just _ -> true
+     end
+  | TestTerminalFD fd      -> is_tty s0 fd
+  | TestSetuid  path       -> 
+     match file_perms s0 path with
+     | Nothing -> false
+     | Just perms -> perms.setuid
+     end
+  | TestWriteable path     -> is_writeable s0 path
+  | TestExecutable path    -> is_executable s0 path
+  | TestEmpty_str str      -> str = ""
+  | TestEq_str str1 str2   -> str1 = str2
+  | TestEq_num n1 n2       -> n1 = n2 
+  | TestGt_num n1 n2       -> n1 > n2
+  | TestAnd expr1 expr2    -> eval_test_expr s0 expr1 && eval_test_expr s0 expr2
+  | TestOr expr1 expr2     -> eval_test_expr s0 expr1 || eval_test_expr s0 expr2
+  | TestNot expr'          -> not (eval_test_expr s0 expr')
   end

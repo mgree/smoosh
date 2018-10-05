@@ -63,7 +63,7 @@ let real_get_umask () : int =
 let real_set_umask (mask : int) : unit =
   ignore (Unix.umask mask)
 
-let real_exists (path : string) : bool = Sys.file_exists path
+let real_file_exists (path : string) : bool = Sys.file_exists path
 
 let real_file_perms (path : string) : int option =
   try Some (Unix.stat path).st_perm
@@ -71,6 +71,10 @@ let real_file_perms (path : string) : int option =
 
 let real_file_size (path : string) : int option =
   try Some (Unix.stat path).st_size
+  with Unix.Unix_error(_,_,_) -> None
+
+let real_file_perms (path : string) : int option =
+  try Some (Unix.stat path).st_perm
   with Unix.Unix_error(_,_,_) -> None
 
 let real_is_readable (path : string) : bool =

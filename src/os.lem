@@ -78,11 +78,17 @@ class ( OS 'a )
   val physical_cwd : os_state 'a -> string
   val chdir : os_state 'a -> path -> os_state 'a * maybe string
   val file_exists : os_state 'a -> path -> bool
+
+      (* stat, but split up *)
   val file_type : os_state 'a -> path -> maybe file_type
+  val file_size : os_state 'a -> path -> maybe nat
+  val file_perms : os_state 'a -> path -> maybe perms
   val is_tty : os_state 'a -> fd -> bool
   val is_readable : os_state 'a -> path -> bool
   val is_writeable : os_state 'a -> path -> bool
   val is_executable : os_state 'a -> path -> bool
+
+
   val readdir : os_state 'a -> path -> set (path * file unit)
   val write_fd : os_state 'a -> fd -> string -> maybe (os_state 'a)
   val read_fd : os_state 'a -> fd -> maybe (os_state 'a * string)
@@ -832,6 +838,21 @@ instance (OS symbolic)
     | Just _ -> true
     end
 
+  let file_size os path =
+    match symbolic_fs_resolve_path os.symbolic.fs_root path with
+    | Nothing -> Nothing
+    | Just (Dir _) -> Just 512 (* simulating result of stat call *)
+    | Just File -> Just 1 (* TODO 2018-10-05 symbolic fs needs file contents *)
+    end
+
+  (* TODO 2018-10-05 symbolic fs needs perms *)
+  let file_perms os path =
+    match symbolic_fs_resolve_path os.symbolic.fs_root path with
+    | Nothing -> Nothing
+    | Just (Dir _) -> Just (invert_perms default_umask)
+    | Just File -> Just (invert_perms default_umask)
+    end
+
   let file_type os path =
     match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> Nothing
@@ -1034,8 +1055,14 @@ declare ocaml target_rep function real_physical_cwd = `Unix.getcwd`
 val real_chdir : path -> maybe string
 declare ocaml target_rep function real_chdir = `System.real_chdir`
 
-val real_exists : path -> bool
-declare ocaml target_rep function real_exists = `System.real_exists`
+val real_file_exists : path -> bool
+declare ocaml target_rep function real_file_exists = `System.real_file_exists`
+
+val real_file_size : path -> maybe nat
+declare ocaml target_rep function real_file_size = `System.real_file_size`
+
+val real_file_perms : path -> maybe nat
+declare ocaml target_rep function real_file_perms = `System.real_file_perms`
 
 val real_file_type : path -> maybe file_type
 declare ocaml target_rep function real_file_type = `System.real_file_type`
@@ -1165,7 +1192,15 @@ instance (OS unit)
     | Just err -> (os, Just err)
     end
       
-  let file_exists _os path = real_exists path
+  let file_exists _os path = real_file_exists path
+
+  let file_size _os path = real_file_size path
+
+  let file_perms _os path = 
+    match real_file_perms path with
+    | Nothing -> Nothing
+    | Just num_perms -> Just (perms_of_nat num_perms)
+    end
 
   let file_type _os path = real_file_type path
 
