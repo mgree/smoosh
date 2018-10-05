@@ -1408,9 +1408,20 @@ let printf_format s0 fmt args =
   match fmt with
   | [] -> 
      let s1 = write_stderr "printf: %: missing format character" s0 in
-     (s1, [], args)
-  | #'%'::fmt' ->
-     (write_stdout "%" s0, fmt', args)
+     (exit_with 1 s1, [], args)
+  | #'%'::fmt' -> (write_stdout "%" s0, fmt', args)
+  | #'s'::fmt' -> 
+     match args with
+     | [] -> (s0, fmt', [])
+     | arg::args' -> 
+        match try_concrete arg with
+        | Nothing -> 
+           let s1 = write_stderr "printf %s: symbolic argument" s0 in
+           (exit_with 2 s1, fmt', args')
+        | Just s ->
+           (write_stdout s s0, fmt', args')
+        end
+     end
   | _ ->
      let () = 
        Assert_extra.failwith "!!! TODO 2018-10-05 % formats unimplemented in printf"
@@ -1418,6 +1429,7 @@ let printf_format s0 fmt args =
      (s0, fmt, args)
   end
 
+(* invariant: called with an exit code of 0, to be changed later *)
 let rec printf_loop s0 fmt args =
   match fmt with
   | [] -> Right (s0, Done)
@@ -1439,7 +1451,7 @@ let builtin_printf s0 argv _env =
   | sfmt::args ->
      match try_concrete sfmt with
      | Nothing -> Right (fail_with_code 3 "printf: symbolic format string" s0, Done)
-     | Just fmt -> printf_loop s0 (toCharList fmt) args
+     | Just fmt -> printf_loop (exit_with 0 s0) (toCharList fmt) args
      end
   end
 
