@@ -497,8 +497,13 @@ val exit_with : forall 'a. nat -> os_state 'a -> os_state 'a
 let exit_with ec os = 
   internal_set_param "?" (symbolic_string_of_string (stringFromNat ec)) os
 
+val fail_with_code 
+    : forall 'a. OS 'a => nat -> string -> os_state 'a -> os_state 'a
+let fail_with_code ec msg os = exit_with ec (write_stderr (msg ^ "\n") os)
+
 val fail_with : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
-let fail_with msg os = exit_with 1 (write_stderr (msg ^ "\n") os)
+let fail_with = fail_with_code 1
+
 
 val get_last_exit_code : forall 'a. os_state 'a -> maybe nat
 let get_last_exit_code os =

@@ -32,6 +32,7 @@ let has_bit n bit = (n / (2 ** bit)) mod 2 = 1
 
 let is_whitespace c = elem c (toCharList " \n\t")
 let is_digit c = elem c (toCharList "1234567890")
+let is_octal_digit c = elem c (toCharList "01234567")
 let is_num_const_char c = elem c (toCharList "1234567890xabcdefABCDEF")
 
 val is_numeric : list char -> bool

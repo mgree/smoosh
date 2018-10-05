@@ -1371,11 +1371,74 @@ let builtin_bracket s0 argv _env =
   | _ -> Left (s0, "expected matching ']'")
   end
 
+let ascii_bell = chr 7
+let ascii_formfeed = chr 12
+let ascii_verticaltab = chr 11
+
+let printf_esc s0 fmt =
+  let (str, fmt') = 
+    match fmt with
+    | #'\\'::fmt' -> ("\\", fmt')
+    | #'a'::fmt' -> (toString [ascii_bell], fmt')
+    | #'b'::fmt' -> ("\b", fmt')
+    | #'f'::fmt' -> (toString [ascii_formfeed], fmt')
+    | #'n'::fmt' -> ("\n", fmt')
+    | #'r'::fmt' -> ("\r", fmt')
+    | #'t'::fmt' -> ("\t", fmt')
+    | #'v'::fmt' -> (toString [ascii_verticaltab], fmt')
+    | d1::d2::d3::fmt' ->
+       if is_octal_digit d1
+       then 
+         let (other_digits,rest) = splitWhile is_octal_digit [d2;d3] in
+         let num_cs = d1::other_digits in
+         match readInteger 8 num_cs with
+         | Left msg -> 
+            Assert_extra.failwith ("!!! couldn't read octal digits: " ^ 
+                                     toString num_cs ^ "(" ^ msg ^ ")")
+         | Right n -> (toString [chr (toNat n)], rest ++ fmt')
+         end
+       else (* no octal digits... just write the unrecognized character *)
+         ("\\" ^ toString [d1], d2::d3::fmt')
+    | c::fmt' -> ("\\" ^ toString [c], fmt')
+    | [] -> ("\\", [])
+    end in        
+  (write_stdout str s0, fmt')
+
+let printf_format s0 fmt args =
+  let () = 
+    Assert_extra.failwith "!!! TODO 2018-10-05 % formats unimplemented in printf"
+  in
+  (s0, fmt, args)
+
+let rec printf_loop s0 fmt args =
+  match fmt with
+  | [] -> Right (s0, Done)
+  | #'\\'::fmt' ->
+     let (s1, fmt'') = printf_esc s0 fmt' in
+     printf_loop s1 fmt'' args
+  | #'%'::fmt' -> 
+     let (s1, fmt'', args') = printf_format s0 fmt' args in
+     printf_loop s1 fmt'' args'
+  | c::fmt' ->
+     let s1 = write_stdout (toString [c]) s0 in
+     printf_loop s1 fmt' args
+  end
+
+let builtin_printf s0 argv _env =
+  match argv with
+  | [] -> 
+     Right (fail_with_code 2 "printf: usage printf format [arg...]\n" s0, Done)
+  | sfmt::args ->
+     match try_concrete sfmt with
+     | Nothing -> Right (fail_with_code 3 "printf: symbolic format string" s0, Done)
+     | Just fmt -> printf_loop s0 (toCharList fmt) args
+     end
+  end
+
 (* TODO 2018-10-01 remaining worthwhile operations *)
 
 (* parsing/printing *)
 let builtin_getopts = builtin_unimplemented (* OPTIND, OPTARG. trickiness with ? and : *)
-let builtin_printf = builtin_unimplemented (* lots of weird formatting *)
 
 (* process control *)
 let builtin_kill = builtin_unimplemented (* not so bad, may need to generate more for kill -l *)

@@ -246,7 +246,16 @@ and parse_string acc = function
   | '\135'::_ as s -> List.rev acc, s
   | '\136'::_ as s -> List.rev acc, s
   | '~'   ::_ as s -> List.rev acc, s
-  | '\129'::c::s -> parse_string (explode (Char.escaped c) @ acc) s
+  | '\129'::c::s -> 
+     let c' = match c with
+      | '\'' -> ['\\'; '\'']
+      | '\"' -> ['\\'; '"']
+      | '\\' -> ['\\']
+      | '$' -> ['$']
+      | '`' -> ['`']
+      | _ -> ['\\'; c]
+     in
+     parse_string (List.rev c' @ acc) s
   | c::s -> parse_string (c::acc) s
               
 and arg_char c s bqlist stack =
