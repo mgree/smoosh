@@ -27,10 +27,6 @@
 - read_fd/read_char_fd should trigger steps/set up scheduler plans
   needed to get the right behavior on some symbolic tests for read
 
-- test
-  + needs a stat system call
-  + needs more tests
-
 ### Last of the shell semantics
 
 - Sh_errexit
