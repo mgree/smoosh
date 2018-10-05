@@ -249,11 +249,8 @@ and parse_string acc = function
   | '\129'::c::s -> 
      let c' = match c with
       | '\'' -> ['\\'; '\'']
-      | '\"' -> ['\\'; '"']
-      | '\\' -> ['\\']
-      | '$' -> ['$']
-      | '`' -> ['`']
-      | _ -> ['\\'; c]
+      | '"' -> ['\\'; '"']
+      | _ -> [c]
      in
      parse_string (List.rev c' @ acc) s
   | c::s -> parse_string (c::acc) s

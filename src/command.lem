@@ -1405,10 +1405,18 @@ let printf_esc s0 fmt =
   (write_stdout str s0, fmt')
 
 let printf_format s0 fmt args =
-  let () = 
-    Assert_extra.failwith "!!! TODO 2018-10-05 % formats unimplemented in printf"
-  in
-  (s0, fmt, args)
+  match fmt with
+  | [] -> 
+     let s1 = write_stderr "printf: %: missing format character" s0 in
+     (s1, [], args)
+  | #'%'::fmt' ->
+     (write_stdout "%" s0, fmt', args)
+  | _ ->
+     let () = 
+       Assert_extra.failwith "!!! TODO 2018-10-05 % formats unimplemented in printf"
+     in
+     (s0, fmt, args)
+  end
 
 let rec printf_loop s0 fmt args =
   match fmt with

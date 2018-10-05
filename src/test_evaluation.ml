@@ -149,7 +149,6 @@ let exit_code_tests : (string * symbolic os_state * int) list =
 (* STDOUT TESTS ********************************************************)
 (***********************************************************************)
 
-
 let run_cmd_for_stdout (cmd : string) (os0 : symbolic os_state) : string =
   let cs = Shim.parse_string cmd in
   let os1 = Semantics.full_evaluation_multi os0 cs in
@@ -222,6 +221,11 @@ let stdout_tests : (string * symbolic os_state * string) list =
   (* failing in symbolic mode because of pipe/scheduler issues *)
 (*  ; ("echo 1 | { read x ; echo $x ; }", os_empty, "1\n")
   ; ("echo 1 2 | { read x y ; echo $x ; echo $y ; }", os_empty, "1\n2\n") *)
+  
+    (* printf *)
+  ; ("printf", os_empty, "")
+  ; ("printf \\\\n", os_empty, "\n")
+  ; ("printf hi\\\\n%%\\\\tthere", os_empty, "hi\n%\tthere")
   ]
 
 
