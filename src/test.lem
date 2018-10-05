@@ -2,9 +2,6 @@ open import Smoosh
 
 (* TODO dash supports other flags:
    -O, -G (owner/group tests)
-   -k (sticky bit test)
-   <
-   >
  *)
 
 type test_expr =
@@ -16,6 +13,7 @@ type test_expr =
   | TestFile of path                 (* -f *)
   | TestSetgid of path               (* -g *)
   | TestSymlink of path              (* -h, -L *)
+  | TestSticky of path               (* -k [extension, from dash] *)
   | TestFifo of path                 (* -p *)
   | TestReadable of path             (* -r *)
   | TestSocket of path               (* -S *)
@@ -27,6 +25,7 @@ type test_expr =
   | TestEmpty_str of string          (* -z *)
     (* BINARY; we encode negated forms, ge, lt, and le *)
   | TestEq_str of string * string    (* = *)
+  | TestGt_str of string * string    (* > [extension, from dash] *)
   | TestEq_num of integer * integer  (* -eq *)
   | TestGt_num of integer * integer  (* -gt *)
     (* TRICKSY *)
@@ -52,7 +51,15 @@ and string_of_test_expr_negation expr =
   | TestNot (TestEq_num n1 n2) -> write n1 ^ " -ne " ^ write n2
   | TestNot (TestGt_num n1 n2) -> write n2 ^ " -le " ^ write n1
   | TestNot (TestEmpty_str str) -> "-n " ^ str
-  | TestNot expr -> "! " ^ string_of_test_expr_unary expr
+  | TestNot expr -> "! " ^ string_of_test_expr_equality expr
+  | _ -> string_of_test_expr_equality expr
+  end
+and string_of_test_expr_equality expr =
+  match expr with
+  | TestEq_str str1 str2 -> str1 ^ " = " ^ str2
+  | TestGt_str str1 str2 -> str1 ^ " \\> " ^ str2
+  | TestEq_num n1   n2   -> write n1 ^ " -eq " ^ write n2
+  | TestGt_num n1   n2   -> write n1 ^ " -gt " ^ write n2
   | _ -> string_of_test_expr_unary expr
   end
 and string_of_test_expr_unary expr =
@@ -64,6 +71,7 @@ and string_of_test_expr_unary expr =
   | TestFile path          -> "-f " ^ path
   | TestSetgid path        -> "-g " ^ path
   | TestSymlink path       -> "-L " ^ path
+  | TestSticky path        -> "-k " ^ path
   | TestFifo path          -> "-p " ^ path
   | TestReadable path      -> "-r " ^ path
   | TestSocket path        -> "-S " ^ path
@@ -122,6 +130,8 @@ and parse_test_expr_equality toks =
   match toks with
   | str1::"="::str2::toks' -> Right (TestEq_str str1 str2, toks')
   | str1::"!="::str2::toks' -> Right (TestNot (TestEq_str str1 str2), toks')
+  | str1::">"::str2::toks' -> Right (TestGt_str str1 str2, toks')
+  | str1::"<"::str2::toks' -> Right (TestGt_str str2 str1, toks')
   | num1::op::num2::toks' -> 
      if not (elem op ["-eq";"-neq";"-gt";"-ge";"-lt";"-le"])
      then parse_test_expr_unary toks
@@ -151,6 +161,7 @@ and parse_test_expr_unary toks =
   | "-g"::path::toks' -> Right (TestSetgid path, toks')
   | "-h"::path::toks' -> Right (TestSymlink path, toks')
   | "-L"::path::toks' -> Right (TestSymlink path, toks')
+  | "-k"::path::toks' -> Right (TestSticky path, toks')
   | "-n"::str::toks'  -> Right (TestNot (TestEmpty_str str), toks')
   | "-p"::path::toks' -> Right (TestFifo path, toks')
   | "-r"::path::toks' -> Right (TestReadable path, toks')
@@ -200,6 +211,11 @@ let rec eval_test_expr s0 expr =
      | Just perms -> perms.setgid
      end
   | TestSymlink path       -> file_type s0 path = Just FileLink
+  | TestSticky path        -> 
+     match file_perms s0 path with
+     | Nothing -> false
+     | Just perms -> perms.sticky
+     end
   | TestFifo path          -> file_type s0 path = Just FileFIFO
   | TestReadable path      -> is_readable s0 path
   | TestSocket path        -> file_type s0 path = Just FileSocket
@@ -219,6 +235,7 @@ let rec eval_test_expr s0 expr =
   | TestExecutable path    -> is_executable s0 path
   | TestEmpty_str str      -> str = ""
   | TestEq_str str1 str2   -> str1 = str2
+  | TestGt_str str1 str2   -> str1 > str2 (* TODO use locale *)
   | TestEq_num n1 n2       -> n1 = n2 
   | TestGt_num n1 n2       -> n1 > n2
   | TestAnd expr1 expr2    -> eval_test_expr s0 expr1 && eval_test_expr s0 expr2

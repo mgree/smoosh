@@ -140,6 +140,9 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   ; ("test \\( 5 -neq 5 \\) -o -n hello", os_empty, 0)
   ; ("test \\( 5 -eq 5 \\) -a -z \"\"", os_empty, 0)
   ; ("test 5 -eq 5 -a -z \"\"", os_empty, 0)
+  ; ("test hi \\< hello", os_empty, 1)
+  ; ("test lol \\< hello", os_empty, 1)
+  ; ("test a \\< b", os_empty, 0)
   ]
 
 (***********************************************************************)
