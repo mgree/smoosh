@@ -226,6 +226,8 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("printf", os_empty, "")
   ; ("printf \\\\n", os_empty, "\n")
   ; ("printf hi\\\\n%%\\\\tthere", os_empty, "hi\n%\tthere")
+  ; ("printf oct%spus o", os_empty, "octopus")
+  ; ("printf %s $((10 * 10))", os_empty, "100")
   ]
 
 
