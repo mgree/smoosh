@@ -101,6 +101,17 @@ let readNat cs =
        end
   else Left (toString cs ^ " is non-numeric")
 
+val parse_nat : list char -> either string (nat * list char)
+let parse_nat cs =
+  match splitWhile is_digit cs with
+  | ([],_) -> Left "no digits"
+  | (ds,rest) ->
+     match readNat ds with
+     | Left msg -> Left msg
+     | Right n -> Right (n,rest)
+     end
+  end
+
 val readInt64_loop : nat -> int64 -> (list char) -> either string int64
 let rec readInt64_loop base acc chars =
   match chars with

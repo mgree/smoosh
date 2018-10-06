@@ -116,3 +116,6 @@ Dash
     test it!
 
   - seems like timescmd is implemented incorrectly, printing out wrong numbers
+
+BOTH
+  - printf %5% seems perfectly valid, but both reject it as ill formatted
