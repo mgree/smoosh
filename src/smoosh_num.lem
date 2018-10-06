@@ -42,15 +42,33 @@ let is_alpha c = elem c (toCharList "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQR
 
 (* Convert uppercase A-F to lowercase and then convert
  * lowercase hexdigit to integer 10 to 15. *)
-val hexalpha_to_num : char -> nat
+val hexalpha_to_num : char -> either string nat
 let hexalpha_to_num c =
-  let num = ord c in
-  if 48 <= num && num <= 57
-  then num - 48
-  else let lowercase = if num >= 65 && num <= 70
-                       then num + 32
-                       else num in
-       9 + (lowercase - 96)
+  match c with
+  | #'0' -> Right 0
+  | #'1' -> Right 1
+  | #'2' -> Right 2
+  | #'3' -> Right 3
+  | #'4' -> Right 4
+  | #'5' -> Right 5
+  | #'6' -> Right 6
+  | #'7' -> Right 7
+  | #'8' -> Right 8
+  | #'9' -> Right 9
+  | #'a' -> Right 10
+  | #'b' -> Right 11
+  | #'c' -> Right 12
+  | #'d' -> Right 13
+  | #'e' -> Right 14
+  | #'f' -> Right 15
+  | #'A' -> Right 10
+  | #'B' -> Right 11
+  | #'C' -> Right 12
+  | #'D' -> Right 13
+  | #'E' -> Right 14
+  | #'F' -> Right 15
+  | _ -> Left ("bad digit '" ^ toString [c] ^ "'")
+  end
 
 class ( Read 'a )
   (* Read can fail with an error message by using Left.
@@ -59,8 +77,14 @@ class ( Read 'a )
   val write : 'a -> string
 end
 
-let readConstant dec hex oct chars =
+let rec readConstant dec hex oct chars =
   match chars with
+  | #'+'::cs -> readConstant dec hex oct cs
+  | #'-'::cs -> 
+     match readConstant dec hex oct cs with
+     | Left msg -> Left msg
+     | Right n -> Right (~n)
+     end
   | [#'0'] -> dec chars (* doesn't matter *)
   | #'0'::#'x'::cs -> hex cs
   | #'0'::cs -> oct cs
@@ -78,10 +102,13 @@ let rec readInteger_loop base acc chars =
   match chars with
   | [] -> Right acc
   | (c::cs) ->
-     let num = hexalpha_to_num c in
-      if num > base - 1 || num < 0
-      then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
-      else readInteger_loop base (((integerFromNat base) * acc) + (integerFromNat num)) cs
+     match hexalpha_to_num c with
+     | Left msg -> Left msg
+     | Right num ->
+        if num > base - 1 || num < 0
+        then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
+        else readInteger_loop base (((integerFromNat base) * acc) + (integerFromNat num)) cs
+     end
   end
 
 val readInteger : nat -> (list char) -> either string integer
@@ -117,13 +144,16 @@ let rec readInt64_loop base acc chars =
   match chars with
   | [] -> Right acc
   | (c::cs) ->
-     let num = hexalpha_to_num c in
-      if num > base - 1 || num < 0
-      then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
-      else let acc1 = ((int64FromNat base) * acc) + (int64FromNat num) in
-           if acc1 < 0
-           then Right int64Max
-           else readInt64_loop base acc1 cs
+     match hexalpha_to_num c with
+     | Left msg -> Left msg
+     | Right num ->
+       if num > base - 1 || num < 0
+       then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
+       else let acc1 = ((int64FromNat base) * acc) + (int64FromNat num) in
+            if acc1 < 0
+            then Right int64Max
+            else readInt64_loop base acc1 cs
+     end
   end
 
 val readInt64 : nat -> (list char) -> either string int64
@@ -138,13 +168,16 @@ let rec readInt32_loop base acc chars =
   match chars with
   | [] -> Right acc
   | (c::cs) ->
-     let num = hexalpha_to_num c in
-      if num > base - 1 || num < 0
-      then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
-      else let acc1 = ((int32FromNat base) * acc) + (int32FromNat num) in
-           if acc1 < 0
-           then Right int32Max
-           else readInt32_loop base acc1 cs
+     match hexalpha_to_num c with
+     | Left msg -> Left msg
+     | Right num ->
+       if num > base - 1 || num < 0
+       then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
+       else let acc1 = ((int32FromNat base) * acc) + (int32FromNat num) in
+            if acc1 < 0
+            then Right int32Max
+            else readInt32_loop base acc1 cs
+     end
   end
 
 val readInt32 : nat -> (list char) -> either string int32
@@ -154,32 +187,54 @@ let readInt32 base chars =
   | _ -> readInt32_loop base (int32FromNat 0) chars
   end
 
+let digits = toCharList "0123456789abcdef"
 
-val write_helper : forall 'a. Eq 'a, Nat 'a, NumIntegerDivision 'a, NumRemainder 'a => string -> 'a -> string
-let rec write_helper str n =
+val conv_digit : nat -> string
+let conv_digit n =
+  match index digits n with
+  | Nothing -> Assert_extra.failwith "invalid digit---can only go up to hexadecimal"
+  | Just c -> toString [c]
+  end
+
+val write_helper : forall 'a. Eq 'a, Nat 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a -> string -> 'a -> string
+let rec write_helper base str n =
+  let _ = Assert_extra.ensure (elem (toNat base) [2; 8; 10; 16]) 
+            "can only work with binary, octal, decimal, and hexadecimal" in
   if n = fromNat 0
   then str
-  else let ten = fromNat 10 in
-    let next_digit = n mod ten in
-    write_helper ((stringFromNat (toNat next_digit)) ^ str) (n div ten)
+  else let next_digit = n mod base in
+    write_helper base (conv_digit (toNat next_digit) ^ str) (n div base)
 
-val unbounded_write : forall 'a. Eq 'a, Ord 'a, Nat 'a, NumNegate 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a -> string
-let unbounded_write n =
+val unbounded_write_base : forall 'a. Eq 'a, Ord 'a, Nat 'a, NumNegate 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a (* base *) -> 'a (* num *) -> string
+let unbounded_write base n =
   if n < fromNat 0
-  then "-" ^ (write_helper "" (~n))
+  then "-" ^ (write_helper base "" (~n))
   else 
     if n = fromNat 0
     then "0"
-    else write_helper "" n
+    else write_helper base "" n
+
+val unbounded_write_decimal : forall 'a. Eq 'a, Ord 'a, Nat 'a, NumNegate 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a -> string
+let unbounded_write_decimal n = unbounded_write (fromNat 10) n
+
+val unbounded_write_octal : forall 'a. Eq 'a, Ord 'a, Nat 'a, NumNegate 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a -> string
+let unbounded_write_octal n = unbounded_write (fromNat 8) n
+
+val unbounded_write_hex : forall 'a. Eq 'a, Ord 'a, Nat 'a, NumNegate 'a, NumIntegerDivision 'a, NumRemainder 'a => 'a -> string
+let unbounded_write_hex n = unbounded_write (fromNat 16) n
 
 val write32 : int32 -> string
 val write64 : int64 -> string
 declare ocaml target_rep function write32 = `Int32.to_string`
 declare ocaml target_rep function write64 = `Int64.to_string`
 
+val unbounded_read : list char -> either string integer
+let unbounded_read cs = 
+  readConstant (readInteger 10) (readInteger 16) (readInteger 8) cs
+
 instance ( Read integer )
-  let read cs = readConstant (readInteger 10) (readInteger 16) (readInteger 8) cs
-  let write = unbounded_write
+  let read = unbounded_read
+  let write = unbounded_write_decimal
 end
 
 instance ( Read int64 )

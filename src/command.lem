@@ -1437,12 +1437,20 @@ let rec sprintf_format_b fmt args arg s =
   end
 
 type printf_justification = JustifyLeft | JustifyRight
+type printf_padding = PadSpace | PadZero
+
+let printf_padding justify = 
+  match justify with
+  | JustifyLeft -> pad_right_with
+  | JustifyRight -> pad_left_with
+  end
+
 type printf_sign = SignNone | SignSpace | SignAlways
 type printf_spec = <| 
   justify: printf_justification; (* - or not *)
   sign: printf_sign; (* +, or ' ' *)
   alternative: bool; (* # *)
-  padding: char; (* 0 *)
+  padding: printf_padding; (* 0 *)
   width: maybe nat;
   precision: maybe nat;
   |>  
@@ -1451,7 +1459,7 @@ let printf_default_spec =
   <| justify     = JustifyRight;
      sign        = SignNone;
      alternative = false;
-     padding     = #' ';
+     padding     = PadSpace;
      width       = Nothing;
      precision   = Nothing;
   |>
@@ -1460,7 +1468,7 @@ let rec printf_parse_flags (spec, fmt) =
   match fmt with
   | #'-'::fmt' ->
      printf_parse_flags (<| spec with justify = JustifyLeft;
-                                      padding = #' ' |>, fmt') 
+                                      padding = PadSpace |>, fmt') 
   | #' '::fmt' -> printf_parse_flags (<| spec with sign = SignSpace |>,      fmt') 
   | #'+'::fmt' -> printf_parse_flags (<| spec with sign = SignAlways |>,     fmt') 
   | #'#'::fmt' -> printf_parse_flags (<| spec with alternative = true |>,    fmt') 
@@ -1471,7 +1479,7 @@ let rec printf_parse_flags (spec, fmt) =
      if spec.justify = JustifyLeft || 
         spec.precision <> Nothing
      then printf_parse_flags (spec,fmt')
-     else printf_parse_flags (<| spec with padding = #'0' |>, fmt')
+     else printf_parse_flags (<| spec with padding = PadZero |>, fmt')
   | _ -> (spec, fmt)
   end
 
@@ -1525,18 +1533,40 @@ let printf_parse_numeric fmt =
   | _ -> Nothing
   end
 
-let sprintf_format_numeric spec mode _s =
+let printf_pad_number spec prefix num =
+  let real_width = 
+    match spec.width with
+    | Nothing -> 0
+    | Just width -> width - stringLength prefix
+    end in
+  match spec.padding with
+  | PadSpace -> printf_padding spec.justify #' ' (prefix ^ num) real_width
+  | PadZero -> prefix ^ printf_padding spec.justify #'0' num real_width
+  end
+
+val sprintf_format_numeric : printf_spec -> printf_numeric -> integer -> string
+let sprintf_format_numeric spec mode n =
   match mode with
-  | Decimal true -> "!!! TODO 2018-10-06 sprintf_format_numeric %d/%i"
+  | Decimal true -> 
+     (* TODO 2018-10-06 UNSPEC spec.alternative *)
+     let sign = 
+       if n < 0 
+       then "-" 
+       else match spec.sign with
+            | SignNone -> ""
+            | SignSpace -> " "
+            | SignAlways -> "+"
+            end in
+     let abs_n = if n < 0 then ~n else n in  
+     printf_pad_number spec sign (unbounded_write_decimal abs_n)
   | Decimal false -> "!!! TODO 2018-10-06 sprintf_format_numeric %u"
   | Octal -> 
-     let num = "!!! TODO 2018-10-06 sprintf_format_numeric %o" in
-     let base = if spec.alternative then "0" else "" in
-     base ^ num
+    (* TODO 2018-10-06 octal and hex should be unsigned *)
+     let prefix = if spec.alternative then "0" else "" in
+     printf_pad_number spec prefix (unbounded_write_octal n)
   | Hex upper -> 
-     let num = "!!! TODO 2018-10-06 sprintf_format_numeric %x/%X" in
-     let base = if spec.alternative then "0x" else "" in
-     let res = base ^ num in
+     let prefix = if spec.alternative then "0x" else "" in
+     let res = printf_pad_number spec prefix (unbounded_write_hex n) in
      if upper then uppercase res else res
   end
 
@@ -1594,13 +1624,21 @@ let printf_format s0 fmt0 args0 =
 
     (* numeric *)
     | (_, Just (num_mode, fmt2), Just (Just s, args1)) ->
-       Right (sprintf_format_numeric spec num_mode s, fmt2, args1)
+       match unbounded_read (toCharList s) with
+       | Left msg ->
+          Left ("",
+                string_of_printf_numeric num_mode ^ ": invalid number: " ^ msg,
+                1,
+                fmt2, args1)
+       | Right n ->
+          Right (sprintf_format_numeric spec num_mode (n : integer), fmt2, args1)
+       end
     | (_, Just (num_mode, fmt2), Just (Nothing, args1)) ->
        Left ("", 
              string_of_printf_numeric num_mode ^ ": symbolic argument", 
              2, fmt2, args1)
     | (_, Just (num_mode, fmt2), Nothing) ->
-       Right (sprintf_format_numeric spec num_mode "0", fmt2, [])
+       Right (sprintf_format_numeric spec num_mode (fromNat 0), fmt2, [])
 
     (* unrecognized *)
     | (c::fmt2, _, _) -> 
@@ -1617,16 +1655,13 @@ let printf_format s0 fmt0 args0 =
     | Right (s, fmt2, args1) -> (s0, s, fmt2, args1)
     end
   in
-  (* apply padding *)
-  let pad_fun = 
-    match spec.justify with
-    | JustifyLeft -> pad_right_with
-    | JustifyRight -> pad_left_with
-    end in
+  (* apply padding; numbers should already be padded...
+     in which case this is a noop
+   *)
   let padded = 
     match spec.width with
     | Nothing -> s
-    | Just width -> pad_fun spec.padding s width
+    | Just width -> printf_padding spec.justify #' ' s width
     end
   in 
   (write_stdout padded s1, fmt2, args1)

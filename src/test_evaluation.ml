@@ -235,6 +235,16 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("printf %.1s hello", os_empty, "h")
   ; ("printf %.0s hello", os_empty, "")
   ; ("printf %.s hello", os_empty, "")
+  ; ("printf %d 0xf", os_empty, "15")
+  ; ("printf %i 0xf", os_empty, "15")
+  ; ("printf %x 16", os_empty, "10")
+  ; ("printf %X 15", os_empty, "F")
+  ; ("printf %#X 15", os_empty, "0XF")
+  ; ("printf %#x 15", os_empty, "0xf")
+  ; ("printf %04x 15", os_empty, "000f")
+  ; ("printf %#04x 15", os_empty, "0x0f")
+  ; ("printf %#05x 15", os_empty, "0x00f")
+  ; ("printf %#5x 15", os_empty, "  0xf")
   ]
 
 
