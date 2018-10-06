@@ -65,10 +65,18 @@ let trimr_newlines s =
   let cl = toCharList s in
   toString (reverse (ltrim_newlines_cl (reverse cl)))
 
-val pad_right : string -> nat -> string
-let pad_right s len =
+val pad_left_with : char -> string -> nat -> string
+let pad_left_with c s len =
   let padding = max (len - stringLength s) 0 in
-  s ^ toString (replicate padding #' ') 
+  toString (replicate padding c)  ^ s
+
+val pad_right_with : char -> string -> nat -> string
+let pad_right_with c s len =
+  let padding = max (len - stringLength s) 0 in
+  s ^ toString (replicate padding c) 
+
+val pad_right : string -> nat -> string
+let pad_right = pad_right_with #' '
 
 val maximum : forall 'a. OrdMaxMin 'a => list 'a -> 'a
 let rec maximum xs =

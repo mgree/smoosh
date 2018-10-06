@@ -232,6 +232,9 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("printf %b \"hello\\n\"", os_empty, "hello\n")
   ; ("printf %b \"hello\\\\n\"", os_empty, "hello\n")
   ; ("printf %c oops", os_empty, "o")
+  ; ("printf %.1s hello", os_empty, "h")
+  ; ("printf %.0s hello", os_empty, "")
+  ; ("printf %.s hello", os_empty, "")
   ]
 
 

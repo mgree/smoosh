@@ -1423,13 +1423,13 @@ If a character sequence in the format operand begins with a '%' character, but d
 
 let rec sprintf_format_b fmt args arg s = 
   match arg with
-  | [] -> Right (s, fmt, args)
+  | [] -> (s, fmt, args)
   | #'\\'::#'c'::_ignored -> 
      (* '\c', which shall not be written and shall cause printf to
         ignore any remaining characters in the string operand
         containing it, any remaining string operands, and any
         additional characters in the format operand *)
-     Right (s, [], [])
+     (s, [], [])
   | #'\\'::arg' ->
      let (esc, arg'') = sprintf_esc arg' in
      sprintf_format_b fmt args arg'' (s ^ esc)
@@ -1458,11 +1458,20 @@ let printf_default_spec =
 
 let rec printf_parse_flags (spec, fmt) =
   match fmt with
-  | #'-'::fmt' -> printf_parse_flags (<| spec with justify = JustifyLeft |>, fmt') 
+  | #'-'::fmt' ->
+     printf_parse_flags (<| spec with justify = JustifyLeft;
+                                      padding = #' ' |>, fmt') 
   | #' '::fmt' -> printf_parse_flags (<| spec with sign = SignSpace |>,      fmt') 
   | #'+'::fmt' -> printf_parse_flags (<| spec with sign = SignAlways |>,     fmt') 
   | #'#'::fmt' -> printf_parse_flags (<| spec with alternative = true |>,    fmt') 
-  | #'0'::fmt' -> printf_parse_flags (<| spec with padding = #' ' |>,        fmt')
+  | #'0'::fmt' -> 
+     (* If the '0' and '-' flags both appear, the '0' flag shall be
+        ignored. For d, i , o, u, x, and X conversion specifiers, if a
+        precision is specified, the '0' flag shall be ignored. *)
+     if spec.justify = JustifyLeft || 
+        spec.precision <> Nothing
+     then printf_parse_flags (spec,fmt')
+     else printf_parse_flags (<| spec with padding = #'0' |>, fmt')
   | _ -> (spec, fmt)
   end
 
@@ -1475,13 +1484,13 @@ let printf_parse_field_width (spec, fmt) =
 let printf_parse_precision (spec, fmt) = 
   match fmt with
   | #'.'::fmt' ->
-    let (width, fmt'') = 
+    let (precision, fmt'') = 
       match parse_nat fmt' with
       | Left _ -> (0, fmt')
-      | Right (width, fmt'') -> (width, fmt'')
+      | Right (precision, fmt'') -> (precision, fmt'')
       end
     in
-    (<| spec with width = Just width |>, fmt'')
+    (<| spec with precision = Just precision |>, fmt'')
   | _ -> (spec, fmt)
   end
 
@@ -1490,10 +1499,6 @@ let printf_parse_spec fmt =
     (printf_parse_field_width 
        (printf_parse_flags 
           (printf_default_spec, fmt)))
-
-let printf_apply_spec _spec s = 
-  (* TODO 2018-10-06 actually apply the spec *)
-  s
 
 type printf_numeric = 
     Decimal of bool (* signed? *) 
@@ -1520,8 +1525,20 @@ let printf_parse_numeric fmt =
   | _ -> Nothing
   end
 
-let sprintf_format_numeric _spec _mode _s =
-  "!!! TODO 2018-10-06 sprintf_format_numeric"
+let sprintf_format_numeric spec mode _s =
+  match mode with
+  | Decimal true -> "!!! TODO 2018-10-06 sprintf_format_numeric %d/%i"
+  | Decimal false -> "!!! TODO 2018-10-06 sprintf_format_numeric %u"
+  | Octal -> 
+     let num = "!!! TODO 2018-10-06 sprintf_format_numeric %o" in
+     let base = if spec.alternative then "0" else "" in
+     base ^ num
+  | Hex upper -> 
+     let num = "!!! TODO 2018-10-06 sprintf_format_numeric %x/%X" in
+     let base = if spec.alternative then "0x" else "" in
+     let res = base ^ num in
+     if upper then uppercase res else res
+  end
 
 let printf_concrete_arg args =
   match args with
@@ -1538,6 +1555,12 @@ val printf_format
       os_state 'a -> list char -> fields -> os_state 'a * list char * fields
 let printf_format s0 fmt0 args0 =
   let (spec, fmt1) = printf_parse_spec fmt0 in
+  let string_precision s =
+    match spec.precision with
+    | Nothing -> s
+    | Just width -> toString (take width (toCharList s))
+    end 
+  in
   (* The results are undefined if there are insufficient arguments for
      the format. If the format is exhausted while arguments remain,
      the excess arguments shall be ignored. *)  
@@ -1548,14 +1571,15 @@ let printf_format s0 fmt0 args0 =
  
     (* %s *)
     | (#'s'::fmt2, _, Just (Just s, args1)) -> 
-       Right (s, fmt2, args1)
+       Right (string_precision s, fmt2, args1)
     | (#'s'::fmt2, _, Just (Nothing, args1)) -> 
        Left ("", "%s: symbolic argument", 2, fmt2, args1)
     | (#'s'::fmt2, _, Nothing) -> Right ("", fmt2, [])
  
     (* %b *)
     | (#'b'::fmt2, _, Just (Just s, args1)) -> 
-       sprintf_format_b fmt2 args1 (toCharList s) ""
+       let (s,fmt3,args2) = sprintf_format_b fmt2 args1 (toCharList s) "" in
+       Right (string_precision s, fmt3, args2)
     | (#'b'::fmt2, _, Just (Nothing, args1)) -> 
        Left ("", "%b: symbolic argument", 2, fmt2, args1)
     | (#'b'::fmt2, _, Nothing) -> Right ("", fmt2, [])
@@ -1584,7 +1608,7 @@ let printf_format s0 fmt0 args0 =
        Left (f_str, "unrecognized format " ^ f_str, 1, fmt2, args0)
     end
   in 
-  (* actually print *)
+  (* compute what we'll actually print *)
   let (s1, s, fmt2, args1) = 
     match sprintf_res with
     | Left (s, msg, ec, fmt2, args1) ->
@@ -1593,7 +1617,19 @@ let printf_format s0 fmt0 args0 =
     | Right (s, fmt2, args1) -> (s0, s, fmt2, args1)
     end
   in
-  (write_stdout (printf_apply_spec spec s) s1, fmt2, args1)
+  (* apply padding *)
+  let pad_fun = 
+    match spec.justify with
+    | JustifyLeft -> pad_right_with
+    | JustifyRight -> pad_left_with
+    end in
+  let padded = 
+    match spec.width with
+    | Nothing -> s
+    | Just width -> pad_fun spec.padding s width
+    end
+  in 
+  (write_stdout padded s1, fmt2, args1)
 
 (* invariant: called with an exit code of 0, to be changed later *)
 let rec printf_loop s0 fmt args =
