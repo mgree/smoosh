@@ -332,7 +332,8 @@ let rec unset_all unsetter names s0 =
 let builtin_unset s0 argv _env =
   let (opts,argv') = getopts [#'f'; #'v'] argv in
   (* unspec whether to unset a function if no flag is given and no such var.
-     dash doesn't do it; neither will we . *)
+     dash doesn't do it; neither will we. *)
+  (* TODO 2018-10-08 detect whether we COULD unset such a function, log_unspec *)
   let unsetter = unset_mode opts in
   unset_all unsetter argv' s0
 

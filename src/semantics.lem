@@ -1180,29 +1180,20 @@ and eval os0 stmt0 =
    because we're not keeping track of whether the result was a message
    printed to stderr or the actual result of expansion
  *)
-val run_trace_expansion_unbounded : os_state symbolic * expansion_state -> list (expansion_step * os_state symbolic * expansion_state)
-let rec run_trace_expansion_unbounded (os0,st0) =
+val symbolic_run_full_expansion 
+    : os_state symbolic -> expansion_state -> os_state symbolic * fields
+let rec symbolic_run_full_expansion os0 st0 =
   match st0 with
-  | ExpError _ -> []
-  | ExpDone _ -> []
+  | ExpError f -> (os0, f)
+  | ExpDone f -> (os0, f)
   | _ -> 
-     let (step,os1,st1) = step_expansion (os0,st0) in
-     (step,os1,st1)::run_trace_expansion_unbounded (os1,st1)
+     let (_step,os1,st1) = step_expansion (os0,st0) in
+     symbolic_run_full_expansion os1 st1
   end
 
-val trace_expansion_unbounded : os_state symbolic -> words -> list (expansion_step * os_state symbolic * expansion_state)
-let trace_expansion_unbounded os0 w0 = 
-  (ESStep "",os0,ExpStart w0)::run_trace_expansion_unbounded (os0, ExpStart w0)
-
-val full_expansion : os_state symbolic -> words -> os_state symbolic * fields
-let full_expansion s0 w0 =
-  let (_,s1,f1) = last (trace_expansion_unbounded s0 w0) in
-  match f1 with
-  | ExpError f -> (s1, f)
-  | ExpDone f -> (s1, f)
-  | _ -> 
-     Assert_extra.failwith "broken invariant in full_expansion: got a tag other than Error or Done for the end of a trace"
-  end
+val symbolic_full_expansion 
+    : os_state symbolic -> words -> os_state symbolic * fields
+let symbolic_full_expansion s0 w0 = symbolic_run_full_expansion s0 (ExpStart w0)
    
 (* Tracing evaluation *************************************************)
 (* used in expand.ml *)

@@ -4,8 +4,8 @@ open Semantics
 open Printf
 
 let check_expansion (test_name, s0, w_in, f_expected) : fields result =
-  let (s1, f_out) = (full_expansion s0 w_in) in
-  if (listEqualBy (=) f_out f_expected)
+  let (s1, f_out) = symbolic_full_expansion s0 w_in in
+  if listEqualBy (=) f_out f_expected
   then Ok
   else Err { msg = test_name; expected = f_expected; got = f_out }
 
