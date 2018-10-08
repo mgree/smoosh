@@ -97,6 +97,23 @@ let int64Min = ~((int64FromNat 2) ** 63)
 let int32Max = ((int32FromNat 2) ** 31) - 1
 let int32Min = ~((int32FromNat 2) ** 31)
 
+val unbounded_unsigned : nat (* bits *) -> integer -> integer
+let unbounded_unsigned bits unbounded_n = 
+  let signed_bits = bits - 1 in
+  let upper =  (integerFromNat 2 ** signed_bits) - 1 in
+  let lower = ~(integerFromNat 2 ** signed_bits)     in
+  (* first, bound it *)
+  let n = if unbounded_n < lower then lower 
+          else if unbounded_n > upper then upper
+          else unbounded_n in
+  (* then set up the two's complement for negatives *)
+  if n < 0
+  then (integerFromNat 2 ** bits) + n
+  else n
+
+val unbounded_unsigned64 : integer -> integer
+let unbounded_unsigned64 = unbounded_unsigned 64
+
 val readInteger_loop : nat -> integer -> (list char) -> either string integer
 let rec readInteger_loop base acc chars =
   match chars with

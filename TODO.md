@@ -19,6 +19,7 @@
   dash raises a top-level exception, handles it in main.c:123
   probably wrong in system.ml:42
   need to setup a handler in shell.ml
+  + correct application of INTON/INTOFF
 
 - fork_and_subshell should handle pgrps
   + needs to know if we're FG or not
@@ -33,7 +34,6 @@
 
 - other built-ins
   + getopts
-  + printf
   + kill
 
 - history
@@ -54,8 +54,6 @@
   PPID
 - faithful handling of PATH_MAX
 
-- correct application of INTON/INTOFF
-
 - tests for pipes and redirects
 - eval/.
   + write more tests
@@ -64,9 +62,17 @@
 
 ### Long-term
 
-- generate symbolic results of unknown executables
-- symbolic pathname expansion
 - mark symbolic OS changes/unspecified states/unsoundness and move on
+  + log in the os_state
+
+- generate symbolic results of unknown executables
+
+- move to int64
+  there are almost certainly some bugs around the POSIX spec
+    is it in-spec to have a shell with bignum?
+- proper locale support
+
+- symbolic pathname expansion
 - support filesystems in symbolic stepper
 - refactor semantics.lem to use is_terminating_control
     don't immediately step! Break _n -> Done

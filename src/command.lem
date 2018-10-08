@@ -1559,14 +1559,16 @@ let sprintf_format_numeric spec mode n =
             end in
      let abs_n = if n < 0 then ~n else n in  
      printf_pad_number spec sign (unbounded_write_decimal abs_n)
-  | Decimal false -> "!!! TODO 2018-10-06 sprintf_format_numeric %u"
+  | Decimal false -> 
+     printf_pad_number spec "" (unbounded_write_decimal (unbounded_unsigned64 n))
   | Octal -> 
     (* TODO 2018-10-06 octal and hex should be unsigned *)
      let prefix = if spec.alternative then "0" else "" in
-     printf_pad_number spec prefix (unbounded_write_octal n)
+     printf_pad_number spec prefix (unbounded_write_octal (unbounded_unsigned64 n))
   | Hex upper -> 
      let prefix = if spec.alternative then "0x" else "" in
-     let res = printf_pad_number spec prefix (unbounded_write_hex n) in
+     let num = unbounded_write_hex (unbounded_unsigned64 n) in
+     let res = printf_pad_number spec prefix num in
      if upper then uppercase res else res
   end
 
