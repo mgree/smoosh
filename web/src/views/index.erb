@@ -1,0 +1,134 @@
+<div class="ui horizontal divider"></div>
+
+<div class="ui container">
+
+  <div class="row">
+    <div class="ui segment">
+      <h1 class="ui header">Smoosh - The Symbolic, Mechanized, Observable, Operational Shell</h1>
+    </div>
+  </div>
+
+  <div class="ui raised segment">
+    <p>Smoosh (the Symbolic, Mechanized, Observable, Operational
+    SHell) is a formalization of
+    the <a href="http://pubs.opengroup.org/onlinepubs/9699919799/utilities/contents.html">POSIX
+    shell standard</a>.</p>
+    
+    <div class="ui list">
+      <div class="item">
+        <i class="cogs icon"></i>
+        <div class="content">
+          <div class="header">Symbolic</div>
+          <div class="description">The formal model can run in a purely symbolic mode, working with a model of a POSIX system.</div>
+        </div>
+      </div>
+
+      <div class="item">
+        <i class="code icon"></i>
+        <div class="content">
+          <div class="header">Mechanized</div>
+          <div class="description">The formal model is code, written in <a href="https://www.cl.cam.ac.uk/~pes20/lem/">Lem</a>.</div>
+        </div>
+      </div>
+
+      <div class="item">
+        <i class="eye icon"></i>
+        <div class="content">
+          <div class="header">Observable</div>
+          <div class="description">The formal model uses small-step operational semantics and produce a trace of how the shell evaluated a given term.</div>
+        </div>
+      </div>
+
+      <div class="item">
+        <i class="keyboard icon"></i>
+        <div class="content">
+          <div class="header">Operational</div>
+          <div class="description">The formal model can run in a non-symbolic mode, making real system calls via OCaml drivers.</div>
+        </div>
+      </div>
+
+      <div class="item">
+        <i class="terminal icon"></i>
+        <div class="content">
+          <div class="header">Shell</div>
+          <div class="description">The formal model's drivers yield a functioning, POSIX compliant shell. can run in a non-symbolic mode, making real system calls via OCaml drivers.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="ui segment">
+    <h2 class="ui header">Try the stepper code</h2>
+    <p>As a trial of Smoosh's capabilities, we've built a <a href="/stepper">web-based stepper</a> that can symbolically step shell code.</p>
+  </div>
+
+  <div class="ui segment">
+    <h2 class="ui header">Get the code</h2>
+    <p>Smoosh's <a href="https://github.com/mgree/smoosh">source
+    code</a> is open (MIT licensed) and freely available.
+
+      The repository has several Dockerfiles to help you get
+    started.</p>
+  </div>
+
+  <div class="ui segment">
+    <h2 class="ui header">Read the papers</h2>
+    <div class="ui list">
+
+      <div class="item">
+        <i class="file alternate icon"></i>
+        <div class="content">
+          <a class="header" href="http://www.cs.pomona.edu/~michael/papers/dsldi2018_sub.pdf">
+            The POSIX shell is an interactive DSL for concurrency
+          </a>
+          <div class="description">
+            Michael Greenberg, DSLDI 2018. An argument for understanding the shell as a DSL for managing concurrent tasks; the first demo of the Smoosh stepper.
+          </div>
+        </div>
+      </div>
+
+      <div class="item">
+        <i class="file alternate icon"></i>
+        <div class="content">
+          <a class="header" href="http://www.cs.pomona.edu/~michael/papers/px2018.pdf">
+            Word expansion supports POSIX shell interactivity
+          </a>
+          <div class="description">
+            Michael Greenberg, PX/2018. An argument about how the shell's use of word expansion dovetails with the shell's interactivity.
+          </div>
+        </div>
+      </div>
+
+      <div class="item">
+        <i class="file alternate icon"></i>
+        <div class="content">
+          <a class="header" href="http://www.cs.pomona.edu/~michael/papers/obt2017.pdf">
+            Understanding the POSIX Shell as a Programming Language
+          </a>
+          <div class="description">
+            Michael Greenberg, OBT 2017. The initial proposal of the Smoosh project.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="ui segment">
+    <h2 class="ui header">Cite Smoosh</h2>
+    <p>No paper has yet been published on Smoosh's semantics. To cite Smoosh as an artifact, please use:
+<pre><code class="bibtex">
+@online{Smoosh,
+  title = {Smoosh: the Symbolic, Mechanized, Observable, Operational Shell},
+  author = { Michael Greenberg },
+  year = 2018,
+  url = {https://github.com/mgree/smoosh},
+}
+</code></pre>       
+    </p>
+  </div>
+  
+</div>
+
+<div class="ui horizontal divider"></div>

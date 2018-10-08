@@ -1740,7 +1740,7 @@ function renderEvaluationTraceEntry(info, elt, step) {
  */
 // Submit the expansion form
 $('#expansionForm').submit(function(e) {
-  var url = '/expand/submit';
+  var url = '/stepper';
 
   var orNone = function(maybeString) {
     if(maybeString === undefined) {

@@ -1,6 +1,6 @@
 $: << File.dirname(__FILE__)
 
-require 'src/expansion_web.rb'
+require 'src/smoosh_web.rb'
 
-run ExpansionWeb.new
+run SmooshWeb.new
 

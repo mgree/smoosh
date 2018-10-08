@@ -4,16 +4,18 @@
 
   <div class="row">
     <div class="ui segment">
-      <h1 class="ui header">Shell expansion step-by-step</h1>
+      <h1 class="ui header">SMOOSH Stepper - Shell evaluation and expansion step-by-step</h1>
 
       <p>Wondering why the POSIX shell behaves the way it does? We can
       expand and evaluate shell code according to the POSIX
       standard. You can symbolically configure your shell and
-      operating system environment.</p> </div> </div>
+      operating system environment.</p> 
+    </div> 
+  </div>
 
   <div class="ui basic segment">
     <div class="ui form relaxed grid">
-      <form id="expansionForm" method="post" action="/expand/submit">
+      <form id="expansionForm" method="post" action="/stepper">
         <div class="sixteen wide field">
           <label>Shell code to expand</label>
           <textarea name="shell" rows="10" cols="84">echo ${x=5} $((x+1))</textarea>

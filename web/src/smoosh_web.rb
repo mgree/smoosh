@@ -2,7 +2,7 @@ require 'sinatra'
 require "sinatra/config_file"
 require 'date'
 
-class ExpansionWeb < Sinatra::Base
+class SmooshWeb < Sinatra::Base
   register Sinatra::ConfigFile
   config_file 'config.yml'
 
@@ -20,14 +20,15 @@ class ExpansionWeb < Sinatra::Base
   end
 
   get '/' do
-    "Hello #{settings.environment}!"
+    erb :index
   end
 
-  get '/expand' do
-    erb :expansion_form
+  get '/stepper' do
+    @title = " - Stepper"
+    erb :stepper
   end
 
-  post '/expand/submit' do
+  post '/stepper' do
     require 'src/command'
 
     # remove illegal characters, drop carriage returns from combos
