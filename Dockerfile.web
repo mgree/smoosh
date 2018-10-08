@@ -8,7 +8,8 @@ RUN sudo apt-get install -y ruby-full ruby-bundler
 RUN sudo gem install childprocess sinatra sinatra-contrib thin
 
 ADD --chown=opam:opam web web
-ADD --chown=opam:opam web/src/config.yml.docker web/src/config.yml
+RUN cd web; bundle install
+RUN mv web/src/config.yml.docker web/src/config.yml
 RUN mkdir web/submissions
 
 EXPOSE 9292/tcp

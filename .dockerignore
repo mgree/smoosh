@@ -111,3 +111,10 @@ src/signal_platform.ml
 src/signal.ml
 src/libdash.a
 src/runtest
+
+################################################################################
+# web
+
+web/Gemfile.lock
+web/src/config.yml
+web/src/config.yml.template
