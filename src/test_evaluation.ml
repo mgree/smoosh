@@ -18,8 +18,8 @@ let get_exit_code (os : symbolic os_state) =
    
 let run_cmd_for_exit_code (cmd : string) (os0 : symbolic os_state) : int =
   let cs = Shim.parse_string cmd in
-  let os1 = Semantics.full_evaluation_multi os0 cs in
-  get_exit_code os1
+  let os1 = Semantics.symbolic_eval_multi os0 cs in
+  snd (get_concrete_exit_code os1)
 
 let check_exit_code (cmd, state, expected) =
   checker (run_cmd_for_exit_code cmd) (=) (cmd, state, expected)
@@ -54,6 +54,8 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   ; ("exit 2", os_empty, 2)
   ; ("false; exit", os_empty, 1)
   ; ("false; exit 2", os_empty, 2)
+  ; ("exit 2; false", os_empty, 2)
+  ; ("exit 2; exit 40", os_empty, 2)
   
   (* break *)
   ; ("while true; do break; done", os_empty, 0)
@@ -151,7 +153,7 @@ let exit_code_tests : (string * symbolic os_state * int) list =
 
 let run_cmd_for_stdout (cmd : string) (os0 : symbolic os_state) : string =
   let cs = Shim.parse_string cmd in
-  let os1 = Semantics.full_evaluation_multi os0 cs in
+  let os1 = Semantics.symbolic_eval_multi os0 cs in
   get_stdout os1
 
 let check_stdout (cmd, state, expected) =

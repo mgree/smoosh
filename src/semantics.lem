@@ -1158,41 +1158,21 @@ and full_evaluation os0 stmt0 =
      | (os1, Just cmd) -> full_evaluation os1 cmd
      end
   | _ -> match step_eval os0 stmt0 with
-         | Right (_step, os1, stmt1) -> full_evaluation os1 stmt1
-         | Left (_step, os1) -> os1
+         | Right (step, os1, stmt1) -> full_evaluation (log_step step os1) stmt1
+         | Left (step, os1) -> log_step step os1
          end
   end
 
 and eval os0 stmt0 =
   let os1 = full_evaluation os0 stmt0 in
-  match get_last_exit_code os1 with
-  | Nothing -> 255 (* symbolic or missing exit code *)
-  | Just n -> n
-  end
+  snd (get_concrete_exit_code os1)
 
 (**********************************************************************)   
 (* TRACING ************************************************************)   
 (**********************************************************************)   
 (* These functions are for testing and the expansion tool. *)
 
-(* Expansion **********************************************************)
-   
-val run_trace_expansion : nat -> os_state symbolic * expansion_state -> list (expansion_step * os_state symbolic * expansion_state)
-let rec run_trace_expansion gas (os0,st0) =
-  if gas <= 0
-  then [(ESStep "out of gas",os0,st0)]
-  else match st0 with
-  | ExpError _ -> []
-  | ExpDone _ -> []
-  | _ -> 
-     let (step,os1,st1) = step_expansion (os0,st0) in
-     (step,os1,st1)::run_trace_expansion (gas-1) (os1,st1)
-  end
-  
-val trace_expansion : nat -> os_state symbolic -> words -> list (expansion_step * os_state symbolic * expansion_state)
-let trace_expansion gas os0 w0 = 
-  (ESStep "",os0,ExpStart w0)::run_trace_expansion gas (os0, ExpStart w0)
-
+(* Expansion **********************************************************) 
 (* unbounded functions for testing final expansion results (used in
    test_expansion.ml)
 
@@ -1224,6 +1204,9 @@ let full_expansion s0 w0 =
      Assert_extra.failwith "broken invariant in full_expansion: got a tag other than Error or Done for the end of a trace"
   end
    
+(* Tracing evaluation *************************************************)
+(* used in expand.ml *)
+
 val run_trace_evaluation : nat -> os_state symbolic -> stmt -> list (evaluation_step * os_state symbolic * stmt)
 let rec run_trace_evaluation gas os0 stmt0 =
   if gas <= 0
@@ -1251,19 +1234,19 @@ let rec trace_evaluation_multi gas os0 stmts =
      trace ++ trace_evaluation_multi (gas-1) os1 stmts'
 end
   
-val full_evaluation_multi : os_state symbolic -> list stmt -> os_state symbolic
-let rec full_evaluation_multi os0 stmts =
-  match stmts with
-  | [] -> os0
-  | (stmt::stmts') -> full_evaluation_multi (full_evaluation os0 stmt) stmts'
-  end
-
 (* convenience functions for shell *)
-val real_eval : os_state system -> stmt -> os_state system
-let real_eval os c = full_evaluation os c
-
 val real_eval_for_exit_code : os_state system -> stmt -> nat
 let real_eval_for_exit_code os = eval os
+
+(* special cased to use the exited flag *)
+val symbolic_eval_multi : os_state symbolic -> list stmt -> os_state symbolic
+let rec symbolic_eval_multi os0 stmts =
+  if os0.symbolic.exited
+  then os0
+  else match stmts with
+       | [] -> os0
+       | stmt::stmts' -> symbolic_eval_multi (full_evaluation os0 stmt) stmts'
+       end
 
 (**********************************************************************)   
 (* PROPERTIES *********************************************************)   

@@ -560,7 +560,6 @@ let fail_with_code ec msg os = exit_with ec (write_stderr (msg ^ "\n") os)
 val fail_with : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let fail_with = fail_with_code 1
 
-
 val get_last_exit_code : forall 'a. os_state 'a -> maybe nat
 let get_last_exit_code os =
   match lookup_concrete_param os "?" with
@@ -569,6 +568,23 @@ let get_last_exit_code os =
      match readNat (toCharList s) with
      | Right n -> Just n
      | Left _err -> Nothing
+     end
+  end
+
+val get_concrete_exit_code : forall 'a. os_state 'a -> os_state 'a * nat
+let get_concrete_exit_code os =
+  match lookup_param os "?" with
+  | Nothing -> (log_msg "missing exit code, using 254" os, 254)
+  | Just f -> 
+     match try_concrete_fields f with
+     | Nothing -> (log_symbolic "symbolic exit code, using 255" os, 255)
+     | Just s ->
+        match readNat (toCharList s) with
+        | Right n -> (os, n)
+        | Left _err -> 
+           (log_msg ("non-numeric exit code '" ^ s ^ "', using 255") os,
+            255)
+        end
      end
   end
 
