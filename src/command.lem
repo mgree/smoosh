@@ -740,14 +740,9 @@ let builtin_pwd s0 argv _env =
   let (s1,pwd) = resolve_path_mode s0 mode in
   Right (exit_with 0 (write_stdout (pwd ^ "\n") s1), Done)
 
-let rec write_many_stdout ss s0 =
-  match ss with
-  | [] -> s0
-  | [s] -> write_stdout (string_of_symbolic_string s) s0
-  | s::ss' -> 
-     let s1 = write_stdout (string_of_symbolic_string s ^ " ") s0 in
-     write_many_stdout ss' s1
-  end
+let rec write_many_stdout f s0 =
+  let (s1,_,s) = concretize_fields s0 f in
+  write_stdout s s1
 
 let builtin_echo s0 argv _env = 
   let (terminator, ss) = match argv with
