@@ -104,7 +104,7 @@ let set_param x v s0 =
   Os.internal_set_param x (symbolic_string_of_string v) s0
 
 (* track the last shell state---used for signal handling, at_exit *)
-let last_state = ref { Os.sh = default_shell_state; Os.symbolic = () }
+let last_state = ref { Os.sh = default_shell_state; Os.log = []; Os.symbolic = () }
 
 let setup_handlers () =
   System.real_eval := 

@@ -6,9 +6,18 @@ import Debug
 (* FS/OS CLASS ********************************************************)
 (**********************************************************************)
 
+type log_entry =
+    LogMessage of string
+  | LogExpansionStep of expansion_step
+  | LogEvaluationStep of evaluation_step
+  | LogSymbolic of string
+  | LogUnspecified of string
+  | LogUndefined of string
+
 type os_state 'a = <| 
    symbolic: 'a; 
-   sh: shell_state
+   sh: shell_state;
+   log: list log_entry
  |>                   
 
 (* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)           
@@ -31,17 +40,6 @@ declare ocaml target_rep function FileBlock     = `Unix.S_BLK`
 declare ocaml target_rep function FileLink      = `Unix.S_LNK`
 declare ocaml target_rep function FileFIFO      = `Unix.S_FIFO`
 declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
-
-(* Data structures for symbolic FDs *)
-(* TODO 2018-09-04 have FIFO record which end we're working on
-
-   trickiness: renumber_fd then needs to save some of that data.
-   it's bigger refactor than you'd hope
- *)
-type fd_tgt = FIFO of nat | Path of path
-
-(* Mapping of FDs numbers *)
-type fds = Map.map fd fd_tgt
 
 val path_dotdot_rev_cl : list char -> list char
 let rec path_dotdot_rev_cl path =
@@ -626,6 +624,16 @@ let fs_empty =
 (* SYMBOLIC OS STATE **************************************************)
 (**********************************************************************)
 
+(* TODO 2018-09-04 have FIFO record which end we're working on
+
+   trickiness: renumber_fd then needs to save some of that data.
+   it's bigger refactor than you'd hope
+ *)
+type fd_tgt = FIFO of nat | Path of path
+
+(* Mapping of FDs numbers *)
+type fds = Map.map fd fd_tgt
+
 (* FIFO pipes for symbolic FDs *)             
 type fifo = string
           
@@ -663,7 +671,11 @@ let symbolic_empty : symbolic = <|
     umask = default_umask
  |>
 
-let os_empty : os_state symbolic = <| symbolic = symbolic_empty; sh = default_shell_state |>
+let os_empty : os_state symbolic = 
+  <| symbolic = symbolic_empty; 
+     sh = default_shell_state;
+     log = []
+  |>
   
 (**********************************************************************)
 (* SYMBOLIC OS STATE INSTANCE *****************************************)
