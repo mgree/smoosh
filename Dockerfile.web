@@ -1,0 +1,11 @@
+FROM smoosh
+
+# fragile, but the OCaml base image isn't up-to-date enough to work
+# at least we're doing the update AFTER having built smoosh :(
+RUN sudo apt-get update
+RUN sudo apt-get install -y ruby-full
+
+ADD --chown=opam:opam web web
+
+ENTRYPOINT [ "opam", "config", "exec", "--" ]
+CMD [ "bash" ]

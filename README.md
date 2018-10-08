@@ -4,13 +4,14 @@ Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OC
 
 # How to build it
 
-The easiest way to build the code is with Docker. The included `Dockerfile` will generate an image with Lem and all of the necessary libraries. Run `docker -t smoosh .`.
+- Run: `docker build -t smoosh .`
 
 To build by hand, you should more or less follow the steps in the Dockerfile, adapting to your system. (For example, on OS X, you'll probably want to install directly to `/usr/local`.)
 
 # How to test it
 
-The easiest way to test the code is with Docker. The included `Dockerfile.test` is based on the main image. Run `docker -t smoosh-test -f Dockerfile.test .`.
+- To run the test suite after building, run: `docker build -t smoosh-test -f Dockerfile.test . && docker run smoosh-test`
+- To explore the built image, run: `docker run -ti smoosh`
 
 To test by hand, there are two sets of relevant tests: the libdash tests (in `libdash/test`) and the smoosh tests (in `src`). Both have directories have `Makefile`s with appropriate test targets, so you can test both by running the following:
 
@@ -20,3 +21,9 @@ make -C src/ test
 ```
 
 You can do so by running `docker run -ti smoosh` to get an interactive environment.
+
+# How to use the web interface
+
+- After building the `smoosh` image, build the web image: `docker build -t smoosh-web -f Dockerfile.web .`
+- To run the web image: `docker run smoosh-web`
+
