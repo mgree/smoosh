@@ -8,7 +8,7 @@ import Debug
 
 type log_entry =
     LogMessage of string
-  | LogSymbolic of string
+  | LogConcretization of symbolic_string
   | LogUnspecified of string
   | LogUndefined of string
   | LogStep of evaluation_step
@@ -102,14 +102,16 @@ class ( OS 'a )
   val close_fd : os_state 'a -> fd -> os_state 'a
   val pipe : os_state 'a -> os_state 'a * fd * fd
 
-  val open_file_for_redir : os_state 'a -> redir_type -> symbolic_string -> either string (os_state 'a * fd)
+  val open_file_for_redir 
+      : os_state 'a -> redir_type -> symbolic_string -> 
+        os_state 'a * either string fd
   val open_heredoc : os_state 'a -> string -> either string (os_state 'a * fd)
-  val close_and_save_fd : os_state 'a -> fd -> either string (os_state 'a * saved_fds)
+  val close_and_save_fd : os_state 'a -> fd -> os_state 'a * either string saved_fds
   val renumber_fd : os_state 'a -> 
                     bool (* close orig? *) -> 
                     fd (* orig *) -> 
                     fd (* wanted number *) -> 
-                    either string (os_state 'a * saved_fds)
+                    os_state 'a * either string saved_fds
   val restore_fd : os_state 'a -> fd -> saved_fd_info -> os_state 'a
 end
 
@@ -174,8 +176,8 @@ let log entry os = <| os with log = entry::os.log |>
 val log_msg : forall 'a. string -> os_state 'a -> os_state 'a
 let log_msg msg = log (LogMessage msg)
 
-val log_symbolic : forall 'a. string -> os_state 'a -> os_state 'a
-let log_symbolic msg = log (LogSymbolic msg)
+val log_concretization : forall 'a. symbolic_string -> os_state 'a -> os_state 'a
+let log_concretization ss = log (LogConcretization ss)
 
 val log_unspecified : forall 'a. string -> os_state 'a -> os_state 'a
 let log_unspecified msg = log (LogUnspecified msg)
@@ -185,6 +187,36 @@ let log_undefined msg = log (LogUndefined msg)
 
 val log_step : forall 'a. evaluation_step -> os_state 'a -> os_state 'a
 let log_step step = log (LogStep step)
+
+val concretize 
+    : forall 'a. os_state 'a -> symbolic_string -> os_state 'a * bool * string
+let concretize os0 ss =
+  match try_concrete ss with
+  | Nothing -> (log_concretization ss os0, true, string_of_symbolic_string ss)
+  | Just s -> (os0, false, s)
+  end     
+
+val concretize_many 
+    : forall 'a. os_state 'a -> fields -> os_state 'a * bool * list string
+let concretize_many os0 f =
+  foldr 
+    (fun ss (os,before,strs) ->
+      let (os',now,str) = concretize os ss in
+      (os', now||before, str::strs))
+    (os0, false, [])
+    f
+
+val concretize_fields
+    : forall 'a. os_state 'a -> fields -> os_state 'a * bool * string
+let rec concretize_fields os0 f =
+  match f with
+  | [] -> (os0, false, "")
+  | [ss] -> concretize os0 ss
+  | ss::f' ->
+     let (os1, concretized1, s) = concretize os0 ss in
+     let (os2, concretized2, s') = concretize_fields os1 f' in
+     (os2, concretized1 || concretized2, s ^ " " ^ s')
+  end     
 
 (* Reading and writing FDs ********************************************)
 
@@ -296,15 +328,16 @@ let add_job os0 pid cmd =
 
 (* Redirects **********************************************************)
 
-val redirect : forall 'a. OS 'a => os_state 'a -> expanded_redir -> either string (os_state 'a * saved_fds)
+val redirect : forall 'a. OS 'a => os_state 'a -> expanded_redir -> 
+               os_state 'a * either string saved_fds
 let redirect os0 er =
   match er with
   | ERFile ty wanted_fd [sfile] -> 
      match open_file_for_redir os0 ty sfile with
-     | Left err -> Left err
-     | Right (os1,new_fd) -> renumber_fd os1 true (* close *) new_fd wanted_fd
+     | (os1, Left err) -> (os1, Left err)
+     | (os1, Right new_fd) -> renumber_fd os1 true (* close *) new_fd wanted_fd
      end
-  | ERFile _ _ fs -> Left ("expected single file field, got: " ^ string_of_fields fs)
+  | ERFile _ _ fs -> (os0, Left ("expected single file field, got: " ^ string_of_fields fs))
   | ERDup _ty _close_orig orig_fd Nothing ->
      (* we're meant to close orig_fd *)
      close_and_save_fd os0 orig_fd
@@ -316,14 +349,10 @@ let redirect os0 er =
   | ERHeredoc _ty wanted_fd fs -> 
      (* ty is irrelevant at this point---we used it to determine the
         kinds of expansion we'll go through *)
-     match try_concrete_fields fs with
-     | Nothing ->
-        Left ("couldn't open symbolic heredoc: " ^ string_of_fields fs)
-     | Just s ->
-        match open_heredoc os0 s with
-        | Left err -> Left err
-        | Right (os1, new_fd) -> renumber_fd os1 true new_fd wanted_fd
-        end
+     let (os1,_concretized,s) = concretize_fields os0 fs in
+     match open_heredoc os1 s with
+     | Left err -> (os1, Left err)
+     | Right (os2, new_fd) -> renumber_fd os2 true new_fd wanted_fd
      end
   end
 
@@ -336,23 +365,23 @@ let restore_fds os saved_fds =
 
 let rec really_do_redirs os0 ers =
   match ers with
-  | [] -> Right (os0, [])
+  | [] -> (os0, Right [])
   | (er::ers') ->
      match redirect os0 er with
-     | Left err -> Left err
-     | Right (os1,saved) -> 
+     | (os1, Left err) -> (os1, Left err)
+     | (os1, Right saved) -> 
         match really_do_redirs os1 ers' with
-        | Left err -> Left err
-        | Right (os2,saved') -> Right (os2, saved ++ saved')
+        | (os2, Left err) -> (os2, Left err)
+        | (os2, Right saved') -> (os2, Right (saved ++ saved'))
         end
      end
   end
 
 val do_redirs : forall 'a. OS 'a => os_state 'a -> list expanded_redir -> 
-                either string (os_state 'a * saved_fds)
+                os_state 'a * either string saved_fds
 let do_redirs os0 ers =
   if Set.member Sh_noexec os0.sh.opts
-  then Right (os0, [])
+  then (os0, Right [])
   else really_do_redirs os0 ers
 
 (* Pipes and forking **************************************************)
@@ -595,15 +624,12 @@ let get_concrete_exit_code os =
   match lookup_param os "?" with
   | Nothing -> (log_msg "missing exit code, using 254" os, 254)
   | Just f -> 
-     match try_concrete_fields f with
-     | Nothing -> (log_symbolic "symbolic exit code, using 255" os, 255)
-     | Just s ->
-        match readNat (toCharList s) with
-        | Right n -> (os, n)
-        | Left _err -> 
-           (log_msg ("non-numeric exit code '" ^ s ^ "', using 255") os,
-            255)
-        end
+     let (os1,_,s) =  concretize_fields os f in
+     match readNat (toCharList s) with
+     | Right n -> (os1, n)
+     | Left _err -> 
+        (log_msg ("non-numeric exit code '" ^ s ^ "', using 255") os1,
+         255)
      end
   end
 
@@ -1047,7 +1073,7 @@ instance (OS symbolic)
 
   let open_file_for_redir _os _ty _file = 
     let _ = Debug.print_endline "open_file_for_redir" in
-    Left "symbolic file redirects are unimplemented"
+    (_os, Left "symbolic file redirects are unimplemented")
 
   let open_heredoc os0 s =
     let (sym1, fifo_num) = mkfifo os0.symbolic in
@@ -1067,21 +1093,21 @@ instance (OS symbolic)
     match Map.lookup fd os0.symbolic.sh_fds with
     | Nothing -> 
        (* already closed, nothing to save *)
-       Right (os1, [])
+       (os1, Right [])
     | Just (FIFO fifo_num) ->
        (* hold on to the FIFO number *)
-       Right (os1, [(fd, Saved fifo_num)])
+       (os1, Right [(fd, Saved fifo_num)])
     | Just (Path _path) ->
-       Left "TODO 2018-08-24 symbolic path FDs unimplemented"
+       (os1, Left "TODO 2018-08-24 symbolic path FDs unimplemented")
     end
 
   let renumber_fd os0 close new_fd wanted_fd = 
     if new_fd = wanted_fd
-    then Right (os0, if close then [(wanted_fd, Close)] else [])
+    then (os0, Right (if close then [(wanted_fd, Close)] else []))
     else
       match Map.lookup new_fd os0.symbolic.sh_fds with
       | Nothing -> 
-         Left "broken pipe (tried to renumber closed fd)"
+         (os0, Left "broken pipe (tried to renumber closed fd)")
       | Just new_tgt ->
         let saved = 
           match Map.lookup wanted_fd os0.symbolic.sh_fds with
@@ -1098,7 +1124,8 @@ instance (OS symbolic)
           end in
         let fds0 = Map.insert wanted_fd new_tgt os0.symbolic.sh_fds in
         let fds1 = if close then Map.delete new_fd fds0 else fds0 in
-        Right (<| os0 with symbolic = <| os0.symbolic with sh_fds = fds1 |> |>, saved)
+        (<| os0 with symbolic = <| os0.symbolic with sh_fds = fds1 |> |>,
+         Right saved)
       end
 
   let restore_fd os0 fd info =
@@ -1128,16 +1155,14 @@ let get_stderr os = fromMaybe "" (index os.symbolic.fifos 2)
 
 type system = unit
 
-let force_concrete ss =
-  match try_concrete ss with
-  | Just s -> s
-  | Nothing -> 
-     failwith ("Couldn't convert symbolic string, aborting:\n\n" ^ string_of_symbolic_string ss)
-  end
-
 (* generate an 'environ'-style string given an env *)
-let environ (env : env) : list string =
-  foldr (fun (x,v) l -> (x ^ "=" ^ force_concrete v) :: l) [] (Map_extra.toList env)
+let environ os0 (env : env) : os_state system * list string =
+  foldr 
+    (fun (x,v) (os,l) -> 
+      let (os',_,str) = concretize os v in
+      (os',(x ^ "=" ^ str) :: l))
+    (os0,[])
+    (Map_extra.toList env)
 
 val real_getpwnam : string -> maybe string
 declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
@@ -1249,20 +1274,20 @@ declare ocaml target_rep function real_dup2 = `System.real_dup2`
 val real_openhere : string -> either string fd
 declare ocaml target_rep function real_openhere = `System.real_openhere`
 
-let real_close_and_save_fd os fd =
+let real_close_and_save_fd fd =
   match real_savefd fd with
   | Left err -> Left err
   | Right saved_fd ->
      let () = real_close fd in
-     Right (os, [(fd,Saved saved_fd)])
+     Right [(fd,Saved saved_fd)]
   end
 
-let real_renumber_fd os (close : bool) (new_fd : fd) (wanted_fd : fd) =
+let real_renumber_fd (close : bool) (new_fd : fd) (wanted_fd : fd) =
   if new_fd = wanted_fd
   then 
     (* we fished our wish! no need to dup or anything.
        just remember to clean up when you're done *)
-    Right (os, if close then [(wanted_fd,Close)] else [])
+    Right (if close then [(wanted_fd,Close)] else [])
     else (* need to save wanted_fd and then dup *)
       match real_savefd wanted_fd with
       | Left err -> Left err
@@ -1273,15 +1298,18 @@ let real_renumber_fd os (close : bool) (new_fd : fd) (wanted_fd : fd) =
             (* close the actual fd we got, now that we've
                relocated it where we want it *)
             let () = if close then real_close new_fd else () in
-            Right (os, [(wanted_fd, Saved saved_fd)])
+            Right [(wanted_fd, Saved saved_fd)]
          end
       end
 
 instance (OS unit)
   let getpwnam _os nam = real_getpwnam nam
                        
-  let execve os prog argv env =
-    (os, real_execve (force_concrete prog) (map force_concrete argv) (environ env))
+  let execve os0 sprog sargv senv =
+    let (os1,_,prog) = concretize os0 sprog in
+    let (os2,_,argv) = concretize_many os1 sargv in
+    let (os3,env) = environ os2 senv in
+    (os3, real_execve prog argv env)
 
   let fork_and_subshell os stmt =
     let (subsh,handlers) = clear_traps_for_subshell os.sh in
@@ -1398,12 +1426,14 @@ instance (OS unit)
     let _ = real_set_umask (nat_of_perms mask) in
     os
 
-  let open_file_for_redir os ty sfile =
-    let flags = flags_of_redir_type os ty in
-    match real_open (force_concrete sfile) flags with
-    | Left err -> Left err
-    | Right new_fd -> Right (os,new_fd)
-    end
+  let open_file_for_redir os0 ty sfile =
+    let flags = flags_of_redir_type os0 ty in
+    let (os1,_,file) = concretize os0 sfile in
+    (os1,
+     match real_open file flags with
+     | Left err -> Left err
+     | Right new_fd -> Right new_fd
+     end)
    
   let open_heredoc os s =
     match real_openhere s with
@@ -1411,9 +1441,11 @@ instance (OS unit)
     | Right fd -> Right (os, fd)
     end
 
-  let close_and_save_fd = real_close_and_save_fd
+  let close_and_save_fd os fd = 
+    (os, real_close_and_save_fd fd)
 
-  let renumber_fd = real_renumber_fd
+  let renumber_fd os close new_fd wanted_fd = 
+    (os, real_renumber_fd close new_fd wanted_fd)
 
   let restore_fd os orig_fd info =
     let to_close = 

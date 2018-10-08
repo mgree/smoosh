@@ -119,6 +119,7 @@ let expand_param s0 _q str f =
   (* LENGTH *)
   | (Nothing, Length) -> [S "0"]
   | (Just fs, Length) ->
+     (* TODO 2018-10-08 need to return a new state to support logging of concretization *)
      match try_concrete_fields fs with
      | Nothing -> (* TODO This should be the length of the symbolic result of fs *) [S "0"]
      | Just strs -> [S (show (stringLength strs))]
@@ -629,33 +630,32 @@ and step_eval s0 stmt =
         consequences of these errors.
 
         *)
+     let (s0_logged, concretized, prog_name) = concretize s0 prog in
      let s1 = 
-       match try_concrete prog with
-       | Just prog_name -> 
-          if is_special_builtin prog_name
-          then 
-            (* need a call to set_param, which has the right logic for Sh_allexport 
+       if not concretized && is_special_builtin prog_name
+       then
+         (* need a call to set_param, which has the right logic for
+            Sh_allexport.
 
-               we don't need to worry about bad variable names in this setting because
-               the parser rejects forms like `?=1 :`
-             *)
-            let set (x,v) os = 
-              match set_param x v os with
-              | Left _ -> os
-              | Right os' -> os'
-              end
-            in
-            foldr set s0 (Map_extra.toList env)
-          else s0
-       | Nothing -> s0 
-       end in
+            we don't need to worry about bad variable names in this
+            setting because the parser rejects forms like `?=1 :` 
+          *)
+         let set (x,v) os = 
+           match set_param x v os with
+           | Left _ -> os
+           | Right os' -> os'
+           end
+         in
+         foldr set s0_logged (Map_extra.toList env)
+       else s0_logged
+     in
      match do_redirs s1 ers with
-     | Left msg -> 
+     | (s2, Left msg) -> 
         Right (XSSimple ("error in redirection: " ^ msg), 
-               fail_with msg s1, 
+               fail_with msg s2, 
                (* TODO 2018-09-05 implement table 2.8.1: non-interactive shells may exit *)
                Done)
-     | Right (s2, saved_fds) ->
+     | (s2, Right saved_fds) ->
        (* run command *)
        match run_command s2 allow_fun prog args env with
        | Right (s3, stmt', restore) -> 
@@ -690,12 +690,12 @@ and step_eval s0 stmt =
      (* So... we're cheating on this a little. Rather than
         subshelling, we do the redirs and then record a pushredir. *)
      match do_redirs s0 ers with
-     | Left msg -> 
+     | (s1, Left msg) -> 
         (* dash doesn't set the variables if the redirect failed *)
         Right (XSSimple ("error in redirection"), 
-               fail_with msg s0, 
+               fail_with msg s1, 
                Done)
-     | Right (s1, saved_fds) ->
+     | (s1, Right saved_fds) ->
         Right (XSSimple "ran empty command", 
                s1, 
                pushredir Done saved_fds)
@@ -739,11 +739,11 @@ and step_eval s0 stmt =
   (* REDIR ********************************************************************)
   | Redir stmt' (ers, Nothing, []) ->
      match do_redirs s0 ers with
-     | Left msg -> 
+     | (s1, Left msg) -> 
         Right (XSRedir "error in redirection", 
-               fail_with msg s0, 
+               fail_with msg s1, 
                Done)
-     | Right (s1, saved_fds) ->
+     | (s1, Right saved_fds) ->
         Right (XSRedir "running redirected command", 
                s1, 
                pushredir stmt' saved_fds)
