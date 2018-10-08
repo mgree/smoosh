@@ -3,22 +3,25 @@ include import Signal_platform
 import Debug
                                    
 (**********************************************************************)
-(* FS/OS CLASS ********************************************************)
+(* OS STATE ***********************************************************)
 (**********************************************************************)
 
 type log_entry =
     LogMessage of string
-  | LogExpansionStep of expansion_step
-  | LogEvaluationStep of evaluation_step
   | LogSymbolic of string
   | LogUnspecified of string
   | LogUndefined of string
+  | LogStep of evaluation_step
 
 type os_state 'a = <| 
    symbolic: 'a; 
    sh: shell_state;
-   log: list log_entry
+   log: list log_entry;
  |>                   
+
+(**********************************************************************)
+(* FS STATE ***********************************************************)
+(**********************************************************************)
 
 (* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)           
 type file 'a = File | Dir of 'a
@@ -52,6 +55,10 @@ let rec path_dotdot_rev_cl path =
                             
 val dotdot : path -> path
 let dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
+
+(**********************************************************************)
+(* OS CLASS ***********************************************************)
+(**********************************************************************)
 
 class ( OS 'a )
   (* SYSTEM CALLS *)
@@ -108,6 +115,57 @@ end
 (**********************************************************************)
 (* SHELL/OS STATE FUNCTIONS *******************************************)
 (**********************************************************************)
+
+(* Logging ************************************************************)
+
+val entry_unspecified : log_entry -> bool
+let entry_unspecified entry =
+  match entry with
+  | LogUnspecified _ -> true
+  | LogUndefined _ -> true
+  | _ -> false
+  end
+
+val entry_undefined : log_entry -> bool
+let entry_undefined entry =
+  match entry with
+  | LogUndefined _ -> true
+  | _ -> false
+  end
+
+val try_entry_step : log_entry -> maybe evaluation_step
+let try_entry_step entry =
+  match entry with
+  | LogStep step -> Just step
+  | _ -> Nothing
+  end
+
+val in_unspecified_state : forall 'a. os_state 'a -> bool
+let in_unspecified_state os = any entry_unspecified os.log
+
+val in_undefined_state : forall 'a. os_state 'a -> bool
+let in_unefined_state os = any entry_undefined os.log
+
+val extract_trace : forall 'a. os_state 'a -> list evaluation_step
+let extract_trace os = List.mapMaybe try_entry_step os.log
+
+val log : forall 'a. log_entry -> os_state 'a -> os_state 'a
+let log entry os = <| os with log = entry::os.log |>
+
+val log_msg : forall 'a. string -> os_state 'a -> os_state 'a
+let log_msg msg = log (LogMessage msg)
+
+val log_symbolic : forall 'a. string -> os_state 'a -> os_state 'a
+let log_symbolic msg = log (LogSymbolic msg)
+
+val log_unspecified : forall 'a. string -> os_state 'a -> os_state 'a
+let log_unspecified msg = log (LogUnspecified msg)
+
+val log_undefined : forall 'a. string -> os_state 'a -> os_state 'a
+let log_undefined msg = log (LogUndefined msg)
+
+val log_step : forall 'a. evaluation_step -> os_state 'a -> os_state 'a
+let log_step step = log (LogStep step)
 
 (* Reading and writing FDs ********************************************)
 
