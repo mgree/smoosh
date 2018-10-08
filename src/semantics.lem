@@ -1150,18 +1150,23 @@ and step_eval s0 stmt =
 (* Evaluation **********************************************************)
 
 and full_evaluation os0 stmt0 =
-  match stmt0 with
-  | Done -> os0
-  | Exit -> 
-     match exit os0 with
-     | (os1, Nothing) -> os1
-     | (os1, Just cmd) -> full_evaluation os1 cmd
-     end
-  | _ -> match step_eval os0 stmt0 with
-         | Right (step, os1, stmt1) -> full_evaluation (log_step step os1) stmt1
-         | Left (step, os1) -> log_step step os1
-         end
-  end
+  if out_of_fuel os0
+  then os0
+  else 
+    let os1 = tick os0 in
+    match stmt0 with
+    | Done -> os1
+    | Exit -> 
+       match exit os1 with
+       | (os2, Nothing) -> os2
+       | (os2, Just cmd) -> full_evaluation os2 cmd
+       end
+    | _ -> 
+       match step_eval os1 stmt0 with
+       | Right (step, os2, stmt1) -> full_evaluation (log_step step os2) stmt1
+       | Left (step, os2) -> log_step step os2
+       end
+    end
 
 and eval os0 stmt0 =
   let os1 = full_evaluation os0 stmt0 in
@@ -1198,36 +1203,40 @@ let symbolic_full_expansion s0 w0 = symbolic_run_full_expansion s0 (ExpStart w0)
 (* Tracing evaluation *************************************************)
 (* used in expand.ml *)
 
-val run_trace_evaluation : nat -> os_state symbolic -> stmt -> list (evaluation_step * os_state symbolic * stmt)
-let rec run_trace_evaluation gas os0 stmt0 =
-  if gas <= 0
-  then [(XSStep "out of gas",os0,stmt0)]
-  else match stmt0 with
-  | Done -> []
-  | _ ->
-      match step_eval os0 stmt0 with
-      | Right (step, os1, stmt1) -> (step, os1, stmt1)::run_trace_evaluation (gas-1) os1 stmt1
-      | Left (step, os1) -> [(step, os1, Done)]
-      end
-  end
+val run_trace_evaluation : os_state symbolic -> stmt -> list (evaluation_step * os_state symbolic * stmt)
+let rec run_trace_evaluation os0 stmt0 =
+  if out_of_fuel os0
+  then [(XSStep "out of fuel",os0,stmt0)]
+  else 
+    let os1 = tick os0 in
+    match stmt0 with
+    | Done -> []
+    | _ ->
+        match step_eval os1 stmt0 with
+        | Right (step, os2, stmt1) -> (step, os2, stmt1)::run_trace_evaluation os2 stmt1
+        | Left (step, os2) -> [(step, os2, Done)]
+        end
+    end
 
-val trace_evaluation : nat -> os_state symbolic -> stmt -> list (evaluation_step * os_state symbolic * stmt)
-let trace_evaluation gas os0 stmt0 = (XSStep "",os0,stmt0)::run_trace_evaluation gas os0 stmt0
 
 (* TODO 2018-03-30 cleverer use of gas/limit number of commands *)
-val trace_evaluation_multi : nat -> os_state symbolic -> list stmt -> list (evaluation_step * os_state symbolic * stmt)
-let rec trace_evaluation_multi gas os0 stmts =
+val trace_evaluation_multi : os_state symbolic -> list stmt -> list (evaluation_step * os_state symbolic * stmt)
+let rec trace_evaluation_multi os0 stmts =
   match stmts with
   | [] -> []
   | (stmt::stmts') -> 
-     let trace = trace_evaluation gas os0 stmt in
+     let trace = (XSStep "",os0,stmt)::run_trace_evaluation os0 stmt in
      let (_,os1,_) = last trace in
-     trace ++ trace_evaluation_multi (gas-1) os1 stmts'
+     let os2 = tick os1 in
+     trace ++ trace_evaluation_multi os2 stmts'
 end
   
 (* convenience functions for shell *)
+val real_eval : os_state system -> stmt -> os_state system
+let real_eval = full_evaluation
+
 val real_eval_for_exit_code : os_state system -> stmt -> nat
-let real_eval_for_exit_code os = eval os
+let real_eval_for_exit_code = eval
 
 (* special cased to use the exited flag *)
 val symbolic_eval_multi : os_state symbolic -> list stmt -> os_state symbolic

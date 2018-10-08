@@ -9,15 +9,17 @@ open Printf
 (**********************************************************************)
        
 let verbose = ref false
-let gas = ref 500
 let input_src : string option ref = ref None
 let initial_os_state : (symbolic os_state) ref = ref os_empty
 
-let set_gas n =
+let set_fuel n =
   if n <= 0
-  then eprintf "Number of steps must be a positive number (given %d; will use %d)" n !gas
-  else gas := n
-                                       
+  then eprintf "Number of steps must be a positive number (given %d; will use %s)" n (string_of_fuel !initial_os_state)
+  else initial_os_state := { !initial_os_state with fuel = Some n }
+
+let set_unbounded () =
+  initial_os_state := { !initial_os_state with fuel = None }
+                           
 let set_input_src () =
   match !input_src with
   | None -> Dash.setinputtostdin ()
@@ -63,7 +65,8 @@ let load_dirs (f:string) =
 let parse_args () =
   Arg.parse
     ["-v",Arg.Set verbose,"verbose mode";
-     "-c",Arg.Int set_gas,"maximum number of steps in trace (default 500)";
+     "-c",Arg.Int set_fuel,"maximum number of steps in trace (default 500)";
+     "-u",Arg.Unit set_unbounded,"allow an unbounded number of steps in trace (overrides -c, may diverge)";
      "-env-file",Arg.String load_env,"file containing environment (one var=value per line; no need for quotes)";
      "-env-ambient",Arg.Unit ambient_env,"use the ambient environment";
      "-user-file",Arg.String load_dirs,"file containing username/directory pairings for tilde expansion (one username=dir per line)"
@@ -93,7 +96,7 @@ let main () =
   try 
     let ns = Dash.parse_all () in
     let cs = List.map Shim.of_node ns in
-    show_trace (trace_evaluation_multi !gas !initial_os_state cs)
+    show_trace (trace_evaluation_multi !initial_os_state cs)
   with Dash.Parse_error -> exit 1;;
 
 main ()

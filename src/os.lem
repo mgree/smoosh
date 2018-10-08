@@ -17,6 +17,7 @@ type os_state 'a = <|
    symbolic: 'a; 
    sh: shell_state;
    log: list log_entry;
+   fuel: maybe nat;
  |>                   
 
 (**********************************************************************)
@@ -116,7 +117,25 @@ end
 (* SHELL/OS STATE FUNCTIONS *******************************************)
 (**********************************************************************)
 
-(* Logging ************************************************************)
+(* Logging and fuel ***************************************************)
+
+val tick : forall 'a. os_state 'a -> os_state 'a
+let tick os =
+  <| os with fuel = Maybe.map (fun n -> if n > 0 then n - 1 else 0) os.fuel |>
+
+val out_of_fuel : forall 'a. os_state 'a -> bool
+let out_of_fuel os =
+  match os.fuel with
+  | Nothing -> false
+  | Just n -> n = 0
+  end
+
+val string_of_fuel : forall 'a. os_state 'a -> string
+let string_of_fuel os =
+  match os.fuel with
+  | Nothing -> "unbounded"
+  | Just n -> stringFromNat n
+  end
 
 val entry_unspecified : log_entry -> bool
 let entry_unspecified entry =
@@ -748,7 +767,8 @@ let symbolic_empty : symbolic = <|
 let os_empty : os_state symbolic = 
   <| symbolic = symbolic_empty; 
      sh = default_shell_state;
-     log = []
+     log = [];
+     fuel = Just 500;
   |>
   
 (**********************************************************************)
