@@ -743,6 +743,9 @@ and symbolic = <|
     exited: bool;
     umask: perms
   |>
+
+type evaluation_trace = 
+  list (evaluation_step * shell_state * symbolic * stmt) * os_state symbolic
     
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
 let fds_default : fds = 
@@ -1115,6 +1118,9 @@ let set_pwdir u d os =
 
 val get_stdout : os_state symbolic -> string
 let get_stdout os = fromMaybe "" (index os.symbolic.fifos 1)
+
+val get_stderr : os_state symbolic -> string
+let get_stderr os = fromMaybe "" (index os.symbolic.fifos 2)
 
 (**********************************************************************)
 (* REAL OS STATE INSTANCE *********************************************)

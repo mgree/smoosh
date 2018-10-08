@@ -96,7 +96,8 @@ let main () =
   try 
     let ns = Dash.parse_all () in
     let cs = List.map Shim.of_node ns in
-    show_trace (trace_evaluation_multi !initial_os_state cs)
+    let (trace,_final_os_state) = trace_evaluation_multi !initial_os_state cs in
+    show_trace trace
   with Dash.Parse_error -> exit 1;;
 
 main ()

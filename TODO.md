@@ -62,10 +62,12 @@
 
 ### Long-term
 
-- mark symbolic OS changes/unspecified states/unsoundness and move on
-  + log in the os_state
+- actually use log_unspec etc
+
+- collapse logic for tracing to there's just one eval function
 
 - generate symbolic results of unknown executables
+
 
 - move to int64
   there are almost certainly some bugs around the POSIX spec

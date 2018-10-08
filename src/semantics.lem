@@ -1203,42 +1203,47 @@ let symbolic_full_expansion s0 w0 = symbolic_run_full_expansion s0 (ExpStart w0)
 (* Tracing evaluation *************************************************)
 (* used in expand.ml *)
 
-val run_trace_evaluation : os_state symbolic -> stmt -> list (evaluation_step * os_state symbolic * stmt)
+val run_trace_evaluation : os_state symbolic -> stmt -> evaluation_trace
 let rec run_trace_evaluation os0 stmt0 =
   if out_of_fuel os0
-  then [(XSStep "out of fuel",os0,stmt0)]
+  then ([(XSStep "out of fuel", os0.sh, os0.symbolic, stmt0)], os0)
   else 
     let os1 = tick os0 in
     match stmt0 with
-    | Done -> []
+    | Done -> ([], os1)
     | _ ->
         match step_eval os1 stmt0 with
-        | Right (step, os2, stmt1) -> (step, os2, stmt1)::run_trace_evaluation os2 stmt1
-        | Left (step, os2) -> [(step, os2, Done)]
+        | Right (step, os2, stmt1) -> 
+           let entry = (step, os2.sh, os2.symbolic, stmt1) in
+           let (trace,os3) = run_trace_evaluation os2 stmt1 in
+           (entry::trace, os3)
+        | Left (step, os2) -> ([(step, os2.sh, os2.symbolic, Done)], os2)
         end
     end
 
-
-(* TODO 2018-03-30 cleverer use of gas/limit number of commands *)
-val trace_evaluation_multi : os_state symbolic -> list stmt -> list (evaluation_step * os_state symbolic * stmt)
+val trace_evaluation_multi : os_state symbolic -> list stmt -> evaluation_trace
 let rec trace_evaluation_multi os0 stmts =
   match stmts with
-  | [] -> []
+  | [] -> ([], os0)
   | (stmt::stmts') -> 
-     let trace = (XSStep "",os0,stmt)::run_trace_evaluation os0 stmt in
-     let (_,os1,_) = last trace in
+     let trace0 = [(XSStep "", os0.sh, os0.symbolic,stmt)] in
+     let (trace1,os1) = run_trace_evaluation os0 stmt in
      let os2 = tick os1 in
-     trace ++ trace_evaluation_multi os2 stmts'
-end
+     let (trace2,os3) = trace_evaluation_multi os2 stmts' in
+     (trace0 ++ trace1 ++ trace2, os3)
+  end
   
-(* convenience functions for shell *)
+(* Real evaluation ****************************************************)
+(* convenience functions for shell.ml *)
 val real_eval : os_state system -> stmt -> os_state system
 let real_eval = full_evaluation
 
 val real_eval_for_exit_code : os_state system -> stmt -> nat
 let real_eval_for_exit_code = eval
 
+(* Symbolic evaluation ************************************************)
 (* special cased to use the exited flag *)
+(* used in test_evaluation.ml *)
 val symbolic_eval_multi : os_state symbolic -> list stmt -> os_state symbolic
 let rec symbolic_eval_multi os0 stmts =
   if os0.symbolic.exited

@@ -626,16 +626,17 @@ and json_of_evaluation_step = function
   | XSNested (outer, inner) -> Assoc [tag "XSNested"; ("inner", json_of_evaluation_step inner); ("outer", json_of_evaluation_step outer)]
   | XSExpand (eval_step, exp_step) -> Assoc [tag "XSExpand"; ("inner", json_of_expansion_step  exp_step); ("outer", json_of_evaluation_step eval_step)]
 
-and json_of_expansion_trace_entry (step, os, state) =
-  Assoc [("step", json_of_expansion_step step)
-        ;("env", json_of_env os.sh.env)
-        ;("term", json_of_expansion_state state)
-        ]
+and json_of_fifo symbolic num =
+  match List.nth_opt symbolic.fifos num with
+  | None -> String ""
+  | Some s -> String s
 
-and json_of_evaluation_trace_entry (step, os, stmt) =
+and json_of_evaluation_trace_entry (step, sh, symbolic, stmt) =
   Assoc [("step", json_of_evaluation_step step)
-        (* 2017-12-22 TODO dump more of the shell state? *)
-        ;("env", json_of_env os.sh.env)
+        (* 2017-12-22 TODO dump more of the shell state, e.g., FS? *)
+        ;("env", json_of_env sh.env)
+        ;("STDOUT", json_of_fifo symbolic 1)
+        ;("STDERR", json_of_fifo symbolic 2)
         ;("term", json_of_stmt stmt)
         ]
 
