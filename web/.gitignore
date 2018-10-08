@@ -1,0 +1,6 @@
+vendor
+.bundle
+.ruby-version
+Gemfile.lock
+submissions
+src/config.yml
