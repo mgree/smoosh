@@ -1,11 +1,12 @@
 ### Paper TODO
 
 - get server up
-  + install ruby
+  + build real server at Pomona
   + run expander in a chroot jail... or simply via Docker?
   + postback JS errors to a server log
 - run POSIX tests on dash, bash, and smoosh
   + Dockerfile for loading POSIX tests
+    can't publish the test suite :(
   + export test journal summaries
 - strawman performance tests vs. dash and bash?
 - write paper

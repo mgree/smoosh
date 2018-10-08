@@ -25,5 +25,5 @@ You can do so by running `docker run -ti smoosh` to get an interactive environme
 # How to use the web interface
 
 - After building the `smoosh` image, build the web image: `docker build -t smoosh-web -f Dockerfile.web .`
-- To run the web image: `docker run smoosh-web`
+- To run the web image `docker run -p 9292:9292 --name smoosh-web -t smoosh-web` and go to [http://localhost:9292/expand](http://localhost:9292/expand).
 

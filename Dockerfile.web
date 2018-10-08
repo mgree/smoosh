@@ -1,11 +1,17 @@
 FROM smoosh
 
-# fragile, but the OCaml base image isn't up-to-date enough to work
+# fragile!
+# OCaml base image isn't up-to-date enough to install ruby---need deb9u3!
 # at least we're doing the update AFTER having built smoosh :(
 RUN sudo apt-get update
-RUN sudo apt-get install -y ruby-full
+RUN sudo apt-get install -y ruby-full ruby-bundler
+RUN sudo gem install childprocess sinatra sinatra-contrib thin
 
 ADD --chown=opam:opam web web
+ADD --chown=opam:opam web/src/config.yml.docker web/src/config.yml
+RUN mkdir web/submissions
 
-ENTRYPOINT [ "opam", "config", "exec", "--" ]
-CMD [ "bash" ]
+EXPOSE 9292/tcp
+
+#ENTRYPOINT [ "opam", "config", "exec", "--" ]
+CMD /home/opam/web/run.sh

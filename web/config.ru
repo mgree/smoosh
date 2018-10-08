@@ -1,4 +1,3 @@
-
 $: << File.dirname(__FILE__)
 
 require 'src/expansion_web.rb'
