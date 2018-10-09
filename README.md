@@ -2,6 +2,12 @@ Smoosh (the Symbolic, Mechanized, Observable, Operational SHell) is a formalizat
 
 Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OCaml, using [libdash](https://github.com/mgree/libdash) to parse shell code.
 
+# Fetch the submodules
+
+- Before trying anything, run: `git submodule update --init --recursive`
+
+If you don't load the git submodules, the libdash and Lem references won't resolve properly.
+
 # How to build it
 
 - Run: `docker build -t smoosh .`

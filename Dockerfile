@@ -22,7 +22,7 @@ RUN sudo apt-get install -y autoconf libtool
 
 # set up lem
 ADD --chown=opam:opam lem lem
-RUN cd ~/lem/ocaml-lib; opam config exec -- make install_dependencies
+RUN cd lem/ocaml-lib; opam config exec -- make install_dependencies
 RUN cd lem; opam config exec -- make
 RUN cd lem; opam config exec -- make install
 ENV PATH="/home/opam/lem/bin:${PATH}"
