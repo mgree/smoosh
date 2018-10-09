@@ -70,6 +70,11 @@ class SmooshWeb < Sinatra::Base
     log.write result
     log.close
 
+    if request.ip == "127.0.0.1" 
+      File.delete(shell, env, user, log)
+      Dir.rmdir d
+    end
+
     if result[:exit_code].zero?
       result[:stdout]
     else

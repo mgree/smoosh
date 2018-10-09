@@ -1,9 +1,5 @@
 ### Paper TODO
 
-- get server up
-  + build real server at Pomona
-  + run expander in a chroot jail... or simply via Docker?
-  + postback JS errors to a server log
 - run POSIX tests on dash, bash, and smoosh
   + Dockerfile for loading POSIX tests
     can't publish the test suite :(
@@ -68,6 +64,13 @@
 
 - generate symbolic results of unknown executables
 
+- better server support
+  + SSL
+    https://stackoverflow.com/questions/11589636/enable-https-in-a-rails-app-on-a-thin-server
+    https://alessandrominali.github.io/sinatra_ssl
+    https://certbot.eff.org/lets-encrypt/debianstretch-other.html
+  + postback JS errors to the serve
+  + auto-pull and rebuild from a production branch
 
 - move to int64
   there are almost certainly some bugs around the POSIX spec
