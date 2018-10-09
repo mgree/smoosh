@@ -12,7 +12,8 @@ RUN cd web; bundle install
 RUN mv web/src/config.yml.docker web/src/config.yml
 RUN mkdir web/submissions
 
-EXPOSE 9292/tcp
+EXPOSE 2080/tcp
+#EXPOSE 2443/tcp
 
 #ENTRYPOINT [ "opam", "config", "exec", "--" ]
 CMD /home/opam/web/run.sh
