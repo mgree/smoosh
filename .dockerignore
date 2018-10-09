@@ -13,6 +13,7 @@
 # system crap
 Dockerfile
 Dockerfile.test
+Dockerfile.web
 .git
 .gitmodules
 **/.gitignore

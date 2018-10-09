@@ -11,6 +11,7 @@ ADD --chown=opam:opam web web
 RUN cd web; bundle install
 RUN mv web/src/config.yml.docker web/src/config.yml
 RUN mkdir web/submissions
+VOLUME web/submissions
 
 EXPOSE 2080/tcp
 #EXPOSE 2443/tcp

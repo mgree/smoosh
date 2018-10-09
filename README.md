@@ -4,9 +4,10 @@ Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OC
 
 # Fetch the submodules
 
-- Before trying anything, run: `git submodule update --init --recursive`
+- The best way to clone this repository is via `git clone --recurse-submodules https://github.com/mgree/smoosh`. 
+- If you didn't use `--recursive` or `--recurse-submodules`, before trying anything, run: `git submodule update --init --recursive`
 
-If you don't load the git submodules, the libdash and Lem references won't resolve properly.
+If you don't load the git submodules, the libdash and Lem references won't resolve properly---the directories will be empty!
 
 # How to build it
 

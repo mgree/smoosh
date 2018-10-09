@@ -3,8 +3,13 @@
 <div class="ui container">
 
   <div class="row">
-    <div class="ui segment">
-      <h1 class="ui header">Smoosh - The Symbolic, Mechanized, Observable, Operational Shell</h1>
+    <div class="ui segments">
+      <div class="ui segment">
+        <h1 class="ui header">Smoosh - The Symbolic, Mechanized, Observable, Operational Shell</h1>
+      </div>
+      <div class="ui secondary segment">
+        <p>By <a href="http://www.cs.pomona.edu/~michael/">Michael Greenberg</a> with Austin Blatt and Calvin Aylward</p>
+      </div>
     </div>
   </div>
 
@@ -58,13 +63,14 @@
     </div>
   </div>
 
-  <div class="ui segment">
-    <h2 class="ui header">Try the stepper code</h2>
-    <p>As a trial of Smoosh's capabilities, we've built a <a href="/stepper">web-based stepper</a> that can symbolically step shell code.</p>
+  <div class="ui red segment">
+    <h2 class="ui header">Demo: <a href="/stepper">web-based stepper</a></h2>
+    <p>As a trial of Smoosh's capabilities, we've built a <a href="/stepper">web-based stepper</a> that can symbolically step shell code through the various phases of expansion and evaluation.</p>
+    <p>The implementation of commands is limited to the core builtin operations of the shell; the filesystem and unknown executables are treated symbolically.</p>
   </div>
 
   <div class="ui segment">
-    <h2 class="ui header">Get the code</h2>
+    <h2 class="ui header">Code</h2>
     <p>Smoosh's <a href="https://github.com/mgree/smoosh">source
     code</a> is open (MIT licensed) and freely available.
 
@@ -73,7 +79,7 @@
   </div>
 
   <div class="ui segment">
-    <h2 class="ui header">Read the papers</h2>
+    <h2 class="ui header">Papers</h2>
     <div class="ui list">
 
       <div class="item">
