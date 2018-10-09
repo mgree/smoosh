@@ -37,7 +37,7 @@ class SmooshWeb < Sinatra::Base
     # create temporary directory logging time and IP
     timestamp = DateTime.now.to_s.gsub(":", "+")
     ip = request.ip.gsub(":", "+") # just in case we're on the loop back interface
-    d = Dir.mktmpdir("#{timestamp}_#{ip}", settings.submissions_tmpdir)
+    d = Dir.mktmpdir("#{timestamp}_#{ip}_", settings.submissions_tmpdir)
 
     # create files with provided info
     shell  = File.new(File.join(d, "shell"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
