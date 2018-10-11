@@ -144,7 +144,7 @@ let real_write_fd (fd:int) (s:string) : bool =
   let buff = Bytes.of_string s in
   xwrite (fd_of_int fd) buff
 
-let real_read_fd (fd:int) : string option =
+let real_read_all_fd (fd:int) : string option =
   (* allocate each time... may not be necessary with OCaml's model of shared memory *)
   let buff = Bytes.make 1024 (Char.chr 0) in
   let read = Unix.read (fd_of_int fd) buff 0 1024 in

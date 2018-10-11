@@ -20,6 +20,8 @@ type os_state 'a = <|
    fuel: maybe nat;
  |>                   
 
+type step_fun 'a = os_state 'a -> stmt -> either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)
+
 (**********************************************************************)
 (* FS STATE ***********************************************************)
 (**********************************************************************)
@@ -69,8 +71,7 @@ class ( OS 'a )
   val fork_and_subshell : os_state 'a -> stmt -> os_state 'a * nat
   val exit : os_state 'a -> os_state 'a * maybe stmt
   val waitpid : 
-    (* need to be passed step_eval to close recursive knot for the symbolic OS *)
-    (os_state 'a -> stmt -> either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)) ->
+    step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
     os_state 'a -> nat -> os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
   val handle_signal : os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
   val times : os_state 'a -> 
@@ -97,7 +98,7 @@ class ( OS 'a )
 
   val readdir : os_state 'a -> path -> set (path * file unit)
   val write_fd : os_state 'a -> fd -> string -> maybe (os_state 'a)
-  val read_fd : os_state 'a -> fd -> maybe (os_state 'a * string)
+  val read_all_fd : os_state 'a -> fd -> maybe (os_state 'a * string)
   val read_char_fd : os_state 'a -> fd -> maybe (os_state 'a * char)
   val close_fd : os_state 'a -> fd -> os_state 'a
   val pipe : os_state 'a -> os_state 'a * fd * fd
@@ -1038,7 +1039,7 @@ instance (OS symbolic)
     | Nothing -> Nothing
     end
   
-  let read_fd os fd =
+  let read_all_fd os fd =
     match symbolic_resolve_fd os.symbolic fd with
     | Just fifo_num -> 
        match read_fifo os.symbolic fifo_num with
@@ -1227,8 +1228,8 @@ declare ocaml target_rep function real_readdir = `System.real_readdir`
 val real_write_fd : fd -> string -> bool
 declare ocaml target_rep function real_write_fd = `System.real_write_fd`
 
-val real_read_fd : fd -> maybe string
-declare ocaml target_rep function real_read_fd = `System.real_read_fd`
+val real_read_all_fd : fd -> maybe string
+declare ocaml target_rep function real_read_all_fd = `System.real_read_all_fd`
 
 val real_read_char_fd : fd -> maybe char
 declare ocaml target_rep function real_read_char_fd = `System.real_read_char_fd`
@@ -1365,8 +1366,8 @@ instance (OS unit)
     then Just os
     else Nothing
 
-  let read_fd os fd =
-    match real_read_fd fd with
+  let read_all_fd os fd =
+    match real_read_all_fd fd with
     | Nothing -> Nothing
     | Just s -> Just (os,s)
     end
