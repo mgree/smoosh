@@ -17,12 +17,17 @@
   need to setup a handler in shell.ml
   + correct application of INTON/INTOFF
 
-- fork_and_subshell should handle pgrps
+- `fork_and_subshell` should handle pgrps
   + needs to know if we're FG or not
     cf. jobs.c:869
 
-- read_fd/read_char_fd should trigger steps/set up scheduler plans
+- `read_char_fd` should trigger steps/set up scheduler plans
   needed to get the right behavior on some symbolic tests for read
+
+  `read_all_fd`, which gets used for subshells, doesn't need
+  `step_eval` function because we can be careful to do the stepping
+  ourselves. but `read_char_fd` _does_, because who knows how far down
+  the pipeline the things we want are!
 
 ### Last of the shell semantics
 
