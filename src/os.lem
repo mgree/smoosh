@@ -754,6 +754,7 @@ type fds = Map.map fd fd_tgt
 
 (* FIFO pipes for symbolic FDs *)             
 type fifo = string
+type fifo_num = nat
           
 and proc =
     Shell of stmt * shell_state * fds
@@ -815,12 +816,12 @@ let symbolic_resolve_fd symbolic fd =
   | _ -> Nothing
   end
     
-val mkfifo : symbolic -> symbolic * nat  
+val mkfifo : symbolic -> symbolic * fifo_num
 let mkfifo symbolic =
   let fifo_num = length symbolic.fifos in
   (<| symbolic with fifos = symbolic.fifos ++ [""] |>, fifo_num)
 
-val write_fifo : symbolic -> nat -> string -> maybe (symbolic)
+val write_fifo : symbolic -> fifo_num -> string -> maybe (symbolic)
 let write_fifo symbolic fifo_num s =
   match adjust_nth symbolic.fifos fifo_num (fun fifo_cts -> (fifo_cts ^ s, ())) with
   | Nothing -> Nothing
@@ -831,14 +832,14 @@ let write_fifo symbolic fifo_num s =
 
    really, we should use these reads as hints to the scheduler!
 *)
-val read_fifo : symbolic -> nat -> maybe (symbolic * string)
+val read_fifo : symbolic -> fifo_num -> maybe (symbolic * string)
 let read_fifo symbolic fifo_num =
   match adjust_nth symbolic.fifos fifo_num (fun fifo_cts -> ("",fifo_cts)) with
   | Nothing -> Nothing
   | Just (new_fifos,s) -> Just (<| symbolic with fifos = new_fifos |>, s)
   end
 
-val read_char_fifo : symbolic -> nat -> maybe (symbolic * char)
+val read_char_fifo : symbolic -> fifo_num -> maybe (symbolic * char)
 let read_char_fifo symbolic fifo_num =
   let get_char fifo_cts =
     match toCharList fifo_cts with
@@ -887,8 +888,34 @@ let symbolic_fresh_fd sh_fds =
   end
 
 (* TODO 2018-10-11 identify the writer of a given fifo_num *)
-val symbolic_find_writer : os_state symbolic -> nat -> maybe nat (* pid *)
-let symbolic_find_writer _os _fifo_num = Nothing
+val symbolic_fds_writes_fifo : fifo_num -> fds -> bool
+let symbolic_fds_writes_fifo fifo_num fds =
+  let select_writers fd fd_tgt =
+    match fd_tgt with
+    | FIFO fifo_num' -> 
+       if fd <> STDIN && fifo_num = fifo_num'
+       then Just (FIFO fifo_num')
+       else Nothing
+    | Path _ -> Nothing
+    end
+  in
+  (* any FDs are writing our FIFO? *)
+  let writers = Map_extra.mapMaybe select_writers fds in
+  not (Map.null writers)
+
+val symbolic_writes_fifo : fifo_num -> proc -> bool
+let symbolic_writes_fifo fifo_num proc =
+  match proc with
+  | Zombie _ -> false
+  | Shell _ _ fds -> symbolic_fds_writes_fifo fifo_num fds
+  end
+
+val symbolic_find_writer : os_state symbolic -> fifo_num -> maybe nat (* pid *)
+let symbolic_find_writer os fifo_num = 
+  (* recall that symbolic PIDs are indices into the list 
+     so we'll just paw through it and find the first one that's writing
+   *)
+  findIndex (symbolic_writes_fifo fifo_num) os.symbolic.procs
 
 instance (OS symbolic)
   let getpwnam os u = Map.lookup u os.symbolic.passwd

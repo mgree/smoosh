@@ -21,22 +21,6 @@
   + needs to know if we're FG or not
     cf. jobs.c:869
 
-- `read_char_fd` should trigger steps/set up scheduler plans
-  needed to get the right behavior on some symbolic tests for read
-
-  `read_all_fd`, which gets used for subshells, doesn't need
-  `step_eval` function because we can be careful to do the stepping
-  ourselves. but `read_char_fd` _does_, because who knows how far down
-  the pipeline the things we want are!
-  
-  in the long term, it'd be good to have OS calls that ask the
-  scheduler to do things. we can put `step_eval` (and
-  `eval_for_exit_code`) into an OS 'a value. it would only ever be
-  used by the symbolic parts, and it might trigger a call to
-  `step_eval` and appropriate logging in `os.log`. 
-  
-  the system mode can rely on the system scheduler and real blocking.
-
 ### Last of the shell semantics
 
 - Sh_errexit
@@ -89,6 +73,25 @@
   there are almost certainly some bugs around the POSIX spec
     is it in-spec to have a shell with bignum?
 - proper locale support
+
+- explicit scheduler
+  `read_line_fd` and `builtin_read` use Wait to trigger blocking.
+
+  `read_all_fd`, which gets used for subshells, doesn't need
+  `step_eval` function because we can be careful to do the stepping
+  ourselves. but `read_char_fd` _does_, because who knows how far down
+  the pipeline the things we want are!
+  
+  `waitpid`, however, triggers real blocking :(
+  
+  in the long term, it'd be good to have OS calls that ask the
+  scheduler to do things. 
+  
+  we can put `step_eval` (and `eval_for_exit_code`) into an OS 'a
+  value. it would only ever be used by the symbolic parts, and it
+  might trigger a call to `step_eval` and appropriate logging in
+  `os.log`. the system mode can rely on the system scheduler and real
+  blocking.
 
 - symbolic pathname expansion
 - support filesystems in symbolic stepper

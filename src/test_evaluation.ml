@@ -19,7 +19,9 @@ let get_exit_code (os : symbolic os_state) =
 let run_cmd_for_exit_code (cmd : string) (os0 : symbolic os_state) : int =
   let cs = Shim.parse_string cmd in
   let os1 = Semantics.symbolic_eval_multi os0 cs in
-  snd (get_concrete_exit_code os1)
+  if out_of_fuel os1
+  then -1
+  else snd (get_concrete_exit_code os1)
 
 let check_exit_code (cmd, state, expected) =
   checker (run_cmd_for_exit_code cmd) (=) (cmd, state, expected)
@@ -154,7 +156,9 @@ let exit_code_tests : (string * symbolic os_state * int) list =
 let run_cmd_for_stdout (cmd : string) (os0 : symbolic os_state) : string =
   let cs = Shim.parse_string cmd in
   let os1 = Semantics.symbolic_eval_multi os0 cs in
-  get_stdout os1
+  if out_of_fuel os1
+  then "!!! OUT OF FUEL"
+  else get_stdout os1
 
 let check_stdout (cmd, state, expected) =
   checker (run_cmd_for_stdout cmd) (=) (cmd, state, expected)
@@ -219,10 +223,8 @@ let stdout_tests : (string * symbolic os_state * string) list =
 
     (* read *)
   ; ("echo 1 | read x; echo ${x-subshell}", os_empty, "subshell\n")
-
-  (* failing in symbolic mode because of pipe/scheduler issues *)
-(*  ; ("echo 1 | { read x ; echo $x ; }", os_empty, "1\n")
-  ; ("echo 1 2 | { read x y ; echo $x ; echo $y ; }", os_empty, "1\n2\n") *)
+  ; ("echo 1 | { read x ; echo $x ; }", os_empty, "1\n")
+  ; ("echo 1 2 | { read x y ; echo $x ; echo $y ; }", os_empty, "1\n2\n")
   
     (* printf *)
   ; ("printf", os_empty, "")
