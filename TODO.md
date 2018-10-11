@@ -85,6 +85,9 @@
 - use monads (better parsing, etc.)
 - support for nondeterminism (move to K?)
 
+- per Ryan Culpepper: controlling dynamic extents to restrict phases.
+  Ralf &co are more or less doing this with their restriction on aliases
+
 ### Testing
 
 - VM for POSIX testing
