@@ -297,7 +297,7 @@ for x in "$@"; do echo "$x"; done # arg  1\narg  2\narg  3
                  [K (LBacktick corig pid fd_read)])
        | (s1, Just (Right _code)) ->
           (* TODO 2018-08-29 do we need to look at the exit code? *)
-          match read_all_fd s1 fd_read with
+          match read_all_fd step_eval s1 fd_read with
           | Nothing -> 
              Left (ESCommand "broken pipe",
                    s1,

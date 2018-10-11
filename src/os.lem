@@ -98,7 +98,9 @@ class ( OS 'a )
 
   val readdir : os_state 'a -> path -> set (path * file unit)
   val write_fd : os_state 'a -> fd -> string -> maybe (os_state 'a)
-  val read_all_fd : os_state 'a -> fd -> maybe (os_state 'a * string)
+  val read_all_fd : 
+    step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
+    os_state 'a -> fd -> maybe (os_state 'a * string)
   val read_char_fd : os_state 'a -> fd -> maybe (os_state 'a * char)
   val close_fd : os_state 'a -> fd -> os_state 'a
   val pipe : os_state 'a -> os_state 'a * fd * fd
@@ -861,6 +863,21 @@ let symbolic_fresh_fd sh_fds =
   | Just max -> max + 1
   end
 
+val symbolic_find_writer : os_state symbolic -> nat -> maybe (nat * proc)
+let symbolic_find_write _os _fifo_num = 
+  (* 2018-10-11 PICK UP HERE
+
+     try to find the proc index of the writer
+     read_all_fd can then step that index
+
+     possible longer term refactoring:
+       have Block of nat
+         noop in os_state system
+         acts like waitpid in os_state symbolic
+       avoids issues with FIFOs filling up in the real world!
+   *)
+  Nothing
+
 instance (OS symbolic)
   let getpwnam os u = Map.lookup u os.symbolic.passwd
 
@@ -1039,7 +1056,8 @@ instance (OS symbolic)
     | Nothing -> Nothing
     end
   
-  let read_all_fd os fd =
+  let read_all_fd _step_eval os fd =
+    
     match symbolic_resolve_fd os.symbolic fd with
     | Just fifo_num -> 
        match read_fifo os.symbolic fifo_num with
@@ -1366,7 +1384,7 @@ instance (OS unit)
     then Just os
     else Nothing
 
-  let read_all_fd os fd =
+  let read_all_fd _step_eval os fd =
     match real_read_all_fd fd with
     | Nothing -> Nothing
     | Just s -> Just (os,s)
