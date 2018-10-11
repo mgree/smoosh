@@ -245,32 +245,6 @@ let write_stdout = try_write_fd STDOUT
 val write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let write_stderr = try_write_fd STDERR
 
-(*
-let rec read_line_loop s0 backslash_escapes fd cs = 
-  match (read_char_fd s0 fd, backslash_escapes) with
-  | (s1, ReadError "EOF", _) ->
-     (s1, toString (reverse cs), true) (* EOF *)
-  | (s1, ReadSuccess (s1, #'\n'), _) -> 
-     (s1, toString (reverse cs), false)
-  (* dash miscbltin.c:162 ignores nullchar? *)                           
-  | (Just (s1, #'\\'), true) ->
-     match read_char_fd s0 fd with
-     | Nothing -> 
-        (s1, toString (reverse (#'\\'::cs)), true)
-     | Just (s2, #'\n') -> (* line continuation *)
-        read_line_loop s2 backslash_escapes fd cs
-     | Just (s2, c) -> (* escaped char, whatevs *)
-        read_line_loop s2 backslash_escapes fd (c::cs)
-     end
-  | (Just (s1, c), _) -> (* just add the ordinary char *)
-     read_line_loop s1 backslash_escapes fd (c::cs)
-  end
-
-val read_line : forall 'a. OS 'a => os_state 'a -> bool (* allow backslash escapes? *) -> fd -> os_state 'a * string * bool (* EOF? *)
-let read_line s0 backslash_escapes fd =
-  read_line_loop s0 backslash_escapes fd []
-*)
-
 (* FS and path manipulation *******************************************)
 
 val path_dotdot_rev_cl : list char -> list char
@@ -878,6 +852,33 @@ let read_char_fifo symbolic fifo_num =
   | Just (_, Nothing) -> Nothing
   end
 
+val string_read_line_cl 
+    : list char -> bool (* backslash escapes *) -> list char ->
+      list char * list char * bool
+let rec string_read_line_cl cs backslash_escapes line =
+  (* dash miscbltin.c:162 ignores nullchar? *)
+  match (cs, backslash_escapes) with
+  (* terminator *)
+  | ([], _) -> (line, [], true)
+  | (#'\n'::cs', _) -> (line, cs', false)
+
+  (* backslash *)
+  | ([#'\\'], true) -> (#'\\'::line, [], true)
+  | (#'\\'::#'\n'::cs, true) -> string_read_line_cl cs backslash_escapes     line
+  | (#'\\'::c    ::cs, true) -> string_read_line_cl cs backslash_escapes (c::line)
+
+  (* ordinary char *)
+  | (c::cs, _) -> string_read_line_cl cs backslash_escapes (c::line)
+  end
+
+val string_read_line
+    : string -> bool (* backslash escapes *) -> string * string * bool
+let string_read_line s backslash_escapes =
+  let (line_cs, rest, hit_eof) = 
+    string_read_line_cl (toCharList s) backslash_escapes []  
+  in
+  (toString (reverse line_cs), toString rest, hit_eof)
+
 val symbolic_fresh_fd : fds -> fd
 let symbolic_fresh_fd sh_fds = 
   match Set.findMax (Map.domain sh_fds) with
@@ -886,8 +887,8 @@ let symbolic_fresh_fd sh_fds =
   end
 
 (* TODO 2018-10-11 identify the writer of a given fifo_num *)
-val symbolic_find_writer : os_state symbolic -> nat -> maybe (nat * proc)
-let symbolic_find_write _os _fifo_num = Nothing
+val symbolic_find_writer : os_state symbolic -> nat -> maybe nat (* pid *)
+let symbolic_find_writer _os _fifo_num = Nothing
 
 instance (OS symbolic)
   let getpwnam os u = Map.lookup u os.symbolic.passwd
@@ -1080,18 +1081,38 @@ instance (OS symbolic)
   let read_line_fd os backslash_escapes fd =
     match symbolic_resolve_fd os.symbolic fd with
     | Just fifo_num -> 
-       (* TODO 2018-10-11
-          look at the contents of the FIFO.
-          
-          speculatively try to parse a line.
-
-          if we can parse a line, great: pull it off and use it.
-
-          if we reach EOF, see if we can find a writing process.
-          if we can, undo the read and block on that process.
-          if not, fine: EOF it is.
-        *)
-       (os, ReadBlocked 0)
+       (* look up the FIFO contents *)
+       match index os.symbolic.fifos fifo_num with
+       | Nothing -> (os, ReadError "broken pipe ")
+       | Just cts ->
+          (* try to parse a line *)
+          let (line,cts',hit_eof) = string_read_line cts backslash_escapes in
+          (* we'll return this value if the read is good. but it depends!
+             
+             if we really parsed a line (no EOF), we're good. otherwise we may
+             have to block on the writing process.
+           *)
+          let commit_read = 
+            (<| os with symbolic = 
+                <| os.symbolic with 
+                   fifos = update os.symbolic.fifos fifo_num cts' |> |>, 
+             ReadSuccess line hit_eof)
+          in
+          if not hit_eof
+          then 
+            (* we actually parsed a line---no need to block, we have what we need 
+               so we'll update the FIFO to holds cts' and return the string
+             *)
+            commit_read
+          else
+            (* found EOF. is someone still writing to this FIFO?
+               if so, we need to throw away our (uncommitted) read and block.
+               if not, fine: EOF it is *)
+            match symbolic_find_writer os fifo_num with
+            | Nothing -> commit_read
+            | Just pid -> (os, ReadBlocked pid)
+            end
+       end
     | Nothing -> (os, ReadError ("bad file descriptor " ^ stringFromNat fd))
     end
 
