@@ -1,5 +1,8 @@
 ### Paper TODO
 
+- improve stepper UI
+  + show STDOUT/STDERR
+  + colorize step based on eval/expansion
 - run POSIX tests on dash, bash, and smoosh
   + Dockerfile for loading POSIX tests
     can't publish the test suite :(
@@ -58,6 +61,8 @@
 - actually use log_unspec etc
 
 - collapse logic for tracing to there's just one eval function
+  + split out `step_eval` and `log_step_eval`...
+    but also use `log_step` in the middle
 
 - generate symbolic results of unknown executables
 
