@@ -758,13 +758,22 @@ function renderStmt(info, elt, stmt) {
       // TODO 2018-09-06 show env?
 
     case 'Wait':
-      // | Wait n -> Assoc [tag "Wait"; ("pid", Int n)]
+      // | Wait (n, bound) -> 
+      //    Assoc ([tag "Wait"; ("pid", Int n)] @
+      //             match bound with
+      //             | None -> []
+      //             | Some steps -> [("steps", Int steps)])
 
       $('<i></i>').addClass('icon wait').appendTo(info);
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
 
       cmd.append('wait' + fieldSep + stmt['pid'].toString());
+
+      if ('steps' in stmt) {
+          var comment = $('<span></span>').addClass('comment').appendTo(elt);
+          comment.append('waiting ' + stmt['steps'].toString() + ' steps');
+      }
 
       break;
 
@@ -1219,8 +1228,6 @@ function renderControl(info, elt, control) {
       renderWords(info, w, control['w']);
 
       elt.append('}');
-
-      break;
 
       break;
 

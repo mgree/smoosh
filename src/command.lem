@@ -1205,7 +1205,7 @@ let builtin_wait s0 argv _env =
   match argv with
   | [] ->
      let (s1,jobs) = active_jobs s0 in
-     let waits = List.map (fun job -> Wait job.pid) jobs in
+     let waits = List.map (fun job -> Wait job.pid Nothing) jobs in
      (* the skip on the end makes sure we return 0 *)
      Right (s1, sequence (waits ++ [skip]))
   | pid::pids' ->
@@ -1219,9 +1219,9 @@ let builtin_wait s0 argv _env =
          *)
         let next = 
           if null pids'
-          then Wait pid
+          then Wait pid Nothing
           else Semi 
-                 (Wait pid) 
+                 (Wait pid Nothing) 
                  (simple_command "wait" pids')
         in
         Right (s0, next)
@@ -1824,7 +1824,7 @@ let run_command s0_init allow_fun prog_name argv env =
                                       argv 
                                       env 
                      in
-                     Right (s1, Wait pid, true)
+                     Right (s1, Wait pid Nothing, true)
                    else (* TODO 2018-08-20 test for text file? *)
                      (* If the execl() function fails due to an error
                         equivalent to the [ENOEXEC] error, the shell

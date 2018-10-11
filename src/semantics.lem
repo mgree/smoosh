@@ -727,7 +727,7 @@ and step_eval s0 stmt =
             specified in the pipeline to complete, and may also wait
             for all commands to complete. *)
          (* We don't bother waiting for everyone... unlike dash and bash. *)
-         (s1, Wait last_pid) 
+         (s1, Wait last_pid Nothing) 
      in
      Right (XSPipe "started pipe",
             s2,
@@ -791,7 +791,7 @@ and step_eval s0 stmt =
      let (s1,pid) = fork_and_subshell s0 (Redir stmt' redir_state) in
      Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
             s1, 
-            Wait pid)
+            Wait pid Nothing)
   | Subshell stmt' redir_state ->
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
@@ -1101,17 +1101,29 @@ and step_eval s0 stmt =
      end
 
   (* WAIT *********************************************************************)
-  | Wait n -> 
+  | Wait n (Just 0) -> (* out of steps *)
+     Right (XSWait ("stopped blocking on process with pid " ^ stringFromNat n),
+            s0,
+            Done)
+   
+  | Wait n bound -> 
      match waitpid step_eval s0 n with
      | (s1, Nothing) -> 
         Right (XSWait ("couldn't step process with pid " ^ stringFromNat n), 
                write_stderr ("wait: pid " ^ stringFromNat n ^ " is not a child of this shell") s1, 
                Done)
      | (s1, Just (Left step)) ->
+        (* we took a step, so record it *)
+        let bound' = 
+          match bound with
+          | Nothing -> Nothing
+          | Just n -> Just (n - 1)
+          end
+        in
         Right (XSNested (XSWait ("process with pid " ^ stringFromNat n ^ " stepped")) 
                         step,
                s1,
-               Wait n)
+               Wait n bound')
      | (s1, Just (Right code)) ->
         Right (XSWait ("process with pid " ^ stringFromNat n ^ " completed"),
                exit_with code s1,

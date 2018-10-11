@@ -717,7 +717,7 @@ and stmt =
   | Return
   | Exit
   | Exec of symbolic_string * list symbolic_string * env
-  | Wait of nat (* pid *)
+  | Wait of nat (* pid *) * maybe nat (* Nothing = block; Just n = n steps *)
   | Pushredir of stmt * saved_fds
   | Done
 
@@ -1367,7 +1367,7 @@ let rec string_of_stmt c =
   | Return -> "return"
   | Exit -> "exit"
   | Exec cmd args _env -> spaced "exec" (string_of_fields (cmd::args))
-  | Wait n -> "wait " ^ stringFromNat n
+  | Wait n _steps -> "wait " ^ stringFromNat n
   | Pushredir s _saved -> string_of_stmt s (* TODO leaving stuff out *)
   | Done -> "Done"
   end

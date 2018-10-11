@@ -418,7 +418,11 @@ let rec json_of_stmt = function
             ("cmd", json_of_symbolic_string cmd);
             ("args", json_of_fields args);
             ("env", json_of_env env)]
-  | Wait n -> Assoc [tag "Wait"; ("pid", Int n)]
+  | Wait (n, bound) -> 
+     Assoc ([tag "Wait"; ("pid", Int n)] @
+              match bound with
+              | None -> []
+              | Some steps -> [("steps", Int steps)])
   | Pushredir (c, saved_fds) -> 
      Assoc [tag "Pushredir"; 
             ("c", json_of_stmt c);
