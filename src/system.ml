@@ -1,3 +1,7 @@
+open Either
+let implode = Dash.implode
+let explode = Dash.explode
+
 (* for backpatching the real_eval function 
    takes a command to its exit code
  *)
@@ -121,7 +125,7 @@ let from_flags = [Unix.O_RDONLY]
 let fromto_flags = [Unix.O_RDWR; Unix.O_CREAT]
 let append_flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_APPEND]
 
-let real_open (file:string) (flags:open_flags) : (string,int) Either.either =
+let real_open (file:string) (flags:open_flags) : (string,int) either =
   try Right (int_of_fd (Unix.openfile file flags 0o666))
   with 
   | Unix.Unix_error(Unix.EEXIST,_,_) -> Left ("cannot create " ^ file ^ ": file exists")
@@ -154,19 +158,39 @@ let real_read_all_fd (fd:int) : string option =
   then Some (Bytes.sub_string buff 0 read)
   else None
 
-(* TODO distinguish error and EOF *)
-let real_read_char_fd (fd:int) : char option =
+(* TODO 2018-10-11 distinguish error and EOF? *)
+let real_read_char_fd (fd:int) : (string,char option) either =
   let buff = Bytes.make 1 (Char.chr 0) in
   try 
-    let read = Unix.read (fd_of_int fd) buff 0 1 in
-    if read <= 0
-    then None
-    else Some (Bytes.get buff 0)
-  with Unix.Unix_error(EPIPE,_,_) -> None
-     | Unix.Unix_error(EBADF,_,_) -> None
-     | Unix.Unix_error(EINTR,_,_) -> None
+    match Unix.read (fd_of_int fd) buff 0 1 with
+    | 0 -> Right None
+    | 1 -> Right (Some (Bytes.get buff 0))
+    | _ -> Left ("couldn't read " ^ string_of_int fd)
+  with Unix.Unix_error(EPIPE,_,_) -> Left "broken pipe"
+     | Unix.Unix_error(EBADF,_,_) -> Left "no such fd"
+     | Unix.Unix_error(EINTR,_,_) -> Left "interrupted"
 
-let real_savefd (fd:int) : (string,int) Either.either =
+let real_read_line_fd backslash_escapes (fd:int) 
+    : (string, string * bool (* eof? *)) either =
+  let rec loop cs =
+    match real_read_char_fd fd with
+    | Left msg -> Left msg
+    | Right None -> Right (cs, true)
+    | Right (Some '\n') -> Right (cs, false)
+    | Right (Some '\\') when backslash_escapes ->
+       begin match real_read_char_fd fd with
+       | Left msg -> Left msg
+       | Right None -> Right ('\\'::cs, true)
+       | Right (Some '\n') -> loop cs
+       | Right (Some c) -> loop (c::cs)
+       end
+    | Right (Some c) -> loop (c::cs)
+  in
+  match loop [] with
+  | Left msg -> Left msg
+  | Right (cs, eof) -> Right (implode (List.rev cs), eof)
+
+let real_savefd (fd:int) : (string,int) either =
   (* dash is careful to get a new fd>10 by using an explicit fcntl call.
      we don't have access to fcntl in Unix.cmx;
      ocaml-unix-fcntl doesn't seeem to offer the fd functions
@@ -189,7 +213,7 @@ let real_pipe () : int * int =
   let (fd_read,fd_write) = Unix.pipe () in
   (int_of_fd fd_read, int_of_fd fd_write)
 
-let real_openhere (s : string) : (string,int) Either.either =
+let real_openhere (s : string) : (string,int) either =
   let buff = Bytes.of_string s in
   try 
     let (fd_read, fd_write) = Unix.pipe () in

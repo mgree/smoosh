@@ -28,6 +28,14 @@
   `step_eval` function because we can be careful to do the stepping
   ourselves. but `read_char_fd` _does_, because who knows how far down
   the pipeline the things we want are!
+  
+  in the long term, it'd be good to have OS calls that ask the
+  scheduler to do things. we can put `step_eval` (and
+  `eval_for_exit_code`) into an OS 'a value. it would only ever be
+  used by the symbolic parts, and it might trigger a call to
+  `step_eval` and appropriate logging in `os.log`. 
+  
+  the system mode can rely on the system scheduler and real blocking.
 
 ### Last of the shell semantics
 

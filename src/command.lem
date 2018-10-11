@@ -1201,7 +1201,7 @@ let builtin_unalias s0 argv _env =
    which a trap has been set shall cause the wait utility to return
    immediately with an exit status >128, immediately after which the
    trap associated with that signal shall be taken. *)
-let builtin_wait s0 argv _env = 
+let builtin_wait s0 argv env = 
   match argv with
   | [] ->
      let (s1,jobs) = active_jobs s0 in
@@ -1222,7 +1222,7 @@ let builtin_wait s0 argv _env =
           then Wait pid Nothing
           else Semi 
                  (Wait pid Nothing) 
-                 (simple_command "wait" pids')
+                 (simple_command "wait" pids' env)
         in
         Right (s0, next)
      end
@@ -1321,7 +1321,7 @@ let rec read_assign_vars s0 vars fs =
      end
   end
 
-let builtin_read s0 argv _env = 
+let builtin_read s0 argv env = 
   let (opts,argv') = getopts [#'r'] argv in
   let backslash_escapes = not (elem #'r' opts) in
   match try_concrete_fields_list argv' with
@@ -1329,13 +1329,21 @@ let builtin_read s0 argv _env =
      Left (s0, "couldn't handle symbolic variable names: " ^ string_of_fields argv)
   | Just [] -> Left (s0, "no variables specified")
   | Just vars ->
-     let (s1, line, hit_eof) = read_line s0 backslash_escapes STDIN in
-     let trimmed = trimr_one_newline line in
-     let w = [ExpS trimmed] in
-     let ifs = field_splitting s1 w in
-     let f = finalize_fields (combine_fields ifs) in
-     let ec = if hit_eof then 1 else 0 in
-     read_assign_vars (exit_with ec s1) vars f
+     match read_line_fd s0  backslash_escapes STDIN with
+     | (s1, ReadError msg) -> Left (s1, msg)
+     | (s1, ReadBlocked pid) -> 
+        Right (s1, 
+               Semi 
+                 (Wait pid (Just default_block))
+                 (simple_command "read" argv env))
+     | (s1, ReadSuccess line hit_eof) ->
+        let trimmed = trimr_one_newline line in
+        let w = [ExpS trimmed] in
+        let ifs = field_splitting s1 w in
+        let f = finalize_fields (combine_fields ifs) in
+        let ec = if hit_eof then 1 else 0 in
+        read_assign_vars (exit_with ec s1) vars f
+     end
   end
 
 let builtin_test s0 argv _env = 

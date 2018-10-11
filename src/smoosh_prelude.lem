@@ -1165,19 +1165,19 @@ let rec sequence stmts =
   | stmt::stmts' -> Semi stmt (sequence stmts')
   end
 
-val simple_command : string -> fields -> stmt
-let simple_command cmd args =
-  CommandExpRedirs 
-    [] 
+val simple_command : string -> fields -> env -> stmt
+let simple_command cmd args env =
+  CommandExpRedirs
+    (assigns_of_env env)
     ((symbolic_string_of_string cmd)::args)
     ([], Nothing, [])
     true (* allow functions *)
 
 val skip : stmt
-let skip = simple_command ":" []
+let skip = simple_command ":" [] Map.empty
 
 val command_eval : symbolic_string -> stmt
-let command_eval cmd = simple_command "eval" [cmd]
+let command_eval cmd = simple_command "eval" [cmd] Map.empty
 
 val pushredir : stmt -> saved_fds -> stmt
 let pushredir stmt saved_fds =

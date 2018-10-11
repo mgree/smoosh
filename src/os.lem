@@ -37,6 +37,9 @@ type step_fun 'a = os_state 'a -> stmt -> either (evaluation_step * os_state 'a)
    avoids issues with FIFOs filling up in the real world!
  *)
 
+val default_block : nat
+let default_block = 10 (* wait 10 steps by default *)
+
 type read_result 'a =
     ReadError of string (* bad FD, etc. *)
   | ReadBlocked of nat (* pid of blocking process; 
@@ -101,13 +104,12 @@ class ( OS 'a )
   val is_writeable : os_state 'a -> path -> bool
   val is_executable : os_state 'a -> path -> bool
 
-
   val readdir : os_state 'a -> path -> set (path * file unit)
   val write_fd : os_state 'a -> fd -> string -> maybe (os_state 'a)
   val read_all_fd : 
     step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
     os_state 'a -> fd -> maybe (os_state 'a * string)
-  val read_char_fd : os_state 'a -> fd -> maybe (os_state 'a * char)
+  val read_line_fd : os_state 'a -> bool (* allow backslash escapes? *) -> fd -> os_state 'a * read_result string
   val close_fd : os_state 'a -> fd -> os_state 'a
   val pipe : os_state 'a -> os_state 'a * fd * fd
 
@@ -243,11 +245,12 @@ let write_stdout = try_write_fd STDOUT
 val write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let write_stderr = try_write_fd STDERR
 
+(*
 let rec read_line_loop s0 backslash_escapes fd cs = 
   match (read_char_fd s0 fd, backslash_escapes) with
-  | (Nothing, _) ->
-     (s0, toString (reverse cs), true) (* EOF *)
-  | (Just (s1, #'\n'), _) -> 
+  | (s1, ReadError "EOF", _) ->
+     (s1, toString (reverse cs), true) (* EOF *)
+  | (s1, ReadSuccess (s1, #'\n'), _) -> 
      (s1, toString (reverse cs), false)
   (* dash miscbltin.c:162 ignores nullchar? *)                           
   | (Just (s1, #'\\'), true) ->
@@ -266,6 +269,7 @@ let rec read_line_loop s0 backslash_escapes fd cs =
 val read_line : forall 'a. OS 'a => os_state 'a -> bool (* allow backslash escapes? *) -> fd -> os_state 'a * string * bool (* EOF? *)
 let read_line s0 backslash_escapes fd =
   read_line_loop s0 backslash_escapes fd []
+*)
 
 (* FS and path manipulation *******************************************)
 
@@ -1064,7 +1068,6 @@ instance (OS symbolic)
     end
   
   let read_all_fd _step_eval os fd =
-    
     match symbolic_resolve_fd os.symbolic fd with
     | Just fifo_num -> 
        match read_fifo os.symbolic fifo_num with
@@ -1074,15 +1077,23 @@ instance (OS symbolic)
     | Nothing -> Nothing
   end
 
-  let read_char_fd os fd =
+  let read_line_fd os backslash_escapes fd =
     match symbolic_resolve_fd os.symbolic fd with
     | Just fifo_num -> 
-       match read_char_fifo os.symbolic fifo_num with
-       | Nothing -> Nothing
-       | Just (symbolic', c) -> Just (<| os with symbolic = symbolic' |>, c)
-       end
-    | Nothing -> Nothing
-  end
+       (* TODO 2018-10-11
+          look at the contents of the FIFO.
+          
+          speculatively try to parse a line.
+
+          if we can parse a line, great: pull it off and use it.
+
+          if we reach EOF, see if we can find a writing process.
+          if we can, undo the read and block on that process.
+          if not, fine: EOF it is.
+        *)
+       (os, ReadBlocked 0)
+    | Nothing -> (os, ReadError ("bad file descriptor " ^ stringFromNat fd))
+    end
 
   let close_fd os fd = 
     <| os with symbolic = <| os.symbolic with sh_fds = Map.delete fd os.symbolic.sh_fds |> |>
@@ -1256,8 +1267,8 @@ declare ocaml target_rep function real_write_fd = `System.real_write_fd`
 val real_read_all_fd : fd -> maybe string
 declare ocaml target_rep function real_read_all_fd = `System.real_read_all_fd`
 
-val real_read_char_fd : fd -> maybe char
-declare ocaml target_rep function real_read_char_fd = `System.real_read_char_fd`
+val real_read_line_fd : bool -> fd -> either string (string * bool)
+declare ocaml target_rep function real_read_line_fd = `System.real_read_line_fd`
 
 val real_pipe : unit -> fd * fd
 declare ocaml target_rep function real_pipe = `System.real_pipe`
@@ -1397,10 +1408,10 @@ instance (OS unit)
     | Just s -> Just (os,s)
     end
 
-  let read_char_fd os fd =
-    match real_read_char_fd fd with
-    | Nothing -> Nothing
-    | Just c -> Just (os,c)
+  let read_line_fd os backslash_escapes fd =
+    match real_read_line_fd backslash_escapes fd with
+    | Left err -> (os, ReadError err)
+    | Right (s, hit_eof) -> (os, ReadSuccess s hit_eof)
     end
 
   let close_fd os fd =
