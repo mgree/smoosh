@@ -26,7 +26,25 @@ type step_fun 'a = os_state 'a -> stmt -> either (evaluation_step * os_state 'a)
 (* FS STATE ***********************************************************)
 (**********************************************************************)
 
-(* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)           
+(* 2018-10-11 PICK UP HERE
+
+   read_all_fd is used for backtick. 
+   there it's easy to make sure the subterm has evaluated all the way.
+
+   have Block of nat
+     noop in os_state system
+     acts like waitpid in os_state symbolic
+   avoids issues with FIFOs filling up in the real world!
+ *)
+
+type read_result 'a =
+    ReadError of string (* bad FD, etc. *)
+  | ReadBlocked of nat (* pid of blocking process; 
+                          only ever used in symbolic mode...
+                          system mode just actually blocks! *)
+  | ReadSuccess of 'a * bool (* EOF? *)
+      
+(* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)
 type file 'a = File | Dir of 'a
 
 type file_type = 
@@ -46,18 +64,6 @@ declare ocaml target_rep function FileBlock     = `Unix.S_BLK`
 declare ocaml target_rep function FileLink      = `Unix.S_LNK`
 declare ocaml target_rep function FileFIFO      = `Unix.S_FIFO`
 declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
-
-val path_dotdot_rev_cl : list char -> list char
-let rec path_dotdot_rev_cl path =
-  match path with
-  | [] -> [#'/'] (* stop at the root *)
-  | [#'/'] -> [#'/'] (* stop at the root *)
-  | #'/'::rest -> rest
-  | _::rest -> path_dotdot_rev_cl rest
-  end
-                            
-val dotdot : path -> path
-let dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
 
 (**********************************************************************)
 (* OS CLASS ***********************************************************)
@@ -262,6 +268,18 @@ let read_line s0 backslash_escapes fd =
   read_line_loop s0 backslash_escapes fd []
 
 (* FS and path manipulation *******************************************)
+
+val path_dotdot_rev_cl : list char -> list char
+let rec path_dotdot_rev_cl path =
+  match path with
+  | [] -> [#'/'] (* stop at the root *)
+  | [#'/'] -> [#'/'] (* stop at the root *)
+  | #'/'::rest -> rest
+  | _::rest -> path_dotdot_rev_cl rest
+  end
+                            
+val dotdot : path -> path
+let dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
 
 val isdir : forall 'a. OS 'a => os_state 'a -> path -> bool
 let isdir os path = file_type os path = Just FileDirectory
@@ -863,20 +881,9 @@ let symbolic_fresh_fd sh_fds =
   | Just max -> max + 1
   end
 
+(* TODO 2018-10-11 identify the writer of a given fifo_num *)
 val symbolic_find_writer : os_state symbolic -> nat -> maybe (nat * proc)
-let symbolic_find_write _os _fifo_num = 
-  (* 2018-10-11 PICK UP HERE
-
-     try to find the proc index of the writer
-     read_all_fd can then step that index
-
-     possible longer term refactoring:
-       have Block of nat
-         noop in os_state system
-         acts like waitpid in os_state symbolic
-       avoids issues with FIFOs filling up in the real world!
-   *)
-  Nothing
+let symbolic_find_write _os _fifo_num = Nothing
 
 instance (OS symbolic)
   let getpwnam os u = Map.lookup u os.symbolic.passwd
