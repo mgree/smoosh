@@ -59,15 +59,6 @@ const fileRedirSym = { 'To': '&gt;',
 const dupRedirSym = { 'ToFD': '&gt;&amp;',
                       'FromFD': '&lt;&amp;' }
 
-/* step names */
-const stepName = { 'ExpStart': 'Start',
-                   'ExpExpand': 'Control code expansion (tildes, variables, commands, arithmetic)',
-                   'ExpSplit': 'Field splitting',
-                   'ExpPath': 'Pathname expansion',
-                   'ExpQuote': 'Quote removal',
-                   'ExpError': 'Error',
-                   'ExpDone': 'Done' }
-
 function showUnless(def, actual) {
   return def === actual ? "" : String(actual);
 }
@@ -767,7 +758,6 @@ function renderStmt(info, elt, stmt) {
       $('<i></i>').addClass('icon wait').appendTo(info);
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
-
       cmd.append('wait' + fieldSep + stmt['pid'].toString());
 
       if ('steps' in stmt) {
@@ -1356,17 +1346,15 @@ function renderExpansionState(info, elt, step) {
 
   elt.addClass('step-' + step['tag']);
 
-  renderDivider(info);
-  const marker = $('<div></div>').addClass('section').appendTo(info);
-  const icon = $('<i></i>').addClass('icon').appendTo(marker);
-  marker.append(stepName[step['tag']]);
-  
   let term = $('<span></span>').addClass('term').appendTo(elt);
 
   switch (step['tag']) {
     case 'ExpStart':
-      // | ExpStart w -> obj_w "Start" w     
-      icon.addClass('play');
+      // | ExpStart w -> obj_w "Start" w
+      renderDivider(info);
+      const start_marker = $('<div></div>').addClass('section').appendTo(info);
+      $('<i></i>').addClass('play icon').appendTo(start_marker);
+      start_marker.append('Starting expansion');
 
       var w = $('<span></span>').appendTo(term);
       renderWords(info, w, step['w']);
@@ -1375,7 +1363,6 @@ function renderExpansionState(info, elt, step) {
 
     case 'ExpExpand':
       // | ExpExpand (f, w) -> obj_fw "Expand" f w
-      icon.addClass('expand');
 
       var f = $('<span></span>').appendTo(term);
       renderExpandedWords(info, f, step['f']);
@@ -1387,7 +1374,6 @@ function renderExpansionState(info, elt, step) {
 
     case 'ExpSplit':
       // | ExpSplit (f) -> obj_f "Split" f
-      icon.addClass('unlinkify');
 
       var f = $('<span></span>').appendTo(term);
       renderExpandedWords(info, f, step['f']);
@@ -1396,7 +1382,6 @@ function renderExpansionState(info, elt, step) {
 
     case 'ExpPath':
       // | ExpPath ifs -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
-      icon.addClass('disk outline');
 
       var ifs = $('<span></span>').appendTo(term);
       renderIntermediateFields(info, ifs, step['ifs']);
@@ -1405,7 +1390,6 @@ function renderExpansionState(info, elt, step) {
 
     case 'ExpQuote':
       // | ExpQuote ifs -> Assoc [tag "ExpQuote"; ("ifs", json_of_intermediate_fields ifs)]
-      icon.addClass('quote right');
 
       var ifs = $('<span></span>').appendTo(term);
       renderIntermediateFields(info, ifs, step['ifs']);
@@ -1414,7 +1398,10 @@ function renderExpansionState(info, elt, step) {
 
     case 'ExpError':
       // | ExpError (f) -> Assoc [tag "Error"; ("msg", json_of_fields f)]
-      icon.addClass('warning circle');
+      renderDivider(info);
+      const error_marker = $('<div></div>').addClass('section').appendTo(info);
+      $('<i></i>').addClass('warning circle icon').appendTo(error_marker);
+      error_marker.append('Expansion error');
 
       var f = $('<span></span>').appendTo(term);
       renderFields(info, f, step['msg']);
@@ -1423,7 +1410,10 @@ function renderExpansionState(info, elt, step) {
 
     case 'ExpDone':
       // | ExpDone fs -> Assoc [tag "Done"; ("f", json_of_fields fs)]
-      icon.addClass('check circle outline');
+      renderDivider(info);
+      const done_marker = $('<div></div>').addClass('section').appendTo(info);
+      $('<i></i>').addClass('check circle icon').appendTo(done_marker);
+      done_marker.append('Expansion complete');
 
       var f = $('<span></span>').appendTo(term);
       renderFields(info, f, step['f']);
@@ -1478,6 +1468,8 @@ function renderExpansionStep(info, step) {
   switch (step['tag']) {
     case 'ESTilde':
       // | ESTilde s -> Assoc [tag "ESTilde"; ("msg", String s)]
+
+      $('<i></i>').addClass('home icon').appendTo(info);
   
       renderMessage(info, 'Tilde expansion', step);
 
@@ -1486,12 +1478,16 @@ function renderExpansionStep(info, step) {
     case 'ESParam':
       // | ESParam s -> Assoc [tag "ESParam"; ("msg", String s)]
 
+      $('<i></i>').addClass('dollar sign icon').appendTo(info);
+
       renderMessage(info, 'Parameter expansion', step);
     
       break;
 
     case 'ESCommand':
       // | ESCommand s -> Assoc [tag "ESCommand"; ("msg", String s)]
+
+      $('<i></i>').addClass('terminal icon').appendTo(info);
 
       renderMessage(info, 'Command substitution', step);
       
@@ -1500,6 +1496,8 @@ function renderExpansionStep(info, step) {
     case 'ESArith':
       // | ESArith s -> Assoc [tag "ESArith"; ("msg", String s)]
   
+      $('<i></i>').addClass('calculator icon').appendTo(info);
+
       renderMessage(info, 'Arithmetic expansion', step);
 
       break;
@@ -1507,12 +1505,16 @@ function renderExpansionStep(info, step) {
     case 'ESSplit':
       // | ESSplit s -> Assoc [tag "ESSplit"; ("msg", String s)]
     
+      $('<i></i>').addClass('unlinkify icon').appendTo(info);
+
       renderMessage(info, 'Field splitting', step);
 
       break;
 
     case 'ESPath':
       // | ESPath s -> Assoc [tag "ESPath"; ("msg", String s)]
+
+      $('<i></i>').addClass('disk outline icon').appendTo(info);
       
       renderMessage(info, 'Pathname expansion', step);
 
@@ -1521,12 +1523,16 @@ function renderExpansionStep(info, step) {
     case 'ESQuote':
       // | ESQuote s -> Assoc [tag "ESQuote"; ("msg", String s)]
   
-      renderMessage(info, 'Quote removal', step);
+      $('<i></i>').addClass('quote right icon').appendTo(info);
+
+      renderMessage(info, 'Quoted string', step);
 
       break;
 
     case 'ESStep':
       // | ESStep s -> Assoc [tag "ESStep"; ("msg", String s)]
+
+      $('<i></i>').addClass('expand icon').appendTo(info);
 
       if (step['msg'] !== '') {
           renderMessage(info, 'Expansion step', step);
@@ -1544,7 +1550,7 @@ function renderExpansionStep(info, step) {
       break;
 
     case 'ESEval':
-      // | ESEval (exp_step, eval_step) ->  Assoc [tag "ESExpand"; ("inner", json_of_evaluation_step eval_step); ("outer", json_of_expansion_step exp_step)]
+      // | ESEval (exp_step, eval_step) ->  Assoc [tag "ESEval"; ("inner", json_of_evaluation_step eval_step); ("outer", json_of_expansion_step exp_step)]
   
       renderExpansionStep(info, step['outer']);
       renderDivider(info);
@@ -1684,6 +1690,13 @@ function renderEvaluationStep(info, step) {
       break;
 
     case 'XSProc':
+      // | XSProc (pid, stmt) -> 
+      //    Assoc [tag "XSProc"; 
+      //           ("c", json_of_stmt stmt);
+      //           ("pid", Int pid);
+      //           ("c_str", String (string_of_stmt stmt)]]
+
+      step['msg'] = "pid " + step['pid'].toString() + ": " + step['c_str'];
       renderMessage(info, 'Process step', step);
 
       break;
@@ -1765,8 +1778,6 @@ $('#expansionForm').submit(function(e) {
     $('<h3>Symbolic expansion steps:</h3>').addClass('ui header').appendTo(result);
 
     let steps = $('<div></div>').addClass('ui segments').appendTo(result);
-
-    console.log(data);
 
     for(var i = 0; i < data.length; i++) {
       var step = data[i];

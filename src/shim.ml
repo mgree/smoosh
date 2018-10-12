@@ -626,7 +626,11 @@ and json_of_evaluation_step = function
   | XSStep s -> Assoc [tag "XSStep"; ("msg", String s)]
   | XSExec s -> Assoc [tag "XSExec"; ("msg", String s)]
   | XSWait s -> Assoc [tag "XSWait"; ("msg", String s)]
-  | XSProc stmt -> Assoc [tag "XSProc"; ("c", json_of_stmt stmt)]
+  | XSProc (pid, stmt) -> 
+     Assoc [tag "XSProc"; 
+            ("c", json_of_stmt stmt);
+            ("pid", Int pid);
+            ("c_str", String (string_of_stmt stmt))]
   | XSNested (outer, inner) -> Assoc [tag "XSNested"; ("inner", json_of_evaluation_step inner); ("outer", json_of_evaluation_step outer)]
   | XSExpand (eval_step, exp_step) -> Assoc [tag "XSExpand"; ("inner", json_of_expansion_step  exp_step); ("outer", json_of_evaluation_step eval_step)]
 

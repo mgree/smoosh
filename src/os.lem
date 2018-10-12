@@ -991,7 +991,7 @@ instance (OS symbolic)
                                         procs = 
                                           List.update os2.symbolic.procs pid 
                                             (Shell stmt' os2.sh os2.symbolic.sh_fds) |> |>,
-           Just (Left (XSNested step (XSProc stmt'))))
+           Just (Left (XSNested step (XSProc pid stmt'))))
        end
     end
 

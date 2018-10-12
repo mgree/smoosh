@@ -649,6 +649,8 @@ type heredoc_type = Here (* quoted heredoc name, for when the heredoc shouldn't 
 (* AST ****************************************************************)
 (**********************************************************************)
 
+type pid = nat
+
 type format =
     Normal
   | Default of words
@@ -673,7 +675,7 @@ and control =
   | LMatch of fields * substring_side * substring_mode * expanded_words * words (* runtime technicality *)
   | LError of string * expanded_words * words (* runtime technicality *)
   | Backtick of stmt
-  | LBacktick of stmt (* original stmt *) * nat (* pid *) * fd (* pipe [read] *)
+  | LBacktick of stmt (* original stmt *) * pid * fd (* pipe [read] *)
   | Arith of expanded_words (* runtime technicality *) * words
   | Quote of expanded_words (* runtime technicality *) * words
 
@@ -717,7 +719,7 @@ and stmt =
   | Return
   | Exit
   | Exec of symbolic_string * list symbolic_string * env
-  | Wait of nat (* pid *) * maybe nat (* Nothing = block; Just n = n steps *)
+  | Wait of pid * maybe nat (* Nothing = block; Just n = n steps *)
   | Pushredir of stmt * saved_fds
   | Done
 
@@ -813,7 +815,7 @@ and evaluation_step =
   | XSStep of string
   | XSExec of string
   | XSWait of string
-  | XSProc of stmt
+  | XSProc of pid * stmt
   | XSNested of evaluation_step * evaluation_step
   | XSExpand of evaluation_step * expansion_step
 
@@ -853,7 +855,7 @@ and job_status =
 
 and job_info = <| 
     id: nat; (* tricky invariant... shouldn't be any dups *)
-    pid: nat;
+    pid: pid;
     cmd: stmt;
     status: job_status;
     pgrp: nat |>
@@ -1055,14 +1057,14 @@ let rec try_concrete_fields_list fs =
      end
   end
 
-val symbolic_to_string : sym -> string
-let symbolic_to_string _sym = "<<SYMBOLIC>>"
+val string_of_symbolic : sym -> string
+let string_of_symbolic _sym = "<<SYMBOLIC>>"
 
-val symbolic_char_to_string : symbolic_char -> string
-let symbolic_char_to_string c =
+val string_of_symbolic_char : symbolic_char -> string
+let string_of_symbolic_char c =
   match c with
   | C c -> toString [c]
-  | Sym sym -> symbolic_to_string sym
+  | Sym sym -> string_of_symbolic sym
   end
 
 val char_list_of_symbolic_string : symbolic_string -> list char
@@ -1070,14 +1072,14 @@ let rec char_list_of_symbolic_string sym_str =
   match sym_str with
   | [] -> []
   | (C c::cs) -> c::char_list_of_symbolic_string cs
-  | (Sym sym)::cs -> toCharList (symbolic_to_string sym) ++ char_list_of_symbolic_string cs
+  | (Sym sym)::cs -> toCharList (string_of_symbolic sym) ++ char_list_of_symbolic_string cs
   end
    
 val string_of_symbolic_string : symbolic_string -> string
 let rec string_of_symbolic_string sym_str =
   match sym_str with
   | [] -> ""
-  | c::cs -> symbolic_char_to_string c ^ string_of_symbolic_string cs
+  | c::cs -> string_of_symbolic_char c ^ string_of_symbolic_string cs
   end
 
 val string_of_fields : fields -> string
@@ -1469,7 +1471,21 @@ and string_of_intermediate_fields ifs =
   | tf::ifs' -> string_of_tmp_field tf ^ string_of_intermediate_fields ifs'
   end
 
-and string_of_expanded_words ew = string_of_symbolic_string (concat_expanded ew)
+and string_of_expanded_words ew = 
+  match ew with
+  | [] -> ""
+  | UsrF::ws -> " " ^ string_of_expanded_words ws
+  | ExpS s::ws -> s ^ string_of_expanded_words ws
+  | DQuo ss::ws -> 
+    (* we don't include the quotes, since they'll be ultimately erased anyway! *)
+     "\"" ^ string_of_symbolic_string ss ^ "\"" ^ string_of_expanded_words ws
+  | At fs::ws -> 
+     (* we collapse the result of $@ expansion, too. special cased in expand_control *)
+     string_of_fields fs ^ string_of_expanded_words ws
+  | EWSym sym::ws -> string_of_symbolic sym ^ string_of_expanded_words ws
+  | UsrS s::ws -> s ^ string_of_expanded_words ws
+  end
+
 and string_of_words w = List.foldr (^) "" (List.map string_of_entry w)
 and string_of_entry e =
   match e with
@@ -1568,7 +1584,7 @@ and string_of_evaluation_step step =
   | XSStep s -> "Step " ^ s
   | XSExec s -> "Exec " ^ s
   | XSWait s -> "Wait " ^ s
-  | XSProc c -> "Proc " ^ string_of_stmt c
+  | XSProc _pid c -> "Proc " ^ string_of_stmt c
   | XSNested step_outer step_inner -> 
      parens (string_of_evaluation_step step_outer) ^ " " ^ 
      parens (string_of_evaluation_step step_inner)
