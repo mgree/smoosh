@@ -1444,6 +1444,11 @@ function renderEnv(info, elt, env) {
   }
 };
 
+function colorizeStep(info, color) {
+    const step = info.parent('.step');
+    step.addClass('tertiary inverted ' + color);
+}
+
 function renderDivider(info) {
     $('<i></i>').addClass('right chevron icon divider').appendTo(info);
 }
@@ -1464,6 +1469,10 @@ function renderExpansionStep(info, step) {
   console.assert(['ESTilde', 'ESParam', 'ESCommand', 'ESArith', 'ESSplit', 'ESPath',
                   'ESQuote', 'ESStep', 'ESNested', 'ESEval'].includes(step['tag']),
                  'got weird step tag ' + step['tag']);
+
+  if (!['ESNested', 'ESEval'].includes(step['tag'])) {
+      colorizeStep(info, 'pink');
+  }
 
   switch (step['tag']) {
     case 'ESTilde':
@@ -1495,7 +1504,7 @@ function renderExpansionStep(info, step) {
 
     case 'ESArith':
       // | ESArith s -> Assoc [tag "ESArith"; ("msg", String s)]
-  
+
       $('<i></i>').addClass('calculator icon').appendTo(info);
 
       renderMessage(info, 'Arithmetic expansion', step);
@@ -1504,7 +1513,7 @@ function renderExpansionStep(info, step) {
 
     case 'ESSplit':
       // | ESSplit s -> Assoc [tag "ESSplit"; ("msg", String s)]
-    
+
       $('<i></i>').addClass('unlinkify icon').appendTo(info);
 
       renderMessage(info, 'Field splitting', step);
@@ -1522,7 +1531,7 @@ function renderExpansionStep(info, step) {
 
     case 'ESQuote':
       // | ESQuote s -> Assoc [tag "ESQuote"; ("msg", String s)]
-  
+
       $('<i></i>').addClass('quote right icon').appendTo(info);
 
       renderMessage(info, 'Quoted string', step);
@@ -1588,6 +1597,10 @@ function renderEvaluationStep(info, step) {
                   'XSFor', 'XSCase', 'XSDefun', 'XSStack', 'XSStep', 'XSProc',
                   'XSExec', 'XSWait', 'XSNested', 'XSExpand'].includes(step['tag']),
                  'got weird step tag ' + step['tag']);
+
+  if (!['XSNested', 'XSExpand'].includes(step['tag'])) {
+      colorizeStep(info, 'blue');
+  }
 
   switch (step['tag']) {
     case 'XSSimple':
@@ -1794,12 +1807,15 @@ $('#expansionForm').submit(function(e) {
                        i, step['term'], step['env'], step['step']);
       }
 
-      const stepColor = hasError ? 'red' : 'pink';
-
       const info = 
             hasError || hasStep 
-            ? $('<div></div>').addClass('ui segment tertiary inverted ' + stepColor + ' step').appendTo(steps)
+            ? $('<div></div>').addClass('ui segment step').appendTo(steps)
             : $('<span></span>');
+
+      if (hasError) {
+          colorizeStep(info, 'red');
+      }
+
       const crumb = $('<div></div>').addClass('ui breadcrumb').appendTo(info);
 
       const elt = $('<div></div>').addClass('evaluation-step ui segment').appendTo(steps);      

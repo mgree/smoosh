@@ -2,7 +2,6 @@
 
 - improve stepper UI
   + show STDOUT/STDERR
-  + colorize step based on eval/expansion
 - run POSIX tests on dash, bash, and smoosh
   + Dockerfile for loading POSIX tests
     can't publish the test suite :(
