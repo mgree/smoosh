@@ -17,7 +17,7 @@
     <div class="ui form relaxed grid">
       <form id="expansionForm" method="post" action="/stepper">
         <div class="sixteen wide field">
-          <label>Shell code to expand</label>
+          <label>Shell code symbolically execute</label>
           <textarea name="shell" rows="10" cols="84">echo ${x=5} $((x+1))</textarea>
         </div>
       
@@ -36,7 +36,7 @@
         <div class="row">
           <button class="ui primary labeled button icon" type="submit">
             <i class="play icon"></i>
-            Expand shell code
+            Run shell code
           </button>
           <button class="ui labeled button icon" id="clear" type="button">
             <i class="erase icon"></i>
