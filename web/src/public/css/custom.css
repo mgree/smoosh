@@ -25,3 +25,9 @@ pre.redir-Heredoc-text {
 span.comment {
     background-color: seashell;
 }
+
+pre.stream {
+    color: chartreuse;
+    background-color: black;
+    font-family: monospace;
+}

@@ -1753,13 +1753,38 @@ function renderEvaluationTraceEntry(info, elt, step) {
 
   renderEvaluationStep(info, step['step']);
 
-  let term = $('<div></div>').addClass('term').appendTo(elt);
+  const term = $('<div></div>').addClass('term').appendTo(elt);
   renderStmt(info, term, step['term']);
 
-  let env = $('<div></div>').addClass('env').appendTo(elt);
+  $('<div></div>').addClass('ui hidden divider').appendTo(elt);
+
+  const env = $('<div></div>').addClass('env').appendTo(elt);
   renderEnv(info, env, step['env']);
 
 };
+
+function renderStream(elt, last, force, step, name) {
+  console.assert(typeof step === 'object', 'expected step object, got ' + step);
+  console.assert(typeof last === 'object', 'expected last streams object, got ' + last);
+  console.assert(typeof name === 'string', 'expected stream name, got ' + name);
+  console.assert(name in step, 'stream ' + name + ' missing from ' + step);
+  console.assert(name in last, 'stream ' + name + ' missing from ' + last);
+
+  // don't show anything if there's no delta
+  if (!force && step[name] === last[name]) {
+      return;
+  }
+
+  const stream = $('<div></div>').addClass('ui fluid card').appendTo(elt);
+  const content = $('<div></div>').addClass('content').appendTo(stream);
+  const hdr = $('<div></div>').addClass('header').appendTo(content);
+  hdr.append(name);
+  const cts = $('<pre></pre>').addClass('stream').appendTo(content);
+  // TODO 2018-10-12 line numbering, force to 80col
+  // TODO 2018-10-12 visible control codes
+  // TODO 2018-10-12 highlight delta since last time
+  cts.append(step[name]);
+}
 
 /**********************************************************************/
 /* Handlers ***********************************************************/
@@ -1791,6 +1816,9 @@ $('#expansionForm').submit(function(e) {
     $('<h3>Symbolic expansion steps:</h3>').addClass('ui header').appendTo(result);
 
     let steps = $('<div></div>').addClass('ui segments').appendTo(result);
+
+    var last = { 'STDOUT': "",
+                 'STDERR': "" };
 
     for(var i = 0; i < data.length; i++) {
       var step = data[i];
@@ -1827,6 +1855,21 @@ $('#expansionForm').submit(function(e) {
           elt.append(step.error);
       } else {
           renderEvaluationTraceEntry(crumb, elt, step);
+
+          const updatedStreams = 
+                last['STDOUT'] !== step['STDOUT'] ||
+                last['STDERR'] !== step['STDERR'];
+          const isFinal = i === data.length - 1;
+
+          if (updatedStreams || isFinal) {
+            $('<div></div>').addClass('ui hidden divider').appendTo(elt);
+            const streams = $('<div></div>').addClass('ui cards').appendTo(elt);
+  
+            renderStream(streams, last, isFinal, step, 'STDOUT');
+            last['STDOUT'] = step['STDOUT'];
+            renderStream(streams, last, isFinal, step, 'STDERR');
+            last['STDERR'] = step['STDERR'];
+          }
       }
     }
   }

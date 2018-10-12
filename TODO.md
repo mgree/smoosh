@@ -1,7 +1,7 @@
 ### Paper TODO
 
 - improve stepper UI
-  + show STDOUT/STDERR
+  + upgrade semantic version
 - run POSIX tests on dash, bash, and smoosh
   + Dockerfile for loading POSIX tests
     can't publish the test suite :(
