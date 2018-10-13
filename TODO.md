@@ -70,6 +70,7 @@
     https://certbot.eff.org/lets-encrypt/debianstretch-other.html
   + postback JS errors to the serve
   + auto-pull and rebuild from a production branch
+    use docker-compose to make the reload process simpler
 
 - move to int64
   there are almost certainly some bugs around the POSIX spec
