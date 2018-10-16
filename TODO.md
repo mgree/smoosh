@@ -1,5 +1,6 @@
 ### Paper TODO
 
+- improve stepper legend; fix expand icon
 - run POSIX tests on dash, bash, and smoosh
   + Dockerfile for loading POSIX tests
     can't publish the test suite :(

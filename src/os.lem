@@ -73,6 +73,7 @@ declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
 (**********************************************************************)
 
 class ( OS 'a )
+
   (* SYSTEM CALLS *)
   val getpwnam : os_state 'a -> string -> maybe string
   val execve : 
@@ -81,7 +82,8 @@ class ( OS 'a )
   val exit : os_state 'a -> os_state 'a * maybe stmt
   val waitpid : 
     step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
-    os_state 'a -> nat -> os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
+    os_state 'a -> nat -> 
+    os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
   val handle_signal : os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
   val times : os_state 'a -> 
               (string (* utime *)            * string (* stime *) * 
@@ -91,11 +93,12 @@ class ( OS 'a )
   val set_umask : os_state 'a -> perms -> os_state 'a
 
   (* FS CALLS *)
+
   val physical_cwd : os_state 'a -> string
   val chdir : os_state 'a -> path -> os_state 'a * maybe string
+  val readdir : os_state 'a -> path -> set (path * file unit)
   val file_exists : os_state 'a -> path -> bool
 
-      (* stat, but split up *)
   val file_type : os_state 'a -> path -> maybe file_type
   val file_size : os_state 'a -> path -> maybe nat
   val file_perms : os_state 'a -> path -> maybe perms
@@ -104,13 +107,13 @@ class ( OS 'a )
   val is_writeable : os_state 'a -> path -> bool
   val is_executable : os_state 'a -> path -> bool
 
-  val readdir : os_state 'a -> path -> set (path * file unit)
   val write_fd : os_state 'a -> fd -> string -> maybe (os_state 'a)
-  val read_all_fd : 
-    step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
-    os_state 'a -> fd -> maybe (os_state 'a * string)
-  val read_line_fd : os_state 'a -> bool (* allow backslash escapes? *) -> fd -> os_state 'a * read_result string
+  val read_all_fd : os_state 'a -> fd -> maybe (os_state 'a * string)
+  val read_line_fd 
+      : os_state 'a -> bool (* allow backslash escapes? *) -> fd -> 
+        os_state 'a * read_result string
   val close_fd : os_state 'a -> fd -> os_state 'a
+
   val pipe : os_state 'a -> os_state 'a * fd * fd
 
   val open_file_for_redir 
@@ -124,6 +127,7 @@ class ( OS 'a )
                     fd (* wanted number *) -> 
                     os_state 'a * either string saved_fds
   val restore_fd : os_state 'a -> fd -> saved_fd_info -> os_state 'a
+
 end
 
 (**********************************************************************)
@@ -1095,7 +1099,7 @@ instance (OS symbolic)
     | Nothing -> Nothing
     end
   
-  let read_all_fd _step_eval os fd =
+  let read_all_fd os fd =
     match symbolic_resolve_fd os.symbolic fd with
     | Just fifo_num -> 
        match read_fifo os.symbolic fifo_num with
@@ -1450,7 +1454,7 @@ instance (OS unit)
     then Just os
     else Nothing
 
-  let read_all_fd _step_eval os fd =
+  let read_all_fd os fd =
     match real_read_all_fd fd with
     | Nothing -> Nothing
     | Just s -> Just (os,s)
