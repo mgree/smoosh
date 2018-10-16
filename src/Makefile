@@ -5,10 +5,11 @@ LEMFILES=smoosh.lem arith.lem pattern.lem path.lem fields.lem test.lem command.l
 
 OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num -linkpkg
 
-MLFILES=config.ml system.ml $(PRELUDEFILES:.lem=.ml) shim.ml $(LEMFILES:.lem=.ml)
+SRCFILES=config.ml system.ml $(PRELUDEFILES) shim.ml $(LEMFILES)
+MLFILES=$(SRCFILES:.lem=.ml)
 TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_evaluation.ml
 
-.PHONY : all test clean veryclean
+.PHONY : all test loc clean veryclean
 
 all : expand shell runtest
 
@@ -26,6 +27,12 @@ runtest : $(MLFILES) $(TESTFILES) runtest.ml
 
 signal_platform.lem : mk_signal_platform.sh
 	./mk_signal_platform.sh >signal_platform.lem
+
+loc :  $(SRCFILES)
+	@echo "Source LOC: "
+	wc -l $(SRCFILES) expand.ml shell.ml
+	@echo "Test LOC: "
+	wc -l $(TESTFILES) runtest.ml
 
 %.ml : %.lem
 	lem -ocaml $<
