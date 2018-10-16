@@ -11,7 +11,7 @@ open import Smoosh_prelude
 val platform_int_of_signal : signal -> nat
 let platform_int_of_signal signal =
   match signal with  
-  | EXIT    -> 0
+  |    EXIT ->  0
 EOF
 for sig in $SIGNALS; do
     if [ ${#sig} -lt 7 ]; then sig="$sig "; fi
@@ -27,12 +27,12 @@ cat <<EOF
 val signal_of_platform_int : nat -> maybe signal
 let signal_of_platform_int n =
   match n with
-  | 0  -> Just    EXIT
+  |  0 -> Just    EXIT
 EOF
 (for sig in $SIGNALS; do 
      code=$(kill -l $sig)
-     if [ "$code" -lt 10 ]; then code="$code "; fi
-     echo "  | $code$space -> Just $sig"
+     if [ "$code" -lt 10 ]; then code=" $code"; fi
+     echo "  | $code -> Just $sig"
 done) | sort -k 2 -n
 echo "  | _  -> Nothing"
 echo "  end"
