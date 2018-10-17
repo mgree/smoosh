@@ -1,6 +1,5 @@
 ### Paper TODO
 
-- improve stepper legend; fix expand icon
 - run POSIX tests on dash, bash, and smoosh
   + Dockerfile for loading POSIX tests
     can't publish the test suite :(
@@ -54,6 +53,22 @@
 
 - expansion: make null more explicit... simplify matches?
 
+### stepper
+
+- JS/webpage
+  + nicer way to edit the environment and home directories
+  + way to configure fs
+  + use syntax highlighting in editor window
+  + favicon
+  + cleaner handling of environment, etc.
+    add positional variables to display  
+  + presets
+  + way to explore FS
+  + more shell info
+  + use a JS contracts/types library 
+- CLI
+  + pretty printer for JSON output
+
 ### Long-term
 
 - actually use log_unspec etc
@@ -98,7 +113,6 @@
   blocking.
 
 - symbolic pathname expansion
-- support filesystems in symbolic stepper
 - refactor semantics.lem to use is_terminating_control
     don't immediately step! Break _n -> Done
   follow dash on break/continue behavior inside of functions
@@ -116,23 +130,6 @@
 ### Parsing
 
 Should we write a custom parser? Use Ralf Treinen's?
-
-### Expander tool
-
-JS/webpage
-  + use syntax highlighting in editor window
-  + fancier output
-    - favicon
-    - cleaner handling of environment, etc.
-      add positional variables to display  
-    - presets
-    - way to explore FS
-    - stdout and other FIFOs
-    - more shell info
-  + use a JS contracts/types library 
-  + mkdir for submissions
-CLI
-  + pretty printer for JSON output
 
 ### Bugs in real shells
 

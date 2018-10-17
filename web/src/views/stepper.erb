@@ -10,6 +10,12 @@
       expand and evaluate shell code according to the POSIX
       standard. You can symbolically configure your shell and
       operating system environment.</p> 
+
+      <p>Commands are limited to the core shell builtin operations
+      described in 
+        <a href="http://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_09_01_01">
+          Section 2.9.1 Command Search and Execution
+        </a> of the <a href="http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html">POSIX spec</a>.
     </div> 
   </div>
 
@@ -17,19 +23,26 @@
     <div class="ui form relaxed grid">
       <form id="expansionForm" method="post" action="/stepper">
         <div class="sixteen wide field">
-          <label>Shell code symbolically execute</label>
-          <textarea name="shell" rows="10" cols="84">echo ${x=5} $((x+1))</textarea>
+          <label>Shell code to symbolically execute</label>
+          <textarea name="shell" class="stmt" rows="10" cols="72">echo ${x=5} $((x+1))</textarea>
         </div>
       
         <div class="two fields">
           <div class="eight wide field">
             <label>Environment</label>
-            <textarea name="env" rows="4" cols="40">{"PATH": "/usr/bin", "HOME": "/Users/mgree"}</textarea>
+            <textarea name="env" class="stmt" rows="4" cols="34">
+{ "PATH": "/usr/bin"
+, "HOME": "/Users/mgree"
+}
+</textarea>
           </div>
           
           <div class="eight wide field">
             <label>Home directories</label>
-            <textarea name="users" rows="4" cols="40">{"mgree": "/Users/mgree", "root": "/var/root"}</textarea>
+            <textarea name="users" class="stmt" rows="4" cols="34">
+{ "mgree": "/Users/mgree" 
+, "root": "/var/root"
+}</textarea>
           </div>
         </div>
       
@@ -67,9 +80,22 @@
               <td><span class="field">fully expanded field</span></td>
               <td>final state</td>
             </tr>
+
+            <tr>
+              <td><span class="field-separator"> </span></td>
+              <td>field separator</td>
+            </tr>
           </tbody>
         </table>
-       </div>
+
+        <div class="ui hidden divider"></div>
+
+        <div class="ui segments">
+          <div class="ui inverted tertiary pink segment">expansion step</div>
+          <div class="ui inverted tertiary blue segment">evaluation step</div>
+        </div>
+
+      </div>
 
     </div>
   </div>

@@ -14,8 +14,14 @@ span.tmp-field {
     border-style: dashed;
 }
 
+/* some mild shenanigans to get the spacing and copy-paste behavior right */
+span.field-separator, span.tmp-field-FS {
+    font-family: sans-serif;
+}
+
 span.field-separator::after, span.tmp-field-FS::after {
-    content: "␣ "
+    font-family: sans-serif;  
+    content: "␣ ";
 }
 
 pre.redir-Heredoc-text {
@@ -29,5 +35,9 @@ span.comment {
 pre.stream {
     color: chartreuse;
     background-color: black;
+    font-family: monospace;
+}
+
+.stmt {
     font-family: monospace;
 }
