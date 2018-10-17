@@ -7,6 +7,10 @@
 - strawman performance tests vs. dash and bash?
 - write paper
 
+### Artifact TODO
+
+- Travis CI
+
 ### Bugs
 
 - eval and ./source should work in a line-oriented fashion
