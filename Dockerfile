@@ -1,24 +1,22 @@
 # start with a reasonable image. Debian 9 stretch is what's on the POSIX testing VM
-FROM ocaml/opam:debian-9_ocaml-4.05.0
+FROM ocaml/opam2:debian-9
 
 # silence apt
 # TODO this still isn't silencing it :(
 ENV DEBIAN_FRONTEND=noninteractive
 
-# make sure we have ocamlfind
-RUN opam install ocamlfind
+# system support for libdash; libgmp for zarith for lem
+RUN sudo apt-get install -y autoconf autotools-dev libtool pkg-config libffi-dev libgmp-dev
 
-# set up zarith
-RUN sudo apt-get install -y libgmp-dev
-#RUN opam install zarith
+# make sure we have ocamlfind and ocamlbuild
+RUN opam install ocamlfind ocamlbuild
 
-# set up OPAM for libdash
-RUN sudo apt-get install -y libffi-dev && \
-    opam pin add ctypes 0.11.5 && \
-    opam install ctypes-foreign
+# set up FFI for libdash; num library for lem
+RUN opam pin add ctypes 0.11.5
+RUN opam install ctypes-foreign
+RUN opam install num
 
-# system support for libdash
-RUN sudo apt-get install -y autoconf libtool
+WORKDIR /home/opam
 
 # set up lem
 ADD --chown=opam:opam lem lem

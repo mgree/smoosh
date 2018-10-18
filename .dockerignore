@@ -119,3 +119,4 @@ src/runtest
 web/Gemfile.lock
 web/src/config.yml
 web/src/config.yml.template
+web/submissions

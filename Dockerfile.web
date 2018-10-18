@@ -1,9 +1,5 @@
 FROM smoosh
 
-# fragile!
-# OCaml base image isn't up-to-date enough to install ruby---need deb9u3!
-# at least we're doing the update AFTER having built smoosh :(
-RUN sudo apt-get update
 RUN sudo apt-get install -y ruby-full ruby-bundler
 RUN sudo gem install childprocess sinatra sinatra-contrib thin
 
