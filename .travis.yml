@@ -1,9 +1,12 @@
 sudo: required
 
+language: generic
+
 services:
   - docker
 
 before_install:
+  - docker pull ocaml/opam:debian-9_ocaml-4.05.0
   - docker build -t smoosh .
   - docker build -t smoosh-test .
 
