@@ -1699,8 +1699,21 @@ let builtin_printf s0 argv _env =
      end
   end
 
-(* 
+(* INVARIANT: call with an exit status of 0, will change if an error occurs *)
+let rec signal_pids s0 signal spids =
+  match spids with
+  | [] -> Right (s0, Done)
+  | ss_pid::spids' ->
+     match pid_of_symbolic_string s0 ss_pid with
+     | Left msg -> Left (s0, msg)
+     | Right pid ->
+        let (s1, ok) = signal_pid s0 signal pid in
+        let s2 = if not ok then exit_with 1 s1 else s1 in
+        signal_pids s2 signal spids'
+     end
+  end     
 
+(* 
   kill -s signal_name pid...
   kill -l [signal_number | exit_status]
 
@@ -1742,9 +1755,18 @@ let builtin_kill s0 argv _env =
         end
      | _ -> Left (s0, usage_msg)
      end
-  | [C #'-'; C #'s']::_argv' -> Left (s0, "-s unimplemented")
+  | [C #'-'; C #'s']::argv' -> 
+     match argv' with
+     | ss_signal::pids ->
+        let (s1, _concretized, s_signal) = concretize s0 ss_signal in
+        match signal_of_string s_signal with
+        | Nothing -> Left (s0, "no such signal " ^ s_signal)
+        | Just signal -> signal_pids (exit_with 0 s1) signal pids          
+        end
+     | _ -> Left (s0, usage_msg)
+     end
   | (C #'-'::_signal)::_argv' -> Left (s0, "-signal unimplemented")
-  | _ -> Left (s0, usage_msg)
+  | pids -> signal_pids (exit_with 0 s0) SIGTERM pids
   end
 
 (* TODO 2018-10-01 remaining worthwhile operations *)

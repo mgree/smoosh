@@ -267,3 +267,7 @@ let real_handle_signal signal action =
   | Some cmd ->
      current_traps := (signal,cmd)::new_traps;
      if signal <> 0 then Sys.set_signal signal (Signal_handle handler)
+
+let real_signal_pid signal pid =
+  try Unix.kill pid signal; true
+  with Unix.Unix_error(_) -> false

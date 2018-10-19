@@ -78,13 +78,14 @@ class ( OS 'a )
   val getpwnam : os_state 'a -> string -> maybe string
   val execve : 
     os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * stmt
-  val fork_and_subshell : os_state 'a -> stmt -> os_state 'a * nat
+  val fork_and_subshell : os_state 'a -> stmt -> os_state 'a * pid
   val exit : os_state 'a -> os_state 'a * maybe stmt
   val waitpid : 
     step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
-    os_state 'a -> nat -> 
+    os_state 'a -> pid -> 
     os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
   val handle_signal : os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
+  val signal_pid : os_state 'a -> signal -> pid -> os_state 'a * bool
   val times : os_state 'a -> 
               (string (* utime *)            * string (* stime *) * 
                string (* utime + children *) * string (* stime + children *))
@@ -1001,6 +1002,10 @@ instance (OS symbolic)
 
   let handle_signal = update_trap
 
+  let signal_pid os0 _signal _pid = 
+    (* TODO 2018-10-19 lookup process, handle traps/terminate subshells *)
+    (os0, false)
+
   let times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
 
   let get_umask os0 = os0.symbolic.umask
@@ -1268,6 +1273,9 @@ declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 val real_handle_signal : int -> maybe string -> unit
 declare ocaml target_rep function real_handle_signal = `System.real_handle_signal`
 
+val real_signal_pid : int -> nat -> bool
+declare ocaml target_rep function real_signal_pid = `System.real_signal_pid`
+
 val real_exit : forall 'a. nat -> 'a
 declare ocaml target_rep function real_exit = `exit`
 
@@ -1504,6 +1512,10 @@ instance (OS unit)
     in
     let _ = real_handle_signal (ocaml_signal_of_signal signal) actual_action in
     s1
+
+  let signal_pid os0 signal pid =
+    let success = real_signal_pid (ocaml_signal_of_signal signal) pid in
+    (os0, success)
 
   let times _os = real_times ()
 
