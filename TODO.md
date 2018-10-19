@@ -31,13 +31,13 @@
 
 ### Last of the shell semantics
 
+- tests for kill
 - Sh_errexit
 
 - other built-ins
   + getopts
     * at that rate, fix up internal getopt to be enough for everybody
-  + kill
-
+    
 - history
   + fc
   + Sh_nolog
