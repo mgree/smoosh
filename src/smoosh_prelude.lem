@@ -22,15 +22,18 @@ let rec tails xs =
         | _::xs' -> tails xs'
         end
 
-val insert : forall 'a. Ord 'a => 'a -> list 'a -> list 'a
-let rec insert x ys =
+val insertBy : forall 'a. ('a -> 'a -> bool) -> 'a -> list 'a -> list 'a
+let rec insertBy lte x ys =
   match ys with
   | [] -> [x]
-  | y::ys' -> if x <= y then x::y::ys' else y::(insert x ys')
+  | y::ys' -> if lte x y then x::y::ys' else y::(insertBy lte x ys')
   end
 
+val sortBy : forall 'a. ('a -> 'a -> bool) -> list 'a -> list 'a
+let sortBy lte xs = foldr (insertBy lte) [] xs
+
 val sort : forall 'a. Ord 'a => list 'a -> list 'a
-let sort xs = foldr insert [] xs
+let sort = sortBy (<=)
 
 val isInfixOf : forall 'a. Eq 'a => list 'a -> list 'a -> bool
 let isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)

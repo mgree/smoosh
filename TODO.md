@@ -13,6 +13,10 @@
 
 ### Bugs
 
+- PIDs
+  + 0 referring to everything in the process group (kill only?)
+  + negative PIDs for process groups?
+
 - eval and ./source should work in a line-oriented fashion
 
 - not properly catching SIGINT at the toplevel

@@ -41,8 +41,8 @@ let real_fork_and_eval (handlers : int list) (os : 'a) (stmt : 'b) : int =
 let rec real_waitpid (pid : int) : int = 
   try match Unix.waitpid [] pid with
   | (_,Unix.WEXITED code) -> code
-  | (_,Unix.WSIGNALED signal) -> 130 (* bash, dash behavior *)
-  | (_,Unix.WSTOPPED signal) -> 146 (* bash, dash behavior *)
+  | (_,Unix.WSIGNALED signal) -> 128 + signal (* bash, dash behavior *)
+  | (_,Unix.WSTOPPED signal) -> 128 + signal (* bash, dash behavior *)
   with Unix.Unix_error(EINTR,_,_) -> real_waitpid pid (* actually keep waiting *)
      | Unix.Unix_error(ECHILD,_,_) -> 0
 

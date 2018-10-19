@@ -1699,13 +1699,58 @@ let builtin_printf s0 argv _env =
      end
   end
 
+(* 
+
+  kill -s signal_name pid...
+  kill -l [signal_number | exit_status]
+
+
+XSI
+  kill [-signal_name] pid...
+  kill [-signal_number] pid...
+ *)
+(* TODO 2018-10-19 handle -- *)
+let builtin_kill s0 argv _env = 
+  let usage_msg = "usage: kill [-s signal | -signal] pid ... or kill -l signal" in
+  match argv with
+  | [C #'-'; C #'l']::argv' -> 
+     match argv' with
+     | [] -> 
+        let sorted_signals = 
+          sortBy 
+            (fun s1 s2 -> platform_int_of_signal s1 <= platform_int_of_signal s2) 
+            all_signals 
+        in
+        let names = List.map string_of_signal sorted_signals in
+        let s1 = write_stdout (concat "\n" names ^ "\n") s0 in
+        Right (exit_with 0 s1, Done)
+     | [ss_num] -> 
+        let s_num = string_of_symbolic_string ss_num in 
+        match readNat (toCharList s_num) with
+        | Left msg -> Left (s0, "non-numeric signal number or exit code '" ^ s_num ^ "'" ^
+                                " (" ^ msg ^ ")")                                  
+        | Right n ->
+           let (signum,was_retval) = if n > 128 then (n - 128,true) else (n,false) in
+           match signal_of_platform_int signum with
+           | Nothing -> 
+              let ec_text = if was_retval then " (from " ^ s_num ^ ")" else "" in
+              Left (s0, stringFromNat signum ^ ec_text ^ " is not a valid signal number")
+           | Just signal -> 
+              let s1 = write_stdout (string_of_signal signal ^ "\n") s0 in
+              Right (exit_with 0 s1, Done)
+           end
+        end
+     | _ -> Left (s0, usage_msg)
+     end
+  | [C #'-'; C #'s']::_argv' -> Left (s0, "-s unimplemented")
+  | (C #'-'::_signal)::_argv' -> Left (s0, "-signal unimplemented")
+  | _ -> Left (s0, usage_msg)
+  end
+
 (* TODO 2018-10-01 remaining worthwhile operations *)
 
 (* parsing/printing *)
 let builtin_getopts = builtin_unimplemented (* OPTIND, OPTARG. trickiness with ? and : *)
-
-(* process control *)
-let builtin_kill = builtin_unimplemented (* not so bad, may need to generate more for kill -l *)
 
 (* history *)
 let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stuff *)
