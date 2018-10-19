@@ -35,6 +35,7 @@
 
 - other built-ins
   + getopts
+    * at that rate, fix up internal getopt to be enough for everybody
   + kill
 
 - history
