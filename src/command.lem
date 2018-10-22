@@ -648,6 +648,16 @@ let rec trap_parse_signals argv =
      end
    end
 
+let trap_handle_signal s0 cond handler =
+  let s1 = 
+    if elem cond undefined_traps
+    then log_undefined
+           "Setting a trap for SIGKILL or SIGSTOP produces undefined results." 
+           s0
+    else s0
+  in
+  handle_signal s1 cond handler
+
 let rec builtin_trap s0 argv _env =
   (* The value of "$?" after the trap action completes shall be the
      value it had before trap was invoked. *)
@@ -668,7 +678,7 @@ let rec builtin_trap s0 argv _env =
         match trap_parse_signals (arg::signals) with
         | Left err -> Left (s0, err)
         | Right conds ->
-           let s1 = foldr (fun cond os -> handle_signal os cond Nothing) s0 conds in
+           let s1 = foldr (fun cond os -> trap_handle_signal os cond Nothing) s0 conds in
            Right (s1, Done, true)
         end
      | Left _ -> 
@@ -678,11 +688,11 @@ let rec builtin_trap s0 argv _env =
         | (_, Left err) -> Left (s0, err)
         | (Just "-", Right conds) ->
            (* unset conditions *)
-           let s1 = foldr (fun cond os -> handle_signal os cond Nothing) s0 conds in
+           let s1 = foldr (fun cond os -> trap_handle_signal os cond Nothing) s0 conds in
            Right (s1, Done, true)
         | (Just _, Right conds) ->
            (* set conditions (if arg is "", we'll ignore it appropriately) *)
-           let s1 = foldr (fun cond os -> handle_signal os cond (Just arg)) s0 conds in
+           let s1 = foldr (fun cond os -> trap_handle_signal os cond (Just arg)) s0 conds in
            Right (s1, Done, true)
         end
      end

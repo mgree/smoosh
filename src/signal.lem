@@ -61,6 +61,10 @@ let all_signals =
   ; SIGXCPU
   ; SIGXFSZ]
 
+let undefined_traps =
+  [ SIGKILL
+  ; SIGSTOP]
+
 val string_of_signal : signal -> string
 let string_of_signal signal =
   match signal with
