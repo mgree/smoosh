@@ -1730,6 +1730,29 @@ let rec signal_pids s0 signal spids =
      end
   end     
 
+let kill_signal_of_num s0 s_signal =
+  match readNat (toCharList s_signal) with
+  | Left   _ -> (s0, Nothing)
+  | Right  0 -> (s0, Just    EXIT)
+  | Right  1 -> (s0, Just SIGHUP)
+  | Right  2 -> (s0, Just SIGINT)
+  | Right  3 -> (s0, Just SIGQUIT)
+  | Right  6 -> (s0, Just SIGABRT)
+  | Right  9 -> (s0, Just SIGKILL)
+  | Right 14 -> (s0, Just SIGALRM)
+  | Right 15 -> (s0, Just SIGTERM)
+  | Right  n -> 
+     match signal_of_platform_int n with
+     | Nothing -> (s0, Nothing)
+     | Just s  ->
+        let s1 = 
+          log_undefined
+            "The effects of specifying any signal_number other than those listed below are undefined. [0, 1, 2, 3, 6, 9, 14, 15]" s0 
+        in
+        (s1, Just s)
+     end
+  end
+
 (* 
   kill -s signal_name pid...
   kill -l [signal_number | exit_status]
@@ -1775,23 +1798,19 @@ let builtin_kill s0 argv _env =
      match strip_double_dash argv' with
      | ss_signal::pids ->
         let (s1, _concretized, s_signal) = concretize s0 ss_signal in
-        match signal_of_string s_signal with
-        | Nothing -> Left (s0, "no such signal " ^ s_signal)
-        | Just signal -> signal_pids (exit_with 0 s1) signal pids          
+        match (s_signal, signal_of_string s_signal) with
+        | (_, Just signal) -> signal_pids (exit_with 0 s1) signal pids          
+        | ("0", _) -> signal_pids (exit_with 0 s1) EXIT pids
+        | (_, Nothing) -> Left (s0, "no such signal " ^ s_signal)
         end
      | _ -> Left (s0, usage_msg)
      end
   | (C #'-'::ss_signal)::argv' -> 
      let (s1,_concretized,s_signal) = concretize s0 ss_signal in
-     let m_signal = 
-       match readNat (toCharList s_signal) with
-       | Right n -> signal_of_platform_int n
-       | Left _ -> signal_of_string s_signal
-       end
-     in
+     let (s2, m_signal) = kill_signal_of_num s1 s_signal in
      match m_signal with
-     | Nothing -> Left (s1, "no such signal " ^ s_signal)
-     | Just signal -> signal_pids (exit_with 0 s1) signal (strip_double_dash argv')
+     | Nothing -> Left (s2, "no such signal " ^ s_signal)
+     | Just signal -> signal_pids (exit_with 0 s2) signal (strip_double_dash argv')
      end
   | pids -> signal_pids (exit_with 0 s0) SIGTERM (strip_double_dash pids)
   end
