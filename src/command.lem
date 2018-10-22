@@ -435,6 +435,9 @@ let builtin_eval s0 argv _env =
        with the alias remaining. current impl. here won't support that 
        properly, since we won't set the alias in the first command for 
        the parser to see it in the second
+
+       2018-10-22 a possible solution would be to have an AST node that means
+                  'keep pulling lines from the parser'
      *)
     Right (s0, foldr Semi (Command [] [] []) stmts, true)
 

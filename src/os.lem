@@ -760,9 +760,12 @@ type fds = Map.map fd fd_tgt
 (* FIFO pipes for symbolic FDs *)             
 type fifo = string
 type fifo_num = nat
-          
+
+(* TODO 2018-10-22 handle process groups? *)
+and proc_status = Proc_Running | Proc_Stopped
+
 and proc =
-    Shell of stmt * shell_state * fds
+    Shell of proc_status * stmt * shell_state * fds
   | Zombie of nat (* exit code *)
 
 and symbolic = <|
@@ -912,7 +915,7 @@ val symbolic_writes_fifo : fifo_num -> proc -> bool
 let symbolic_writes_fifo fifo_num proc =
   match proc with
   | Zombie _ -> false
-  | Shell _ _ fds -> symbolic_fds_writes_fifo fifo_num fds
+  | Shell _ _ _ fds -> symbolic_fds_writes_fifo fifo_num fds
   end
 
 val symbolic_find_writer : os_state symbolic -> fifo_num -> maybe nat (* pid *)
@@ -921,6 +924,22 @@ let symbolic_find_writer os fifo_num =
      so we'll just paw through it and find the first one that's writing
    *)
   findIndex (symbolic_writes_fifo fifo_num) os.symbolic.procs
+
+let symbolic_write_fd os fd s =
+  match symbolic_resolve_fd os.symbolic fd with
+  | Just fifo_num -> 
+     match write_fifo os.symbolic fifo_num s with
+     | Nothing -> Nothing
+     | Just symbolic' -> Just <| os with symbolic = symbolic' |>
+     end
+  | Nothing -> Nothing
+  end
+
+let symbolic_write_stderr s os =
+  match symbolic_write_fd os STDERR s with
+  | Nothing -> os
+  | Just os' -> os'
+  end
 
 instance (OS symbolic)
   let getpwnam os u = Map.lookup u os.symbolic.passwd
@@ -931,7 +950,7 @@ instance (OS symbolic)
   let fork_and_subshell os stmt =
     let proc_num = length os.symbolic.procs in
     let (sh,_handlers) = clear_traps_for_subshell os.sh in
-    let proc = Shell stmt sh os.symbolic.sh_fds in
+    let proc = Shell Proc_Running stmt sh os.symbolic.sh_fds in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
        command substitution containing only a single trap command,
@@ -959,7 +978,10 @@ instance (OS symbolic)
     match index os0.symbolic.procs pid with
     | Nothing -> (os0, Nothing)
     | Just (Zombie ec) -> (os0, Just (Right ec))
-    | Just (Shell stmt sh' fds') ->
+    | Just (Shell Proc_Stopped _stmt _sh' _fds') ->
+       let os1 = symbolic_write_stderr ("warning: process with pid " ^ stringFromNat pid ^ " is stopped") os0 in
+       (os1, Nothing)
+    | Just (Shell Proc_Running stmt sh' fds') ->
        let os1 = <| os0 with sh = sh'; symbolic = <| os0.symbolic with sh_fds = fds' |> |> in
        match step_eval os1 stmt with
        | Left (_step, os2) -> 
@@ -995,7 +1017,7 @@ instance (OS symbolic)
                                         sh_fds = os0.symbolic.sh_fds;
                                         procs = 
                                           List.update os2.symbolic.procs pid 
-                                            (Shell stmt' os2.sh os2.symbolic.sh_fds) |> |>,
+                                            (Shell Proc_Running stmt' os2.sh os2.symbolic.sh_fds) |> |>,
            Just (Left (XSNested step (XSProc pid stmt'))))
        end
     end
@@ -1006,9 +1028,44 @@ instance (OS symbolic)
     match index os0.symbolic.procs pid with
     | Nothing -> (os0, false)
     | Just (Zombie _ec) -> (os0, false)
-    | Just (Shell stmt sh fds) ->
-       (* TODO 2018-10-19 lookup process, handle traps/terminate subshells *)
-       (os0, false)
+    | Just (Shell _status stmt proc_sh proc_fds) ->
+       match Map.lookup signal proc_sh.traps with
+       | Nothing -> 
+          match signal_default_behavior signal with
+          | SigBeh_Terminate actions ->
+             let os1 =
+               if actions
+               then log_unspecified "Implementation-defined abnormal termination actions, such as creation of a core file, may also occur." os0
+               else os0
+             in
+             let ec = 128 + platform_int_of_signal signal in
+             let procs' = update os1.symbolic.procs pid (Zombie ec) in
+             let os2 = 
+               <| os1 with symbolic = <| os1.symbolic with procs = procs' |> |>
+             in
+             (os2, true)
+          | SigBeh_Ignore ->
+             let os1 = 
+               log_msg (string_of_signal signal ^ " ignored by process with pid " ^ stringFromNat pid) os0 
+             in
+             (os1, true)
+          | SigBeh_Stop ->
+             let procs' = update os0.symbolic.procs pid (Shell Proc_Stopped stmt proc_sh proc_fds ) in
+             (<| os0 with symbolic = <| os0.symbolic with procs = procs' |> |>, true)
+          | SigBeh_Continue ->
+             let procs' = update os0.symbolic.procs pid (Shell Proc_Running stmt proc_sh proc_fds ) in
+             (<| os0 with symbolic = <| os0.symbolic with procs = procs' |> |>, true)
+          end
+       | Just handler ->
+          let os1 =
+            log_msg (string_of_signal signal ^ " trapped by process with pid " ^ stringFromNat pid) os0 
+          in
+          let procs' = 
+            update os1.symbolic.procs pid 
+              (Shell Proc_Running (command_eval handler) proc_sh proc_fds)
+          in
+          (<| os1 with symbolic = <| os1.symbolic with procs = procs' |> |>, true)
+       end
     end
 
   let times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
@@ -1099,16 +1156,8 @@ instance (OS symbolic)
     | Just _ -> true
     end
 
-  let write_fd os fd s =
-    match symbolic_resolve_fd os.symbolic fd with
-    | Just fifo_num -> 
-       match write_fifo os.symbolic fifo_num s with
-       | Nothing -> Nothing
-       | Just symbolic' -> Just <| os with symbolic = symbolic' |>
-       end
-    | Nothing -> Nothing
-    end
-  
+  let write_fd = symbolic_write_fd
+
   let read_all_fd os fd =
     match symbolic_resolve_fd os.symbolic fd with
     | Just fifo_num -> 
