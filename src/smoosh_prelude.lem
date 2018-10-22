@@ -10,6 +10,13 @@ import Debug
 (* UTILITY FUNCTIONS **************************************************)
 (**********************************************************************)
 
+val alphanumerics : list char
+let alphanumerics = 
+  toCharList "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+val is_alphanumeric : char -> bool
+let is_alphanumeric c = elem c alphanumerics  
+
 val uppercase : string -> string
 let uppercase s = toString (List.map uppercase_char (toCharList s))
 
@@ -876,6 +883,7 @@ and shell_state = <|
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
+    optoff: maybe nat; (* offset for use in parsing options like -ab; inspire dby optoff in libdash/src/options.h:42 *)
     readonly: set string;
     export: set string;
     funcs: Map.map string stmt;                 
@@ -1145,6 +1153,16 @@ let rec quote s =
   s
                                     
 (* Number type helpers *)
+
+val nat_of_symbolic_string : symbolic_string -> either string nat
+let nat_of_symbolic_string ss =
+  match try_concrete ss with
+  | Nothing -> Left ("can't parse number in symbolic string '" ^ string_of_symbolic_string ss ^ "'")
+  | Just s -> readNat (toCharList s)
+  end
+
+val symbolic_string_of_nat : nat -> symbolic_string
+let symbolic_string_of_nat n = symbolic_string_of_string (stringFromNat n)
 
 val integerToFields : integer -> fields
 let integerToFields n = [symbolic_string_of_string (write n)]
@@ -1600,7 +1618,9 @@ and string_of_evaluation_step step =
 (* DEFAULT SHELL STATE ************************************************)
 (**********************************************************************)
 
-let env_default : env = Map.insert "?" (symbolic_string_of_string "0") Map.empty
+let env_default : env = 
+  Map.insert "OPTIND" (symbolic_string_of_string "1")
+ (Map.insert "?" (symbolic_string_of_string "0") Map.empty)
 
 let default_shell_state = <|
       opts = Set.empty;
@@ -1608,6 +1628,7 @@ let default_shell_state = <|
       jobs = [];
       positional_params = []; (* $0, $1, $2, $3 ... *)
       env = env_default;
+      optoff = Nothing;
       readonly = Set.empty;
       export = Set.empty;
       funcs = Map.empty;

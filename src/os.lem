@@ -573,6 +573,9 @@ let set_param x v os0 =
     in
     Right os2
 
+val unset_param : forall 'a. string -> os_state 'a -> os_state 'a
+let unset_param x os0 = <| os0 with sh = <| os0.sh with env = Map.delete x os0.sh.env |> |>
+
 (* Functions and positional param management **************************)
 
 val defun : forall 'a. string -> stmt -> os_state 'a -> os_state 'a

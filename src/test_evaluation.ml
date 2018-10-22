@@ -259,6 +259,36 @@ let stdout_tests : (string * symbolic os_state * string) list =
   (* this test doesn't work, because demand-driven scheduling means the trap
      is never installed before teh signal arrives *)
 (*  ; ("(trap 'echo bye' SIGTERM ; echo hi) & kill %1 ; wait", os_empty, "bye\n") *)
+
+    (* getopts *)
+  ; ("getopts ab opt -a -b -- c d ; " ^
+     "echo $opt $OPTIND $?; " ^
+     "getopts ab opt -a -b -- c d ; " ^
+     "echo $opt $OPTIND $?; " ^
+     "getopts ab opt -a -b -- c d ; " ^
+     "echo $opt $OPTIND $?",
+     os_empty,
+     "a 2 0\nb 3 0\n? 4 1\n")
+
+  ; ("getopts abc opt -caaa c d e ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts abc opt -caaa c d e ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts abc opt -caaa c d e ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts abc opt -caaa c d e ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts abc opt -caaa c d e ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; ",
+     os_empty,
+     (* TODO we're allowed to use a different OPTIND here... 
+             at the price of diverging from dash
+      *)
+     "opt=c OPTIND=2 OPTARG= ?=0\n" ^
+     "opt=a OPTIND=2 OPTARG= ?=0\n" ^
+     "opt=a OPTIND=2 OPTARG= ?=0\n" ^
+     "opt=a OPTIND=2 OPTARG= ?=0\n" ^
+     "opt=? OPTIND=2 OPTARG= ?=1\n")
   ]
 
 (***********************************************************************)
