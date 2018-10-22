@@ -251,8 +251,15 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("printf %#5x 15", os_empty, "  0xf")
   ; ("printf %x -5", os_empty, "fffffffffffffffb")
   ; ("printf %u -5", os_empty, "18446744073709551611")
-  ]
 
+    (* kill *)
+  ; ("echo hi & wait", os_empty, "hi\n")
+  ; ("echo hi & kill %1 ; wait", os_empty, "")
+  ; ("(trap 'echo bye' SIGTERM ; echo hi) & wait", os_empty, "hi\n")
+  (* this test doesn't work, because demand-driven scheduling means the trap
+     is never installed before teh signal arrives *)
+(*  ; ("(trap 'echo bye' SIGTERM ; echo hi) & kill %1 ; wait", os_empty, "bye\n") *)
+  ]
 
 (***********************************************************************)
 (* DRIVER **************************************************************)

@@ -28,6 +28,17 @@
 
 - eval and ./source should work in a line-oriented fashion
 
+- $$ not installed for symbolic shell
+  trickiness: $$ is unchanged in subshells, which can signal the top-level
+              need to carefully hold on to such signals
+  plan #1:
+    add TopLevel option to proc
+    add some symbolic state to record pending top-level signals
+    execute on restore from step
+  plan #2:
+    actually put a proc entry in for the top-level shell
+    much more faithful, messes with visualizaton at exists now
+
 - not properly catching SIGINT at the toplevel
   dash raises a top-level exception, handles it in main.c:123
   probably wrong in system.ml:42
