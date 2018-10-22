@@ -1002,9 +1002,14 @@ instance (OS symbolic)
 
   let handle_signal = update_trap
 
-  let signal_pid os0 _signal _pid = 
-    (* TODO 2018-10-19 lookup process, handle traps/terminate subshells *)
-    (os0, false)
+  let signal_pid os0 signal pid = 
+    match index os0.symbolic.procs pid with
+    | Nothing -> (os0, false)
+    | Just (Zombie _ec) -> (os0, false)
+    | Just (Shell stmt sh fds) ->
+       (* TODO 2018-10-19 lookup process, handle traps/terminate subshells *)
+       (os0, false)
+    end
 
   let times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
 

@@ -6,7 +6,13 @@ open import Pervasives
 val uppercase_char : char -> char
 declare ocaml target_rep function uppercase_char = `Char.uppercase_ascii` 
 
-(* dropping XSI/XSR signals *)
+(* TODO 2018-10-22 missing XSI/XSR signals
+
+   SIGPOLL
+   SIGPROF
+   SIGSYS
+   SIGVTALRM
+*)
 type signal = 
   | EXIT    (* shell only, for trap *)
   | SIGABRT
@@ -210,4 +216,46 @@ let ocaml_signal_of_signal signal =
   | SIGURG    -> ocaml_sigurg
   | SIGXCPU   -> ocaml_sigxcpu
   | SIGXFSZ   -> ocaml_sigxfsz
+  end
+
+(* from http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/signal.h.html *)
+type signal_behavior = 
+    SigBeh_Terminate of bool (* additional actions? false = T, true = A *)
+  | SigBeh_Ignore            (* I *)
+  | SigBeh_Stop              (* S *)
+  | SigBeh_Continue          (* C *)
+
+val signal_default_behavior : signal -> signal_behavior
+let signal_default_behavior signal =
+  let T = SigBeh_Terminate false in
+  let A = SigBeh_Terminate true in
+  let I = SigBeh_Ignore in
+  let S = SigBeh_Stop in
+  let C = SigBeh_Continue in
+  match signal with
+  | EXIT      -> T (* not really a signal, but okay *)
+  | SIGABRT   -> A
+  | SIGALRM   -> T
+  | SIGBUS    -> A
+  | SIGCHLD   -> I
+  | SIGCONT   -> C
+  | SIGFPE    -> A
+  | SIGHUP    -> T
+  | SIGILL    -> A
+  | SIGINT    -> T
+  | SIGKILL   -> T
+  | SIGPIPE   -> T
+  | SIGQUIT   -> A
+  | SIGSEGV   -> A
+  | SIGSTOP   -> S
+  | SIGTERM   -> T
+  | SIGTSTP   -> S
+  | SIGTTIN   -> S
+  | SIGTTOU   -> S
+  | SIGUSR1   -> T
+  | SIGUSR2   -> T
+  | SIGTRAP   -> A
+  | SIGURG    -> I 
+  | SIGXCPU   -> A
+  | SIGXFSZ   -> A
   end
