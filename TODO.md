@@ -17,6 +17,15 @@
   + 0 referring to everything in the process group (kill only?)
   + negative PIDs for process groups?
 
+- quoting and STDOUT
+```
+  touch a
+  touch b
+  touch "a b"
+  x="\"a b\""
+  rm $x
+```
+
 - eval and ./source should work in a line-oriented fashion
 
 - not properly catching SIGINT at the toplevel
@@ -79,6 +88,8 @@
   + pretty printer for JSON output
 
 ### Long-term
+
+- numeric exit code in state, possibly symbolic
 
 - actually use log_unspec etc
 
