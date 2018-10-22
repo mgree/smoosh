@@ -1029,7 +1029,6 @@ instance (OS symbolic)
     | Nothing -> (os0, false)
     | Just (Zombie _ec) -> (os0, false)
     | Just (Shell _status stmt proc_sh proc_fds) ->
-       let _ = Debug.print_endline ("sending " ^ string_of_signal signal ^ " to " ^ stringFromNat pid) in
        match Map.lookup signal proc_sh.traps with
        | Nothing -> 
           match signal_default_behavior signal with
@@ -1221,7 +1220,6 @@ instance (OS symbolic)
     (<| os0 with symbolic = <| sym1 with sh_fds = fds'' |> |>, fd_read, fd_write)
 
   let open_file_for_redir _os _ty _file = 
-    let _ = Debug.print_endline "open_file_for_redir" in
     (_os, Left "symbolic file redirects are unimplemented")
 
   let open_heredoc os0 s =
