@@ -1,4 +1,5 @@
-*.lem linguist-language=Lem
+src/*.lem linguist-language=Lem
+src/*.ml linguist-language=OCaml
 web/src/public/css/components/* linguist-vendored
 web/src/public/css/themes/* linguist-vendored
 web/src/public/css/semantic.min.css linguist-vendored
