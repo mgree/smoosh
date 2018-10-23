@@ -269,7 +269,7 @@ let real_handle_signal signal action =
     | Some cmd ->
        current_traps := (signal,cmd)::new_traps;
        if signal <> 0 then Sys.set_signal signal (Signal_handle handler)
-  with Sys_error("Invalid_argument") -> Printf.eprintf "bad signal number %d\n" signal
+  with Sys_error(_) -> Printf.eprintf "bad signal number %d\n" signal
 
 let real_signal_pid signal pid =
   try Unix.kill pid signal; true
