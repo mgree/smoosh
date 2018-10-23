@@ -1,3 +1,4 @@
+*.lem linguist-detectable=true
 src/*.lem linguist-language=Lem
 src/*.ml linguist-language=OCaml
 web/src/public/css/components/* linguist-vendored
