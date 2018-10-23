@@ -53,10 +53,6 @@
 
 - tests for kill
 - Sh_errexit
-
-- other built-ins
-  + getopts
-    * at that rate, fix up internal getopt to be enough for everybody
     
 - history
   + fc
