@@ -1897,7 +1897,7 @@ let rec getopts_loop os0 opts optvar ind args =
      match m_c with
      | Nothing -> 
         (* the index pushed past the end; move on *)
-        getopts_loop (getopts_reset_optoff os1) opts optvar (ind + 1) args
+        getopts_loop (getopts_reset_optoff os1) opts optvar ind args
      | Just c ->
         (* got a character. see if we can parse it from the options *)
         let os2 =
@@ -1906,35 +1906,57 @@ let rec getopts_loop os0 opts optvar ind args =
           else log_unspecified "The use of other option characters that are not alphanumeric produces unspecified results." os1
         in
         let s_opt = toString [c] in
+        let ss_opt = symbolic_string_of_string s_opt in
         match elemIndex c opts with
         | Nothing -> 
-           let os3 = write_stderr ("illegal option -- '" ^ s_opt ^ "'\n") os2 in
-           Right (exit_with 0 
-                    (getopts_maybe_reset_optoff opt_rest 
-                       (internal_set_param optvar QMARK os3)), 
-                  Done)
+           let os3 = 
+             (* If an option character not contained in the optstring
+                operand is found where an option character is
+                expected, the shell variable specified by name shall
+                be set to the <question-mark> ( '?' ) character. In
+                this case, if the first character in optstring is a
+                <colon> ( ':' ), the shell variable OPTARG shall be
+                set to the option character found, but no output shall
+                be written to standard error; otherwise, the shell
+                variable OPTARG shall be unset and a diagnostic
+                message shall be written to standard error. *)
+             if index opts 0 = Just #':'
+             then internal_set_param OPTARG ss_opt os2
+             else
+               let os3 = write_stderr ("illegal option -- '" ^ s_opt ^ "'\n") os2 in
+               getopts_maybe_reset_optoff opt_rest (unset_param OPTARG os3)
+           in
+           Right (exit_with 0 (internal_set_param optvar QMARK os3), Done)
         | Just n ->
            (* set the specified variable *)
-           let os3 = 
-             unset_param OPTARG 
-               (internal_set_param optvar 
-                  (symbolic_string_of_string s_opt) os2)
-           in
+           let os3 = unset_param OPTARG (internal_set_param optvar ss_opt os2) in
            (* check to see if we need to set OPTARG *)
            if index opts (n+1) = Just #':'
            then 
              (* try to pull an argument from the rest of the option, e.g., -b5 uses 5 as the arg
                 failing that, get it from the args
               *)
-             let (os4, ec) =
+             let os4 =
                match (opt_rest,args') with
-               | ([],[]) -> (internal_set_param OPTARG QMARK 
-                               (write_stderr ("option requires an argument -- '" ^ s_opt ^ "'\n") os3), 1)
-               | ([],arg::_) -> (getopts_incr_OPTIND (internal_set_param OPTARG arg os3), 0)
-               | (_,_) -> (internal_set_param OPTARG opt_rest os3, 0)
+               | ([],[]) -> 
+                  (* If the first character of optstring is a <colon>,
+                     the shell variable specified by name shall be set
+                     to the <colon> character and the shell variable
+                     OPTARG shall be set to the option character
+                     found. *)
+                  if index opts 0 = Just #':'
+                  then
+                    internal_set_param OPTARG ss_opt 
+                      (internal_set_param optvar (symbolic_string_of_string ":") os3)
+                  else
+                    let msg = "option requires an argument -- '" ^ s_opt ^ "'\n" in
+                    internal_set_param OPTARG QMARK (write_stderr msg os3)
+               | ([],arg::_) -> 
+                  getopts_incr_OPTIND (internal_set_param OPTARG arg os3)
+               | (_,_) -> internal_set_param OPTARG opt_rest os3
                end
              in
-             Right (exit_with ec (getopts_reset_optoff os4), Done)
+             Right (exit_with 0 (getopts_reset_optoff os4), Done)
            else Right (exit_with 0 (getopts_maybe_reset_optoff opt_rest os3), Done)
         end
      end

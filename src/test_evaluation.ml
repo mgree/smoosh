@@ -298,6 +298,42 @@ let stdout_tests : (string * symbolic os_state * string) list =
      os_empty,
      "opt=a OPTIND=3 OPTARG=-b ?=0\n" ^
      "opt=? OPTIND=3 OPTARG= ?=1\n")
+
+  ; ("getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; ",
+     os_empty,
+     "opt=? OPTIND=2 OPTARG=b ?=0\n")
+  ; ("getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; ",
+     os_empty,
+     "opt=? OPTIND=2 OPTARG=b ?=0\n" ^
+     "opt=a OPTIND=3 OPTARG= ?=0\n")
+  ; ("getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; ",
+     os_empty,
+     "opt=? OPTIND=2 OPTARG=b ?=0\n" ^
+     "opt=a OPTIND=3 OPTARG= ?=0\n" ^
+     "opt=? OPTIND=4 OPTARG=c ?=0\n")
+  ; ("getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts :a opt -b -a -c ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; ",
+     os_empty,
+     "opt=? OPTIND=2 OPTARG=b ?=0\n" ^
+     "opt=a OPTIND=3 OPTARG= ?=0\n" ^
+     "opt=? OPTIND=4 OPTARG=c ?=0\n" ^
+     "opt=? OPTIND=4 OPTARG= ?=1\n")
+       
   ]
 
 (***********************************************************************)
