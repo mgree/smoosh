@@ -1225,6 +1225,8 @@ val run_trace_evaluation : os_state symbolic -> stmt -> evaluation_trace
 let rec run_trace_evaluation os0 stmt0 =
   if out_of_fuel os0
   then ([(XSStep "out of fuel", os0.sh, os0.symbolic, stmt0)], os0)
+  else if os0.symbolic.exited
+  then ([], os0)
   else 
     let os1 = tick os0 in
     match stmt0 with
