@@ -1833,23 +1833,22 @@ let getopts_OPTIND os0 =
      end
   end
 
-let getopts_incr_optoff os0 =
-  let new_optoff = 
-    match os0.sh.optoff with
-    | Nothing -> 1
-    | Just n -> n + 1
-    end
-  in
-  <| os0 with sh = <| os0.sh with optoff = Just new_optoff |> |>
+let getopts_incr_OPTIND os0 =
+  internal_set_param OPTIND (symbolic_string_of_nat (getopts_OPTIND os0 + 1)) os0
 
+let getopts_incr_optoff os0 =
+  match os0.sh.optoff with
+  | Nothing -> getopts_incr_OPTIND <| os0 with sh = <| os0.sh with optoff = Just 1 |> |>
+  | Just n -> <| os0 with sh = <| os0.sh with optoff = Just (n + 1) |> |>
+  end
+  
 let getopts_reset_optoff os0 =
   <| os0 with sh = <| os0.sh with optoff = Nothing |> |>
 
-val getopts_incr_opts : forall 'a. OS 'a => 
-                          nat -> symbolic_string -> os_state 'a -> os_state 'a
-let getopts_incr_opts ind opt_rest os0 =
+val getopts_maybe_reset_optoff : forall 'a. OS 'a => symbolic_string -> os_state 'a -> os_state 'a
+let getopts_maybe_reset_optoff opt_rest os0 =
   if null opt_rest
-  then getopts_reset_optoff (internal_set_param OPTIND (symbolic_string_of_nat (ind + 1)) os0)
+  then getopts_reset_optoff os0
   else os0
 
 val getopts_loop : 
@@ -1857,19 +1856,30 @@ val getopts_loop :
     os_state 'a -> list char -> string -> nat -> fields -> 
     either (os_state 'a * string) (os_state 'a * stmt)
 let rec getopts_loop os0 opts optvar ind args =
-  match drop (ind - 1) args with
+  (* when optoff is set, OPTIND (and so ind) will point 1 _past_ where we are *)
+  let optoff_correction = 
+    match os0.sh.optoff with
+    | Nothing -> 0
+    | Just _ -> 1
+    end
+  in
+  match drop (ind - optoff_correction - 1) args with
   | [C #'-'; C #'-']::_ -> 
      (* we make sure to increment OPTIND, because -- isn't a param *)
-     Right (exit_with 1 (getopts_incr_opts ind [] (unset_param OPTARG os0)),
+     Right (exit_with 1 
+              (internal_set_param optvar QMARK 
+                 (getopts_incr_OPTIND 
+                    (getopts_reset_optoff
+                       (unset_param OPTARG os0)))),
             Done)
   | (C #'-'::arg_opts)::args' -> 
-     (* use OPTIND and optoff to find out if we have another character *)
+     (* use OPTIND/ind and optoff to find out if we have another character *)
      let (os1, m_c, opt_rest) = 
        match (os0.sh.optoff, arg_opts) with
        | (Nothing, C c::opt_rest) ->
           (getopts_incr_optoff os0, Just c, opt_rest)
        | (Just n, cs) ->
-          match drop (n-1) cs with
+          match drop n cs with
           | [] -> (os0, Nothing, [])
           | C c::opt_rest -> (getopts_incr_optoff os0, Just c, opt_rest)
           | _ ->           
@@ -1887,7 +1897,7 @@ let rec getopts_loop os0 opts optvar ind args =
      match m_c with
      | Nothing -> 
         (* the index pushed past the end; move on *)
-        getopts_loop (getopts_incr_opts ind [] os1) opts optvar (ind + 1) args
+        getopts_loop (getopts_reset_optoff os1) opts optvar (ind + 1) args
      | Just c ->
         (* got a character. see if we can parse it from the options *)
         let os2 =
@@ -1899,7 +1909,7 @@ let rec getopts_loop os0 opts optvar ind args =
         match elemIndex c opts with
         | Nothing -> 
            let os3 = write_stderr ("illegal option -- '" ^ s_opt ^ "'\n") os2 in
-           Right (exit_with 0 (getopts_incr_opts ind opt_rest (internal_set_param optvar QMARK os3)), Done)
+           Right (exit_with 0 (getopts_maybe_reset_optoff opt_rest (internal_set_param optvar QMARK os3)), Done)
         | Just n ->
            (* set the specified variable *)
            let os3 = 
@@ -1908,27 +1918,24 @@ let rec getopts_loop os0 opts optvar ind args =
                   (symbolic_string_of_string s_opt) os2)
            in
            (* check to see if we need to set OPTARG *)
-           let takes_arg = index opts (n+1) = Just #':' in
-           if takes_arg
+           if index opts (n+1) = Just #':'
            then 
              (* try to pull an argument from the rest of the option, e.g., -b5 uses 5 as the arg
                 failing that, get it from the args
               *)
-             match (opt_rest,args') with
-             | ([],[]) -> 
-                let os4 = write_stderr ("option requires an argument -- '" ^ s_opt ^ "'\n") os3 in
-                Right (exit_with 1 (getopts_incr_opts ind [] (internal_set_param optvar QMARK os4)), Done)
-             | ([],arg::_) ->
-                let os4 = internal_set_param OPTARG arg os3 in
-                Right (exit_with 0 (getopts_incr_opts (ind+1) [] os4), Done)
-             | (_,_) ->
-                let os4 = internal_set_param OPTARG opt_rest os3 in
-                Right (exit_with 0 (getopts_incr_opts ind [] os4), Done)
-             end
-           else Right (exit_with 0 (getopts_incr_opts ind opt_rest os3), Done)
+             let (os4, ec) =
+               match (opt_rest,args') with
+               | ([],[]) -> (internal_set_param optvar QMARK 
+                               (write_stderr ("option requires an argument -- '" ^ s_opt ^ "'\n") os3), 1)
+               | ([],arg::_) -> (getopts_incr_OPTIND (internal_set_param OPTARG arg os3), 0)
+               | (_,_) -> (internal_set_param OPTARG opt_rest os3, 0)
+               end
+             in
+             Right (exit_with ec (getopts_reset_optoff os4), Done)
+           else Right (exit_with 0 (getopts_maybe_reset_optoff opt_rest os3), Done)
         end
      end
-  | _ -> Right (exit_with 1 (unset_param OPTARG os0), Done)
+  | _ -> Right (exit_with 1 (internal_set_param optvar QMARK (unset_param OPTARG os0)), Done)
   end
 
 let builtin_getopts os0 argv _env = 
