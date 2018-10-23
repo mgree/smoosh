@@ -1,5 +1,5 @@
 *.lem linguist-detectable=true
-src/*.lem linguist-language=Lem
+src/*.lem linguist-language=OCaml
 src/*.ml linguist-language=OCaml
 web/src/public/css/components/* linguist-vendored
 web/src/public/css/themes/* linguist-vendored
