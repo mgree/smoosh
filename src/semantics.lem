@@ -482,7 +482,7 @@ and step_assign s0 assigns =
     Right (XSExpand (XSSimple x) step, s1, (x, next_state)::assigns')
   end
 
-and step_eval s0 stmt =
+and step_eval s0 checked stmt =
   (* 
      extremely subtle behavior with errors in expansion:
        an expansion error is NOT a field
@@ -646,23 +646,29 @@ and step_eval s0 stmt =
          foldr set s0_logged (Map_extra.toList env)
        else s0_logged
      in
+     let exit_on_error = not checked && Set.member Sh_errexit s1.sh.opts in
      match do_redirs s1 ers with
      | (s2, Left msg) -> 
         Right (XSSimple ("error in redirection: " ^ msg), 
                fail_with msg s2, 
                (* TODO 2018-09-05 implement table 2.8.1: non-interactive shells may exit *)
-               Done)
+               if exit_on_error then Exit else Done)
      | (s2, Right saved_fds) ->
        (* run command *)
-       match run_command s2 allow_fun prog args env with
+       match run_command s2 allow_fun checked prog args env with
        | Right (s3, stmt', restore) -> 
+          let (s4, ec) = get_concrete_exit_code s3 in
           Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
-                 s3, 
-                 if restore then pushredir stmt' saved_fds else stmt')
+                 s4, 
+                 if exit_on_error && ec <> 0
+                 then Exit
+                 else if restore 
+                 then pushredir stmt' saved_fds 
+                 else stmt')
        | Left (s3,msg) -> 
           Right (XSSimple "couldn't run command", 
                  fail_with (string_of_symbolic_string prog ^ ": " ^ msg) s3, 
-                 pushredir Done saved_fds)
+                 if exit_on_error then Exit else pushredir Done saved_fds)
        end
      end
   (* expansion is done, but there's no command *)
@@ -727,7 +733,7 @@ and step_eval s0 stmt =
             specified in the pipeline to complete, and may also wait
             for all commands to complete. *)
          (* We don't bother waiting for everyone... unlike dash and bash. *)
-         (s1, Wait last_pid Nothing) 
+         (s1, Wait last_pid checked Nothing) 
      in
      Right (XSPipe "started pipe",
             s2,
@@ -791,7 +797,7 @@ and step_eval s0 stmt =
      let (s1,pid) = fork_and_subshell s0 (Redir stmt' redir_state) in
      Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
             s1, 
-            Wait pid Nothing)
+            Wait pid checked Nothing)
   | Subshell stmt' redir_state ->
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
@@ -809,7 +815,7 @@ and step_eval s0 stmt =
 
   (* AND **********************************************************************)
   | And l r ->
-      match step_eval s0 l with
+      match step_eval s0 true l with
       | Left e -> Left e
       | Right (step, s1, Exit) -> Right (step, s1, Exit)
       | Right (step, s1, Return) -> Right (step, s1, Return)
@@ -826,7 +832,7 @@ and step_eval s0 stmt =
 
   (* OR ***********************************************************************)
   | Or l r ->
-      match step_eval s0 l with
+      match step_eval s0 true l with
       | Left e -> Left e
       | Right (step, s1, Exit) -> Right (step, s1, Exit)
       | Right (step, s1, Return) -> Right (step, s1, Return)
@@ -843,7 +849,7 @@ and step_eval s0 stmt =
 
   (* NOT **********************************************************************)
   | Not stmt' ->
-      match step_eval s0 stmt' with
+      match step_eval s0 true stmt' with
       | Left e -> Left e
       | Right (step, s1, Exit) -> Right (step, s1, Exit)
       | Right (step, s1, Return) -> Right (step, s1, Return)
@@ -862,7 +868,7 @@ and step_eval s0 stmt =
 
   (* SEMI *********************************************************************)
   | Semi l r ->
-      match step_eval s0 l with
+      match step_eval s0 checked l with
       | Left e -> Left e
       | Right (step, s1, Exit) -> Right (step, s1, Exit)
       | Right (step, s1, Return) -> Right (step, s1, Return)
@@ -874,7 +880,7 @@ and step_eval s0 stmt =
 
   (* IF ***********************************************************************)
   | If c t e ->
-      match step_eval s0 c with
+      match step_eval s0 true c with
       | Left e -> Left e
       | Right (step, s1, Exit) -> Right (step, s1, Exit)
       | Right (step, s1, Return) -> Right (step, s1, Return)
@@ -895,7 +901,7 @@ and step_eval s0 stmt =
             enter_loop s0, 
             WhileCond c c body)
   | WhileCond c cur body ->
-      match step_eval s0 cur with
+      match step_eval s0 true cur with
       | Left e -> Left e
       | Right (step, s1, Exit) -> Right (XSNested (XSWhile "exiting") step, s1, Exit)                                      
       | Right (step, s1, Return) -> Right (XSNested (XSWhile "returning") step, s1, Return)
@@ -912,7 +918,7 @@ and step_eval s0 stmt =
       | Right (step, s1, cur') -> Right (XSNested (XSWhile "") step, s1, WhileCond c cur' body)
       end
   | WhileRunning c body cur ->
-      match step_eval s0 cur with
+      match step_eval s0 checked cur with
       | Left e -> Left e
       | Right (step, s1, Exit) -> Right (XSNested (XSWhile "exiting") step, s1, Exit)
       | Right (step, s1, Return) -> Right (XSNested (XSWhile "returning") step, s1, Return) 
@@ -959,7 +965,7 @@ and step_eval s0 stmt =
            ForRunning var f body body)
      end
   | ForRunning var f body cur ->
-      match step_eval s0 cur with
+      match step_eval s0 checked cur with
       | Left e -> Left e
       | Right (step, s1, Exit) -> Right (XSNested (XSFor "exiting") step, s1, Exit)
       | Right (step, s1, Return) -> Right (XSNested (XSFor "returning") step, s1, Return)
@@ -1047,7 +1053,7 @@ and step_eval s0 stmt =
 
   (* CALL *********************************************************************)
   | Call old_loop_nest old_positional_params f orig c ->
-     match step_eval s0 c with
+     match step_eval s0 checked c with
      | Left e -> Left e
      | Right (step, s1, Done) ->
         Right (XSStack (f ^ ": implicit return") step,
@@ -1101,12 +1107,13 @@ and step_eval s0 stmt =
      end
 
   (* WAIT *********************************************************************)
-  | Wait n (Just 0) -> (* out of steps *)
+  | Wait n _checked (Just 0) -> (* out of steps *)
      Right (XSWait ("stopped blocking on process with pid " ^ stringFromNat n),
             s0,
             Done)
    
-  | Wait n bound -> 
+  | Wait n wait_checked bound -> 
+     let exit_on_error = not wait_checked && Set.member Sh_errexit s0.sh.opts in
      match waitpid step_eval s0 n with
      | (s1, Nothing) -> 
         Right (XSWait ("couldn't step process with pid " ^ stringFromNat n), 
@@ -1123,11 +1130,13 @@ and step_eval s0 stmt =
         Right (XSNested (XSWait ("process with pid " ^ stringFromNat n ^ " stepped")) 
                         step,
                s1,
-               Wait n bound')
+               Wait n wait_checked bound')
      | (s1, Just (Right code)) ->
         Right (XSWait ("process with pid " ^ stringFromNat n ^ " completed"),
                exit_with code s1,
-               Done)
+               if exit_on_error && code <> 0
+               then Exit
+               else Done)
      end            
 
   (* PUSHREDIR ****************************************************************)
@@ -1136,7 +1145,7 @@ and step_eval s0 stmt =
      then Right (XSRedir "popping redirects", 
                  restore_fds s0 saved_fds, 
                  c)
-     else match step_eval s0 c with
+     else match step_eval s0 checked c with
           | Left e -> Left e
           | Right (step, s1, c') -> 
              Right (XSNested (XSRedir "") step, 
@@ -1171,7 +1180,7 @@ and full_evaluation os0 stmt0 =
        | (os2, Just cmd) -> full_evaluation os2 cmd
        end
     | _ -> 
-       match step_eval os1 stmt0 with
+       match step_eval os1 false stmt0 with
        | Right (step, os2, stmt1) -> full_evaluation (log_step step os2) stmt1
        | Left (step, os2) -> log_step step os2
        end
@@ -1221,7 +1230,7 @@ let rec run_trace_evaluation os0 stmt0 =
     match stmt0 with
     | Done -> ([], os1)
     | _ ->
-        match step_eval os1 stmt0 with
+        match step_eval os1 false stmt0 with
         | Right (step, os2, stmt1) -> 
            let entry = (step, os2.sh, os2.symbolic, stmt1) in
            let (trace,os3) = run_trace_evaluation os2 stmt1 in

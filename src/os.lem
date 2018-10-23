@@ -20,7 +20,11 @@ type os_state 'a = <|
    fuel: maybe nat;
  |>                   
 
-type step_fun 'a = os_state 'a -> stmt -> either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)
+type step_fun 'a = 
+  os_state 'a -> 
+  bool (* exit status checked elsewhere? *) ->
+  stmt -> 
+  either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)
 
 (**********************************************************************)
 (* FS STATE ***********************************************************)
@@ -991,7 +995,7 @@ instance (OS symbolic)
        (os1, Nothing)
     | Just (Shell Proc_Running stmt sh' fds') ->
        let os1 = <| os0 with sh = sh'; symbolic = <| os0.symbolic with sh_fds = fds' |> |> in
-       match step_eval os1 stmt with
+       match step_eval os1 false (* exit status not checked *) stmt with
        | Left (_step, os2) -> 
           (<| os2 with sh = os0.sh; 
                        symbolic = <| os2.symbolic with 

@@ -552,8 +552,6 @@ let unimplemented_sh_opts =
   ; Sh_notify
 
     (* TODO 2018-09-10 implement remaining set flags *)
-    (* need an equivalent of EV_TESTED: extra param to step_eval? *)
-  ; Sh_errexit
     (* need history *)
   ; Sh_nolog
   ]
@@ -729,7 +727,9 @@ and stmt =
   | Return
   | Exit
   | Exec of symbolic_string * list symbolic_string * env
-  | Wait of pid * maybe nat (* Nothing = block; Just n = n steps *)
+  | Wait of pid 
+          * bool (* checked exit status? true means ignore Sh_errexit*) 
+          * maybe nat (* Nothing = block; Just n = n steps *)
   | Pushredir of stmt * saved_fds
   | Done
 
@@ -1390,7 +1390,7 @@ let rec string_of_stmt c =
   | Return -> "return"
   | Exit -> "exit"
   | Exec cmd args _env -> spaced "exec" (string_of_fields (cmd::args))
-  | Wait n _steps -> "wait " ^ stringFromNat n
+  | Wait n _checked _steps -> "wait " ^ stringFromNat n
   | Pushredir s _saved -> string_of_stmt s (* TODO leaving stuff out *)
   | Done -> "Done"
   end

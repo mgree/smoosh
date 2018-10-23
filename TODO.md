@@ -52,8 +52,7 @@
 ### Last of the shell semantics
 
 - tests for kill
-- Sh_errexit
-    
+
 - history
   + fc
   + Sh_nolog

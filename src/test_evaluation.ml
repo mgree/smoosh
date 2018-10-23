@@ -334,6 +334,13 @@ let stdout_tests : (string * symbolic os_state * string) list =
      "opt=? OPTIND=4 OPTARG=c ?=0\n" ^
      "opt=? OPTIND=4 OPTARG= ?=1\n")
        
+     (* set -e *)
+  ; ("set -e; false; echo hi", os_empty, "")
+  ; ("set -e; true; echo hi", os_empty, "hi\n")
+  ; ("set -e; ! false; echo hi", os_empty, "hi\n")
+  ; ("set -e; ! true; echo hi", os_empty, "hi\n")
+  ; ("set -e; (false; echo one) | echo two; echo three", os_empty, "two\nthree\n")
+  ; ("set -e; (false; echo one) ; echo two", os_empty, "")
   ]
 
 (***********************************************************************)

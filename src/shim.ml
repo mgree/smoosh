@@ -418,8 +418,8 @@ let rec json_of_stmt = function
             ("cmd", json_of_symbolic_string cmd);
             ("args", json_of_fields args);
             ("env", json_of_env env)]
-  | Wait (n, bound) -> 
-     Assoc ([tag "Wait"; ("pid", Int n)] @
+  | Wait (n, checked, bound) -> 
+     Assoc ([tag "Wait"; ("pid", Int n); ("checked", Bool checked)] @
               match bound with
               | None -> []
               | Some steps -> [("steps", Int steps)])
