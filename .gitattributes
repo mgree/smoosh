@@ -1,5 +1,6 @@
 *.lem linguist-detectable=true
 Dockerfile* linguist-detectable=true
+Dockerfile.* linguist-language=Dockerfile
 src/*.lem linguist-language=OCaml
 src/*.ml linguist-language=OCaml
 web/src/public/css/components/* linguist-vendored
