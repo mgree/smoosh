@@ -8,3 +8,4 @@ web/src/public/css/themes/* linguist-vendored
 web/src/public/css/semantic.min.css linguist-vendored
 web/src/public/js/jquery-3.2.1.min.js linguist-vendored
 web/src/public/js/semantic.min.js linguist-vendored
+web/src/views/*.erb linguist-language=HTML+ERB
