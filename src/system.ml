@@ -100,6 +100,7 @@ let real_file_type (path : string) : Unix.file_kind option =
 let real_isdir (path : string) : bool = 
   Sys.file_exists path && Sys.is_directory path
 
+
 let real_readdir (path : string) : (string * bool) list =
   let contents = Sys.readdir path in
   let dir_info file = (file, real_isdir (Filename.concat path file)) in
@@ -257,16 +258,18 @@ let handler signal =
 
 let real_handle_signal signal action =
   let new_traps = List.remove_assoc signal !current_traps in
-  match action with
-  | None ->
-     current_traps := new_traps;
-     if signal <> 0 then Sys.set_signal signal Signal_default
-  | Some "" ->
-     current_traps := (signal,"")::new_traps;
-     if signal <> 0 then Sys.set_signal signal Signal_ignore
-  | Some cmd ->
-     current_traps := (signal,cmd)::new_traps;
-     if signal <> 0 then Sys.set_signal signal (Signal_handle handler)
+  try 
+    match action with
+    | None ->
+       current_traps := new_traps;
+       if signal <> 0 then Sys.set_signal signal Signal_default
+    | Some "" ->
+       current_traps := (signal,"")::new_traps;
+       if signal <> 0 then Sys.set_signal signal Signal_ignore
+    | Some cmd ->
+       current_traps := (signal,cmd)::new_traps;
+       if signal <> 0 then Sys.set_signal signal (Signal_handle handler)
+  with Sys_error("Invalid_argument") -> Printf.eprintf "bad signal number %d\n" signal
 
 let real_signal_pid signal pid =
   try Unix.kill pid signal; true
