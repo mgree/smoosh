@@ -1,10 +1,10 @@
 ### Paper TODO
 
 - run POSIX tests on dash, bash, and smoosh
-  + Dockerfile for loading POSIX tests
-    can't publish the test suite :(
-  + export test journal summaries
-- strawman performance tests vs. dash and bash?
+  + PICK UP still borking, with Sys_error("Invalid argument"). why?
+  + automatically export test journal summaries
+- performance tests vs. dash and bash?
+  + we lose, of course. but how badly?
 - write paper
 
 ### Artifact TODO
