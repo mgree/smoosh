@@ -281,14 +281,23 @@ let stdout_tests : (string * symbolic os_state * string) list =
      "getopts abc opt -caaa c d e ; " ^
      "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; ",
      os_empty,
-     (* TODO we're allowed to use a different OPTIND here... 
-             at the price of diverging from dash
-      *)
      "opt=c OPTIND=2 OPTARG= ?=0\n" ^
      "opt=a OPTIND=2 OPTARG= ?=0\n" ^
      "opt=a OPTIND=2 OPTARG= ?=0\n" ^
      "opt=a OPTIND=2 OPTARG= ?=0\n" ^
      "opt=? OPTIND=2 OPTARG= ?=1\n")
+
+  ; ("getopts a:b opt -a -b ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; ",
+     os_empty,
+     "opt=a OPTIND=3 OPTARG=-b ?=0\n")
+  ; ("getopts a:b opt -a -b ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; " ^
+     "getopts a:b opt -a -b ; " ^
+     "echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$? ; ",
+     os_empty,
+     "opt=a OPTIND=3 OPTARG=-b ?=0\n" ^
+     "opt=? OPTIND=3 OPTARG= ?=1\n")
   ]
 
 (***********************************************************************)
