@@ -16,6 +16,11 @@
 - PIDs
   + 0 referring to everything in the process group (kill only?)
   + negative PIDs for process groups?
+- `fork_and_subshell` should handle pgrps
+  + need to link with extunix
+  + needs to know if we're FG or not
+    cf. jobs.c:869
+
 
 - quoting and STDOUT
 ```
@@ -40,10 +45,6 @@
     much more faithful, messes with visualizaton at exists now
 
 - correct application of INTON/INTOFF
-
-- `fork_and_subshell` should handle pgrps
-  + needs to know if we're FG or not
-    cf. jobs.c:869
 
 - what is the exact correct behavior for IFS null?
   no field splitting should happen on _strings_

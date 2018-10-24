@@ -11,10 +11,11 @@ RUN sudo apt-get install -y autoconf autotools-dev libtool pkg-config libffi-dev
 # make sure we have ocamlfind and ocamlbuild
 RUN opam install ocamlfind ocamlbuild
 
-# set up FFI for libdash; num library for lem
+# set up FFI for libdash; num library for lem; extunix for shell syscalls
 RUN opam pin add ctypes 0.11.5
 RUN opam install ctypes-foreign
 RUN opam install num
+RUN opam install extunix
 
 WORKDIR /home/opam
 

@@ -3,7 +3,7 @@
 PRELUDEFILES=smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem os.lem 
 LEMFILES=smoosh.lem arith.lem pattern.lem path.lem fields.lem test.lem command.lem semantics.lem
 
-OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num -linkpkg
+OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num,extunix -linkpkg
 
 SRCFILES=config.ml system.ml $(PRELUDEFILES) shim.ml $(LEMFILES)
 MLFILES=$(SRCFILES:.lem=.ml)
