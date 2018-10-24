@@ -9,7 +9,7 @@
 
 ### Artifact TODO
 
-- Travis CI
+- test suite for shell, expand
 
 ### Bugs
 
