@@ -133,7 +133,7 @@ and parse_test_expr_equality toks =
   | str1::">"::str2::toks' -> Right (TestGt_str str1 str2, toks')
   | str1::"<"::str2::toks' -> Right (TestGt_str str2 str1, toks')
   | num1::op::num2::toks' -> 
-     if not (elem op ["-eq";"-neq";"-gt";"-ge";"-lt";"-le"])
+     if not (elem op ["-eq";"-ne";"-gt";"-ge";"-lt";"-le"])
      then parse_test_expr_unary toks
      else
        match read_two_nats num1 num2 op with
@@ -141,7 +141,7 @@ and parse_test_expr_equality toks =
        | Right (n1,n2) ->
           match op with
           | "-eq"  -> Right (TestEq_num n1 n2, toks')
-          | "-neq" -> Right (TestNot (TestEq_num n1 n2), toks')
+          | "-ne" -> Right (TestNot (TestEq_num n1 n2), toks')
           | "-gt"  -> Right (TestGt_num n1 n2, toks')
           | "-ge"  -> Right (TestNot (TestGt_num n2 n1), toks')
           | "-lt"  -> Right (TestGt_num n2 n1, toks')

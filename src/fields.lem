@@ -22,6 +22,8 @@ val collect_non_ifs : list char -> list char -> (list char) * (list char)
 (*val collect_ifs_whitespace : list char -> list char -> list char*)
 val split_expstring : list char -> list char -> intermediate_fields
 val split_word : list char -> (intermediate_fields * expanded_words) -> (intermediate_fields * expanded_words)
+val concat_expanded : expanded_words -> symbolic_string
+val collapse_quoted : expanded_words -> expanded_words
 val split_fields : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields
 val clean_fields : intermediate_fields -> intermediate_fields
 val field_splitting : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields  
@@ -62,6 +64,35 @@ let rec split_word ifs p =
   | (f, EWSym sym::wrds) -> split_word ifs (f ++ [Field [Sym sym]], wrds)
   end
 
+let rec concat_expanded w =
+  match w with
+  | [] -> symbolic_string_of_string ""
+  | UsrF::ws -> symbolic_string_of_string " " ++ concat_expanded ws
+  | ExpS s::ws -> symbolic_string_of_string s ++ concat_expanded ws
+  | DQuo ss::ws -> 
+    (* we don't include the quotes, since they'll be ultimately erased anyway! *)
+     ss ++ concat_expanded ws
+  | At fs::ws -> 
+     (* we collapse the result of $@ expansion, too. special cased in expand_control *)
+     symbolic_string_of_fields fs ++ concat_expanded ws
+  | EWSym sym::ws -> Sym sym::concat_expanded ws
+  | UsrS _::_ -> Assert_extra.failwith "broken invariant in concat_expanded: no UsrS should be found"
+  end
+
+let collapse_quoted w = 
+  let is_at e = 
+    match e with
+    | At _ -> true
+    | _ -> false
+  end in
+  match break is_at w with
+  | (w',[]) -> [DQuo (concat_expanded w')] (* no At anywhere, just collapse it *)
+  | (pre_w, (At fs)::post_w) ->
+     (* we have an At---attach pre_w to the first one, post_w to the last one *)
+     pre_w ++ intersperse UsrF (map DQuo fs) ++ post_w
+  | _ -> Assert_extra.failwith "broken invariant in collapse_quoted: couldn't find At anywhere, but got weird output"
+  end
+
 let split_fields s0 exp_words =
   let ifs = lookup_nonat_param s0 "IFS" in
   let (f, _) = match ifs with
@@ -71,7 +102,6 @@ let split_fields s0 exp_words =
        | Nothing -> 
           (* TODO 2018-08-29 unsoundly usinsg default IFS. symbolic IFS is basically impossible. should record this unsoundness. *)
           split_word (toCharList " \n\t") ([], exp_words)
-       | Just "" -> ([Field (concat_expanded exp_words)], [])
        | Just s -> split_word (toCharList s) ([], exp_words)
        end
   end in f

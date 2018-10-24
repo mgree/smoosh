@@ -49,6 +49,9 @@
   + needs to know if we're FG or not
     cf. jobs.c:869
 
+- what is the exact correct behavior for IFS null?
+  no field splitting should happen on _strings_
+
 ### Last of the shell semantics
 
 - tests for kill

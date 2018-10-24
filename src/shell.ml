@@ -20,8 +20,6 @@ let args : string list ref = ref []
    -a, -b, -C, -e, -f, -m, -n, -o option, -u, -v, and -x options are described as part of the set utility 
  *)
 
-let handle_arg arg = args := !args @ arg
-
 (* TODO 2018-09-10 need to support all of the Sh options *)
 let parse_args () =
   Arg.parse
@@ -158,12 +156,12 @@ let run_cmds s0 =
     then List.iter (fun c -> prerr_endline (string_of_stmt c)) cs
     else ()
   end;
-  let run c os =
+  let run os c =
     let os' = real_eval os c in
     last_state := os';
     os'
   in
-  let s1 = List.fold_right run cs s0 in
+  let s1 = List.fold_left run s0 cs in
   finish_up s1
 
 let rec repl s0 =

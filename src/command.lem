@@ -615,7 +615,12 @@ OR
      | Just ((on,off),params) ->
         let s1 = foldr (fun opt os -> set_sh_opt os opt) s0 on in
         let s2 = foldr (fun opt os -> unset_sh_opt os opt) s1 off in
-        let s3 = set_function_params s2.sh.loop_nest (* keep the same *) params s2 in
+        (* only update params when they've been given *)
+        let s3 = 
+          if null params
+          then s2
+          else set_function_params s2.sh.loop_nest (* keep the same *) params s2 
+        in
         Right (s3, Done, true) 
      end
   end

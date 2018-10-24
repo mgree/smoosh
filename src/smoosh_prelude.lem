@@ -1101,39 +1101,24 @@ let rec string_of_fields fs =
   | f::fs' -> string_of_symbolic_string f ^ " " ^ string_of_fields fs'
   end
 
-val concat_expanded : expanded_words -> symbolic_string
-let rec concat_expanded w =
+val symbolic_string_of_expanded_words : expanded_words -> symbolic_string
+let rec symbolic_string_of_expanded_words w =
   match w with
   | [] -> symbolic_string_of_string ""
-  | UsrF::ws -> symbolic_string_of_string " " ++ concat_expanded ws
-  | ExpS s::ws -> symbolic_string_of_string s ++ concat_expanded ws
+  | UsrF::ws -> symbolic_string_of_string " " ++ symbolic_string_of_expanded_words ws
+  | ExpS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words ws
   | DQuo ss::ws -> 
     (* we don't include the quotes, since they'll be ultimately erased anyway! *)
-     ss ++ concat_expanded ws
+     ss ++ symbolic_string_of_expanded_words ws
   | At fs::ws -> 
      (* we collapse the result of $@ expansion, too. special cased in expand_control *)
-     symbolic_string_of_fields fs ++ concat_expanded ws
-  | EWSym sym::ws -> Sym sym::concat_expanded ws
-  | UsrS _::_ -> Assert_extra.failwith "broken invariant in concat_expanded: no UsrS should be found"
-  end
-
-val collapse_quoted : expanded_words -> expanded_words
-let collapse_quoted w = 
-  let is_at e = 
-    match e with
-    | At _ -> true
-    | _ -> false
-  end in
-  match break is_at w with
-  | (w',[]) -> [DQuo (concat_expanded w')] (* no At anywhere, just collapse it *)
-  | (pre_w, (At fs)::post_w) ->
-     (* we have an At---attach pre_w to the first one, post_w to the last one *)
-     pre_w ++ intersperse UsrF (map DQuo fs) ++ post_w
-  | _ -> Assert_extra.failwith "broken invariant in collapse_quoted: couldn't find At anywhere, but got weird output"
+     symbolic_string_of_fields fs ++ symbolic_string_of_expanded_words ws
+  | EWSym sym::ws -> Sym sym::symbolic_string_of_expanded_words ws
+  | UsrS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words ws
   end
 
 val fields_of_expanded_words : expanded_words -> fields
-let fields_of_expanded_words w = [concat_expanded w]
+let fields_of_expanded_words w = [symbolic_string_of_expanded_words w]
 
 val split_equal : string -> symbolic_string -> string * maybe symbolic_string
 let rec split_equal var ss =

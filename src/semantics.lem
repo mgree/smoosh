@@ -62,7 +62,7 @@ val expand_param : forall 'a. OS 'a => os_state 'a -> quoting_mode -> string -> 
 val control_code_expansion : forall 'a. OS 'a => os_state 'a -> quoting_mode -> words -> (os_state 'a * expanded_words)
 
 let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
-  let sympat : symbolic_string = (concat_expanded pat) in
+  let sympat : symbolic_string = symbolic_string_of_expanded_words pat in
   let symstr : symbolic_string = symbolic_string_of_fields str in
   try_match_prefix lc side mode sympat symstr
 
