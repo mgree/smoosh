@@ -212,8 +212,6 @@ let main () =
 
         SIGQUIT and SIGTERM signals shall be ignored.
 
-     If the -m option is in effect, SIGTTIN, SIGTTOU, and SIGTSTP
-     signals shall be ignored.
 
      If the -m option is not in effect, it is unspecified whether
      SIGTTIN, SIGTTOU, and SIGTSTP signals are ignored, set to the
@@ -228,10 +226,32 @@ let main () =
              Os.sh = { !last_state.Os.sh with 
                        positional_params = sym_positional } } in
   let s1 = initialize_env s0 in
-  last_state := s1;
-  if is_interactive s1
-  then repl s1
-  else run_cmds s1
+  let ignore_signals = List.fold_left real_ignore_signal in
+  let s2 =
+    if is_interactive s1 
+    then
+      (* If the shell is interactive: 
+          - SIGQUIT and SIGTERM signals shall be ignored
+          - SIGINT is caught so that wait is interruptible
+       *)
+      begin
+        Sys.set_signal Sys.sigint (Signal_handle (fun _ -> repl !last_state));
+        List.fold_left real_ignore_signal s1 [SIGTERM; SIGQUIT]
+      end
+    else s1 
+  in
+  let s3 =
+    if is_monitoring s2
+    then
+      (* If the -m option is in effect, SIGTTIN, SIGTTOU, and SIGTSTP
+         signals shall be ignored. *)
+      List.fold_left real_ignore_signal s2 [SIGTTIN; SIGTTOU; SIGTSTP]
+    else s2
+  in
+  last_state := s3;
+  if is_interactive !last_state
+  then repl !last_state
+  else run_cmds !last_state
 ;;
 
 main ()

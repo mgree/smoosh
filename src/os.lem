@@ -677,6 +677,9 @@ let unset_sh_opt os opt =
 val is_interactive : forall 'a. os_state 'a -> bool
 let is_interactive os = Set.member Sh_interactive os.sh.opts
 
+val is_monitoring : forall 'a. os_state 'a -> bool
+let is_monitoring os = Set.member Sh_monitor os.sh.opts
+
 (* Aliases ************************************************************)
 
 val dash_setalias : string -> string -> unit
@@ -1642,3 +1645,7 @@ end
 
 val real_set_sh_opt : os_state system -> sh_opt -> os_state system
 let real_set_sh_opt os opt = set_sh_opt os opt
+
+val real_ignore_signal : os_state system -> signal -> os_state system
+let real_ignore_signal os0 signal =
+  handle_signal os0 signal (Just [])
