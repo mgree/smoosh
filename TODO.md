@@ -16,11 +16,21 @@
 - PIDs
   + 0 referring to everything in the process group (kill only?)
   + negative PIDs for process groups?
-- `fork_and_subshell` should handle pgrps
-  + need to link with extunix
-  + needs to know if we're FG or not
-    cf. jobs.c:869
-
+- job control and PIDs
+  `fork_and_subshell` should take a pgrp as argument
+  need to set up correct handlers for SIGTTOU and SIGTSTP
+  turn OFF some of this behavior when not running job control
+  
+  probably need INTON/INTOFF to get correct command editing behavior:
+  
+    If sh receives a SIGINT signal in command mode (whether generated
+    by typing the interrupt character or by other means), it shall
+    terminate command line editing on the current command line,
+    reissue the prompt on the next line of the terminal, and reset the
+    command history (see fc) so that the most recently executed
+    command is the previous command (that is, the command that was
+    being edited when it was interrupted is not re-entered into the
+    history).
 
 - quoting and STDOUT
 ```
@@ -43,8 +53,6 @@
   plan #2:
     actually put a proc entry in for the top-level shell
     much more faithful, messes with visualizaton at exists now
-
-- correct application of INTON/INTOFF
 
 - what is the exact correct behavior for IFS null?
   no field splitting should happen on _strings_

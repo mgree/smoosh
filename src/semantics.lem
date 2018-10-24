@@ -275,7 +275,7 @@ for x in "$@"; do echo "$x"; done # arg  1\narg  2\narg  3
            (* make sure to close the pipe when we're done *)
            [(fd_write, Close)]
        in
-       let (s2, pid) = fork_and_subshell s1 cmd in
+       let (s2, pid) = fork_and_subshell s1 cmd false in
        Right (ESCommand "initializing subshell", 
               s2,
               NoTilde,
@@ -721,7 +721,7 @@ and step_eval s0 checked stmt =
 
   (* PIPE *********************************************************************)
   | Pipe bg stmts ->
-     let (s1, last_pid) = run_pipe s0 stmts in
+     let (s1, last_pid) = run_pipe s0 stmts bg in
      let (s2, c) =
        if bg
        then
@@ -770,7 +770,7 @@ and step_eval s0 checked stmt =
   (* BACKGROUND ***************************************************************)
   | Background stmt' ((_, Nothing, []) as redir_state) ->
      (* defer to Redir to load redirs *)
-     let (s1,pid) = fork_and_subshell s0 (Redir stmt' redir_state) in
+     let (s1,pid) = fork_and_subshell s0 (Redir stmt' redir_state) true in
      let s2 = add_job s1 pid (Background stmt' redir_state) in
      let s3 = set_last_pid pid s2 in
      Right (XSBackground ("started background process with pid " ^ (stringFromNat pid)), 
@@ -794,7 +794,7 @@ and step_eval s0 checked stmt =
  
   (* SUBSHELL *****************************************************************)
   | Subshell stmt' ((_, Nothing, []) as redir_state) ->
-     let (s1,pid) = fork_and_subshell s0 (Redir stmt' redir_state) in
+     let (s1,pid) = fork_and_subshell s0 (Redir stmt' redir_state) false in
      Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
             s1, 
             Wait pid checked Nothing)

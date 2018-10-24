@@ -1,6 +1,47 @@
 open Either
+
+(* use the ExtUnix sub-library where calls that compile are implemented *)
+module ExtUnix = ExtUnixSpecific
+
+(* NB on Unix systems, the abstract type `file_descriptor` is just an int *)
+let fd_of_int : int -> Unix.file_descr = Obj.magic
+let int_of_fd : Unix.file_descr -> int = Obj.magic
+
 let implode = Dash.implode
 let explode = Dash.explode
+
+let all_signals =
+  [ Sys.sigabrt
+  ; Sys.sigalrm
+  ; Sys.sigfpe
+  ; Sys.sighup
+  ; Sys.sigill
+  ; Sys.sigint
+  ; Sys.sigkill
+  ; Sys.sigpipe
+  ; Sys.sigquit
+  ; Sys.sigsegv
+  ; Sys.sigterm
+  ; Sys.sigusr1
+  ; Sys.sigusr2
+  ; Sys.sigchld
+  ; Sys.sigcont
+  ; Sys.sigstop
+  ; Sys.sigtstp
+  ; Sys.sigttin
+  ; Sys.sigttou
+  ; Sys.sigvtalrm
+  ; Sys.sigprof
+  ; Sys.sigbus
+  ; Sys.sigpoll
+  ; Sys.sigsys
+  ; Sys.sigtrap
+  ; Sys.sigurg
+  ; Sys.sigxcpu
+  ; Sys.sigxfsz]
+
+let sigblockall () = ignore (Unix.sigprocmask Unix.SIG_BLOCK all_signals)
+let sigunblockall () = ignore (Unix.sigprocmask Unix.SIG_UNBLOCK all_signals)
 
 (* for backpatching the real_eval function 
    takes a command to its exit code
@@ -29,22 +70,73 @@ let real_getpwnam (nam : string) : string option =
 let real_execve (cmd : string) (argv : string list) (environ : string list) : 'a =
   Unix.execve cmd (Array.of_list (cmd::argv)) (Array.of_list environ)
 
-let real_fork_and_eval (handlers : int list) (os : 'a) (stmt : 'b) : int =
-  (* TODO 2018-10-01 use vfork? *)
+let ttyfd =
+  try 
+    (* FIXME 2018-10-24 tty path configurable *)
+    Unix.openfile "/dev/tty" [Unix.O_RDWR] 0o666
+  with Unix.Unix_error(_,_,_) ->
+        try if Unix.isatty Unix.stdin
+            then Unix.stdin
+            else if Unix.isatty Unix.stdout
+            then Unix.stdout
+            else if Unix.isatty Unix.stderr
+            then Unix.stderr
+            else fd_of_int 0 (* ah well *)
+        with Unix.Unix_error(_,_,_) -> fd_of_int 0
+
+let xtcsetpgrp pgid : unit =
+  try ExtUnix.tcsetpgrp ttyfd pgid
+  with Unix.Unix_error(e,_,_) ->
+        Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e)
+
+let real_fork_and_eval (handlers : int list) (os : 'a) (stmt : 'b) (bg : bool) : int =
+  (* TODO 2018-10-01 use vfork? it's not even in ExtUnix :( *)
+  sigblockall ();
   match Unix.fork () with
   | 0 -> 
+     (* more or less following dash's forkchild in jobs.c:847-907 *)
+     let pgrp = Unix.getpid () in
+     (* ExtUnix.setpgid 0 pgrp; *)
+     if bg
+     then 
+       begin
+         Sys.set_signal Sys.sigint Signal_ignore;
+         Sys.set_signal Sys.sigquit Signal_ignore;
+       end
+     else 
+       begin
+         Sys.set_signal Sys.sigint Signal_default;
+         Sys.set_signal Sys.sigquit Signal_default;
+         xtcsetpgrp pgrp
+       end;
+     Sys.set_signal Sys.sigtstp Signal_default;
+     Sys.set_signal Sys.sigttou Signal_default;
+     Sys.set_signal Sys.sigterm Signal_default;
      List.iter (fun signal -> Sys.set_signal signal Signal_ignore) handlers;
+     sigunblockall ();
      let status = !real_eval (Obj.magic os) (Obj.magic stmt) in 
      exit status
-  | pid -> pid
+  | pid -> 
+     let pgrp = pid in (* TODO 2018-10-24 fix for pipelines *)
+     (* ExtUnix.setpgid pid pgrp; *)
+     sigunblockall ();
+     pid
 
 let rec real_waitpid (pid : int) : int = 
-  try match Unix.waitpid [] pid with
-  | (_,Unix.WEXITED code) -> code
-  | (_,Unix.WSIGNALED signal) -> 128 + signal (* bash, dash behavior *)
-  | (_,Unix.WSTOPPED signal) -> 128 + signal (* bash, dash behavior *)
-  with Unix.Unix_error(EINTR,_,_) -> real_waitpid pid (* actually keep waiting *)
-     | Unix.Unix_error(ECHILD,_,_) -> 0
+  let code =
+    try match Unix.waitpid [] pid with
+        | (_,Unix.WEXITED code) -> code
+        | (_,Unix.WSIGNALED signal) -> 128 + signal (* bash, dash behavior *)
+        | (_,Unix.WSTOPPED signal) -> 128 + signal (* bash, dash behavior *)
+    with Unix.Unix_error(EINTR,_,_) -> 130
+       | Unix.Unix_error(ECHILD,_,_) -> 0
+  in
+  (* FIXME 2018-10-24 we may need to interrupt ourselves when code=130 
+     see jobs.c:1032
+   *)
+  (* TODO 2018-10-24 we're OVER doing this---we only need this when pid was an FG job *)
+  xtcsetpgrp (Unix.getpid ());
+  code
 
 let show_time time =
   let mins = time /. 60.0 in
@@ -111,10 +203,6 @@ let real_chdir (path : string) : string option =
       then (Unix.chdir path; None)
       else Some ("no such directory " ^ path)
   with Unix.Unix_error(e,_,_) -> Some (Unix.error_message e)
-
-(* NB on Unix systems, the abstract type `file_descriptor` is just an int *)
-let fd_of_int : int -> Unix.file_descr = Obj.magic
-let int_of_fd : Unix.file_descr -> int = Obj.magic
 
 let real_is_tty (fd : int) = Unix.isatty (fd_of_int fd)
 
@@ -270,3 +358,5 @@ let real_handle_signal signal action =
 let real_signal_pid signal pid =
   try Unix.kill pid signal; true
   with Unix.Unix_error(_) -> false
+
+let real_getpgrp () = ExtUnix.getpgid 0

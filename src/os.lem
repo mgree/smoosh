@@ -82,7 +82,11 @@ class ( OS 'a )
   val getpwnam : os_state 'a -> string -> maybe string
   val execve : 
     os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * stmt
-  val fork_and_subshell : os_state 'a -> stmt -> os_state 'a * pid
+  val fork_and_subshell : 
+    os_state 'a -> 
+    stmt -> 
+    bool (* bg? [for tty] *) -> 
+    os_state 'a * pid
   val exit : os_state 'a -> os_state 'a * maybe stmt
   val waitpid : 
     step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
@@ -397,35 +401,42 @@ let do_redirs os0 ers =
 val fork_and_execve : forall 'a. OS 'a =>
     os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * nat
 let fork_and_execve s0 cmd args env =
-  fork_and_subshell s0 (Exec cmd args env)
+  fork_and_subshell s0 (Exec cmd args env) false
 
 val run_pipe_loop : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt -> 
                  fd ->
+                 bool -> (* bg? [for tty] *)
                  os_state 'a * nat
-let rec run_pipe_loop s0 stmts fd_prev =
+let rec run_pipe_loop s0 stmts fd_prev bg =
   match stmts with
-  | [] -> fork_and_subshell s0 Done (* just run a trivial statement *)
+  | [] -> fork_and_subshell s0 Done bg (* just run a trivial statement *)
   | [stmt] -> (* last one *)
      let (s1, last_pid) = 
-       fork_and_subshell s0 
+       fork_and_subshell 
+         s0 
          (with_redirs 
             stmt 
-            [ERDup ToFD true (* close orig *) STDIN (Just fd_prev)]) in
+            [ERDup ToFD true (* close orig *) STDIN (Just fd_prev)])
+         bg
+     in
      let s2 = close_fd s1 fd_prev in
      (s2, last_pid)
   | stmt::stmts' ->
      let (s1, fd_next, fd_write) = pipe s0 in
      let (s2, _pid) =
-       fork_and_subshell s1
+       fork_and_subshell 
+         s1
          (with_redirs 
             (close_fd_and_then fd_next stmt) 
             [ERDup ToFD true (* close orig *) STDIN (Just fd_prev )
-            ;ERDup ToFD true (* close orig *) STDOUT (Just fd_write )]) in
+            ;ERDup ToFD true (* close orig *) STDOUT (Just fd_write )])
+         bg
+     in
      let s3 = close_fd s2 fd_prev in
      let s4 = close_fd s3 fd_write in
-     run_pipe_loop s4 stmts' fd_next
+     run_pipe_loop s4 stmts' fd_next bg
   end
 
 (* TODO 2018-10-02 job control
@@ -433,26 +444,31 @@ let rec run_pipe_loop s0 stmts fd_prev =
    if we just return a list of pids, that'll more or less cover us
    we'll probably have to change the representation of jobs, too:
      dash keeps a more detailed jobs spec, cf. jobs.h:66
+   2018-10-24 in particular, we need the pids carrying forward so we can setpgid
  *)
 val run_pipe : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt ->
+                 bool -> (* bg? [for tty] *)
                  os_state 'a * nat
-let run_pipe s0 stmts =
+let run_pipe s0 stmts bg =
   match stmts with
-  | [] -> fork_and_subshell s0 Done       (* just run a trivial statement *)
-  | [stmt] -> fork_and_subshell s0 stmt   (* trivial pipe *)
-  | stmt::stmts' ->                            (* real pipe! *)
+  | [] -> fork_and_subshell s0 Done bg      (* just run a trivial statement *)
+  | [stmt] -> fork_and_subshell s0 stmt bg  (* trivial pipe *)
+  | stmt::stmts' ->                         (* real pipe! *)
      (* set up first process *)
      let (s1, fd_next, fd_write) = pipe s0 in
      let (s2, _pid) =
-       fork_and_subshell s1
+       fork_and_subshell
+         s1
          (with_redirs 
             (close_fd_and_then fd_next stmt)
-            [ERDup ToFD true (* close orig *) STDOUT (Just fd_write)]) in
+            [ERDup ToFD true (* close orig *) STDOUT (Just fd_write)]) 
+         bg
+     in
      let s3 = close_fd s2 fd_write in
      (* hand off to the loop *)
-     run_pipe_loop s3 stmts' fd_next
+     run_pipe_loop s3 stmts' fd_next bg
   end
 
 (* Traps **************************************************************)
@@ -962,7 +978,10 @@ instance (OS symbolic)
   let execve os prog argv env =                     
     (os, Exec prog argv env)
 
-  let fork_and_subshell os stmt =
+  let fork_and_subshell os stmt _bg =
+    (* TODO 2018-10-24 if bg is false, this command will be controlling the terminal
+       should record that in symbolic state for fancier symbolic signal handling
+     *)
     let proc_num = length os.symbolic.procs in
     let (sh,_handlers) = clear_traps_for_subshell os.sh in
     let proc = Shell Proc_Running stmt sh os.symbolic.sh_fds in
@@ -1332,7 +1351,7 @@ declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
 val real_execve : forall 'a. string -> list string -> list string -> 'a
 declare ocaml target_rep function real_execve = `System.real_execve`
 
-val real_fork_and_eval : list int -> os_state system -> stmt -> nat
+val real_fork_and_eval : list int -> os_state system -> stmt -> bool -> nat
 declare ocaml target_rep function real_fork_and_eval = `System.real_fork_and_eval`
 
 val real_waitpid : nat -> nat
@@ -1476,7 +1495,7 @@ instance (OS unit)
     let (os3,env) = environ os2 senv in
     (os3, real_execve prog argv env)
 
-  let fork_and_subshell os stmt =
+  let fork_and_subshell os stmt bg =
     let (subsh,handlers) = clear_traps_for_subshell os.sh in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
@@ -1491,7 +1510,9 @@ instance (OS unit)
       real_fork_and_eval 
         (List.mapMaybe ocaml_signal_of_signal handlers) (* ignore these signals! *)
         (<| os with sh = subsh |>) (* update the traps *)
-        stmt in
+        stmt
+        bg
+    in
     (os, pid)
 
   let physical_cwd _os = real_physical_cwd ()
