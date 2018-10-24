@@ -212,7 +212,6 @@ let main () =
 
         SIGQUIT and SIGTERM signals shall be ignored.
 
-
      If the -m option is not in effect, it is unspecified whether
      SIGTTIN, SIGTTOU, and SIGTSTP signals are ignored, set to the
      default action, or caught. If they are caught, the shell shall,
