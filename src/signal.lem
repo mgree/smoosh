@@ -188,34 +188,34 @@ declare ocaml target_rep function ocaml_sigxcpu = `Sys.sigxcpu`
 val ocaml_sigxfsz   : int
 declare ocaml target_rep function ocaml_sigxfsz = `Sys.sigxfsz`
 
-val ocaml_signal_of_signal : signal -> int
+val ocaml_signal_of_signal : signal -> maybe int
 let ocaml_signal_of_signal signal =
   match signal with
-  | EXIT      -> 0 (* unused by OCaml (which uses negative signal numbers) *)
-  | SIGABRT   -> ocaml_sigabrt
-  | SIGALRM   -> ocaml_sigalrm
-  | SIGBUS    -> ocaml_sigbus
-  | SIGCHLD   -> ocaml_sigchld
-  | SIGCONT   -> ocaml_sigcont
-  | SIGFPE    -> ocaml_sigfpe
-  | SIGHUP    -> ocaml_sighup
-  | SIGILL    -> ocaml_sigill
-  | SIGINT    -> ocaml_sigint
-  | SIGKILL   -> ocaml_sigkill
-  | SIGPIPE   -> ocaml_sigpipe
-  | SIGQUIT   -> ocaml_sigquit
-  | SIGSEGV   -> ocaml_sigsegv
-  | SIGSTOP   -> ocaml_sigstop
-  | SIGTERM   -> ocaml_sigterm
-  | SIGTSTP   -> ocaml_sigtstp
-  | SIGTTIN   -> ocaml_sigttin
-  | SIGTTOU   -> ocaml_sigttou
-  | SIGUSR1   -> ocaml_sigusr1
-  | SIGUSR2   -> ocaml_sigusr2
-  | SIGTRAP   -> ocaml_sigtrap
-  | SIGURG    -> ocaml_sigurg
-  | SIGXCPU   -> ocaml_sigxcpu
-  | SIGXFSZ   -> ocaml_sigxfsz
+  | EXIT      -> Nothing
+  | SIGABRT   -> Just ocaml_sigabrt
+  | SIGALRM   -> Just ocaml_sigalrm
+  | SIGBUS    -> Just ocaml_sigbus
+  | SIGCHLD   -> Just ocaml_sigchld
+  | SIGCONT   -> Just ocaml_sigcont
+  | SIGFPE    -> Just ocaml_sigfpe
+  | SIGHUP    -> Just ocaml_sighup
+  | SIGILL    -> Just ocaml_sigill
+  | SIGINT    -> Just ocaml_sigint
+  | SIGKILL   -> Just ocaml_sigkill
+  | SIGPIPE   -> Just ocaml_sigpipe
+  | SIGQUIT   -> Just ocaml_sigquit
+  | SIGSEGV   -> Just ocaml_sigsegv
+  | SIGSTOP   -> Just ocaml_sigstop
+  | SIGTERM   -> Just ocaml_sigterm
+  | SIGTSTP   -> Just ocaml_sigtstp
+  | SIGTTIN   -> Just ocaml_sigttin
+  | SIGTTOU   -> Just ocaml_sigttou
+  | SIGUSR1   -> Just ocaml_sigusr1
+  | SIGUSR2   -> Just ocaml_sigusr2
+  | SIGTRAP   -> Just ocaml_sigtrap
+  | SIGURG    -> Just ocaml_sigurg
+  | SIGXCPU   -> Just ocaml_sigxcpu
+  | SIGXFSZ   -> Just ocaml_sigxfsz
   end
 
 (* from http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/signal.h.html *)

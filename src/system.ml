@@ -257,19 +257,15 @@ let handler signal =
   | Some cmd -> ignore (!real_eval_string cmd)
 
 let real_handle_signal signal action =
-  let new_traps = List.remove_assoc signal !current_traps in
-  try 
+  let old_traps = List.remove_assoc signal !current_traps in
+  let (new_traps,handler) =
     match action with
-    | None ->
-       current_traps := new_traps;
-       if signal <> 0 then Sys.set_signal signal Signal_default
-    | Some "" ->
-       current_traps := (signal,"")::new_traps;
-       if signal <> 0 then Sys.set_signal signal Signal_ignore
-    | Some cmd ->
-       current_traps := (signal,cmd)::new_traps;
-       if signal <> 0 then Sys.set_signal signal (Signal_handle handler)
-  with Sys_error(_) -> Printf.eprintf "bad signal number %d\n" signal
+    | None     -> ([],             Sys.Signal_default)
+    | Some  "" -> ([(signal,"")],  Sys.Signal_ignore)
+    | Some cmd -> ([(signal,cmd)], Sys.Signal_handle handler)
+  in
+  current_traps := new_traps @ old_traps;
+  Sys.set_signal signal handler
 
 let real_signal_pid signal pid =
   try Unix.kill pid signal; true

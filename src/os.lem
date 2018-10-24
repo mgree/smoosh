@@ -1486,7 +1486,7 @@ instance (OS unit)
        cannot be used within the subshell to set new traps.  *) 
     let pid = 
       real_fork_and_eval 
-        (List.map ocaml_signal_of_signal handlers) (* ignore these signals! *)
+        (List.mapMaybe ocaml_signal_of_signal handlers) (* ignore these signals! *)
         (<| os with sh = subsh |>) (* update the traps *)
         stmt in
     (os, pid)
@@ -1575,12 +1575,22 @@ instance (OS unit)
       | Just ss -> Just (string_of_symbolic_string ss)
       end
     in
-    let _ = real_handle_signal (ocaml_signal_of_signal signal) actual_action in
+    let _ = 
+      match ocaml_signal_of_signal signal with
+      | Nothing -> ()
+      | Just ocaml_signal -> 
+         real_handle_signal ocaml_signal actual_action 
+      end 
+    in
     s1
 
   let signal_pid os0 signal pid =
-    let success = real_signal_pid (ocaml_signal_of_signal signal) pid in
-    (os0, success)
+    match ocaml_signal_of_signal signal with
+    | Nothing -> (os0, false)
+    | Just ocaml_signal ->
+       let success = real_signal_pid ocaml_signal pid in
+       (os0, success)
+    end
 
   let times _os = real_times ()
 
