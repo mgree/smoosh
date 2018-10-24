@@ -1,7 +1,7 @@
 ### Paper TODO
 
 - run POSIX tests on dash, bash, and smoosh
-  + PICK UP still borking, with Sys_error("Invalid argument"). why?
+  + PICK UP still borking, now silently :(
   + automatically export test journal summaries
 - performance tests vs. dash and bash?
   + we lose, of course. but how badly?
@@ -39,11 +39,7 @@
     actually put a proc entry in for the top-level shell
     much more faithful, messes with visualizaton at exists now
 
-- not properly catching SIGINT at the toplevel
-  dash raises a top-level exception, handles it in main.c:123
-  probably wrong in system.ml:42
-  need to setup a handler in shell.ml
-  + correct application of INTON/INTOFF
+- correct application of INTON/INTOFF
 
 - `fork_and_subshell` should handle pgrps
   + needs to know if we're FG or not
