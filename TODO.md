@@ -31,6 +31,8 @@
     command is the previous command (that is, the command that was
     being edited when it was interrupted is not re-entered into the
     history).
+    
+  real_waitpid needs to know more job info about what it's waiting for
 
 - quoting and STDOUT
 ```
@@ -56,6 +58,9 @@
 
 - what is the exact correct behavior for IFS null?
   no field splitting should happen on _strings_
+
+- `string_of_fields` pretty printing
+  put single quotes around fields that have WS in them
 
 ### Last of the shell semantics
 

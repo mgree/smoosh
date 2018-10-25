@@ -103,7 +103,7 @@ let set_param x v s0 =
 
 (* track the last shell state---used for signal handling, at_exit *)
 let last_state = 
-  ref { Os.sh = default_shell_state; 
+  ref { Os.sh = { default_shell_state with rootpid = Unix.getpid () }; 
         Os.log = []; 
         Os.fuel = None; (* unbounded *)
         Os.symbolic = (); }

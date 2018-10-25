@@ -84,10 +84,14 @@ let ttyfd =
             else fd_of_int 0 (* ah well *)
         with Unix.Unix_error(_,_,_) -> fd_of_int 0
 
+let real_getpgrp () = ExtUnix.getpgid 0
+
 let xtcsetpgrp pgid : unit =
   try ExtUnix.tcsetpgrp ttyfd pgid
   with Unix.Unix_error(e,_,_) ->
-        Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e)
+    (* disabling warning because we're overdoing this *)
+    (* Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e) *)
+    ()
 
 let real_fork_and_eval (handlers : int list) (os : 'a) (stmt : 'b) (bg : bool) : int =
   (* TODO 2018-10-01 use vfork? it's not even in ExtUnix :( *)
@@ -96,7 +100,7 @@ let real_fork_and_eval (handlers : int list) (os : 'a) (stmt : 'b) (bg : bool) :
   | 0 -> 
      (* more or less following dash's forkchild in jobs.c:847-907 *)
      let pgrp = Unix.getpid () in
-     (* ExtUnix.setpgid 0 pgrp; *)
+     (* ExtUnix.setpgid pgrp pgrp; *)
      if bg
      then 
        begin
@@ -122,7 +126,7 @@ let real_fork_and_eval (handlers : int list) (os : 'a) (stmt : 'b) (bg : bool) :
      sigunblockall ();
      pid
 
-let rec real_waitpid (pid : int) : int = 
+let rec real_waitpid (rootpid : int) (pid : int) : int = 
   let code =
     try match Unix.waitpid [] pid with
         | (_,Unix.WEXITED code) -> code
@@ -135,7 +139,7 @@ let rec real_waitpid (pid : int) : int =
      see jobs.c:1032
    *)
   (* TODO 2018-10-24 we're OVER doing this---we only need this when pid was an FG job *)
-  xtcsetpgrp (Unix.getpid ());
+  xtcsetpgrp rootpid;
   code
 
 let show_time time =
@@ -358,5 +362,3 @@ let real_handle_signal signal action =
 let real_signal_pid signal pid =
   try Unix.kill pid signal; true
   with Unix.Unix_error(_) -> false
-
-let real_getpgrp () = ExtUnix.getpgid 0

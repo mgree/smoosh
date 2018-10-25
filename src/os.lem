@@ -1354,7 +1354,7 @@ declare ocaml target_rep function real_execve = `System.real_execve`
 val real_fork_and_eval : list int -> os_state system -> stmt -> bool -> nat
 declare ocaml target_rep function real_fork_and_eval = `System.real_fork_and_eval`
 
-val real_waitpid : nat -> nat
+val real_waitpid : nat (* rootpid *) -> nat (* pid *) -> nat (* ec *)
 declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 
 val real_handle_signal : int -> maybe string -> unit
@@ -1588,7 +1588,7 @@ instance (OS unit)
     real_exit ec
 
   let waitpid _step_eval os pid =
-    let code = real_waitpid pid in
+    let code = real_waitpid os.sh.rootpid pid in
     (os, Just (Right code))
 
   let handle_signal os0 signal action =

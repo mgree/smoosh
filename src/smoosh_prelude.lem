@@ -871,6 +871,7 @@ and job_info = <|
     pgrp: nat |>
 
 and shell_state = <|
+    rootpid: pid;
     opts: set sh_opt;
     (* each signal is either:
          not present (default)
@@ -1608,6 +1609,7 @@ let env_default : env =
  (Map.insert "?" (symbolic_string_of_string "0") Map.empty)
 
 let default_shell_state = <|
+      rootpid = 0;
       opts = Set.empty;
       traps = Map.empty;
       jobs = [];
