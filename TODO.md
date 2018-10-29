@@ -17,11 +17,17 @@
   + 0 referring to everything in the process group (kill only?)
   + negative PIDs for process groups?
 - job control and PIDs
-  `fork_and_subshell` should take a pgrp as argument
-  need to set up correct handlers for SIGTTOU and SIGTSTP
-  turn OFF some of this behavior when not running job control
+  + showjobs support
+    handle SIGCHLD, set a flag
+    dowait/waitone/waitproc
+      carefully reap all zombie processes!
   
-  probably need INTON/INTOFF to get correct command editing behavior:
+  + real_waitpid needs to know more job info about what it's waiting for  
+  + `fork_and_subshell` should take a pgrp as argument
+  + need to set up correct handlers for SIGTTOU and SIGTSTP
+  + turn OFF some of this behavior when not running job control
+  
+  + INTON/INTOFF to get correct command editing behavior:
   
     If sh receives a SIGINT signal in command mode (whether generated
     by typing the interrupt character or by other means), it shall
@@ -32,8 +38,6 @@
     being edited when it was interrupted is not re-entered into the
     history).
     
-  real_waitpid needs to know more job info about what it's waiting for
-
 - quoting and STDOUT
 ```
   touch a
