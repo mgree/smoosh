@@ -104,40 +104,64 @@ let xtcsetpgrp pgid : unit =
     (* Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e) *)
     ()
 
-let real_fork_and_eval (handlers : int list) (os : 'a) (stmt : 'b) (bg : bool) : int =
+let real_reset_tty () : unit =
+  let pid = Unix.getpid () in
+  ExtUnix.setpgid pid pid;
+  xtcsetpgrp pid
+
+let real_fork_and_eval 
+      (handlers : int list) 
+      (os : 'a) (stmt : 'b) 
+      (bg : bool) (pgid : int option) (outermost : bool) (jc : bool) (interactive : bool) : int =
+  let pgrp pid =
+       match pgid with
+       | None -> pid
+       | Some pgid -> pgid
+  in
   (* TODO 2018-10-01 use vfork? it's not even in ExtUnix :( *)
   sigblockall ();
   match Unix.fork () with
   | 0 -> 
      (* more or less following dash's forkchild in jobs.c:847-907 *)
-     let pgrp = Unix.getpid () in
-     (* ExtUnix.setpgid pgrp pgrp; *)
-     if bg
+     if outermost && jc
+     then begin
+         Sys.set_signal Sys.sigtstp Signal_default;
+         Sys.set_signal Sys.sigttou Signal_default;
+         let pid = Unix.getpid () in
+         ExtUnix.setpgid pid (pgrp pid);
+         if not bg
+         then
+           xtcsetpgrp (pgrp pid)
+       end
+     else if bg
      then 
        begin
          Sys.set_signal Sys.sigint Signal_ignore;
          Sys.set_signal Sys.sigquit Signal_ignore;
-       end
-     else 
-       begin
-         Sys.set_signal Sys.sigint Signal_default;
-         Sys.set_signal Sys.sigquit Signal_default;
-         xtcsetpgrp pgrp
        end;
-     Sys.set_signal Sys.sigtstp Signal_default;
-     Sys.set_signal Sys.sigttou Signal_default;
-     Sys.set_signal Sys.sigterm Signal_default;
+     if outermost && interactive
+     then
+       begin
+         Sys.set_signal Sys.sigterm Signal_default;
+         if not bg
+         then
+           begin
+             Sys.set_signal Sys.sigint Signal_default;
+             Sys.set_signal Sys.sigquit Signal_default;
+           end;
+       end;
      List.iter (fun signal -> Sys.set_signal signal Signal_ignore) handlers;
      sigunblockall ();
      let status = !real_eval (Obj.magic os) (Obj.magic stmt) in 
      exit status
   | pid -> 
-     let pgrp = pid in (* TODO 2018-10-24 fix for pipelines *)
-     (* ExtUnix.setpgid pid pgrp; *)
      sigunblockall ();
+     if jc
+     then 
+       ExtUnix.setpgid pid (pgrp pid);
      pid
 
-let rec real_waitpid (rootpid : int) (pid : int) : int = 
+let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int = 
   let code =
     try match Unix.waitpid [] pid with
         | (_,Unix.WEXITED code) -> code
@@ -149,8 +173,8 @@ let rec real_waitpid (rootpid : int) (pid : int) : int =
   (* FIXME 2018-10-24 we may need to interrupt ourselves when code=130 
      see jobs.c:1032
    *)
-  (* TODO 2018-10-24 we're OVER doing this---we only need this when pid was an FG job *)
-  xtcsetpgrp rootpid;
+  if jc
+  then xtcsetpgrp rootpid;
   code
 
 let show_time time =

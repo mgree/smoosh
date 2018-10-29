@@ -872,6 +872,7 @@ and job_info = <|
 
 and shell_state = <|
     rootpid: pid;
+    outermost: bool; (* true in top-level shell; false in subshells *)
     opts: set sh_opt;
     (* each signal is either:
          not present (default)
@@ -1610,6 +1611,7 @@ let env_default : env =
 
 let default_shell_state = <|
       rootpid = 0;
+      outermost = true;
       opts = Set.empty;
       traps = Map.empty;
       jobs = [];

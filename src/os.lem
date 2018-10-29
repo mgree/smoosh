@@ -91,6 +91,8 @@ class ( OS 'a )
     os_state 'a -> 
     stmt -> 
     bool (* bg? [for tty] *) -> 
+    maybe pid (* pgrp id *) ->
+    bool (* do job control? *) ->
     os_state 'a * pid
   val exit : os_state 'a -> os_state 'a * maybe stmt
   val waitpid : 
@@ -99,6 +101,7 @@ class ( OS 'a )
     os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
   val handle_signal : os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
   val signal_pid : os_state 'a -> signal -> pid -> os_state 'a * bool
+  val reset_tty : os_state 'a -> os_state 'a
   val times : os_state 'a -> 
               (string (* utime *)            * string (* stime *) * 
                string (* utime + children *) * string (* stime + children *))
@@ -319,7 +322,7 @@ let active_jobs os0 =
 val add_job 
     : forall 'a. OS 'a =>
         os_state 'a ->
-        nat (* pid *) -> stmt (* cmd *) ->
+        pid -> stmt (* cmd *) ->
         os_state 'a
 let add_job os0 pid cmd =
   let highest_job_num = 
@@ -404,19 +407,25 @@ let do_redirs os0 ers =
 (* Pipes and forking **************************************************)
 
 val fork_and_execve : forall 'a. OS 'a =>
-    os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * nat
+    os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * pid
 let fork_and_execve s0 cmd args env =
-  fork_and_subshell s0 (Exec cmd args env true (* try /bin/sh *)) false
+  fork_and_subshell 
+    s0 
+    (Exec cmd args env true (* try /bin/sh *)) 
+    false (* not in bg *) 
+    Nothing (* no existing process group *)
+    true (* do job control *)
 
 val run_pipe_loop : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt -> 
                  fd ->
                  bool -> (* bg? [for tty] *)
-                 os_state 'a * nat
-let rec run_pipe_loop s0 stmts fd_prev bg =
+                 maybe pid -> (* pipeline pgrp *)
+                 os_state 'a * pid
+let rec run_pipe_loop s0 stmts fd_prev bg pgid =
   match stmts with
-  | [] -> fork_and_subshell s0 Done bg (* just run a trivial statement *)
+  | [] -> fork_and_subshell s0 Done bg pgid true (* just run a trivial statement *)
   | [stmt] -> (* last one *)
      let (s1, last_pid) = 
        fork_and_subshell 
@@ -425,6 +434,8 @@ let rec run_pipe_loop s0 stmts fd_prev bg =
             stmt 
             [ERDup ToFD true (* close orig *) STDIN (Just fd_prev)])
          bg
+         pgid
+         true
      in
      let s2 = close_fd s1 fd_prev in
      (s2, last_pid)
@@ -438,10 +449,12 @@ let rec run_pipe_loop s0 stmts fd_prev bg =
             [ERDup ToFD true (* close orig *) STDIN (Just fd_prev )
             ;ERDup ToFD true (* close orig *) STDOUT (Just fd_write )])
          bg
+         pgid
+         true
      in
      let s3 = close_fd s2 fd_prev in
      let s4 = close_fd s3 fd_write in
-     run_pipe_loop s4 stmts' fd_next bg
+     run_pipe_loop s4 stmts' fd_next bg pgid
   end
 
 (* TODO 2018-10-02 job control
@@ -449,31 +462,32 @@ let rec run_pipe_loop s0 stmts fd_prev bg =
    if we just return a list of pids, that'll more or less cover us
    we'll probably have to change the representation of jobs, too:
      dash keeps a more detailed jobs spec, cf. jobs.h:66
-   2018-10-24 in particular, we need the pids carrying forward so we can setpgid
  *)
 val run_pipe : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt ->
                  bool -> (* bg? [for tty] *)
-                 os_state 'a * nat
+                 os_state 'a * pid
 let run_pipe s0 stmts bg =
   match stmts with
-  | [] -> fork_and_subshell s0 Done bg      (* just run a trivial statement *)
-  | [stmt] -> fork_and_subshell s0 stmt bg  (* trivial pipe *)
-  | stmt::stmts' ->                         (* real pipe! *)
+  | [] -> fork_and_subshell s0 Done bg Nothing true     (* just run a trivial statement *)
+  | [stmt] -> fork_and_subshell s0 stmt bg Nothing true (* trivial pipe *)
+  | stmt::stmts' ->                                     (* real pipe! *)
      (* set up first process *)
      let (s1, fd_next, fd_write) = pipe s0 in
-     let (s2, _pid) =
+     let (s2, pid) =
        fork_and_subshell
          s1
          (with_redirs 
             (close_fd_and_then fd_next stmt)
             [ERDup ToFD true (* close orig *) STDOUT (Just fd_write)]) 
          bg
+         Nothing
+         true
      in
      let s3 = close_fd s2 fd_write in
      (* hand off to the loop *)
-     run_pipe_loop s3 stmts' fd_next bg
+     run_pipe_loop s3 stmts' fd_next bg (Just pid)
   end
 
 (* Traps **************************************************************)
@@ -494,7 +508,8 @@ let clear_traps_for_subshell sh =
     partition (fun (_signal,cmd) -> string_of_symbolic_string cmd = "") traps 
   in
    (* clear handled traps (but keep ignored ones) *)
-  (<| sh with traps = Map.fromList ignored |>,
+  (<| sh with outermost = false;
+              traps = Map.fromList ignored |>,
    (* indicate which handled traps are now cleared *)
    map fst handled)
 
@@ -670,7 +685,7 @@ let get_concrete_exit_code os =
      end
   end
 
-val set_last_pid : forall 'a. nat -> os_state 'a -> os_state 'a
+val set_last_pid : forall 'a. pid -> os_state 'a -> os_state 'a
 let set_last_pid pid os = 
   internal_set_param "!" (symbolic_string_of_string (stringFromNat pid)) os
 
@@ -680,20 +695,37 @@ let internal_fixup_dollardash os =
   internal_set_param "-" (symbolic_string_of_string dash) os
 
 val set_sh_opt : forall 'a. OS 'a => os_state 'a -> sh_opt -> os_state 'a
-let set_sh_opt os opt =
-  let os' = 
+let set_sh_opt os0 opt =
+  let os1 = 
     if List.elem opt unimplemented_sh_opts
+    then write_stderr ("set: warning: " ^ string_of_sh_opt opt ^ " is unimplemented\n") os0 
+    else os0
+  in
+  let os2 = 
+    if opt = Sh_monitor
     then
-      write_stderr ("set: warning: " ^ string_of_sh_opt opt ^ " is unimplemented\n") os
-    else os
+      let os2_1 = handle_signal os1   SIGTTOU (Just []) in
+      let os2_2 = handle_signal os2_1 SIGTTIN (Just []) in
+      let os2_3 = handle_signal os2_2 SIGTSTP (Just []) in
+      reset_tty os2_3
+    else os1
   in
   internal_fixup_dollardash
-    <| os' with sh = <| os.sh with opts = Set.insert opt os.sh.opts |> |>
+    <| os2 with sh = <| os2.sh with opts = Set.insert opt os2.sh.opts |> |>
 
-val unset_sh_opt : forall 'a. os_state 'a -> sh_opt -> os_state 'a
-let unset_sh_opt os opt =
+val unset_sh_opt : forall 'a. OS 'a => os_state 'a -> sh_opt -> os_state 'a
+let unset_sh_opt os0 opt =
+  let os1 =
+    if opt = Sh_monitor
+    then
+      let os1_1 = handle_signal os0   SIGTTOU Nothing in
+      let os1_2 = handle_signal os1_1 SIGTTIN Nothing in
+      let os1_3 = handle_signal os1_2 SIGTSTP Nothing in
+      reset_tty os1_3
+    else os0
+  in
   internal_fixup_dollardash
-    <| os with sh = <| os.sh with opts = Set.delete opt os.sh.opts |> |>
+    <| os1 with sh = <| os1.sh with opts = Set.delete opt os1.sh.opts |> |>
 
 val is_interactive : forall 'a. os_state 'a -> bool
 let is_interactive os = Set.member Sh_interactive os.sh.opts
@@ -954,7 +986,7 @@ let symbolic_writes_fifo fifo_num proc =
   | Shell _ _ _ fds -> symbolic_fds_writes_fifo fifo_num fds
   end
 
-val symbolic_find_writer : os_state symbolic -> fifo_num -> maybe nat (* pid *)
+val symbolic_find_writer : os_state symbolic -> fifo_num -> maybe pid
 let symbolic_find_writer os fifo_num = 
   (* recall that symbolic PIDs are indices into the list 
      so we'll just paw through it and find the first one that's writing
@@ -983,13 +1015,13 @@ instance (OS symbolic)
   let execve os prog argv env binsh =
     (os, Exec prog argv env binsh)
 
-  let fork_and_subshell os stmt _bg =
+  let fork_and_subshell os stmt _bg _pgid _jc =
     (* TODO 2018-10-24 if bg is false, this command will be controlling the terminal
        should record that in symbolic state for fancier symbolic signal handling
      *)
     let proc_num = length os.symbolic.procs in
-    let (sh,_handlers) = clear_traps_for_subshell os.sh in
-    let proc = Shell Proc_Running stmt sh os.symbolic.sh_fds in
+    let (subsh,_handlers) = clear_traps_for_subshell os.sh in
+    let proc = Shell Proc_Running stmt subsh os.symbolic.sh_fds in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
        command substitution containing only a single trap command,
@@ -1106,6 +1138,8 @@ instance (OS symbolic)
           (<| os1 with symbolic = <| os1.symbolic with procs = procs' |> |>, true)
        end
     end
+
+  let reset_tty os0 = os0
 
   let times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
 
@@ -1356,17 +1390,20 @@ declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
 val real_execve : forall 'a. string -> list string -> list string -> bool -> 'a
 declare ocaml target_rep function real_execve = `System.real_execve`
 
-val real_fork_and_eval : list int -> os_state system -> stmt -> bool -> nat
+val real_fork_and_eval : list int -> os_state system -> stmt -> bool -> maybe pid -> bool -> bool -> bool -> pid
 declare ocaml target_rep function real_fork_and_eval = `System.real_fork_and_eval`
 
-val real_waitpid : nat (* rootpid *) -> nat (* pid *) -> nat (* ec *)
+val real_waitpid : pid (* rootpid *) -> pid (* pid *) -> bool (* jc? *) -> nat (* ec *)
 declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 
 val real_handle_signal : int -> maybe string -> unit
 declare ocaml target_rep function real_handle_signal = `System.real_handle_signal`
 
-val real_signal_pid : int -> nat -> bool
+val real_signal_pid : int -> pid -> bool
 declare ocaml target_rep function real_signal_pid = `System.real_signal_pid`
+
+val real_reset_tty : unit -> unit
+declare ocaml target_rep function real_reset_tty = `System.real_reset_tty`
 
 val real_exit : forall 'a. nat -> 'a
 declare ocaml target_rep function real_exit = `exit`
@@ -1500,7 +1537,7 @@ instance (OS unit)
     let (os3,env) = environ os2 senv in
     (os3, real_execve prog argv env binsh)
 
-  let fork_and_subshell os stmt bg =
+  let fork_and_subshell os stmt bg pgid jc =
     let (subsh,handlers) = clear_traps_for_subshell os.sh in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
@@ -1517,6 +1554,10 @@ instance (OS unit)
         (<| os with sh = subsh |>) (* update the traps *)
         stmt
         bg
+        pgid
+        os.sh.outermost
+        (jc && Set.member Sh_monitor os.sh.opts)
+        (Set.member Sh_interactive os.sh.opts)
     in
     (os, pid)
 
@@ -1593,7 +1634,7 @@ instance (OS unit)
     real_exit ec
 
   let waitpid _step_eval os pid =
-    let code = real_waitpid os.sh.rootpid pid in
+    let code = real_waitpid os.sh.rootpid pid (Set.member Sh_monitor os.sh.opts) in
     (os, Just (Right code))
 
   let handle_signal os0 signal action =
@@ -1620,6 +1661,10 @@ instance (OS unit)
        let success = real_signal_pid ocaml_signal pid in
        (os0, success)
     end
+
+  let reset_tty os0 =
+    let _ = real_reset_tty () in
+    os0
 
   let times _os = real_times ()
 

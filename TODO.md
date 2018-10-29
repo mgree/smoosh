@@ -24,11 +24,7 @@
     dowait/waitone/waitproc
       carefully reap all zombie processes!
   
-  + real_waitpid needs to know more job info about what it's waiting for  
-  + `fork_and_subshell` should take a pgrp as argument
-  + need to set up correct handlers for SIGTTOU and SIGTSTP
-  + turn OFF some of this behavior when not running job control
-  
+  + real_waitpid needs to know more job info about what it's waiting for
   + INTON/INTOFF to get correct command editing behavior:
   
     If sh receives a SIGINT signal in command mode (whether generated
