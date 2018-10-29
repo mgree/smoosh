@@ -201,24 +201,14 @@ let main () =
   Dash.initialize ();
   setup_handlers ();
   parse_args ();
-  (* TODO 2018-08-14 when !interactive is true, need to look at ENV, etc. [UP: optional]
+  (* TODO 2018-08-14 need to look at ENV, etc. [UP: optional]
 
      If the shell is interactive, SIGINT signals received during
      command line editing shall be handled as described in the
      EXTENDED DESCRIPTION, and SIGINT signals received at other times
      shall be caught but no action performed.
-
-     If the shell is interactive:
-
-        SIGQUIT and SIGTERM signals shall be ignored.
-
-     If the -m option is not in effect, it is unspecified whether
-     SIGTTIN, SIGTTOU, and SIGTSTP signals are ignored, set to the
-     default action, or caught. If they are caught, the shell shall,
-     in the signal-catching function, set the signal to the default
-     action and raise the signal (after taking any appropriate steps,
-     such as restoring terminal settings).
   *)
+  System.real_reset_tty ();
   let positional = prepare_command () in
   let sym_positional = List.map symbolic_string_of_string positional in
   let s0 = { !last_state with 
