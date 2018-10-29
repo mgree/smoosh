@@ -88,7 +88,7 @@ let prepare_command () : string list (* positional args *) =
   match !input_mode with
   | NoFlag -> 
      begin match !args with
-     | [] -> add_opt Sh_interactive; Dash.setinputtostdin (); [] 
+     | [] -> add_opt Sh_interactive; Dash.setinputtostdin (); [Sys.argv.(0)] 
      | cmd::args -> Dash.setinputfile cmd; cmd::args
      end
   | SFlag -> Dash.setinputtostdin (); Sys.argv.(0)::!args 
@@ -225,7 +225,6 @@ let main () =
              Os.sh = { !last_state.Os.sh with 
                        positional_params = sym_positional } } in
   let s1 = initialize_env s0 in
-  let ignore_signals = List.fold_left real_ignore_signal in
   let s2 =
     if is_interactive s1 
     then

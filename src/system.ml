@@ -67,8 +67,19 @@ let real_getpwnam (nam : string) : string option =
   try Some ((Unix.getpwnam nam).pw_dir)
   with Not_found -> None
 
-let real_execve (cmd : string) (argv : string list) (environ : string list) : 'a =
-  Unix.execve cmd (Array.of_list (cmd::argv)) (Array.of_list environ)
+let rec real_execve (cmd : string) (argv : string list) (environ : string list) (binsh : bool) 
+        : 'a =
+  let env = Array.of_list environ in
+  try Unix.execve cmd (Array.of_list (cmd::argv)) env
+  with 
+    | Unix.Unix_error(EINTR,_,_) -> real_execve cmd argv environ binsh
+    | Unix.Unix_error(ENOEXEC,_,_) as err ->
+       if binsh && cmd <> "/bin/sh"
+       then 
+         (* we put cmd on there twice: 
+            once to tell execve what our command name is, once to pass it to the shell *)
+         Unix.execve "/bin/sh" (Array.of_list (cmd::cmd::argv)) env
+       else raise err
 
 let ttyfd =
   try 

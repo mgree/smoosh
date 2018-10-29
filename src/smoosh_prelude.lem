@@ -726,7 +726,7 @@ and stmt =
   | Continue of nat
   | Return
   | Exit
-  | Exec of symbolic_string * list symbolic_string * env
+  | Exec of symbolic_string * list symbolic_string * env * bool (* try /bin/sh? *)
   | Wait of pid 
           * bool (* checked exit status? true means ignore Sh_errexit*) 
           * maybe nat (* Nothing = block; Just n = n steps *)
@@ -1375,7 +1375,7 @@ let rec string_of_stmt c =
   | Continue n -> "continue " ^ show n
   | Return -> "return"
   | Exit -> "exit"
-  | Exec cmd args _env -> spaced "exec" (string_of_fields (cmd::args))
+  | Exec cmd args _env _binsh -> spaced "exec" (string_of_fields (cmd::args))
   | Wait n _checked _steps -> "wait " ^ stringFromNat n
   | Pushredir s _saved -> string_of_stmt s (* TODO leaving stuff out *)
   | Done -> "Done"

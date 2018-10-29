@@ -81,7 +81,12 @@ class ( OS 'a )
   (* SYSTEM CALLS *)
   val getpwnam : os_state 'a -> string -> maybe string
   val execve : 
-    os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * stmt
+    os_state 'a -> 
+    symbolic_string -> (* cmd *)
+    list symbolic_string -> (* argv *)
+    env -> 
+    bool -> (* try /bin/sh? *)
+    os_state 'a * stmt
   val fork_and_subshell : 
     os_state 'a -> 
     stmt -> 
@@ -401,7 +406,7 @@ let do_redirs os0 ers =
 val fork_and_execve : forall 'a. OS 'a =>
     os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * nat
 let fork_and_execve s0 cmd args env =
-  fork_and_subshell s0 (Exec cmd args env) false
+  fork_and_subshell s0 (Exec cmd args env true (* try /bin/sh *)) false
 
 val run_pipe_loop : forall 'a. OS 'a =>
                  os_state 'a ->
@@ -975,8 +980,8 @@ let symbolic_write_stderr s os =
 instance (OS symbolic)
   let getpwnam os u = Map.lookup u os.symbolic.passwd
 
-  let execve os prog argv env =                     
-    (os, Exec prog argv env)
+  let execve os prog argv env binsh =
+    (os, Exec prog argv env binsh)
 
   let fork_and_subshell os stmt _bg =
     (* TODO 2018-10-24 if bg is false, this command will be controlling the terminal
@@ -1348,7 +1353,7 @@ let environ os0 (env : env) : os_state system * list string =
 val real_getpwnam : string -> maybe string
 declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
 
-val real_execve : forall 'a. string -> list string -> list string -> 'a
+val real_execve : forall 'a. string -> list string -> list string -> bool -> 'a
 declare ocaml target_rep function real_execve = `System.real_execve`
 
 val real_fork_and_eval : list int -> os_state system -> stmt -> bool -> nat
@@ -1489,11 +1494,11 @@ let real_renumber_fd (close : bool) (new_fd : fd) (wanted_fd : fd) =
 instance (OS unit)
   let getpwnam _os nam = real_getpwnam nam
                        
-  let execve os0 sprog sargv senv =
+  let execve os0 sprog sargv senv binsh =
     let (os1,_,prog) = concretize os0 sprog in
     let (os2,_,argv) = concretize_many os1 sargv in
     let (os3,env) = environ os2 senv in
-    (os3, real_execve prog argv env)
+    (os3, real_execve prog argv env binsh)
 
   let fork_and_subshell os stmt bg =
     let (subsh,handlers) = clear_traps_for_subshell os.sh in

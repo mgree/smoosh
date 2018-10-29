@@ -493,7 +493,7 @@ let builtin_exec s0 argv env =
        end in
      (* leave behind an exec to the full command *)
      Right (s0, 
-            Exec cmd_path args env, 
+            Exec cmd_path args env false, 
             false (* but it doesn't matter, we'll never return *))
   end
 
@@ -2097,43 +2097,22 @@ let run_command s0_init allow_fun checked prog_name argv env =
                    let s1 = write_stderr (prog ^ ": command not found\n") s0 in
                    Right (exit_with 127 s1, Done, true)
                 | Just executable ->
-                   if is_executable s0 executable
-                   then 
-                     (* TODO 2018-09-06 support this? *)
-                     (* If the execl() function fails due to an error
-                        equivalent to the [ENOEXEC] error defined in
-                        the System Interfaces volume of POSIX.1-2008,
-                        the shell shall execute a command equivalent
-                        to having a shell invoked with the pathname
-                        resulting from the search as its first
-                        operand, with any remaining arguments passed
-                        to the new shell, except that the value of
-                        "$0" in the new shell may be set to the
-                        command name. If the executable file is not a
-                        text file, the shell may bypass this command
-                        execution. In this case, it shall write an
-                        error message, and shall return an exit status
-                        of 126. *)
-                     let (s1,pid) = fork_and_execve 
-                                      s0 
-                                      (symbolic_string_of_string executable) 
-                                      argv 
-                                      env 
-                     in
-                     Right (s1, Wait pid checked Nothing, true)
-                   else (* TODO 2018-08-20 test for text file? *)
-                     (* If the execl() function fails due to an error
-                        equivalent to the [ENOEXEC] error, the shell
-                        shall execute a command equivalent to having a
-                        shell invoked with the command name as its
-                        first operand, with any remaining arguments
-                        passed to the new shell. If the executable
-                        file is not a text file, the shell may bypass
-                        this command execution. In this case, it shall
-                        write an error message and shall return an
-                        exit status of 126. *)
-                     let s1 = write_stderr (executable ^ ": command not executable\n") s0 in
-                     Right (exit_with 126 s1, Done, true)
+                   if file_exists s0 executable
+                   then if is_executable s0 executable
+                        then 
+                          let (s1,pid) = fork_and_execve 
+                                           s0 
+                                           (symbolic_string_of_string executable) 
+                                           argv 
+                                           env 
+                          in
+                          Right (s1, Wait pid checked Nothing, true)
+                        else
+                          let s1 = write_stderr (executable ^ ": command not executable\n") s0 in
+                          Right (exit_with 126 s1, Done, true)
+                   else 
+                     let s1 = write_stderr (executable ^ ": command not found\n") s0 in
+                     Right (exit_with 127 s1, Done, true)
                 end
              end
           end

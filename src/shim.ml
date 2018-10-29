@@ -413,11 +413,12 @@ let rec json_of_stmt = function
   | Break n -> Assoc [tag "Break"; ("n", Int n)]
   | Continue n -> Assoc [tag "Continue"; ("n", Int n)]
   | Return -> Assoc [tag "Return"]
-  | Exec (cmd, args, env) -> 
+  | Exec (cmd, args, env, binsh) -> 
      Assoc [tag "Exec";
             ("cmd", json_of_symbolic_string cmd);
             ("args", json_of_fields args);
-            ("env", json_of_env env)]
+            ("env", json_of_env env);
+            ("binsh", Bool binsh)]
   | Wait (n, checked, bound) -> 
      Assoc ([tag "Wait"; ("pid", Int n); ("checked", Bool checked)] @
               match bound with

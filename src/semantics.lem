@@ -1098,8 +1098,8 @@ and step_eval s0 checked stmt =
      end
 
   (* EXEC *********************************************************************)
-  | Exec cmd args env -> 
-     match execve s0 cmd args env with
+  | Exec cmd args env binsh -> 
+     match execve s0 cmd args env binsh with
      | (_s1, _stmt) -> 
         (* we'll only actually return if we're running symbolically.
            with real OS calls, that execve never comes back! *)
