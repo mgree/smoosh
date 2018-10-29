@@ -1,5 +1,7 @@
 ### Paper TODO
 
+- figure out crazy bug in dash parameter formats
+  new?!
 - run POSIX tests on dash, bash, and smoosh
   + PICK UP still borking, now silently :(
   + automatically export test journal summaries
