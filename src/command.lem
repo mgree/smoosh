@@ -1289,8 +1289,14 @@ let show_job mode (cur_id, prev_id) job s0 =
   in
   write_stdout (msg ^ "\n") s0
 
+val show_jobs : forall 'a. OS 'a => jobs_mode -> nat * nat -> list job_info -> os_state 'a -> os_state 'a
 let show_jobs mode cur_prev jobs s0 =
   foldl (fun os job -> show_job mode cur_prev job os) s0 (sort jobs)
+
+(* helper for the interactive shell in -m and -b *)
+val show_changed_jobs : os_state system -> list job_info -> os_state system
+let show_changed_jobs s0 changed =
+  show_jobs JobsNormal (cur_prev_jobs s0.sh.jobs) changed s0
 
 let rec show_job_specs mode cur_prev specs s0 =
   match specs with

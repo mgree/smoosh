@@ -40,6 +40,7 @@ let all_signals =
   ; Sys.sigxcpu
   ; Sys.sigxfsz]
 
+let gotsigchld = ref false
 let sigblockall () = ignore (Unix.sigprocmask Unix.SIG_BLOCK all_signals)
 let sigunblockall () = ignore (Unix.sigprocmask Unix.SIG_UNBLOCK all_signals)
 
@@ -167,8 +168,8 @@ let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int =
         | (_,Unix.WEXITED code) -> code
         | (_,Unix.WSIGNALED signal) -> 128 + signal (* bash, dash behavior *)
         | (_,Unix.WSTOPPED signal) -> 128 + signal (* bash, dash behavior *)
-    with Unix.Unix_error(EINTR,_,_) -> 130
-       | Unix.Unix_error(ECHILD,_,_) -> 0
+    with Unix.Unix_error(EINTR,_,_) -> real_waitpid rootpid pid jc
+       | Unix.Unix_error(ECHILD,_,_) -> gotsigchld := true; 0
   in
   (* FIXME 2018-10-24 we may need to interrupt ourselves when code=130 
      see jobs.c:1032
@@ -176,6 +177,16 @@ let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int =
   if jc
   then xtcsetpgrp rootpid;
   code
+
+let real_wait_child (child_pid : int) : Unix.process_status option =
+  (* TODO 2018-10-29 only want WUNTRACED when doing job control 
+     TODO 2018-10-29 checking on each child isn't the right way to go
+       we should iteratively call Unix.waitpid with pid -1 until it has no info       
+     PICK UP HERE
+   *)
+  match Unix.waitpid [Unix.WNOHANG; Unix.WUNTRACED] child_pid with
+  | (0, _) -> None (* running *)
+  | (_, status) -> Some status
 
 let show_time time =
   let mins = time /. 60.0 in
@@ -379,6 +390,10 @@ let real_openhere (s : string) : (string,int) either =
 let current_traps : (int * string) list ref = ref []
 
 let handler signal =
+  if signal = Sys.sigchld
+  then 
+    (* TODO 2018-10-29 handle set -o notify properly *)
+    gotsigchld := true;
   match List.assoc_opt signal !current_traps with
   | None -> ()
   | Some cmd -> ignore (!real_eval_string cmd)

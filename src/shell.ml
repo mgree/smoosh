@@ -13,6 +13,7 @@ let input_mode : input_mode ref = ref NoFlag
 let opts : sh_opt list ref = ref []
 let add_opt (opt : sh_opt) : unit = opts := opt::!opts
 let del_opt (opt : sh_opt) : unit = opts := List.filter (fun opt' -> opt <> opt') !opts
+let explicitly_unset_m : bool ref = ref false
 
 let args : string list ref = ref []
 
@@ -48,7 +49,8 @@ let parse_args () =
     ; "+h", Arg.Unit (fun () -> del_opt Sh_earlyhash), ""
 
     ; "-m", Arg.Unit (fun () -> add_opt Sh_monitor), "monitor mode [monitor]"
-    ; "+m", Arg.Unit (fun () -> del_opt Sh_monitor), ""
+    ; "+m", Arg.Unit (fun () -> explicitly_unset_m := true;
+                                del_opt Sh_monitor), ""
 
     ; "-n", Arg.Unit (fun () -> add_opt Sh_noexec), "do not execute commands [noexec]"
     ; "+n", Arg.Unit (fun () -> del_opt Sh_noexec), ""
@@ -165,36 +167,39 @@ let run_cmds s0 =
   finish_up s1
 
 let rec repl s0 =
-  (* TODO 2018-08-14 all kinds of interactive nonsense here *)
+  (* update job list *)
+  let (s1, changed) = update_jobs s0 in
+  let s2 = Command.show_changed_jobs s1 changed in
+  let s3 = List.fold_left real_delete_job s2 changed in
   (* no need to actually print PS1: the dash parser will do it for us *)
   match Dash.parse_next ~interactive:true () with
   | Done -> 
-     if Pset.mem Sh_ignoreeof s0.sh.opts
+     if Pset.mem Sh_ignoreeof s3.sh.opts
      then 
        begin
          prerr_endline "Use \"exit\" to leave shell."; 
-         repl s0
+         repl s3
        end
-     else finish_up s0
-  | Error -> repl s0
-  | Null -> repl s0
+     else finish_up s3
+  | Error -> repl s3
+  | Null -> repl s3
   | Parsed n -> 
      (* TODO 2018-08-31 record trace in a logfile *)
      let c = Shim.of_node n in
      begin 
-       if Pset.mem Sh_verbose s0.sh.opts
+       if Pset.mem Sh_verbose s3.sh.opts
        then prerr_endline (string_of_stmt c)
      end;
-     let s1 = real_eval s0 c in
-     last_state := s1;
+     let s4 = real_eval s3 c in
+     last_state := s4;
      let set x v = 
        match try_concrete v with
        (* don't copy over special variables *)
        | Some s when not (is_special_param x) -> Dash.setvar x s 
        | _ -> ()
      in
-     Pmap.iter set s1.sh.env;
-     repl s1
+     Pmap.iter set s4.sh.env;
+     repl s4
 
 (* TODO lots of special casing at http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sh.html *)
 let main () =
@@ -228,15 +233,22 @@ let main () =
       end
     else s1 
   in
-  let s3 =
-    if is_monitoring s2
+  (* [from sh description, about -m]
+     This option is enabled by default for interactive shells. *)
+  let s3 = 
+    if is_interactive s2 && not !explicitly_unset_m
+    then real_set_sh_opt s2 Sh_monitor
+    else s2
+  in
+  let s4 =
+    if is_monitoring s3
     then
       (* If the -m option is in effect, SIGTTIN, SIGTTOU, and SIGTSTP
          signals shall be ignored. *)
       List.fold_left real_ignore_signal s2 [SIGTTIN; SIGTTOU; SIGTSTP]
-    else s2
+    else s3
   in
-  last_state := s3;
+  last_state := s4;
   if is_interactive !last_state
   then repl !last_state
   else run_cmds !last_state

@@ -885,7 +885,9 @@ and shell_state = <|
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
-    optoff: maybe nat; (* offset for use in parsing options like -ab; inspire dby optoff in libdash/src/options.h:42 *)
+    (* offset for use in parsing options like -ab; 
+       inspired by optoff in libdash/src/options.h:42 *)
+    optoff: maybe nat; 
     readonly: set string;
     export: set string;
     funcs: Map.map string stmt;                 

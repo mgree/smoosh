@@ -346,6 +346,12 @@ let add_job os0 pid cmd =
   in
   <| os1 with sh = <| os1.sh with jobs = new_job::os1.sh.jobs |> |>
 
+val delete_job 
+    : forall 'a. OS 'a => os_state 'a -> job_info -> os_state 'a
+let delete_job os0 job =
+  <| os0 with sh = 
+      <| os0.sh with jobs = filter (fun j -> j.id <> job.id || is_active_job j) os0.sh.jobs |> |>
+
 (* Redirects **********************************************************)
 
 val redirect : forall 'a. OS 'a => os_state 'a -> expanded_redir -> 
@@ -1396,6 +1402,60 @@ declare ocaml target_rep function real_fork_and_eval = `System.real_fork_and_eva
 val real_waitpid : pid (* rootpid *) -> pid (* pid *) -> bool (* jc? *) -> nat (* ec *)
 declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 
+type ocaml_job_status = 
+    OCamlExited of nat
+  | OCamlSignaled of int
+  | OCamlStopped of int
+
+declare ocaml target_rep type ocaml_job_status = `Unix.process_status`
+declare ocaml target_rep function OCamlExited = `Unix.WEXITED`
+declare ocaml target_rep function OCamlSignaled = `Unix.WSIGNALED`
+declare ocaml target_rep function OCamlStopped = `Unix.WSTOPPED`
+
+val real_wait_child : pid -> maybe ocaml_job_status
+declare ocaml target_rep function real_wait_child = `System.real_wait_child`
+
+val wait_child : pid -> job_status
+let wait_child child = 
+  match real_wait_child child with
+  | Nothing -> JobRunning
+  | Just (OCamlExited code) -> JobDone code
+  | Just (OCamlSignaled ocaml_signal) -> JobTerminated (signal_of_ocaml_signal ocaml_signal)
+  | Just (OCamlStopped ocaml_signal) ->
+     let stopper = 
+       match signal_of_ocaml_signal ocaml_signal with
+       | SIGTSTP -> TSTP
+       | SIGSTOP -> STOP
+       | SIGTTIN -> TTIN
+       | SIGTTOU -> TTOU
+       | _       -> STOP (* eh, pick a default *)
+       end
+     in
+     JobStopped stopper
+  end
+
+let rec update_jobs_loop os0 jobs changes =
+  match jobs with
+  | [] -> (os0, changes)
+  | job::jobs' ->
+     let cur_status = wait_child job.pid in
+     if cur_status = job.status
+     then (* no news *)
+       update_jobs_loop os0 jobs' changes
+     else (* update the job status! *)
+       let job' = <| job with status = cur_status |> in
+       let cur_jobs = 
+         map 
+           (fun j -> if j.id = job'.id then job' else j)
+           os0.sh.jobs
+       in
+       let os1 = <| os0 with sh = <| os0.sh with jobs = cur_jobs |> |> in
+       update_jobs_loop os1 jobs' (job'::changes)
+  end
+
+val update_jobs : os_state system -> os_state system * list job_info (* changed *)
+let update_jobs os0 = update_jobs_loop os0 os0.sh.jobs []
+
 val real_handle_signal : int -> maybe string -> unit
 declare ocaml target_rep function real_handle_signal = `System.real_handle_signal`
 
@@ -1718,5 +1778,7 @@ val real_set_sh_opt : os_state system -> sh_opt -> os_state system
 let real_set_sh_opt os opt = set_sh_opt os opt
 
 val real_ignore_signal : os_state system -> signal -> os_state system
-let real_ignore_signal os0 signal =
-  handle_signal os0 signal (Just [])
+let real_ignore_signal os0 signal = handle_signal os0 signal (Just [])
+
+val real_delete_job : os_state system -> job_info -> os_state system
+let real_delete_job os id = delete_job os id
