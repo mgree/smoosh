@@ -14,6 +14,7 @@ let opts : sh_opt list ref = ref []
 let add_opt (opt : sh_opt) : unit = opts := opt::!opts
 let del_opt (opt : sh_opt) : unit = opts := List.filter (fun opt' -> opt <> opt') !opts
 let explicitly_unset_m : bool ref = ref false
+let override_prompts : bool ref = ref true
 
 let args : string list ref = ref []
 
@@ -54,6 +55,8 @@ let parse_args () =
 
     ; "-n", Arg.Unit (fun () -> add_opt Sh_noexec), "do not execute commands [noexec]"
     ; "+n", Arg.Unit (fun () -> del_opt Sh_noexec), ""
+
+    ; "-p", Arg.Unit (fun () -> override_prompts := false), "do not override PS1 and PS2"
 
     ; "-u", Arg.Unit (fun () -> add_opt Sh_nounset), "error on unset parameters [nounset]"   
     ; "+u", Arg.Unit (fun () -> del_opt Sh_nounset), ""
@@ -129,11 +132,14 @@ let initialize_env s0 : system os_state =
     Dash.setvar x v;
     set_param x v os
   in
-  let s0_defaults = set ("PS2","> ") (set ("PS4","+ ") s0) in
-  let s1 = List.fold_right set environ s0_defaults in
-  let s2 = set_param "$" (string_of_int (Unix.getpid ())) s1 in
+  let s1 = List.fold_right set environ s0 in
+  let s2 = 
+    if !override_prompts
+    then set ("PS1","$ ") (set ("PS2","> ") (set ("PS4","+ ") s1))
+    else s1
+  in
+  let s3 = set_param "$" (string_of_int (Unix.getpid ())) s2 in
   (* override the prompt by default *)
-  let s3 = set ("PS1","$ ") s2 in
   (* set up shell options, will set up $- *)
   let s4 = List.fold_right (fun opt os -> real_set_sh_opt os opt) !opts s3 in
   { s4 with sh = { s4.sh with cwd = Unix.getcwd (); 
@@ -213,7 +219,7 @@ let main () =
      EXTENDED DESCRIPTION, and SIGINT signals received at other times
      shall be caught but no action performed.
   *)
-  System.real_reset_tty ();
+  (* System.real_reset_tty (); *)
   let positional = prepare_command () in
   let sym_positional = List.map symbolic_string_of_string positional in
   let s0 = { !last_state with 
@@ -240,15 +246,7 @@ let main () =
     then real_set_sh_opt s2 Sh_monitor
     else s2
   in
-  let s4 =
-    if is_monitoring s3
-    then
-      (* If the -m option is in effect, SIGTTIN, SIGTTOU, and SIGTSTP
-         signals shall be ignored. *)
-      List.fold_left real_ignore_signal s2 [SIGTTIN; SIGTTOU; SIGTSTP]
-    else s3
-  in
-  last_state := s4;
+  last_state := s3;
   if is_interactive !last_state
   then repl !last_state
   else run_cmds !last_state

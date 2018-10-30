@@ -101,7 +101,8 @@ class ( OS 'a )
     os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
   val handle_signal : os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
   val signal_pid : os_state 'a -> signal -> pid -> os_state 'a * bool
-  val reset_tty : os_state 'a -> os_state 'a
+  val tc_setfg : os_state 'a -> pid -> os_state 'a * bool
+  val set_job_control : os_state 'a -> bool -> os_state 'a
   val times : os_state 'a -> 
               (string (* utime *)            * string (* stime *) * 
                string (* utime + children *) * string (* stime + children *))
@@ -347,10 +348,16 @@ let add_job os0 pid cmd =
   <| os1 with sh = <| os1.sh with jobs = new_job::os1.sh.jobs |> |>
 
 val delete_job 
-    : forall 'a. OS 'a => os_state 'a -> job_info -> os_state 'a
-let delete_job os0 job =
+    : forall 'a. OS 'a => os_state 'a -> nat (* job id *) -> os_state 'a
+let delete_job os0 id =
   <| os0 with sh = 
-      <| os0.sh with jobs = filter (fun j -> j.id <> job.id || is_active_job j) os0.sh.jobs |> |>
+      <| os0.sh with jobs = filter (fun j -> j.id <> id || is_active_job j) os0.sh.jobs |> |>
+
+val delete_job_with_pid
+    : forall 'a. OS 'a => os_state 'a -> pid -> os_state 'a
+let delete_job_with_pid os0 pid =
+  <| os0 with sh = 
+      <| os0.sh with jobs = filter (fun j -> j.pid <> pid) os0.sh.jobs |> |>
 
 (* Redirects **********************************************************)
 
@@ -710,10 +717,12 @@ let set_sh_opt os0 opt =
   let os2 = 
     if opt = Sh_monitor
     then
+      (* If the -m option is in effect, SIGTTIN, SIGTTOU, and SIGTSTP
+         signals shall be ignored. *)
       let os2_1 = handle_signal os1   SIGTTOU (Just []) in
       let os2_2 = handle_signal os2_1 SIGTTIN (Just []) in
       let os2_3 = handle_signal os2_2 SIGTSTP (Just []) in
-      reset_tty os2_3
+      set_job_control os2_3 true
     else os1
   in
   internal_fixup_dollardash
@@ -727,7 +736,7 @@ let unset_sh_opt os0 opt =
       let os1_1 = handle_signal os0   SIGTTOU Nothing in
       let os1_2 = handle_signal os1_1 SIGTTIN Nothing in
       let os1_3 = handle_signal os1_2 SIGTSTP Nothing in
-      reset_tty os1_3
+      set_job_control os1_3 false
     else os0
   in
   internal_fixup_dollardash
@@ -1015,6 +1024,51 @@ let symbolic_write_stderr s os =
   | Just os' -> os'
   end
 
+let symbolic_signal_pid os0 signal pid = 
+  match index os0.symbolic.procs pid with
+  | Nothing -> (os0, false)
+  | Just (Zombie _ec) -> (os0, false)
+  | Just (Shell _status stmt proc_sh proc_fds) ->
+     match Map.lookup signal proc_sh.traps with
+     | Nothing -> 
+        match signal_default_behavior signal with
+        | SigBeh_Terminate actions ->
+           let os1 =
+             if actions
+             then log_unspecified "Implementation-defined abnormal termination actions, such as creation of a core file, may also occur." os0
+             else os0
+           in
+           let ec = 128 + platform_int_of_signal signal in
+           let procs' = update os1.symbolic.procs pid (Zombie ec) in
+           let os2 = 
+             <| os1 with symbolic = <| os1.symbolic with procs = procs' |> |>
+           in
+           (os2, true)
+        | SigBeh_Ignore ->
+           let os1 = 
+             log_msg (string_of_signal signal ^ " ignored by process with pid " ^ stringFromNat pid) os0 
+           in
+           (os1, true)
+        | SigBeh_Stop ->
+           let procs' = update os0.symbolic.procs pid (Shell Proc_Stopped stmt proc_sh proc_fds ) in
+           (<| os0 with symbolic = <| os0.symbolic with procs = procs' |> |>, true)
+        | SigBeh_Continue ->
+           let procs' = update os0.symbolic.procs pid (Shell Proc_Running stmt proc_sh proc_fds ) in
+           (<| os0 with symbolic = <| os0.symbolic with procs = procs' |> |>, true)
+        end
+     | Just handler ->
+        let os1 =
+          log_msg (string_of_signal signal ^ " trapped by process with pid " ^ stringFromNat pid) os0 
+        in
+        let procs' = 
+          update os1.symbolic.procs pid 
+            (Shell Proc_Running (command_eval handler) proc_sh proc_fds)
+        in
+        (<| os1 with symbolic = <| os1.symbolic with procs = procs' |> |>, true)
+     end
+  end
+
+
 instance (OS symbolic)
   let getpwnam os u = Map.lookup u os.symbolic.passwd
 
@@ -1101,51 +1155,13 @@ instance (OS symbolic)
 
   let handle_signal = update_trap
 
-  let signal_pid os0 signal pid = 
-    match index os0.symbolic.procs pid with
-    | Nothing -> (os0, false)
-    | Just (Zombie _ec) -> (os0, false)
-    | Just (Shell _status stmt proc_sh proc_fds) ->
-       match Map.lookup signal proc_sh.traps with
-       | Nothing -> 
-          match signal_default_behavior signal with
-          | SigBeh_Terminate actions ->
-             let os1 =
-               if actions
-               then log_unspecified "Implementation-defined abnormal termination actions, such as creation of a core file, may also occur." os0
-               else os0
-             in
-             let ec = 128 + platform_int_of_signal signal in
-             let procs' = update os1.symbolic.procs pid (Zombie ec) in
-             let os2 = 
-               <| os1 with symbolic = <| os1.symbolic with procs = procs' |> |>
-             in
-             (os2, true)
-          | SigBeh_Ignore ->
-             let os1 = 
-               log_msg (string_of_signal signal ^ " ignored by process with pid " ^ stringFromNat pid) os0 
-             in
-             (os1, true)
-          | SigBeh_Stop ->
-             let procs' = update os0.symbolic.procs pid (Shell Proc_Stopped stmt proc_sh proc_fds ) in
-             (<| os0 with symbolic = <| os0.symbolic with procs = procs' |> |>, true)
-          | SigBeh_Continue ->
-             let procs' = update os0.symbolic.procs pid (Shell Proc_Running stmt proc_sh proc_fds ) in
-             (<| os0 with symbolic = <| os0.symbolic with procs = procs' |> |>, true)
-          end
-       | Just handler ->
-          let os1 =
-            log_msg (string_of_signal signal ^ " trapped by process with pid " ^ stringFromNat pid) os0 
-          in
-          let procs' = 
-            update os1.symbolic.procs pid 
-              (Shell Proc_Running (command_eval handler) proc_sh proc_fds)
-          in
-          (<| os1 with symbolic = <| os1.symbolic with procs = procs' |> |>, true)
-       end
-    end
+  let signal_pid os0 signal pid = symbolic_signal_pid os0 signal pid
 
-  let reset_tty os0 = os0
+  let tc_setfg os0 _pid = 
+    (* TODO 2018-10-30 track console control info *)
+    (os0, false)
+
+  let set_job_control os0 _on = os0
 
   let times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
 
@@ -1462,11 +1478,17 @@ declare ocaml target_rep function real_handle_signal = `System.real_handle_signa
 val real_signal_pid : int -> pid -> bool
 declare ocaml target_rep function real_signal_pid = `System.real_signal_pid`
 
-val real_reset_tty : unit -> unit
-declare ocaml target_rep function real_reset_tty = `System.real_reset_tty`
+val real_tcsetpgrp : pid -> bool
+declare ocaml target_rep function real_tcsetpgrp = `System.xtcsetpgrp`
 
-val real_exit : forall 'a. nat -> 'a
-declare ocaml target_rep function real_exit = `exit`
+val real_enable_jobcontrol : pid -> unit
+declare ocaml target_rep function real_enable_jobcontrol = `System.real_enable_jobcontrol`
+
+val real_disable_jobcontrol : unit -> unit
+declare ocaml target_rep function real_disable_jobcontrol = `System.real_disable_jobcontrol`
+
+val real_exit : forall 'a. maybe string -> nat -> 'a
+declare ocaml target_rep function real_exit = `System.real_exitshell`
 
 val real_times : unit -> string * string * string * string
 declare ocaml target_rep function real_times = `System.real_times`
@@ -1691,7 +1713,19 @@ instance (OS unit)
             end
          end
       end in
-    real_exit ec
+    (* turn off SIGINT handling if it's the interactive 'continue repl' handler *)
+    let _ =
+      if Set.member Sh_interactive os.sh.opts && not (Map.member SIGINT os.sh.traps)
+      then real_handle_signal ocaml_sigint Nothing
+      else ()
+    in
+    let cmd =
+      match Map.lookup EXIT os.sh.traps with
+      | Nothing -> Nothing
+      | Just ss_cmd -> Just (string_of_symbolic_string ss_cmd)
+      end
+    in
+    real_exit cmd ec
 
   let waitpid _step_eval os pid =
     let code = real_waitpid os.sh.rootpid pid (Set.member Sh_monitor os.sh.opts) in
@@ -1722,8 +1756,17 @@ instance (OS unit)
        (os0, success)
     end
 
-  let reset_tty os0 =
-    let _ = real_reset_tty () in
+  let tc_setfg os0 pid =
+    if Set.member Sh_monitor os0.sh.opts
+    then (os0, real_tcsetpgrp pid)
+    else (os0, false)
+
+  let set_job_control os0 on =
+    let _ = 
+      if on
+      then real_enable_jobcontrol os0.sh.rootpid
+      else real_disable_jobcontrol ()
+    in
     os0
 
   let times _os = real_times ()
@@ -1781,4 +1824,4 @@ val real_ignore_signal : os_state system -> signal -> os_state system
 let real_ignore_signal os0 signal = handle_signal os0 signal (Just [])
 
 val real_delete_job : os_state system -> job_info -> os_state system
-let real_delete_job os id = delete_job os id
+let real_delete_job os job = delete_job os job.id

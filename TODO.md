@@ -15,6 +15,8 @@
 
 ### Bugs
 
+- broken arg parsing (OCaml Arg demands options start with a -)
+- running ./shell on scripts causes the outer shell to exit
 - PIDs
   + 0 referring to everything in the process group (kill only?)
   + negative PIDs for process groups?

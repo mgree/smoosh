@@ -73,8 +73,8 @@ let rec real_execve (cmd : string) (argv : string list) (environ : string list) 
   let env = Array.of_list environ in
   try Unix.execve cmd (Array.of_list (cmd::argv)) env
   with 
-    | Unix.Unix_error(EINTR,_,_) -> real_execve cmd argv environ binsh
-    | Unix.Unix_error(ENOEXEC,_,_) as err ->
+    | Unix.Unix_error(Unix.EINTR,_,_) -> real_execve cmd argv environ binsh
+    | Unix.Unix_error(Unix.ENOEXEC,_,_) as err ->
        if binsh && cmd <> "/bin/sh"
        then 
          (* we put cmd on there twice: 
@@ -82,33 +82,80 @@ let rec real_execve (cmd : string) (argv : string list) (environ : string list) 
          Unix.execve "/bin/sh" (Array.of_list (cmd::cmd::argv)) env
        else raise err
 
-let ttyfd =
-  try 
-    (* FIXME 2018-10-24 tty path configurable *)
-    Unix.openfile "/dev/tty" [Unix.O_RDWR] 0o666
-  with Unix.Unix_error(_,_,_) ->
-        try if Unix.isatty Unix.stdin
-            then Unix.stdin
-            else if Unix.isatty Unix.stdout
-            then Unix.stdout
-            else if Unix.isatty Unix.stderr
-            then Unix.stderr
-            else fd_of_int 0 (* ah well *)
-        with Unix.Unix_error(_,_,_) -> fd_of_int 0
+let ttyfd : Unix.file_descr option ref = ref None
+let initialpgrp = ref (-1)
+
+let set_initialpgrp () =
+  match !ttyfd with
+  | None -> initialpgrp := -1
+  | Some fd ->
+     try initialpgrp := ExtUnix.tcgetpgrp fd
+     with Unix.Unix_error(_,_,_) ->
+           begin
+             ttyfd := None;
+             initialpgrp := -1
+           end
+
+let open_ttyfd () =
+  match !ttyfd with
+  | None ->
+     ttyfd := 
+       (try 
+          (* FIXME 2018-10-24 tty path configurable *)
+          Some (Unix.openfile "/dev/tty" [Unix.O_RDWR] 0o666)
+        with Unix.Unix_error(_,_,_) -> begin
+            try if Unix.isatty Unix.stdin
+                then Some Unix.stdin
+                else if Unix.isatty Unix.stdout
+                then Some Unix.stdout
+                else if Unix.isatty Unix.stderr
+                then Some Unix.stderr
+                else None
+            with Unix.Unix_error(_,_,_) -> None
+          end)
+  | Some _ -> ()
+
+let close_ttyfd () =
+  match !ttyfd with
+  | None -> ()
+  | Some fd -> 
+     begin 
+       ttyfd := None;
+       Unix.close fd
+     end
 
 let real_getpgrp () = ExtUnix.getpgid 0
 
-let xtcsetpgrp pgid : unit =
-  try ExtUnix.tcsetpgrp ttyfd pgid
-  with Unix.Unix_error(e,_,_) ->
-    (* disabling warning because we're overdoing this *)
-    (* Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e) *)
-    ()
+let xtcsetpgrp pgid : bool =
+  match !ttyfd with
+  | None -> false
+  | Some fd ->
+     try ExtUnix.tcsetpgrp fd pgid; true
+     with Unix.Unix_error(_e,_,_) ->
+       (* disabling warning because we're overdoing this *)
+       (* Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e) *)
+       false
 
-let real_reset_tty () : unit =
-  let pid = Unix.getpid () in
-  ExtUnix.setpgid pid pid;
-  xtcsetpgrp pid
+let real_enable_jobcontrol rootpid =
+  open_ttyfd ();
+  set_initialpgrp ();
+  if !initialpgrp <> -1
+  then 
+    begin
+      Sys.set_signal Sys.sigttou Sys.Signal_ignore;
+      Sys.set_signal Sys.sigttin Sys.Signal_ignore;
+      Sys.set_signal Sys.sigtstp Sys.Signal_ignore;
+      ExtUnix.setpgid 0 rootpid;
+      ignore (xtcsetpgrp rootpid)
+    end
+
+let real_disable_jobcontrol () =
+  ignore (xtcsetpgrp !initialpgrp);
+  ExtUnix.setpgid 0 !initialpgrp;
+  Sys.set_signal Sys.sigttou Sys.Signal_default;
+  Sys.set_signal Sys.sigttin Sys.Signal_default;
+  Sys.set_signal Sys.sigtstp Sys.Signal_default;   
+  close_ttyfd ()
 
 let real_fork_and_eval 
       (handlers : int list) 
@@ -123,16 +170,18 @@ let real_fork_and_eval
   sigblockall ();
   match Unix.fork () with
   | 0 -> 
+     List.iter (fun signal -> Sys.set_signal signal Signal_ignore) handlers;
      (* more or less following dash's forkchild in jobs.c:847-907 *)
      if outermost && jc
      then begin
-         Sys.set_signal Sys.sigtstp Signal_default;
-         Sys.set_signal Sys.sigttou Signal_default;
+         Sys.set_signal Sys.sigtstp Signal_ignore;
+         Sys.set_signal Sys.sigttou Signal_ignore;
+         Sys.set_signal Sys.sigttin Signal_ignore;
          let pid = Unix.getpid () in
-         ExtUnix.setpgid pid (pgrp pid);
-         if not bg
+         ExtUnix.setpgid 0 (pgrp pid);
+         if not bg 
          then
-           xtcsetpgrp (pgrp pid)
+           ignore (xtcsetpgrp (pgrp pid))
        end
      else if bg
      then 
@@ -151,12 +200,11 @@ let real_fork_and_eval
              Sys.set_signal Sys.sigquit Signal_default;
            end;
        end;
-     List.iter (fun signal -> Sys.set_signal signal Signal_ignore) handlers;
      sigunblockall ();
      let status = !real_eval (Obj.magic os) (Obj.magic stmt) in 
      exit status
   | pid -> 
-     sigunblockall ();
+     sigunblockall (); 
      if jc
      then 
        ExtUnix.setpgid pid (pgrp pid);
@@ -168,25 +216,26 @@ let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int =
         | (_,Unix.WEXITED code) -> code
         | (_,Unix.WSIGNALED signal) -> 128 + signal (* bash, dash behavior *)
         | (_,Unix.WSTOPPED signal) -> 128 + signal (* bash, dash behavior *)
-    with Unix.Unix_error(EINTR,_,_) -> real_waitpid rootpid pid jc
-       | Unix.Unix_error(ECHILD,_,_) -> gotsigchld := true; 0
+    with Unix.Unix_error(Unix.EINTR,_,_) -> real_waitpid rootpid pid jc
+       | Unix.Unix_error(Unix.ECHILD,_,_) -> gotsigchld := true; 0
   in
   (* FIXME 2018-10-24 we may need to interrupt ourselves when code=130 
      see jobs.c:1032
    *)
   if jc
-  then xtcsetpgrp rootpid;
+  then ignore (xtcsetpgrp rootpid);
   code
 
 let real_wait_child (child_pid : int) : Unix.process_status option =
   (* TODO 2018-10-29 only want WUNTRACED when doing job control 
      TODO 2018-10-29 checking on each child isn't the right way to go
        we should iteratively call Unix.waitpid with pid -1 until it has no info       
-     PICK UP HERE
    *)
-  match Unix.waitpid [Unix.WNOHANG; Unix.WUNTRACED] child_pid with
-  | (0, _) -> None (* running *)
-  | (_, status) -> Some status
+  try 
+    match Unix.waitpid [Unix.WNOHANG; Unix.WUNTRACED] child_pid with
+    | (0, _) -> None (* running *)
+    | (_, status) -> Some status
+  with Unix.Unix_error(Unix.ECHILD,_,_) -> None
 
 let show_time time =
   let mins = time /. 60.0 in
@@ -305,9 +354,9 @@ let real_read_char_fd (fd:int) : (string,char option) either =
     | 0 -> Right None
     | 1 -> Right (Some (Bytes.get buff 0))
     | _ -> Left ("couldn't read " ^ string_of_int fd)
-  with Unix.Unix_error(EPIPE,_,_) -> Left "broken pipe"
-     | Unix.Unix_error(EBADF,_,_) -> Left "no such fd"
-     | Unix.Unix_error(EINTR,_,_) -> Left "interrupted"
+  with Unix.Unix_error(Unix.EPIPE,_,_) -> Left "broken pipe"
+     | Unix.Unix_error(Unix.EBADF,_,_) -> Left "no such fd"
+     | Unix.Unix_error(Unix.EINTR,_,_) -> Left "interrupted"
 
 let real_read_line_fd backslash_escapes (fd:int) 
     : (string, string * bool (* eof? *)) either =
@@ -412,3 +461,13 @@ let real_handle_signal signal action =
 let real_signal_pid signal pid =
   try Unix.kill pid signal; true
   with Unix.Unix_error(_) -> false
+
+let real_exitshell (exit_trap : string option) (code : int) =
+  (* run EXIT trap *)
+  begin match exit_trap with
+  | Some cmd -> ignore (!real_eval_string cmd)
+  | None -> ()
+  end;
+  (* disable job control *)  
+  (* flush all *)
+  exit code

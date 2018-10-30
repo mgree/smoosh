@@ -1121,12 +1121,13 @@ and step_eval s0 checked stmt =
             s0,
             Done)
    
-  | Wait n wait_checked bound -> 
+  | Wait pid wait_checked bound -> 
      let exit_on_error = not wait_checked && Set.member Sh_errexit s0.sh.opts in
-     match waitpid step_eval s0 n with
+     let s_pid = stringFromNat pid in
+     match waitpid step_eval s0 pid with
      | (s1, Nothing) -> 
-        Right (XSWait ("couldn't step process with pid " ^ stringFromNat n), 
-               write_stderr ("wait: pid " ^ stringFromNat n ^ " is not a child of this shell") s1, 
+        Right (XSWait ("couldn't step process with pid " ^ s_pid), 
+               write_stderr ("wait: pid " ^ s_pid ^ " is not a child of this shell") s1, 
                Done)
      | (s1, Just (Left step)) ->
         (* we took a step, so record it *)
@@ -1136,13 +1137,14 @@ and step_eval s0 checked stmt =
           | Just n -> Just (n - 1)
           end
         in
-        Right (XSNested (XSWait ("process with pid " ^ stringFromNat n ^ " stepped")) 
+        Right (XSNested (XSWait ("process with pid " ^ s_pid ^ " stepped")) 
                         step,
                s1,
-               Wait n wait_checked bound')
+               Wait pid wait_checked bound')
      | (s1, Just (Right code)) ->
-        Right (XSWait ("process with pid " ^ stringFromNat n ^ " completed"),
-               exit_with code s1,
+        let s2 = delete_job_with_pid s1 pid in
+        Right (XSWait ("process with pid " ^ s_pid ^ " completed"),
+               exit_with code s2,
                if exit_on_error && code <> 0
                then Exit
                else Done)

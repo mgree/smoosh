@@ -1998,6 +1998,25 @@ let builtin_getopts os0 argv _env =
      getopts_loop os2 (toCharList optstring) name (getopts_OPTIND os2) args
   | _ -> Left (os0, "usage: getopts optstring name [arg...]")
   end
+
+let builtin_fg os0 argv _env =
+  let m_pid =
+    match argv with
+    | [] -> 
+       match os0.sh.jobs with
+       | [] -> Left "No current job"
+       | job::_ -> Right job.pid
+       end
+    | ss_spec::_ -> pid_of_symbolic_string os0 ss_spec
+    end
+  in
+  match m_pid with
+  | Left err -> Left (os0, err)
+  | Right pid -> 
+     let (os1, _tc_ok) = tc_setfg os0 pid in
+     let (os2, _signal_ok) = signal_pid os1 SIGCONT pid in
+     Right (os2, Wait pid false Nothing)
+  end
      
 (* TODO 2018-10-01 remaining worthwhile operations *)
 
@@ -2007,7 +2026,6 @@ let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stu
 (* bg/fg are implemented as the same command in dash. 
    not too bad, need some fancy logic per restartjob *)
 let builtin_bg = builtin_unimplemented (* UP *)
-let builtin_fg = builtin_unimplemented (* UP *)
 
 (* LATER 2018-10-01 *)
 let builtin_local = builtin_unimplemented (* unspec, but nice to have? *)
