@@ -463,6 +463,12 @@ let real_signal_pid signal pid =
   with Unix.Unix_error(_) -> false
 
 let real_exitshell (exit_trap : string option) (code : int) =
+  (* PICK UP HERE 2018-10-31 
+     
+     make the core logic here an OS generic thing, set up system call
+
+     if this isn't what's breaking things... lord, who knows.
+   *)
   (* run EXIT trap *)
   begin match exit_trap with
   | Some cmd -> ignore (!real_eval_string cmd)
