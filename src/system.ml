@@ -231,15 +231,12 @@ let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int =
   then ignore (xtcsetpgrp rootpid);
   code
 
-let real_wait_child (child_pid : int) : Unix.process_status option =
-  (* TODO 2018-10-29 only want WUNTRACED when doing job control 
-     TODO 2018-10-29 checking on each child isn't the right way to go
-       we should iteratively call Unix.waitpid with pid -1 until it has no info       
-   *)
+let real_wait_child (jc : bool) : (int * Unix.process_status) option =
+  let flags = if jc then [Unix.WNOHANG; Unix.WUNTRACED] else [Unix.WNOHANG] in
   try 
-    match Unix.waitpid [Unix.WNOHANG; Unix.WUNTRACED] child_pid with
-    | (0, _) -> None (* running *)
-    | (_, status) -> Some status
+    match Unix.waitpid flags (-1) with
+    | (0, _) -> None (* running/no update *)
+    | (pid, status) -> Some (pid, status)
   with Unix.Unix_error(Unix.ECHILD,_,_) -> None
 
 let show_time time =
@@ -463,6 +460,6 @@ let real_handle_signal signal action =
   current_traps := new_traps @ old_traps;
   Sys.set_signal signal handler
 
-let real_signal_pid signal pid =
-  try Unix.kill pid signal; true
+let real_signal_pid signal pid as_pg =
+  try Unix.kill (if as_pg then -pid else pid) signal; true
   with Unix.Unix_error(_) -> false

@@ -174,7 +174,7 @@ let run_cmds s0 =
 
 let rec repl s0 =
   (* update job list *)
-  let (s1, changed) = update_jobs s0 in
+  let (s1, changed) = real_update_jobs s0 in
   let s2 = Command.show_changed_jobs s1 changed in
   let s3 = List.fold_left real_delete_job s2 changed in
   (* no need to actually print PS1: the dash parser will do it for us *)

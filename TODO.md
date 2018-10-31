@@ -17,15 +17,7 @@
 
 - broken arg parsing (OCaml Arg demands options start with a -)
 - running ./shell on scripts causes the outer shell to exit
-- PIDs
-  + 0 referring to everything in the process group (kill only?)
-  + negative PIDs for process groups?
 - job control and PIDs
-  + showjobs support
-    handle SIGCHLD, set a flag
-    dowait/waitone/waitproc
-      carefully reap all zombie processes!
-  
   + real_waitpid needs to know more job info about what it's waiting for
   + INTON/INTOFF to get correct command editing behavior:
   

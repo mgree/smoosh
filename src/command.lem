@@ -1741,7 +1741,7 @@ let rec signal_pids s0 signal spids =
      match pid_of_symbolic_string s0 ss_pid with
      | Left msg -> Left (s0, msg)
      | Right pid ->
-        let (s1, ok) = signal_pid s0 signal pid in
+        let (s1, ok) = signal_pid s0 signal pid false in
         let s2 = if not ok then exit_with 1 s1 else s1 in
         signal_pids s2 signal spids'
      end
@@ -2014,7 +2014,7 @@ let builtin_fg os0 argv _env =
   | Left err -> Left (os0, err)
   | Right pid -> 
      let (os1, _tc_ok) = tc_setfg os0 pid in
-     let (os2, _signal_ok) = signal_pid os1 SIGCONT pid in
+     let (os2, _signal_ok) = signal_pid os1 SIGCONT pid true in
      Right (os2, Wait pid false Nothing)
   end
      

@@ -868,7 +868,7 @@ and job_info = <|
     pid: pid;
     cmd: stmt;
     status: job_status;
-    pgrp: nat |>
+    pgrp: pid |>
 
 and shell_state = <|
     rootpid: pid;
@@ -1299,6 +1299,8 @@ let show_unless expected actual =
   then ""
   else stringFromNat actual
 
+let string_of_pid pid = stringFromNat pid
+
 val string_of_simple 
     : forall 'a 'c 'r. 
       ('a -> string) -> ('c -> string) -> ('r -> string) ->
@@ -1379,7 +1381,7 @@ let rec string_of_stmt c =
   | Return -> "return"
   | Exit -> "exit"
   | Exec cmd args _env _binsh -> spaced "exec" (string_of_fields (cmd::args))
-  | Wait n _checked _steps -> "wait " ^ stringFromNat n
+  | Wait n _checked _steps -> "wait " ^ string_of_pid n
   | Pushredir s _saved -> string_of_stmt s (* TODO leaving stuff out *)
   | Done -> "Done"
   end
