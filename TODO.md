@@ -16,7 +16,6 @@
 ### Bugs
 
 - broken arg parsing (OCaml Arg demands options start with a -)
-- running ./shell on scripts causes the outer shell to exit
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
   + INTON/INTOFF to get correct command editing behavior:
