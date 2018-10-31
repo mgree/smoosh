@@ -60,8 +60,6 @@
 
 ### Last of the shell semantics
 
-- tests for kill
-
 - history
   + fc
   + Sh_nolog
@@ -69,7 +67,6 @@
 
 - job control
   + bg
-  + fg
   + Sh_notify
   need to update current job statuses on ECHLD, every command loop
   jobs command should also be checking!
@@ -79,10 +76,6 @@
   ENV (interactive only)
   PPID
 - faithful handling of PATH_MAX
-
-- tests for pipes and redirects
-- eval/.
-  + write more tests
 
 - expansion: make null more explicit... simplify matches?
 
@@ -158,6 +151,12 @@
   Ralf &co are more or less doing this with their restriction on aliases
 
 ### Testing
+
+- tests of the shell proper
+  + kill
+  + pipes and redirects
+  + eval/.
+  + shell within shell
 
 - VM for POSIX testing
   run on dash, bash

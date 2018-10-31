@@ -1,5 +1,6 @@
 open Config
 open Smoosh
+open Os_system
 open Semantics
 
 (**********************************************************************)

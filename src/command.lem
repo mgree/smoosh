@@ -813,7 +813,7 @@ let do_cd s0 mode dir =
       | Nothing -> (dir,false)
       | Just cdpath -> 
          let cdpaths = split_string_on true (* escapable *) #':' cdpath in
-         match resolve_path_with (isdir s0) cdpaths dir with
+         match resolve_path_with (is_dir s0) cdpaths dir with
          | Nothing -> (dir,false)
          | Just dir' -> (dir',true)
          end

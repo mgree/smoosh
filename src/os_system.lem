@@ -1,0 +1,415 @@
+open import Smoosh_prelude
+open import Os
+
+(**********************************************************************)
+(* REAL OS STATE INSTANCE *********************************************)
+(**********************************************************************)
+
+type system = unit
+
+(* generate an 'environ'-style string given an env *)
+let environ os0 (env : env) : os_state system * list string =
+  foldr 
+    (fun (x,v) (os,l) -> 
+      let (os',_,str) = concretize os v in
+      (os',(x ^ "=" ^ str) :: l))
+    (os0,[])
+    (Map_extra.toList env)
+
+val real_getpwnam : string -> maybe string
+declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
+
+val real_execve : forall 'a. string -> list string -> list string -> bool -> 'a
+declare ocaml target_rep function real_execve = `System.real_execve`
+
+val real_fork_and_eval : list int -> os_state system -> stmt -> bool -> maybe pid -> bool -> bool -> bool -> pid
+declare ocaml target_rep function real_fork_and_eval = `System.real_fork_and_eval`
+
+val real_waitpid : pid (* rootpid *) -> pid (* pid *) -> bool (* jc? *) -> nat (* ec *)
+declare ocaml target_rep function real_waitpid = `System.real_waitpid`
+
+type ocaml_job_status = 
+    OCamlExited of nat
+  | OCamlSignaled of int
+  | OCamlStopped of int
+
+declare ocaml target_rep type ocaml_job_status = `Unix.process_status`
+declare ocaml target_rep function OCamlExited = `Unix.WEXITED`
+declare ocaml target_rep function OCamlSignaled = `Unix.WSIGNALED`
+declare ocaml target_rep function OCamlStopped = `Unix.WSTOPPED`
+
+let job_status_of_ocaml_status ocaml_status =
+  match ocaml_status with
+  | OCamlExited code -> JobDone code
+  | OCamlSignaled ocaml_signal -> JobTerminated (signal_of_ocaml_signal ocaml_signal)
+  | OCamlStopped ocaml_signal ->
+     let stopper = 
+       match signal_of_ocaml_signal ocaml_signal with
+       | SIGTSTP -> TSTP
+       | SIGSTOP -> STOP
+       | SIGTTIN -> TTIN
+       | SIGTTOU -> TTOU
+       | _       -> STOP (* eh, pick a default *)
+       end
+     in
+     JobStopped stopper
+  end
+
+val real_wait_child : bool (* jc? *) -> maybe (pid * ocaml_job_status)
+declare ocaml target_rep function real_wait_child = `System.real_wait_child`
+
+val real_handle_signal : int -> maybe string -> unit
+declare ocaml target_rep function real_handle_signal = `System.real_handle_signal`
+
+val real_signal_pid : int -> pid -> bool (* as pg? *) -> bool
+declare ocaml target_rep function real_signal_pid = `System.real_signal_pid`
+
+val real_tcsetpgrp : pid -> bool
+declare ocaml target_rep function real_tcsetpgrp = `System.xtcsetpgrp`
+
+val real_enable_jobcontrol : pid -> unit
+declare ocaml target_rep function real_enable_jobcontrol = `System.real_enable_jobcontrol`
+
+val real_disable_jobcontrol : unit -> unit
+declare ocaml target_rep function real_disable_jobcontrol = `System.real_disable_jobcontrol`
+
+val real_exit : forall 'a. nat -> 'a
+declare ocaml target_rep function real_exit = `System.real_exit`
+
+val real_times : unit -> string * string * string * string
+declare ocaml target_rep function real_times = `System.real_times`
+
+val real_get_umask : unit -> nat
+declare ocaml target_rep function real_get_umask = `System.real_get_umask`
+
+val real_set_umask : nat -> unit
+declare ocaml target_rep function real_set_umask = `System.real_set_umask`
+
+val real_physical_cwd : unit -> string
+declare ocaml target_rep function real_physical_cwd = `Unix.getcwd`
+
+val real_chdir : path -> maybe string
+declare ocaml target_rep function real_chdir = `System.real_chdir`
+
+val real_file_exists : path -> bool
+declare ocaml target_rep function real_file_exists = `System.real_file_exists`
+
+val real_file_size : path -> maybe nat
+declare ocaml target_rep function real_file_size = `System.real_file_size`
+
+val real_file_perms : path -> maybe nat
+declare ocaml target_rep function real_file_perms = `System.real_file_perms`
+
+val real_file_type : path -> maybe file_type
+declare ocaml target_rep function real_file_type = `System.real_file_type`
+
+val real_is_tty : fd -> bool
+declare ocaml target_rep function real_is_tty = `System.real_is_tty`
+
+val real_is_readable : path -> bool
+declare ocaml target_rep function real_is_readable = `System.real_is_readable`
+
+val real_is_writeable : path -> bool
+declare ocaml target_rep function real_is_writeable = `System.real_is_writeable`
+
+val real_is_executable : path -> bool
+declare ocaml target_rep function real_is_executable = `System.real_is_executable`
+
+val real_readdir : string -> list (string * bool)
+declare ocaml target_rep function real_readdir = `System.real_readdir`
+
+val real_write_fd : fd -> string -> bool
+declare ocaml target_rep function real_write_fd = `System.real_write_fd`
+
+val real_read_all_fd : fd -> maybe string
+declare ocaml target_rep function real_read_all_fd = `System.real_read_all_fd`
+
+val real_read_line_fd : bool -> fd -> either string (string * bool)
+declare ocaml target_rep function real_read_line_fd = `System.real_read_line_fd`
+
+val real_pipe : unit -> fd * fd
+declare ocaml target_rep function real_pipe = `System.real_pipe`
+
+type open_flags
+declare ocaml target_rep type open_flags = `System.open_flags` 
+val to_flags : open_flags
+declare ocaml target_rep function to_flags = `System.to_flags`
+val clobber_flags : open_flags
+declare ocaml target_rep function clobber_flags = `System.clobber_flags`
+val from_flags : open_flags   
+declare ocaml target_rep function from_flags = `System.from_flags`
+val fromto_flags : open_flags
+declare ocaml target_rep function fromto_flags = `System.fromto_flags`
+val append_flags : open_flags
+declare ocaml target_rep function append_flags = `System.append_flags`
+
+val flags_of_redir_type : forall 'a. os_state 'a -> redir_type -> open_flags
+let flags_of_redir_type s0 rt =
+  match rt with
+  | To -> if Set.member Sh_noclobber s0.sh.opts then to_flags else clobber_flags
+  | Clobber -> clobber_flags
+  | From -> from_flags
+  | FromTo -> fromto_flags
+  | Append -> append_flags
+  end
+
+val real_open : string -> open_flags -> either string fd
+declare ocaml target_rep function real_open = `System.real_open`
+
+val real_close : fd -> unit
+declare ocaml target_rep function real_close = `System.real_close`
+
+val real_savefd : fd -> either string fd
+declare ocaml target_rep function real_savefd = `System.real_savefd`
+
+val real_dup2 : fd -> fd -> maybe string
+declare ocaml target_rep function real_dup2 = `System.real_dup2`
+
+val real_openhere : string -> either string fd
+declare ocaml target_rep function real_openhere = `System.real_openhere`
+
+let real_close_and_save_fd fd =
+  match real_savefd fd with
+  | Left err -> Left err
+  | Right saved_fd ->
+     let () = real_close fd in
+     Right [(fd,Saved saved_fd)]
+  end
+
+let real_renumber_fd (close : bool) (new_fd : fd) (wanted_fd : fd) =
+  if new_fd = wanted_fd
+  then 
+    (* we fished our wish! no need to dup or anything.
+       just remember to clean up when you're done *)
+    Right (if close then [(wanted_fd,Close)] else [])
+    else (* need to save wanted_fd and then dup *)
+      match real_savefd wanted_fd with
+      | Left err -> Left err
+      | Right saved_fd -> 
+         match real_dup2 new_fd wanted_fd with
+         | Just err -> Left err
+         | Nothing -> 
+            (* close the actual fd we got, now that we've
+               relocated it where we want it *)
+            let () = if close then real_close new_fd else () in
+            Right [(wanted_fd, Saved saved_fd)]
+         end
+      end
+
+instance (OS unit)
+  let getpwnam _os nam = real_getpwnam nam
+                       
+  let execve os0 sprog sargv senv binsh =
+    let (os1,_,prog) = concretize os0 sprog in
+    let (os2,_,argv) = concretize_many os1 sargv in
+    let (os3,env) = environ os2 senv in
+    (os3, real_execve prog argv env binsh)
+
+  let fork_and_subshell os stmt bg pgid jc =
+    let (subsh,handlers) = clear_traps_for_subshell os.sh in
+    (* When a subshell is entered, traps that are not being ignored
+       shall be set to the default actions, except in the case of a
+       command substitution containing only a single trap command,
+       when the traps need not be altered. Implementations may check
+       for this case using only lexical analysis; for example, if
+       `trap` and $( trap -- ) do not alter the traps in the subshell,
+       cases such as assigning var=trap and then using $($var) may
+       still alter them. This does not imply that the trap command
+       cannot be used within the subshell to set new traps.  *) 
+    let pid = 
+      real_fork_and_eval 
+        (List.mapMaybe ocaml_signal_of_signal handlers) (* ignore these signals! *)
+        (<| os with sh = subsh |>) (* update the traps *)
+        stmt
+        bg
+        pgid
+        os.sh.outermost
+        (jc && is_monitoring os)
+        (is_interactive os)
+    in
+    (os, pid)
+
+  let physical_cwd _os = real_physical_cwd ()
+
+  let chdir os path =
+    match real_chdir path with
+    | Nothing -> (<| os with sh = <| os.sh with cwd = path |> |>, Nothing)
+    | Just err -> (os, Just err)
+    end
+      
+  let file_exists _os path = real_file_exists path
+
+  let file_size _os path = real_file_size path
+
+  let file_perms _os path = 
+    match real_file_perms path with
+    | Nothing -> Nothing
+    | Just num_perms -> Just (perms_of_nat num_perms)
+    end
+
+  let file_type _os path = real_file_type path
+
+  let is_tty _os fd = real_is_tty fd
+
+  let is_readable _os path = real_is_readable path
+  let is_writeable _os path = real_is_writeable path
+  let is_executable _os path = real_is_executable path
+
+  let readdir _os path = 
+    let contents = real_readdir path in
+    let convert (f,is_dir) = (f,if is_dir then Dir () else File) in
+    Set.fromList (map convert contents)
+
+  let write_fd os fd s =
+    if real_write_fd fd s
+    then Just os
+    else Nothing
+
+  let read_all_fd os fd =
+    match real_read_all_fd fd with
+    | Nothing -> Nothing
+    | Just s -> Just (os,s)
+    end
+
+  let read_line_fd os backslash_escapes fd =
+    match real_read_line_fd backslash_escapes fd with
+    | Left err -> (os, ReadError err)
+    | Right (s, hit_eof) -> (os, ReadSuccess s hit_eof)
+    end
+
+  let close_fd os fd =
+    let () = real_close fd in
+    os
+
+  let pipe os =
+    let (fd_read, fd_write) = real_pipe () in
+    (os, fd_read, fd_write)
+
+  let exit os =
+    let ec = 
+      match Map.lookup "?" os.sh.env with
+      | Nothing -> 127
+      | Just ss -> 
+         match try_concrete ss with
+         | Nothing -> 128
+         | Just s -> 
+            match readNat (toCharList s) with
+            | Right n -> n
+            | Left _err -> 2
+            end
+         end
+      end in
+    (* turn off SIGINT handling if it's the interactive 'continue repl' handler *)
+    let _ =
+      if is_interactive os && not (Map.member SIGINT os.sh.traps)
+      then real_handle_signal ocaml_sigint Nothing
+      else ()
+    in
+    real_exit ec
+
+  let waitpid _step_eval os pid =
+    let code = real_waitpid os.sh.rootpid pid (is_monitoring os) in
+    (os, Just (Right code))
+
+  let waitchild os =
+    match real_wait_child (is_monitoring os) with
+    | Nothing -> (os, Nothing)
+    | Just (pid, ocaml_status) -> (os, Just (pid, job_status_of_ocaml_status ocaml_status))
+    end
+
+  let handle_signal os0 signal action =
+    let s1 = update_trap os0 signal action in
+    let actual_action =
+      match action with
+      | Nothing -> Nothing
+      | Just ss -> Just (string_of_symbolic_string ss)
+      end
+    in
+    let _ = 
+      match ocaml_signal_of_signal signal with
+      | Nothing -> ()
+      | Just ocaml_signal -> 
+         real_handle_signal ocaml_signal actual_action 
+      end 
+    in
+    s1
+
+  let signal_pid os0 signal pid as_pg =
+    match ocaml_signal_of_signal signal with
+    | Nothing -> (os0, false)
+    | Just ocaml_signal ->
+       let success = real_signal_pid ocaml_signal pid as_pg in
+       (os0, success)
+    end
+
+  let tc_setfg os0 pid =
+    if is_monitoring os0
+    then (os0, real_tcsetpgrp pid)
+    else (os0, false)
+
+  let set_job_control os0 on =
+    let _ = 
+      if on
+      then real_enable_jobcontrol os0.sh.rootpid
+      else real_disable_jobcontrol ()
+    in
+    os0
+
+  let times _os = real_times ()
+
+  let get_umask _os = 
+    let umask = real_get_umask () in
+    perms_of_nat umask
+
+  let set_umask os mask = 
+    let _ = real_set_umask (nat_of_perms mask) in
+    os
+
+  let open_file_for_redir os0 ty sfile =
+    let flags = flags_of_redir_type os0 ty in
+    let (os1,_,file) = concretize os0 sfile in
+    (os1,
+     match real_open file flags with
+     | Left err -> Left err
+     | Right new_fd -> Right new_fd
+     end)
+   
+  let open_heredoc os s =
+    match real_openhere s with
+    | Left err -> Left err
+    | Right fd -> Right (os, fd)
+    end
+
+  let close_and_save_fd os fd = 
+    (os, real_close_and_save_fd fd)
+
+  let renumber_fd os close new_fd wanted_fd = 
+    (os, real_renumber_fd close new_fd wanted_fd)
+
+  let restore_fd os orig_fd info =
+    let to_close = 
+      match info with
+      | Saved saved -> 
+         match real_dup2 saved orig_fd with
+         | Just _err -> saved (* TODO 2018-08-24 uh oh... signal in some way? *)
+         | Nothing -> saved
+         end
+      | Close -> 
+         orig_fd
+      end
+    in
+    let _ = real_close to_close in
+    os    
+end
+
+val real_set_sh_opt : os_state system -> sh_opt -> os_state system
+let real_set_sh_opt os opt = set_sh_opt os opt
+
+val real_ignore_signal : os_state system -> signal -> os_state system
+let real_ignore_signal os0 signal = handle_signal os0 signal (Just [])
+
+val real_delete_job : os_state system -> job_info -> os_state system
+let real_delete_job os job = delete_job os job.id
+
+val real_update_jobs : os_state system -> os_state system * list job_info
+let real_update_jobs os = update_jobs os

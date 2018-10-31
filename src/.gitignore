@@ -18,6 +18,8 @@ evaluation.ml
 semantics.ml
 smoosh_num.ml
 os.ml
+os_symbolic.ml
+os_system.ml
 command.ml
 shell
 signal_platform.lem

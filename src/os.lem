@@ -290,8 +290,8 @@ let rec path_dotdot_rev_cl path =
 val dotdot : path -> path
 let dotdot path = toString (reverse (path_dotdot_rev_cl (reverse (toCharList path))))
 
-val isdir : forall 'a. OS 'a => os_state 'a -> path -> bool
-let isdir os path = file_type os path = Just FileDirectory
+val is_dir : forall 'a. OS 'a => os_state 'a -> path -> bool
+let is_dir os path = file_type os path = Just FileDirectory
 
 val canonicalize_split_path : forall 'a. OS 'a => os_state 'a -> path -> list string -> maybe string
 let rec canonicalize_split_path os path components =
@@ -300,7 +300,7 @@ let rec canonicalize_split_path os path components =
   | ""::components' -> canonicalize_split_path os path components' (* result of // *)
   | "."::components' -> canonicalize_split_path os path components'
   | ".."::components' -> 
-     if isdir os path
+     if is_dir os path
      then canonicalize_split_path os (dotdot path) components'
      else Nothing
   | dir::components' -> canonicalize_split_path os (join_path path dir) components'
@@ -1805,7 +1805,6 @@ instance (OS unit)
     in
     let _ = real_close to_close in
     os    
-
 end
 
 val real_set_sh_opt : os_state system -> sh_opt -> os_state system

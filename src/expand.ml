@@ -1,6 +1,7 @@
 open Config
 open Shim
 open Smoosh
+open Os_symbolic
 open Semantics
 open Printf
 
