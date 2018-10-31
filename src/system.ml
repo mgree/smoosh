@@ -77,9 +77,8 @@ let rec real_execve (cmd : string) (argv : string list) (environ : string list) 
     | Unix.Unix_error(Unix.ENOEXEC,_,_) as err ->
        if binsh && cmd <> "/bin/sh"
        then 
-         (* we put cmd on there twice: 
-            once to tell execve what our command name is, once to pass it to the shell *)
-         Unix.execve "/bin/sh" (Array.of_list (cmd::cmd::argv)) env
+         (* tell execve what our command name is, once to pass it to the shell *)
+         Unix.execve "/bin/sh" (Array.of_list ("/bin/sh"::cmd::argv)) env
        else raise err
 
 let ttyfd : Unix.file_descr option ref = ref None
