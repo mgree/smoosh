@@ -94,7 +94,7 @@ class ( OS 'a )
     maybe pid (* pgrp id *) ->
     bool (* do job control? *) ->
     os_state 'a * pid
-  val exit : os_state 'a -> os_state 'a * maybe stmt
+  val exit : os_state 'a -> os_state 'a
   val waitpid : 
     step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
     os_state 'a -> pid -> 
@@ -310,7 +310,7 @@ let canonicalize_path os path =
   let components = split_string_on false (* not escapable *) #'/' path' in
   canonicalize_split_path os initial components
 
-(* Job control ********************************************************)
+(* Job control ********************************************************)  
 
 val active_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info
 let active_jobs os0 =
@@ -1094,16 +1094,7 @@ instance (OS symbolic)
     (<| os with symbolic = <| os.symbolic with procs = os.symbolic.procs ++ [proc] |> |>, 
      proc_num)
 
-  let exit os0 = 
-    if os0.symbolic.exited
-    then (os0, Nothing)
-    else
-      match Map.lookup EXIT os0.sh.traps with
-      | Nothing -> (os0, Nothing)
-      | Just cmd -> 
-         let os1 = <| os0 with symbolic = <| os0.symbolic with exited = true |> |> in
-         (os1, Just (command_eval cmd))
-      end
+  let exit os0 = <| os0 with symbolic = <| os0.symbolic with exited = true |> |>
 
   let waitpid step_eval os0 pid =
     match index os0.symbolic.procs pid with
@@ -1487,8 +1478,8 @@ declare ocaml target_rep function real_enable_jobcontrol = `System.real_enable_j
 val real_disable_jobcontrol : unit -> unit
 declare ocaml target_rep function real_disable_jobcontrol = `System.real_disable_jobcontrol`
 
-val real_exit : forall 'a. maybe string -> nat -> 'a
-declare ocaml target_rep function real_exit = `System.real_exitshell`
+val real_exit : forall 'a. nat -> 'a
+declare ocaml target_rep function real_exit = `System.real_exit`
 
 val real_times : unit -> string * string * string * string
 declare ocaml target_rep function real_times = `System.real_times`
@@ -1719,13 +1710,7 @@ instance (OS unit)
       then real_handle_signal ocaml_sigint Nothing
       else ()
     in
-    let cmd =
-      match Map.lookup EXIT os.sh.traps with
-      | Nothing -> Nothing
-      | Just ss_cmd -> Just (string_of_symbolic_string ss_cmd)
-      end
-    in
-    real_exit cmd ec
+    real_exit ec
 
   let waitpid _step_eval os pid =
     let code = real_waitpid os.sh.rootpid pid (Set.member Sh_monitor os.sh.opts) in

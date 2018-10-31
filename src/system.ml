@@ -157,6 +157,10 @@ let real_disable_jobcontrol () =
   Sys.set_signal Sys.sigtstp Sys.Signal_default;   
   close_ttyfd ()
 
+let real_exit (code : int) = 
+  real_disable_jobcontrol ();
+  exit code
+
 let real_fork_and_eval 
       (handlers : int list) 
       (os : 'a) (stmt : 'b) 
@@ -202,7 +206,8 @@ let real_fork_and_eval
        end;
      sigunblockall ();
      let status = !real_eval (Obj.magic os) (Obj.magic stmt) in 
-     exit status
+     (* make sure we restore the terminal *)
+     real_exit status
   | pid -> 
      sigunblockall (); 
      if jc
@@ -461,19 +466,3 @@ let real_handle_signal signal action =
 let real_signal_pid signal pid =
   try Unix.kill pid signal; true
   with Unix.Unix_error(_) -> false
-
-let real_exitshell (exit_trap : string option) (code : int) =
-  (* PICK UP HERE 2018-10-31 
-     
-     make the core logic here an OS generic thing, set up system call
-
-     if this isn't what's breaking things... lord, who knows.
-   *)
-  (* run EXIT trap *)
-  begin match exit_trap with
-  | Some cmd -> ignore (!real_eval_string cmd)
-  | None -> ()
-  end;
-  (* disable job control *)  
-  (* flush all *)
-  exit code

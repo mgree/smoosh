@@ -1169,9 +1169,19 @@ and step_eval s0 checked stmt =
   | Continue _n -> Right (XSSimple "continue bottomed out", s0, Done)
   | Return -> Right (XSSimple "return bottomed out", s0, Done)
   | Exit -> 
-     match exit s0 with
-     | (s1, Nothing) -> Right (XSSimple "exited", s1, Done)
-     | (s1, Just cmd) -> Right (XSSimple "trapped on exit", s1, cmd)
+     (* find and clear trap *)
+     let (s1,m_cmd) =
+       match Map.lookup EXIT s0.sh.traps with
+       | Nothing -> (s0, Nothing)
+       | Just ss_cmd -> (update_trap s0 EXIT Nothing, Just (command_eval ss_cmd))
+     end
+     in
+     match m_cmd with
+     | Nothing -> 
+        (* no trap, we can actually exit *)
+        Right (XSSimple "exited", exit s1, Done)
+     | Just cmd ->
+        Right (XSSimple "trapped on exit", s1, Semi cmd Exit)
      end
   | Done -> Right (XSSimple "", s0, Done)
   end
@@ -1185,11 +1195,6 @@ and full_evaluation os0 stmt0 =
     let os1 = tick os0 in
     match stmt0 with
     | Done -> os1
-    | Exit -> 
-       match exit os1 with
-       | (os2, Nothing) -> os2
-       | (os2, Just cmd) -> full_evaluation os2 cmd
-       end
     | _ -> 
        match step_eval os1 false stmt0 with
        | Right (step, os2, stmt1) -> full_evaluation (log_step step os2) stmt1
