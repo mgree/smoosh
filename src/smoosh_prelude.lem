@@ -29,6 +29,9 @@ let rec tails xs =
         | _::xs' -> tails xs'
         end
 
+val compare_by_first : forall 'a 'b. Ord 'a => ('a * 'b) -> ('a * 'b) -> ordering
+let compare_by_first (a, _) (a', _) = compare a a'
+
 val insertBy : forall 'a. ('a -> 'a -> bool) -> 'a -> list 'a -> list 'a
 let rec insertBy lte x ys =
   match ys with

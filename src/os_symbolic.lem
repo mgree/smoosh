@@ -130,9 +130,6 @@ let os_empty : os_state symbolic =
 (* SYMBOLIC OS STATE INSTANCE *****************************************)
 (**********************************************************************)
 
-val compare_by_first : forall 'a 'b. Ord 'a => ('a * 'b) -> ('a * 'b) -> ordering
-let compare_by_first (a, _) (a', _) = compare a a'
-
 val symbolic_resolve_fd : symbolic -> fd -> maybe nat
 let symbolic_resolve_fd symbolic fd =
   match Map.lookup fd symbolic.sh_fds with

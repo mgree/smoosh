@@ -1211,6 +1211,8 @@ and eval os0 stmt0 =
 (**********************************************************************)   
 (* These functions are for testing and the expansion tool. *)
 
+open import Os_symbolic
+
 (* Expansion **********************************************************) 
 (* unbounded functions for testing final expansion results (used in
    test_expansion.ml)
@@ -1271,6 +1273,8 @@ let rec trace_evaluation_multi os0 stmts =
   
 (* Real evaluation ****************************************************)
 (* convenience functions for shell.ml *)
+open import Os_system
+
 val real_eval : os_state system -> stmt -> os_state system
 let real_eval = full_evaluation
 

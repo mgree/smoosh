@@ -1,5 +1,6 @@
 open Test_prelude
 open Smoosh
+open Os_symbolic
 open Semantics
 open Printf
 

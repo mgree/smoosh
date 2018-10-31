@@ -56,13 +56,6 @@ let match_dir os dir lc name =
   | _ -> match_pattern_file_list os lc dir name
 end     
    
-val stringToFs : fs -> string -> set fs -> set fs
-let stringtoFs fs k set =
-  match Map.lookup k fs.contents with
-  | Just fs' -> Set.insert fs' set
-  | _ -> set
-  end
-
 val walk : forall 'a. OS 'a => os_state 'a -> (maybe path * path) -> path_info -> locale -> list string -> set (string * file path)
 let rec walk os (path_so_far, dir) pinfo lc path =
   match path with
@@ -101,6 +94,7 @@ let match_path os path =
   let (pat,start,pinfo) = parse_path_pattern os path in
   Set_extra.toOrderedList (Set.map fst (walk os (Nothing, start) pinfo os.sh.locale pat))
 
+open import Os_symbolic
 (* instantiated version for testing from OCaml *)
 val match_path_symbolic : os_state symbolic -> string -> list path
 let match_path_symbolic = match_path                                                     

@@ -1,6 +1,7 @@
 open Test_prelude
 open Smoosh_num
 open Smoosh
+open Os_symbolic
 open Arith
 open Printf
 

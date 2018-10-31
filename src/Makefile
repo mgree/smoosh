@@ -1,7 +1,7 @@
 # change these paths as necessary
 
-PRELUDEFILES=smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem os.lem
-LEMFILES=os_symbolic.lem os_system.lem smoosh.lem arith.lem pattern.lem path.lem fields.lem test.lem command.lem semantics.lem
+PRELUDEFILES=smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem os.lem os_symbolic.lem os_system.lem
+LEMFILES=smoosh.lem arith.lem pattern.lem path.lem fields.lem test.lem command.lem semantics.lem
 
 OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num,extunix -linkpkg
 

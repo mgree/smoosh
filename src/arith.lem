@@ -636,6 +636,8 @@ let arith bits s0 str =
 val arith64 : forall 'a. OS 'a => os_state 'a -> symbolic_string -> either string (os_state 'a * fields)
 let arith64 = arith (int64FromNat 64)
 
+open import Os_symbolic
+
 (* symbolic functions to avoid manual instantiation of typeclasses in OCaml *)
 val symbolic_arith_big_num : os_state symbolic -> symbolic_string -> either string (os_state symbolic * fields)
 let symbolic_arith_big_num = arith (~(integerFromNat 1))
