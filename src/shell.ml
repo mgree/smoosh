@@ -7,18 +7,23 @@ open Semantics
 (* ARGUMENT PARSING ***************************************************)       
 (**********************************************************************)
 
-type input_mode = NoFlag | SFlag | CFlag
+type input_mode = NoFlag | SFlag | CFlag of string
 
 let input_mode : input_mode ref = ref NoFlag
 
+let explicitly_unset_i : bool ref = ref false
 let explicitly_unset_m : bool ref = ref false
 let override_prompts : bool ref = ref true
 
 let opts : sh_opt list ref = ref []
 let add_opt (opt : sh_opt) : unit = opts := opt::!opts
 let del_opt (opt : sh_opt) : unit =
-  if opt = Sh_monitor
-  then explicitly_unset_m := true;
+  begin 
+    match opt with
+    | Sh_monitor -> explicitly_unset_m := true
+    | Sh_interactive -> explicitly_unset_i := true
+    | _ -> ()
+  end;
   opts := List.filter (fun opt' -> opt <> opt') !opts
 
 let params : string list ref = ref []
@@ -85,8 +90,6 @@ let rec parse_arg_loop args =
           begin
             match (opt, sh_opt_of_shortopt opt) with
             | ('p', _) -> override_prompts := false
-            | ('c', _) -> failwith "TODO -c"
-            | ('s', _) -> failwith "TODO -s"
             | ('i', _) -> handler Sh_interactive
             | (_, Some sh_opt) -> handler sh_opt
             | (_, None) -> bad_arg (Printf.sprintf "unknown flag '%c' in %s" opt arg)
@@ -101,6 +104,13 @@ let rec parse_arg_loop args =
      (* special case for when no options after---treat as normal args *)
      | ['-']      -> params := args'
      | ['+']      -> params := args'
+     | ['-'; 'c'] -> 
+        begin
+          match args' with
+          | [] -> bad_arg "Need a command after -c"
+          | cmd::args'' -> input_mode := CFlag cmd; parse_arg_loop args''
+        end
+     | ['-'; 's'] -> input_mode := SFlag; parse_arg_loop args'
      | '-'::opts  -> parse_shortopts add_opt opts
      | '+'::opts  -> parse_shortopts del_opt opts
      | _          -> params := args'
@@ -118,15 +128,13 @@ let prepare_command () : string list (* positional args *) =
   match !input_mode with
   | NoFlag -> 
      begin match !params with
-     | [] -> add_opt Sh_interactive; Dash.setinputtostdin (); [Sys.argv.(0)] 
+     | [] -> 
+        if not !explicitly_unset_i then add_opt Sh_interactive; 
+        Dash.setinputtostdin (); [Sys.argv.(0)] 
      | cmd::args -> Dash.setinputfile cmd; cmd::args
      end
   | SFlag -> Dash.setinputtostdin (); Sys.argv.(0)::!params
-  | CFlag -> 
-     begin match !params with
-     | [] -> failwith "Need a command after -c"
-     | cmd::args' -> Dash.setinputstring cmd; args'
-     end
+  | CFlag cmd -> Dash.setinputstring cmd; cmd::!params
 
 let set_param x v s0 =
   Os.internal_set_param x (symbolic_string_of_string v) s0
