@@ -11,95 +11,119 @@ type input_mode = NoFlag | SFlag | CFlag
 
 let input_mode : input_mode ref = ref NoFlag
 
-let opts : sh_opt list ref = ref []
-let add_opt (opt : sh_opt) : unit = opts := opt::!opts
-let del_opt (opt : sh_opt) : unit = opts := List.filter (fun opt' -> opt <> opt') !opts
 let explicitly_unset_m : bool ref = ref false
 let override_prompts : bool ref = ref true
 
-let args : string list ref = ref []
+let opts : sh_opt list ref = ref []
+let add_opt (opt : sh_opt) : unit = opts := opt::!opts
+let del_opt (opt : sh_opt) : unit =
+  if opt = Sh_monitor
+  then explicitly_unset_m := true;
+  opts := List.filter (fun opt' -> opt <> opt') !opts
 
-(* TODO 2018-08-14 
-   -a, -b, -C, -e, -f, -m, -n, -o option, -u, -v, and -x options are described as part of the set utility 
- *)
+let params : string list ref = ref []
 
-(* TODO 2018-09-10 need to support all of the Sh options *)
+let implode = Dash.implode
+let explode = Dash.explode
+
+let flag_descriptions =
+  [ "-c", "set input command"
+  ; "-s", "set input source to STDIN"
+  ; "-i", "interactive shell"  
+  ; "-a", "export by default [allexport]"
+  ; "-b", "notify mode [-o notify]"
+  ; "-C", "do not clobber files with > [-o noclobber]"
+  ; "-e", "exit on error [-o errexit]"
+  ; "-f", "turn off pathname expansion [-o noglob]"
+  ; "-h", "hash commands during function definition"
+  ; "-m", "monitor mode [-o monitor]"
+  ; "-n", "do not execute commands [noexec]"
+  ; "-p", "do not override PS1 and PS2 (not in the POSIX spec)"
+  ; "-u", "error on unset parameters [nounset]"   
+  ; "-v", "print input to stderr [verbose]"
+  ; "-x", "trace commands"
+  ; "-o", "enable long format option"
+  ; "+o", "disable long format option"
+  ]
+            
+let usage_msg =
+  let prog = Filename.basename Sys.executable_name in
+  let flags = " [-abCefhimnpuvx] [-o option]... [+abCefhimnpuvx] [+o option]... " in
+  "smoosh shell v" ^ Config.version ^ "\n" ^
+  prog ^ "   " ^ flags ^ "[command_file [argument...]] \n" ^
+  prog ^ " -c" ^ flags ^ "[command_string [command_name [argument...]]]\n" ^
+  prog ^ " -s" ^ flags ^ "[argument...]\n\n" ^
+  "flags:\n\t-[flag] enables, +[flag] disables\n" ^
+  concat "" (List.map (fun (flag, descr) -> Printf.sprintf "\t%s\t%s\n" flag descr) flag_descriptions)
+
+let show_usage () =
+  prerr_string usage_msg;
+  exit 2
+  
+let bad_arg msg =
+  (* TODO 2018-11-01 show usage *)
+  Printf.eprintf "bad argument: %s\n" msg;
+  show_usage ()
+  
+let rec parse_arg_loop args =
+  match args with
+  | [] -> ()
+  | arg::args' ->
+     let parse_longopt handler =
+       match args' with
+       | [] -> bad_arg ("missing option after " ^ arg)
+       | lo::args'' -> 
+          begin
+            match sh_opt_of_longopt lo with
+            | None -> bad_arg ("unrecognized " ^ arg ^ " flag: " ^ lo)
+            | Some sh_opt -> handler sh_opt; parse_arg_loop args''
+          end in
+     let rec parse_shortopts handler opts =
+       match opts with
+       | [] -> parse_arg_loop args'
+       | opt::opts' ->
+          begin
+            match (opt, sh_opt_of_shortopt opt) with
+            | ('p', _) -> override_prompts := false
+            | ('c', _) -> failwith "TODO -c"
+            | ('s', _) -> failwith "TODO -s"
+            | ('i', _) -> handler Sh_interactive
+            | (_, Some sh_opt) -> handler sh_opt
+            | (_, None) -> bad_arg (Printf.sprintf "unknown flag '%c' in %s" opt arg)
+          end;
+          parse_shortopts handler opts'
+     in
+     match explode arg with
+     | ['-'; '-'] -> params := args'
+     | ['-'; '-'; 'h'; 'e'; 'l'; 'p'] -> show_usage ()
+     | ['-'; 'o'] -> parse_longopt add_opt
+     | ['+'; 'o'] -> parse_longopt del_opt
+     (* special case for when no options after---treat as normal args *)
+     | ['-']      -> params := args'
+     | ['+']      -> params := args'
+     | '-'::opts  -> parse_shortopts add_opt opts
+     | '+'::opts  -> parse_shortopts del_opt opts
+     | _          -> params := args'
+        
 let parse_args () =
-  Arg.parse
-    [ "-c", Arg.Unit (fun () -> input_mode := CFlag), "set input command"
-    ; "-s", Arg.Unit (fun () -> input_mode := SFlag), "set input source to STDIN"
-
-    ; "-i", Arg.Unit (fun () -> add_opt Sh_interactive), "interactive shell"
-    ; "+i", Arg.Unit (fun () -> del_opt Sh_interactive), ""
-
-    ; "-a", Arg.Unit (fun () -> add_opt Sh_allexport), "export by default [allexport]"
-    ; "+a", Arg.Unit (fun () -> del_opt Sh_allexport), ""
-
-    ; "-b", Arg.Unit (fun () -> add_opt Sh_notify), "notify mode [notify]"
-    ; "+b", Arg.Unit (fun () -> del_opt Sh_notify), ""
-
-    ; "-C", Arg.Unit (fun () -> add_opt Sh_noclobber), "do not clobber files with > [noclobber]"
-    ; "+C", Arg.Unit (fun () -> del_opt Sh_noclobber), ""
-
-    ; "-e", Arg.Unit (fun () -> add_opt Sh_errexit), "exit on error [errexit]"
-    ; "+e", Arg.Unit (fun () -> del_opt Sh_errexit), ""
-
-    ; "-f", Arg.Unit (fun () -> add_opt Sh_noglob), "turn off pathname expansion [noglob]"
-    ; "+f", Arg.Unit (fun () -> del_opt Sh_noglob), ""
-
-    ; "-h", Arg.Unit (fun () -> add_opt Sh_earlyhash), "hash commands during function definition"
-    ; "+h", Arg.Unit (fun () -> del_opt Sh_earlyhash), ""
-
-    ; "-m", Arg.Unit (fun () -> add_opt Sh_monitor), "monitor mode [monitor]"
-    ; "+m", Arg.Unit (fun () -> explicitly_unset_m := true;
-                                del_opt Sh_monitor), ""
-
-    ; "-n", Arg.Unit (fun () -> add_opt Sh_noexec), "do not execute commands [noexec]"
-    ; "+n", Arg.Unit (fun () -> del_opt Sh_noexec), ""
-
-    ; "-p", Arg.Unit (fun () -> override_prompts := false), "do not override PS1 and PS2"
-
-    ; "-u", Arg.Unit (fun () -> add_opt Sh_nounset), "error on unset parameters [nounset]"   
-    ; "+u", Arg.Unit (fun () -> del_opt Sh_nounset), ""
-
-    ; "-v", Arg.Unit (fun () -> add_opt Sh_verbose), "print input to stderr [verbose]"
-    ; "+v", Arg.Unit (fun () -> del_opt Sh_verbose), ""
-
-    ; "-x", Arg.Unit (fun () -> add_opt Sh_xtrace), "trace commands"
-    ; "+x", Arg.Unit (fun () -> del_opt Sh_xtrace), ""
-
-    ; "-o", Arg.String 
-              (fun lo ->
-                match sh_opt_of_longopt lo with
-                | None -> raise (Arg.Bad ("unrecognized -o flag: " ^ lo))
-                | Some opt -> add_opt opt), 
-      "enable long format option"
-
-    ; "+o", Arg.String 
-              (fun lo ->
-                match sh_opt_of_longopt lo with
-                | None -> raise (Arg.Bad ("unrecognized -o flag: " ^ lo))
-                | Some opt -> del_opt opt), 
-      "disable long format option; individual + flags disable short options, e.g., +i turns off interactivity"
-    ]
-    (fun arg -> args := !args @ [arg])
-    (let prog = Filename.basename Sys.executable_name in
-     let flags = " [-abCefhimnuvx] [-o option]... [+abCefhimnuvx] [+o option]... " in
-     prog ^ "   " ^ flags ^ "[command_file [argument...]] \n" ^
-     prog ^ " -c" ^ flags ^ "[command_string [command_name [argument...]]]\n" ^
-     prog ^ " -s" ^ flags ^ "[argument...]")
+  let args =
+    match Array.to_list Sys.argv with
+    |  [] -> []
+    | _::argv -> argv
+  in
+  parse_arg_loop args
 
 (* sets Dash input src, returns positional params *)
 let prepare_command () : string list (* positional args *) =
   match !input_mode with
   | NoFlag -> 
-     begin match !args with
+     begin match !params with
      | [] -> add_opt Sh_interactive; Dash.setinputtostdin (); [Sys.argv.(0)] 
      | cmd::args -> Dash.setinputfile cmd; cmd::args
      end
-  | SFlag -> Dash.setinputtostdin (); Sys.argv.(0)::!args 
+  | SFlag -> Dash.setinputtostdin (); Sys.argv.(0)::!params
   | CFlag -> 
-     begin match !args with
+     begin match !params with
      | [] -> failwith "Need a command after -c"
      | cmd::args' -> Dash.setinputstring cmd; args'
      end
