@@ -1013,8 +1013,8 @@ and step_eval s0 checked stmt =
                   Done)
         | ExpDone [f] ->
            Right (XSCase "argument fully expanded", os1, CaseMatch f cases)
-        | ExpDone _ ->
-           Left (XSCase "case match element did not expand to a single field", s0)
+        | ExpDone fs ->
+           Left (XSCase ("case match element did not expand to a single field [" ^ string_of_fields fs ^ "]"), s0)
         | (_ as in_progress) ->
            Right(XSExpand (XSCase "argument expansion step") step,
                  os1,
@@ -1022,7 +1022,8 @@ and step_eval s0 checked stmt =
       end
   | CaseMatch f cases ->
       match cases with
-        | [] -> Right (XSCase "no match in case statement", s0, Done)
+        | [] ->
+           Right (XSCase "no match in case statement", s0, Done)
         | ([], _cmd)::cases' ->
            Right (XSCase "exhausted patterns, checking next case",
                   s0,
@@ -1040,16 +1041,23 @@ and step_eval s0 checked stmt =
            Right (XSCase "error in argument expansion",
                   fail_with msg os1,
                   Done)
-        | ExpDone [pat'] ->
-          (* TODO 2018-08-29 use proper locale *)
-          match match_prefix lc_ambient Exact pat' f with
-          | NoMatch -> Right (XSCase "case did not match, trying the next",
-                              os1, CaseMatch f cases)
-          | Match _ -> Right (XSCase "case matched, evaluating cmd",
-                              os1, cmd)
-          | Symbolic -> Left (XSCase "case on symbolic value, gave up", os1)
-          end
-        | ExpDone _ -> Left (XSCase "case match pattern did not expand to a single field", os1)
+        | ExpSplit pat_ew' ->
+           (* "each pattern that labels a compound-list shall be
+              subjected to tilde expansion, parameter expansion,
+              command substitution, and arithmetic expansion" ... so
+              we stop at ExpSplit 
+
+              TODO 2018-11-07 the nicer way to do this is to express our stopping point in ExpStart, but whatevs
+            *)
+           (* TODO 2018-08-29 use proper locale *)
+           let pat' = symbolic_string_of_fields (fields_of_expanded_words pat_ew') in
+           match match_prefix lc_ambient Exact pat' f with
+           | NoMatch -> Right (XSCase "case did not match, trying the next",
+                               os1, CaseMatch f cases)
+           | Match _ -> Right (XSCase "case matched, evaluating cmd",
+                               os1, cmd)
+           | Symbolic -> Left (XSCase "case on symbolic value, gave up", os1)
+           end
         | (_ as in_progress) ->
            Right(XSExpand (XSCase "pattern expansion step") step,
                  os1,
@@ -1200,7 +1208,9 @@ and full_evaluation os0 stmt0 =
     | _ -> 
        match step_eval os1 false stmt0 with
        | Right (step, os2, stmt1) -> full_evaluation (log_step step os2) stmt1
-       | Left (step, os2) -> log_step step os2
+       | Left (step, os2) ->
+          let os3 = write_stderr (string_of_evaluation_step step ^ "\n") os2 in
+          log_step step (exit_with 1 os3)
        end
     end
 

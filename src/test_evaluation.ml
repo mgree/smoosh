@@ -73,6 +73,7 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   ; ("case abc in *) true;; abc) false;; esac", os_empty, 0)
   ; ("x=hello ; case $x in *el*) true;; *) false;; esac", os_empty, 0)
   ; ("case \"no one is home\" in esac", os_empty, 0)
+  ; ("case Linux in Lin*) true;; *) false;; esac", os_empty, 0)
 
   (* pipes *)
   ; ("false | true", os_empty, 0)
@@ -175,6 +176,12 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("echo -n \"hi \" ; echo there", os_empty, "hi there\n")
   ; ("x=${y:=1} ; echo $((x+=`echo 2`))", os_empty, "3\n")
 
+  ; ("case Linux in Lin*) echo matched;; *) echo nope;; esac", os_empty, "matched\n")
+  ; ("case Linux in *) echo matched;; esac", os_empty, "matched\n")
+  (* regression: don't do pathname expansion on patterns *)
+  ; ("case Linux in *) echo matched;; esac", os_complicated_fs, "matched\n")
+  ; ("case Linux in *) echo matched;; esac", os_complicated_fs_in_a, "matched\n")
+  
     (* redirects and pipes *)
   ; ("( echo ${x?oops} ) 2>&1", os_empty, "x: oops\n")
   ; ("echo hi | echo no", os_empty, "no\n")
