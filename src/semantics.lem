@@ -524,8 +524,9 @@ and step_eval s0 checked stmt =
         match set_param x (symbolic_string_of_fields f) s1 with
         | Left err -> Left (XSSimple err, write_stderr (err ^ "\n") s1)
         | Right s2 ->
+           let s3 = trace (x ^ "=" ^ string_of_fields f) s2 in
            Right (XSSimple ("assign " ^ x),
-                  s2, 
+                  s3, 
                   CommandExpAssign assigns [] redirs)
         end
      | (step, s1, ExpError f) -> 
@@ -579,15 +580,16 @@ and step_eval s0 checked stmt =
       end
   (* COMMAND: Redirect expansion **********************************************)
   (* expansion is done, try to run command *)
-  | CommandExpRedirs assigns (prog::args) (ers, Nothing, []) allow_fun ->
+  | (CommandExpRedirs assigns (prog::args) (ers, Nothing, []) allow_fun as cmd) ->
      if Set.member Sh_noexec s0.sh.opts
      then Right (XSSimple "set -n: skipping command", s0, Done)
      else
+     let s0_traced = trace (string_of_stmt cmd) s0 in
      (* load exported variables, perform assignments *)
      let exported = 
        Map_extra.mapMaybe 
-         (fun x v -> if Set.member x s0.sh.export then Just v else Nothing)
-         s0.sh.env
+         (fun x v -> if Set.member x s0_traced.sh.export then Just v else Nothing)
+         s0_traced.sh.env
      in
      let env = 
        foldr (fun (x,f) env' -> 
@@ -630,7 +632,7 @@ and step_eval s0 checked stmt =
         consequences of these errors.
 
         *)
-     let (s0_logged, concretized, prog_name) = concretize s0 prog in
+     let (s0_logged, concretized, prog_name) = concretize s0_traced prog in
      let s1 = 
        if not concretized && is_special_builtin prog_name
        then
@@ -675,7 +677,7 @@ and step_eval s0 checked stmt =
        end
      end
   (* expansion is done, but there's no command *)
-  | CommandExpRedirs _assigns [] (ers, Nothing, []) _allow_fun ->
+  | (CommandExpRedirs _assigns [] (ers, Nothing, []) _allow_fun as cmd) ->
      (* we've already done whatever assignments above, in the special
         case.  it remains to set up redirects for side effects/file
         creation
@@ -702,8 +704,8 @@ and step_eval s0 checked stmt =
                fail_with msg s1, 
                Done)
      | (s1, Right saved_fds) ->
-        Right (XSSimple "ran empty command", 
-               s1, 
+        Right (XSSimple "ran empty command",
+               trace (string_of_stmt cmd) s1, 
                pushredir Done saved_fds)
      end
    (* expand redirs *)

@@ -2063,14 +2063,7 @@ let builtins =
     ; ("wait", builtin_wait)
     ]
 
-let run_command s0_init allow_fun checked prog_name argv env =
-  let s0 =
-    if Set.member Sh_xtrace s0_init.sh.opts
-    then 
-      let trace = ps4 s0_init ^ string_of_fields (prog_name::argv) ^ "\n" in
-      write_stdout trace s0_init
-    else s0_init
-  in
+let run_command s0 allow_fun checked prog_name argv env =
   match try_concrete prog_name with
   | Nothing -> Left (s0,"can't run symbolic command")
   | Just prog ->

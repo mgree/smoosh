@@ -275,7 +275,7 @@ let write_stdout = try_write_fd STDOUT
 
 val write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let write_stderr = try_write_fd STDERR
-
+                 
 (* FS and path manipulation *******************************************)
 
 val path_dotdot_rev_cl : list char -> list char
@@ -622,6 +622,12 @@ let ps4 os =
   | Just prompt -> prompt
   end
 
+val trace : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
+let trace msg os =
+  if Set.member Sh_xtrace os.sh.opts && msg <> ""
+  then write_stderr (ps4 os ^ msg ^ "\n") os
+  else os
+   
 val get_path : forall 'a. os_state 'a -> string
 let get_path os =
   match lookup_concrete_param os "PATH" with
