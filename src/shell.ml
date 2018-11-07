@@ -102,8 +102,8 @@ let rec parse_arg_loop args =
      | ['-'; 'o'] -> parse_longopt add_opt
      | ['+'; 'o'] -> parse_longopt del_opt
      (* special case for when no options after---treat as normal args *)
-     | ['-']      -> params := args'
-     | ['+']      -> params := args'
+     | ['-']      -> params := args
+     | ['+']      -> params := args
      | ['-'; 'c'] -> 
         begin
           match args' with
@@ -113,12 +113,12 @@ let rec parse_arg_loop args =
      | ['-'; 's'] -> input_mode := SFlag; parse_arg_loop args'
      | '-'::opts  -> parse_shortopts add_opt opts
      | '+'::opts  -> parse_shortopts del_opt opts
-     | _          -> params := args'
+     | _          -> params := args
         
 let parse_args () =
   let args =
     match Array.to_list Sys.argv with
-    |  [] -> []
+    | [] -> []
     | _::argv -> argv
   in
   parse_arg_loop args

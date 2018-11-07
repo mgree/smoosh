@@ -135,6 +135,11 @@ let xtcsetpgrp pgid : bool =
        (* Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e) *)
        false
 
+let xsetpgid pid pgrp =
+  if pgrp >= 0
+  then try ExtUnix.setpgid pid pgrp
+       with Unix.Unix_error(Unix.EINVAL,_,_) -> ()
+          
 let real_enable_jobcontrol rootpid =
   open_ttyfd ();
   set_initialpgrp ();
@@ -144,13 +149,13 @@ let real_enable_jobcontrol rootpid =
       Sys.set_signal Sys.sigttou Sys.Signal_ignore;
       Sys.set_signal Sys.sigttin Sys.Signal_ignore;
       Sys.set_signal Sys.sigtstp Sys.Signal_ignore;
-      ExtUnix.setpgid 0 rootpid;
+      xsetpgid 0 rootpid;
       ignore (xtcsetpgrp rootpid)
     end
 
 let real_disable_jobcontrol () =
   ignore (xtcsetpgrp !initialpgrp);
-  ExtUnix.setpgid 0 !initialpgrp;
+  xsetpgid 0 !initialpgrp;
   Sys.set_signal Sys.sigttou Sys.Signal_default;
   Sys.set_signal Sys.sigttin Sys.Signal_default;
   Sys.set_signal Sys.sigtstp Sys.Signal_default;   
@@ -181,7 +186,7 @@ let real_fork_and_eval
          Sys.set_signal Sys.sigttou Signal_ignore;
          Sys.set_signal Sys.sigttin Signal_ignore;
          let pid = Unix.getpid () in
-         ExtUnix.setpgid 0 (pgrp pid);
+         xsetpgid 0 (pgrp pid);
          if not bg 
          then
            ignore (xtcsetpgrp (pgrp pid))
@@ -211,7 +216,7 @@ let real_fork_and_eval
      sigunblockall (); 
      if jc
      then 
-       ExtUnix.setpgid pid (pgrp pid);
+       xsetpgid pid (pgrp pid);
      pid
 
 let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int = 

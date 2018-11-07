@@ -772,7 +772,8 @@ let rec write_many_stdout f s0 =
   let (s1,_,s) = concretize_fields s0 f in
   write_stdout s s1
 
-let builtin_echo s0 argv _env = 
+let builtin_echo s0 argv _env =
+  (* TODO 2018-11-07 backslash escapes *)
   let (terminator, ss) = match argv with
     | [C #'-'; C #'n']::argv' -> ("", argv')
     | _ -> ("\n", argv)

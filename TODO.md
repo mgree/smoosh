@@ -37,6 +37,12 @@
   rm $x
 ```
 
+differing from dash... because dash has a bug
+```
+echo "\\\\"
+echo "\\\\\\"
+```
+
 - eval and ./source should work in a line-oriented fashion
 
 - $$ not installed for symbolic shell
