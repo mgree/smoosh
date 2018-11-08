@@ -11,13 +11,17 @@ Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OC
 
 If you don't load the git submodules, the libdash and Lem references won't resolve properly---the directories will be empty!
 
-# How to build it
+# How to build and test it
+
+- Run: `./build.sh`
+
+## Building
 
 - Run: `docker build -t smoosh .`
 
 To build by hand, you should more or less follow the steps in the Dockerfile, adapting to your system. (For example, on OS X, you'll probably want to install directly to `/usr/local`.)
 
-# How to test it
+# Testing
 
 - To run the test suite after building, run: `docker build -t smoosh-test -f Dockerfile.test . && docker run smoosh-test`
 - To explore the built image, run: `docker run -ti smoosh`
