@@ -284,7 +284,7 @@ let builtin_shift s0 argv _env =
   | Left err -> Left (s0,err)
   | Right n -> 
      let params = get_function_params s0 in
-     if n >= length params
+     if n > length params
      then Left (exit_with 1 s0, "can't shift that many")
      else
        let s1 = set_function_params s0.sh.loop_nest (drop n params) s0 in

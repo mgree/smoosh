@@ -208,10 +208,19 @@ let stdout_tests : (string * symbolic os_state * string) list =
      os_empty,
      "3 [a b c]\n3 [a b c]\n")
 
-    (* shift shouldn't affect $0 *)
+    (* regression: shift shouldn't affect $0 *)
   ; ("echo $0 ; set -- a b c ; echo $0 ; shift ; echo $0 ; shift 2 ; echo $0",
      os_empty,
      "smoosh\nsmoosh\nsmoosh\nsmoosh\n")
+
+    (* shift *)
+  ; ("set -- a b c ; shift ; echo $#", os_empty, "2\n")
+  ; ("set -- a b c ; shift 1 ; echo $#", os_empty, "2\n")
+  ; ("set -- a b c ; shift 2 ; echo $# [$*]", os_empty, "1 [c]\n")
+  ; ("set -- a b c ; shift 3 ; echo $# [$*]", os_empty, "0 []\n")
+  ; ("set -- a b c ; shift 0 ; echo $# [$*]", os_empty, "3 [a b c]\n")
+  ; ("set -- a b c ; shift 4 || echo failed", os_empty, "failed\n")
+  ; ("set -- a b c ; shift 4 ; echo $# [$*]", os_empty, "3 [a b c]\n")
 
     (* redirects and pipes *)
   ; ("( echo ${x?oops} ) 2>&1", os_empty, "x: oops\n")
