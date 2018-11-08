@@ -230,7 +230,7 @@ let eval_tests ofNumLiteral mul : (string * symbolic os_state * string * (string
     ("bitwise xor three numbers parens left", os_empty, "(12 ^ 9) ^ 8", Right (os_empty, ofNumLiteral 13));
     ("bitwise xor three numbers parens right", os_empty, "12 ^ (9 ^ 8)", Right (os_empty, ofNumLiteral 13));
 
-    ("divide by zero ", os_empty, "47 / 0", Left "Divide by zero");
+    ("divide by zero ", os_empty, "47 / 0", Left "arithmetic parse error on 47 / 0: Divide by zero");
 
     ("conditional true", os_empty, "18 ? 47 : 42", Right (os_empty, ofNumLiteral 47));
     ("conditional false", os_empty, "0 ? 47 : 42", Right (os_empty, ofNumLiteral 42));

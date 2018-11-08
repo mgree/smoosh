@@ -622,7 +622,7 @@ let arith bits s0 str =
      | Right aexp -> 
         match eval_arith bits s0 aexp with
         | Right (s1,v) -> Right (s1,[(map (C) (toCharList (write v)))])
-        | Left e -> Left e
+        | Left e -> Left ("arithmetic parse error on " ^ cstr ^ ": " ^ e)
         end
      | Left e -> Left ("arithmetic parsing error on " ^ cstr ^ ": " ^ e)
      end
