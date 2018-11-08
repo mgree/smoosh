@@ -651,7 +651,6 @@ let sh_opt_of_longopt lo =
 type substring_mode =
   Shortest
 | Longest
-| Exact
 
 type substring_side =
   Prefix
@@ -1561,9 +1560,15 @@ and string_of_format fmt =
   end
 
 and string_of_substring side mode =
-  match side with
-  | Prefix -> if mode = Longest then "##" else "#"
-  | Suffix -> if mode = Longest then "%%" else "%"
+  let sym = 
+    match side with
+    | Prefix -> "#" 
+    | Suffix -> "%"
+    end
+  in
+  match mode with
+  | Longest -> sym ^ sym
+  | Shortest -> sym
   end
 
 and string_of_expansion_state exp_state =

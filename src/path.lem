@@ -42,7 +42,7 @@ let match_pattern_file_list os lc dir pat =
        end))
     (Set.filter
       (fun (file, _) -> 
-        match match_prefix lc Exact (symbolic_string_of_string pat) (symbolic_string_of_string file) with
+        match match_exact lc (symbolic_string_of_string pat) (symbolic_string_of_string file) with
         | Match _ -> not (has_leading_dot (toCharList file)) || has_leading_dot (toCharList pat)
         | _ -> false
        end)

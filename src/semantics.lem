@@ -64,7 +64,7 @@ val control_code_expansion : forall 'a. OS 'a => os_state 'a -> quoting_mode -> 
 let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
   let sympat : symbolic_string = symbolic_string_of_expanded_words false (* don't keep quotes *) pat in
   let symstr : symbolic_string = symbolic_string_of_fields str in
-  try_match_prefix lc side mode sympat symstr
+  try_match_substring lc side mode sympat symstr
 
 (* TODO 2017-12-01
  * In an N____ case, when null_string fs is Nothing, the
@@ -1055,7 +1055,7 @@ and step_eval s0 checked stmt =
             *)
            (* TODO 2018-08-29 use proper locale *)
            let pat' = symbolic_string_of_expanded_words true (* keep quotes *) pat_ew' in
-           match match_prefix lc_ambient Exact pat' f with
+           match match_exact lc_ambient pat' f with
            | NoMatch -> Right (XSCase "case did not match, trying the next",
                                os1, CaseMatch f cases)
            | Match _ -> Right (XSCase "case matched, evaluating cmd",

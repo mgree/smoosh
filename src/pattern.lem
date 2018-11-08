@@ -176,45 +176,26 @@ let match_bracket (lc:locale) (b : bracket) (s : symbolic_string) : match_result
   | (_, Sym _::_) -> Symbolic
   end
 
-let rec match_prefix (lc:locale) (m:substring_mode) (pat:symbolic_string) (s:symbolic_string) : match_result (symbolic_string) =
+(* Does an EXACT pattern match. *)
+let rec match_exact (lc:locale) (pat:symbolic_string) (s:symbolic_string) : match_result (symbolic_string) =
   match (pat,s) with
 
   (* empty pattern *)
   | ([]       ,      []) -> Match []
-  | ([]       ,       s) ->
-     match m with
-     | Exact -> NoMatch
-     | Shortest -> Match s
-     | Longest -> Match s
-     end
+  | ([]       ,       _) -> NoMatch
 
   (* question-mark expressions *)
   | (C(#'?')::_   ,     []) -> NoMatch
-  | (C(#'?')::pat', _ ::s') -> match_prefix lc m pat' s'
+  | (C(#'?')::pat', _ ::s') -> match_exact lc pat' s'
 
   (* star expressions *)
-  | (C(#'*')::pat',     []) -> match_prefix lc m pat' []
+  | (C(#'*')::pat',     []) -> match_exact lc pat' []
   | (C(#'*')::pat', c ::s') ->
-     match m with
-     | Longest -> 
-        match match_prefix lc m (C(#'*')::pat') s' with  (* try skipping a character first *)
-        | NoMatch -> match_prefix lc m pat' (c::s')   (*   ...no dice; try to stop here *)
-        | Symbolic -> Symbolic
-        | Match s' -> Match s'                       (*   ...success; we have our answer *)
-        end
-     | Shortest ->
-        match (match_prefix lc m pat' (c::s')) with    (* try matching empty first *)
-        | NoMatch -> match_prefix lc m (C(#'*')::pat') s' (*   ...no dice; skip a character and go on *)
-        | Symbolic -> Symbolic
-        | Match s' -> Match s'                        (*   ...success; we have our answer *)
-        end
-     | Exact -> (* SAME AS SHORTEST *)
-        match (match_prefix lc m pat' (c::s')) with    (* try matching empty first *)
-        | NoMatch -> match_prefix lc m (C(#'*')::pat') s' (*   ...no dice; skip a character and go on *)
-        | Symbolic -> Symbolic
-        | Match s' -> Match s'                        (*   ...success; we have our answer *)
-        end
-    end
+     match match_exact lc pat' (c::s') with    (* try matching empty first *)
+     | NoMatch -> match_exact lc (C(#'*')::pat') s' (*   ...no dice; skip a character and go on *)
+     | Symbolic -> Symbolic
+     | Match s' -> Match s'                        (*   ...success; we have our answer *)
+     end
 
   (* bracket expressions *)
   | (C(#'[')::_   ,     []) -> NoMatch (* is this an optimization? *)
@@ -223,7 +204,7 @@ let rec match_prefix (lc:locale) (m:substring_mode) (pat:symbolic_string) (s:sym
      | NoMatch -> 
         (* we couldn't parse a bracket expression, so treat it as literals *)
         if c = #'[' 
-        then match_prefix lc m pat' s'
+        then match_exact lc pat' s'
         else NoMatch
      | Symbolic -> Symbolic
      | Match (b,pat'') -> 
@@ -231,26 +212,48 @@ let rec match_prefix (lc:locale) (m:substring_mode) (pat:symbolic_string) (s:sym
         match match_bracket lc b (C(c)::s') with
         | NoMatch -> NoMatch                    (* couldn't match the bracket, we're done *)
         | Symbolic -> Symbolic
-        | Match s'' -> match_prefix lc m pat'' s''  (* got it, keep going with what's left *)
+        | Match s'' -> match_exact lc pat'' s''  (* got it, keep going with what's left *)
         end
      end
   (* plain characters *)                                  
   | (   _::_,        []) -> NoMatch
   | (  c1::pat', c2::s') ->
      if c1 = c2
-     then match_prefix lc m pat' s'
+     then match_exact lc pat' s'
      else NoMatch
   end
 
-let try_match_prefix (lc:locale) (s:substring_side) (m:substring_mode) (pat : symbolic_string) (str:symbolic_string) : symbolic_string =
-  let fixup string = 
-    (* maybe reverse string to support suffix matching *)
-    match s with
-    | Prefix -> string
-    | Suffix -> reverse string
-    end in
-  match match_prefix lc m (fixup pat) (fixup str) with
+(* Does matching a la %/# *)
+let rec try_match_substring_loop (lc:locale) s sizes (pat : symbolic_string) (str:symbolic_string) =
+  match sizes  with
+  | [] -> NoMatch
+  | size::sizes' -> 
+     let (first,rest) = splitAt size str in
+     let (substr,keep) = 
+       match s with
+       | Prefix -> (first,rest)
+       | Suffix -> (rest,first)
+       end
+     in
+     match match_exact lc pat substr with
+     | NoMatch -> try_match_substring_loop lc s sizes' pat str
+     | Symbolic -> Symbolic
+     | Match _ -> Match keep
+     end
+  end
+
+let try_match_substring (lc:locale) (s:substring_side) (m:substring_mode) (pat : symbolic_string) (str:symbolic_string) : symbolic_string =
+  let sizes = List.genlist (fun idx -> idx) (length str + 1) in
+  let ordered_sizes = 
+    match (m,s) with
+    | (Shortest,Prefix) -> sizes
+    | (Longest, Suffix) -> sizes
+    | (Longest, Prefix) -> reverse sizes
+    | (Shortest,Suffix) -> reverse sizes
+    end
+  in
+  match try_match_substring_loop lc s ordered_sizes pat str with
   | NoMatch -> str
   | Symbolic -> [Sym (SymPat s m pat str)]
-  | Match str' -> fixup str'
+  | Match str' -> str'
   end

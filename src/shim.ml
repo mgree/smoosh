@@ -538,7 +538,6 @@ and json_of_format = function
 and json_of_substring_mode = function
   | Shortest -> String "Shortest"
   | Longest -> String "Longest"
-  | Exact -> String "Exact"
 and json_of_substring_side = function
   | Prefix -> String "Prefix"
   | Suffix -> String "Suffix"

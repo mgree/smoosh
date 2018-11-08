@@ -197,6 +197,12 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("_=5 ; echo $((_ - 3))", os_empty, "2\n")
   ; ("_234=5 ; echo $((_234 % 4))", os_empty, "1\n")
   
+  (* regression: correct handling of patterns *)
+  ; ("x=foo_47.bar ; echo ${x%%[!0-9]*}", os_empty, "\n")
+  ; ("x=foo_47.bar ; echo ${x%%[!0-9]*}", os_complicated_fs, "\n")
+  ; ("x=foo_47.bar ; echo ${x##[!0-9]*}", os_empty, "\n")
+  ; ("x=foo_47.bar ; echo ${x##[!0-9]*}", os_complicated_fs, "\n")
+
     (* redirects and pipes *)
   ; ("( echo ${x?oops} ) 2>&1", os_empty, "x: oops\n")
   ; ("echo hi | echo no", os_empty, "no\n")
