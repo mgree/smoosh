@@ -1050,7 +1050,7 @@ and step_eval s0 checked stmt =
               TODO 2018-11-07 the nicer way to do this is to express our stopping point in ExpStart, but whatevs
             *)
            (* TODO 2018-08-29 use proper locale *)
-           let pat' = symbolic_string_of_fields (fields_of_expanded_words pat_ew') in
+           let pat' = symbolic_string_of_expanded_words pat_ew' in
            match match_prefix lc_ambient Exact pat' f with
            | NoMatch -> Right (XSCase "case did not match, trying the next",
                                os1, CaseMatch f cases)
