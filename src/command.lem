@@ -283,13 +283,11 @@ let builtin_shift s0 argv _env =
   match n with
   | Left err -> Left (s0,err)
   | Right n -> 
-     if n >= length s0.sh.positional_params
+     let params = get_function_params s0 in
+     if n >= length params
      then Left (exit_with 1 s0, "can't shift that many")
      else
-       let s1 = 
-         <| s0 with sh = 
-            <| s0.sh with positional_params = drop n s0.sh.positional_params |> |>
-       in
+       let s1 = set_function_params s0.sh.loop_nest (drop n params) s0 in
        Right (exit_with 0 s1, Done, true)
   end
 
@@ -2087,7 +2085,7 @@ let run_command s0 allow_fun checked prog_name argv env =
           match (allow_fun, lookup_function prog s0) with
           | (true, Just body) ->
              Right (set_function_params 0 argv s0,
-                    Call s0.sh.loop_nest s0.sh.positional_params prog body body,
+                    Call s0.sh.loop_nest (get_function_params s0) prog body body,
                     true)
           | _ -> 
              (* 1d. If the command name matches the name [XSI] [Option

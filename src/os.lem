@@ -571,17 +571,20 @@ let is_special_param x =
   | Left _ -> elem x ["@"; "*"; "#"; "?"; "-"; "$"; "!"]
   end
 
+val get_function_params : forall 'a. os_state 'a -> fields
+let get_function_params os =
+  match os.sh.positional_params with
+  | [] -> []
+  | _::argv -> argv
+  end
+
 (* The result is nothing if the parameter is unset, and the empty string if it's null. *)
 val lookup_nonat_param : forall 'a. os_state 'a -> string -> maybe symbolic_string
 let lookup_nonat_param os str =
   match (readNat (toCharList str),str) with
   | (Right num,_) -> lookup_positional_param num os
   | (Left _,"@") -> Nothing (* specifically excluded! *)
-  | (Left _,"*") -> 
-     match os.sh.positional_params with
-     | [] -> Just []
-     | _::params -> Just (symbolic_string_of_fields params)
-     end
+  | (Left _,"*") -> Just (symbolic_string_of_fields (get_function_params os))
   | (Left _,"#") -> 
      let num_params = length os.sh.positional_params in
      Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1))))
@@ -592,10 +595,7 @@ let lookup_nonat_param os str =
 val lookup_param : forall 'a. os_state 'a -> string -> maybe fields
 let lookup_param os str =
   if str = "@"
-  then match os.sh.positional_params with
-       | [] -> Just []
-       | _::params -> Just params
-       end
+  then Just (get_function_params os)
   else match lookup_nonat_param os str with
        | Nothing -> Nothing
        | Just v -> Just [v]
