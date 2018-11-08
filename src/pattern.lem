@@ -215,6 +215,28 @@ let rec match_exact (lc:locale) (pat:symbolic_string) (s:symbolic_string) : matc
         | Match s'' -> match_exact lc pat'' s''  (* got it, keep going with what's left *)
         end
      end
+                 
+  (* TODO 2018-11-08
+
+     "If any character (ordinary, shell special, or pattern special)
+      is quoted, that pattern shall match the character itself. The
+      shell special characters always require quoting."
+
+     "When pattern matching is used where shell quote removal is not
+      performed (such as in the argument to the find - name primary
+      when find is being called using one of the exec functions as
+      defined in the System Interfaces volume of POSIX.1-2017, or in
+      the pattern argument to the fnmatch() function), special
+      characters can be escaped to remove their special meaning by
+      preceding them with a <backslash> character. This escaping
+      <backslash> is discarded. The sequence "\\" represents one
+      literal <backslash>. All of the requirements and effects of
+      quoting on ordinary, shell special, and special pattern
+      characters shall apply to escaping in this context."
+
+      PICK UP HERE
+   *)
+
   (* plain characters *)                                  
   | (   _::_,        []) -> NoMatch
   | (  c1::pat', c2::s') ->
