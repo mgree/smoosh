@@ -187,13 +187,15 @@ let stdout_tests : (string * symbolic os_state * string) list =
   (* regression: don't do pathname expansion on patterns *)
   ; ("case Linux in *) echo matched;; esac", os_complicated_fs, "matched\n")
   ; ("case Linux in *) echo matched;; esac", os_complicated_fs_in_a, "matched\n")
+  (* regression handle quotes correctly *)
+  ; ("case hi\\\"there\\\" in *\\\"there\\\") echo matched;; *) echo did not;; esac", os_complicated_fs, "matched\n")
+  ; ("case hi\\\"there\\\" in *\"there\") echo matched;; *) echo did not;; esac", os_complicated_fs, "did not\n")
 
   (* regression: support [a-zA-Z][a-zA-Z0-9_] as varnames *)
   ; ("var_1=5 ; echo $((var_1 + 1))", os_empty, "6\n")
   ; ("_var1=5 ; echo $((_var1 * 2))", os_empty, "10\n")
   ; ("_=5 ; echo $((_ - 3))", os_empty, "2\n")
   ; ("_234=5 ; echo $((_234 % 4))", os_empty, "1\n")
-
   
     (* redirects and pipes *)
   ; ("( echo ${x?oops} ) 2>&1", os_empty, "x: oops\n")

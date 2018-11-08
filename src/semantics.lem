@@ -62,7 +62,7 @@ val expand_param : forall 'a. OS 'a => os_state 'a -> quoting_mode -> string -> 
 val control_code_expansion : forall 'a. OS 'a => os_state 'a -> quoting_mode -> words -> (os_state 'a * expanded_words)
 
 let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
-  let sympat : symbolic_string = symbolic_string_of_expanded_words pat in
+  let sympat : symbolic_string = symbolic_string_of_expanded_words false (* don't keep quotes *) pat in
   let symstr : symbolic_string = symbolic_string_of_fields str in
   try_match_prefix lc side mode sympat symstr
 
@@ -1011,10 +1011,12 @@ and step_eval s0 checked stmt =
            Right (XSCase "error in argument expansion",
                   fail_with msg os1,
                   Done)
-        | ExpDone [f] ->
-           Right (XSCase "argument fully expanded", os1, CaseMatch f cases)
-        | ExpDone fs ->
-           Left (XSCase ("case match element did not expand to a single field [" ^ string_of_fields fs ^ "]"), s0)
+        | ExpSplit ew ->
+        (* "...matched by the string resulting from the tilde
+           expansion, parameter expansion, command substitution,
+           arithmetic expansion, and quote removal of the given word." *)
+           let ss = symbolic_string_of_expanded_words false (* don't keep quotes *) ew in
+           Right (XSCase "argument fully expanded", os1, CaseMatch ss cases)
         | (_ as in_progress) ->
            Right(XSExpand (XSCase "argument expansion step") step,
                  os1,
@@ -1047,10 +1049,12 @@ and step_eval s0 checked stmt =
               command substitution, and arithmetic expansion" ... so
               we stop at ExpSplit 
 
+              
+
               TODO 2018-11-07 the nicer way to do this is to express our stopping point in ExpStart, but whatevs
             *)
            (* TODO 2018-08-29 use proper locale *)
-           let pat' = symbolic_string_of_expanded_words pat_ew' in
+           let pat' = symbolic_string_of_expanded_words true (* keep quotes *) pat_ew' in
            match match_prefix lc_ambient Exact pat' f with
            | NoMatch -> Right (XSCase "case did not match, trying the next",
                                os1, CaseMatch f cases)

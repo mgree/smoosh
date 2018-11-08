@@ -1121,24 +1121,27 @@ let rec string_of_fields fs =
   | f::fs' -> string_of_symbolic_string f ^ " " ^ string_of_fields fs'
   end
 
-val symbolic_string_of_expanded_words : expanded_words -> symbolic_string
-let rec symbolic_string_of_expanded_words w =
+val symbolic_string_of_expanded_words 
+    : bool (* keep quotes? *) -> expanded_words -> symbolic_string
+let rec symbolic_string_of_expanded_words keep_quotes w =
   match w with
   | [] -> symbolic_string_of_string ""
-  | UsrF::ws -> symbolic_string_of_string " " ++ symbolic_string_of_expanded_words ws
-  | ExpS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words ws
+  | UsrF::ws -> symbolic_string_of_string " " ++ symbolic_string_of_expanded_words keep_quotes ws
+  | ExpS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words keep_quotes ws
   | DQuo ss::ws -> 
     (* we don't include the quotes, since they'll be ultimately erased anyway! *)
-     ss ++ symbolic_string_of_expanded_words ws
+     (if keep_quotes 
+      then [C #'\"'] ++ ss ++ [C #'\"'] 
+      else ss) ++ symbolic_string_of_expanded_words keep_quotes ws
   | At fs::ws -> 
      (* we collapse the result of $@ expansion, too. special cased in expand_control *)
-     symbolic_string_of_fields fs ++ symbolic_string_of_expanded_words ws
-  | EWSym sym::ws -> Sym sym::symbolic_string_of_expanded_words ws
-  | UsrS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words ws
+     symbolic_string_of_fields fs ++ symbolic_string_of_expanded_words keep_quotes ws
+  | EWSym sym::ws -> Sym sym::symbolic_string_of_expanded_words keep_quotes ws
+  | UsrS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words keep_quotes ws
   end
 
 val fields_of_expanded_words : expanded_words -> fields
-let fields_of_expanded_words w = [symbolic_string_of_expanded_words w]
+let fields_of_expanded_words w = [symbolic_string_of_expanded_words false w]
 
 val split_equal : string -> symbolic_string -> string * maybe symbolic_string
 let rec split_equal var ss =
