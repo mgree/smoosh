@@ -192,7 +192,7 @@ and parse_test_expr_unary toks =
 val parse_test_expr : list string -> either string test_expr
 let parse_test_expr toks = 
   match parse_test_expr_disjunction toks with
-  | Left err -> Left err
+  | Left err -> Left ("parse error in '" ^ concat " " toks ^ "': " ^ err)
   | Right (expr,[]) -> Right expr
   | Right (expr,toks) -> Left ("unexpected input after " ^ string_of_test_expr expr ^ ": " ^ concat " " toks)
   end
