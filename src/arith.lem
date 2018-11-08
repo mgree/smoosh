@@ -198,13 +198,13 @@ let rec lexer str =
   | (#'('::cs) -> either_fmap (fun lst -> TLParen::lst) (lexer cs)
   | (#')'::cs) -> either_fmap (fun lst -> TRParen::lst) (lexer cs)
   | (c::cs) ->
-      match (is_digit c, is_alpha c) with
+      match (is_digit c, is_variable_initial_char c) with
       | (true, _) -> let (digits, rst) = span is_num_const_char cs in
                      match read (c::digits) with
                      | Right n -> either_fmap (fun lst -> (TNum n)::lst) (lexer rst)
                      | Left e -> Left e
                      end
-      | (_, true) -> let (var, rst) = span is_alpha cs
+      | (_, true) -> let (var, rst) = span is_variable_char cs
                      in either_fmap (fun lst -> (TVar (toString (c::var)))::lst) (lexer rst)
       | (false, false) ->
           if is_whitespace c

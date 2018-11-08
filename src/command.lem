@@ -224,7 +224,7 @@ let builtin_break s0 argv _env =
   | [] -> 
      (* default to just breaking the immediate loop *)
      Right (exit_with 0 s0, Break 1, true) 
-  | [s] -> match readInteger 10 (char_list_of_symbolic_string s) with
+  | [s] -> match readUnsignedInteger 10 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 1
               then Left (s0,write n ^ ": loop count out of range")
@@ -249,7 +249,7 @@ let builtin_continue s0 argv _env =
 let builtin_exit s0 argv _env =
   match argv with
   | [] -> Right (s0, Exit, true) (* default to exit code of last command *)
-  | [s] -> match readInteger 10 (char_list_of_symbolic_string s) with
+  | [s] -> match readUnsignedInteger 10 (char_list_of_symbolic_string s) with
            | Right n -> 
               if n < 0 || n > 255
               then Left (s0, write n ^ ": illegal number")
@@ -1124,7 +1124,7 @@ let builtin_umask s0 argv _env =
      | Nothing -> Left (s0, "can't set symbolic mask")
      | Just mask ->
         (* try to convert the string to an octal number *)
-        match readInteger 8 (toCharList mask) with
+        match readUnsignedInteger 8 (toCharList mask) with
         | Right octal ->
           (* convert the number to permissions *)
           let new_mask = perms_of_nat (toNat octal) in
@@ -1424,7 +1424,7 @@ let sprintf_esc fmt =
      then 
        let (other_digits,rest) = splitWhile is_octal_digit [d2;d3] in
        let num_cs = d1::other_digits in
-       match readInteger 8 num_cs with
+       match readUnsignedInteger 8 num_cs with
        | Left msg -> 
           Assert_extra.failwith ("!!! couldn't read octal digits: " ^ 
                                    toString num_cs ^ "(" ^ msg ^ ")")

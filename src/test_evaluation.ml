@@ -151,6 +151,12 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   ; ("test hi \\< hello", os_empty, 1)
   ; ("test lol \\< hello", os_empty, 1)
   ; ("test a \\< b", os_empty, 0)
+
+  (* regression: support negative numbers *)
+  ; ("test -5 -eq $((0-5))", os_empty, 0)
+  ; ("test -5 -eq $((5*5))", os_empty, 1)
+  ; ("test $((0-5)) -eq -5", os_empty, 0)
+  ; ("test $((5*5)) -eq -5", os_empty, 1)
   ]
 
 (***********************************************************************)
@@ -181,6 +187,13 @@ let stdout_tests : (string * symbolic os_state * string) list =
   (* regression: don't do pathname expansion on patterns *)
   ; ("case Linux in *) echo matched;; esac", os_complicated_fs, "matched\n")
   ; ("case Linux in *) echo matched;; esac", os_complicated_fs_in_a, "matched\n")
+
+  (* regression: support [a-zA-Z][a-zA-Z0-9_] as varnames *)
+  ; ("var_1=5 ; echo $((var_1 + 1))", os_empty, "6\n")
+  ; ("_var1=5 ; echo $((_var1 * 2))", os_empty, "10\n")
+  ; ("_=5 ; echo $((_ - 3))", os_empty, "2\n")
+  ; ("_234=5 ; echo $((_234 % 4))", os_empty, "1\n")
+
   
     (* redirects and pipes *)
   ; ("( echo ${x?oops} ) 2>&1", os_empty, "x: oops\n")

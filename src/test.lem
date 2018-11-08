@@ -91,10 +91,11 @@ val parse_test_expr_equality : list string -> either string (test_expr * list st
 val parse_test_expr_unary : list string -> either string (test_expr * list string)
 
 let read_two_nats num1 num2 op =
-  match (readInteger 10 (toCharList num1), readInteger 10 (toCharList num2)) with
+  match (readSignedInteger 10 (toCharList num1), 
+         readSignedInteger 10 (toCharList num2)) with
   | (Right n1, Right n2) -> Right (n1, n2)
   | (Left msg, _) -> Left ("expected number before " ^ op ^ ", found '" ^ num1 ^ "' (" ^ msg ^ ")")
-  | (_, Left msg) -> Left ("expected number after " ^ op ^ ", found '" ^ num1 ^ "' (" ^ msg ^ ")")
+  | (_, Left msg) -> Left ("expected number after " ^ op ^ ", found '" ^ num2 ^ "' (" ^ msg ^ ")")
   end
 
 let rec parse_test_expr_disjunction toks = 

@@ -10,12 +10,25 @@ import Debug
 (* UTILITY FUNCTIONS **************************************************)
 (**********************************************************************)
 
+val alphabetic : list char
+let alphabetic = 
+  toCharList "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 val alphanumerics : list char
 let alphanumerics = 
-  toCharList "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  toCharList "0123456789" ++ alphabetic
+
+val is_alpha : char -> bool
+let is_alpha c = elem c alphabetic
 
 val is_alphanumeric : char -> bool
 let is_alphanumeric c = elem c alphanumerics  
+
+val is_variable_initial_char : char -> bool
+let is_variable_initial_char c = is_alpha c || c = #'_'
+
+val is_variable_char : char -> bool
+let is_variable_char c = is_alphanumeric c || c = #'_'
 
 val uppercase : string -> string
 let uppercase s = toString (List.map uppercase_char (toCharList s))

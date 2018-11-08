@@ -38,8 +38,6 @@ let is_num_const_char c = elem c (toCharList "1234567890xabcdefABCDEF")
 val is_numeric : list char -> bool
 let is_numeric = foldr (fun c ok -> is_num_const_char c && ok) true
 
-let is_alpha c = elem c (toCharList "abcdefghijklnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
 (* Convert uppercase A-F to lowercase and then convert
  * lowercase hexdigit to integer 10 to 15. *)
 val hexalpha_to_num : char -> either string nat
@@ -128,18 +126,30 @@ let rec readInteger_loop base acc chars =
      end
   end
 
-val readInteger : nat -> (list char) -> either string integer
-let readInteger base chars =
+val readUnsignedInteger : nat -> list char -> either string integer
+let readUnsignedInteger base chars =
   match chars with
   | [] -> Left "empty string is not numeric"
   | _ -> readInteger_loop base 0 chars
   end
 
+val readSignedInteger : nat -> list char -> either string integer
+let readSignedInteger base chars =
+  match chars with
+  | #'+'::cs -> readUnsignedInteger base cs
+  | #'-'::cs ->
+     match readUnsignedInteger base cs with
+     | Left msg -> Left msg
+     | Right n -> Right (~n)
+     end
+  | _ -> readUnsignedInteger base chars
+  end        
+  
 (* only use this for base 10 literals *)
 val readNat : (list char) -> either string nat
 let readNat cs =
   if is_numeric cs
-  then match readInteger 10 cs with
+  then match readUnsignedInteger 10 cs with
        | Right n -> Right (toNat n)
        | Left e -> Left e
        end
@@ -247,7 +257,7 @@ declare ocaml target_rep function write64 = `Int64.to_string`
 
 val unbounded_read : list char -> either string integer
 let unbounded_read cs = 
-  readConstant (readInteger 10) (readInteger 16) (readInteger 8) cs
+  readConstant (readUnsignedInteger 10) (readUnsignedInteger 16) (readUnsignedInteger 8) cs
 
 instance ( Read integer )
   let read = unbounded_read
