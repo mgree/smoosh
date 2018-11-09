@@ -61,11 +61,6 @@ val expand_param : forall 'a. OS 'a => os_state 'a -> quoting_mode -> string -> 
 (* Runs expansion all the way, for testing purposes only *)
 val control_code_expansion : forall 'a. OS 'a => os_state 'a -> quoting_mode -> words -> (os_state 'a * expanded_words)
 
-let match_substring (lc:locale) (side:substring_side) (mode:substring_mode) (pat:expanded_words) (str:fields) : symbolic_string =
-  let sympat : symbolic_string = symbolic_string_of_expanded_words false (* don't keep quotes *) pat in
-  let symstr : symbolic_string = symbolic_string_of_fields str in
-  try_match_substring lc side mode sympat symstr
-
 (* TODO 2017-12-01
  * In an N____ case, when null_string fs is Nothing, the
  * string is entirely symbolic so we need
@@ -245,9 +240,13 @@ for x in "$@"; do echo "$x"; done # arg  1\narg  2\narg  3
        | Left err -> Left err
        end
     | LMatch str side mode f [] -> 
+       let sympat = symbolic_string_of_expanded_words false (* don't keep quotes *) f in
+       let symstr = symbolic_string_of_fields str in
+       let (s1,_concretized,pat) = concretize s0 sympat in
+       let matched = try_match_substring s1.sh.locale side mode pat symstr in
        Right (ESParam "finished match", 
-              s0, NoTilde, [], 
-              words_of_symbolic_string (match_substring s0.sh.locale side mode f str))
+              s1, NoTilde, [], 
+              words_of_symbolic_string matched)
     | LMatch s side mode f w ->
        match expand_words s0 q NoTilde GeneratedString ([], w) with
        | Right (step, s1, tm1, f1, w1) -> 

@@ -157,6 +157,9 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
   (* CTLESC *)
   | '\129'::_ as s,_ -> 
      let (str,s') = parse_string [] s in
+     (* PICK UP HERE 2018-11-09 
+        need to track escaped characters :(
+      *)
      arg_char (S (implode str)) s' bqlist stack
   (* CTLVAR *)
   | '\130'::t::s,_ ->

@@ -190,6 +190,7 @@ let stdout_tests : (string * symbolic os_state * string) list =
   (* regression handle quotes correctly *)
   ; ("case hi\\\"there\\\" in *\\\"there\\\") echo matched;; *) echo did not;; esac", os_complicated_fs, "matched\n")
   ; ("case hi\\\"there\\\" in *\"there\") echo matched;; *) echo did not;; esac", os_complicated_fs, "did not\n")
+  ; ("x='' ; case $x in \"\") echo e ;; *) echo nope ;; esac", os_empty, "e\n")
 
     (* regression: support [a-zA-Z][a-zA-Z0-9_] as varnames *)
   ; ("var_1=5 ; echo $((var_1 + 1))", os_empty, "6\n")
