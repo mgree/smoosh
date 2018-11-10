@@ -15,13 +15,13 @@ If you don't load the git submodules, the libdash and Lem references won't resol
 
 - Run: `./build.sh`
 
-## Building
+## Building in more detail
 
 - Run: `docker build -t smoosh .`
 
 To build by hand, you should more or less follow the steps in the Dockerfile, adapting to your system. (For example, on OS X, you'll probably want to install directly to `/usr/local`.)
 
-# Testing
+## Testing in more detail
 
 - To run the test suite after building, run: `docker build -t smoosh-test -f Dockerfile.test . && docker run smoosh-test`
 - To explore the built image, run: `docker run -ti smoosh`
