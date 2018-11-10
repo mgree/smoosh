@@ -12,4 +12,4 @@ before_install:
 
 script:
   - docker run smoosh-test
-  - docker build -t smoosh-web -f Dockerfile.web
+  - docker build -t smoosh-web -f Dockerfile.web .
