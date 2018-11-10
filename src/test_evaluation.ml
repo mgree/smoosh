@@ -182,15 +182,24 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("echo -n \"hi \" ; echo there", os_empty, "hi there\n")
   ; ("x=${y:=1} ; echo $((x+=`echo 2`))", os_empty, "3\n")
 
+  (* regression: krazy kwotes 
+     see test_prelude.ml for fs details of why these are the outputs
+   *)
+  ; ("echo *", os_complicated_fs, "a b c\n")
+  ; ("echo \\*", os_complicated_fs, "*\n")
+  ; ("x=\\* ; echo $x", os_complicated_fs, "a b c\n")
+  ; ("x=\\* ; cd b ; echo $x", os_complicated_fs, "user\n")
+  ; ("case hi\\\"there\\\" in *\\\"there\\\") echo matched;; *) echo did not;; esac", os_complicated_fs, "matched\n")
+  ; ("case hi\\\"there\\\" in *\"there\") echo matched;; *) echo did not;; esac", os_complicated_fs, "did not\n")
+  ; ("x='' ; case $x in \"\") echo e ;; *) echo nope ;; esac", os_empty, "e\n")
+  ; ("case hi\\\"there\\\" in *\\\") echo m;; *) echo n;; esac", os_empty, "m\n")
+  ; ("x=hello\\*there ; echo ${x#*\\*}", os_complicated_fs, "there\n")
+
   ; ("case Linux in Lin*) echo matched;; *) echo nope;; esac", os_empty, "matched\n")
   ; ("case Linux in *) echo matched;; esac", os_empty, "matched\n")
   (* regression: don't do pathname expansion on patterns *)
   ; ("case Linux in *) echo matched;; esac", os_complicated_fs, "matched\n")
   ; ("case Linux in *) echo matched;; esac", os_complicated_fs_in_a, "matched\n")
-  (* regression handle quotes correctly *)
-  ; ("case hi\\\"there\\\" in *\\\"there\\\") echo matched;; *) echo did not;; esac", os_complicated_fs, "matched\n")
-  ; ("case hi\\\"there\\\" in *\"there\") echo matched;; *) echo did not;; esac", os_complicated_fs, "did not\n")
-  ; ("x='' ; case $x in \"\") echo e ;; *) echo nope ;; esac", os_empty, "e\n")
 
     (* regression: support [a-zA-Z][a-zA-Z0-9_] as varnames *)
   ; ("var_1=5 ; echo $((var_1 + 1))", os_empty, "6\n")

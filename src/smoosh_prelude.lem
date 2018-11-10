@@ -1120,6 +1120,33 @@ let rec string_of_fields fs =
   | f::fs' -> string_of_symbolic_string f ^ " " ^ string_of_fields fs'
   end
 
+let escape_quote_symbolic_char sc =
+  match sc with
+  | C #'\"' -> [C #'\\'; C #'\"']
+  | _ -> [sc]
+  end
+
+val escape_quotes : symbolic_string -> symbolic_string
+let escape_quotes ss = concatMap escape_quote_symbolic_char ss
+
+val unescape_chars : list char -> symbolic_string -> symbolic_string
+let rec unescape_chars escs ss =
+  match ss with
+  | [] -> []
+  | C #'\\'::C c::ss' ->
+     if List.elem c escs
+     then C c::unescape_chars escs ss'
+     else C #'\\'::C c::unescape_chars escs ss'
+  | sc::ss' -> sc::unescape_chars escs ss'
+  end
+
+val pattern_escs : list char
+let pattern_escs = toCharList "*?[\""
+
+val unescape_pattern : symbolic_string -> symbolic_string
+let unescape_pattern (pat : symbolic_string) =
+  unescape_chars pattern_escs pat
+
 val symbolic_string_of_expanded_words 
     : bool (* keep quotes? *) -> expanded_words -> symbolic_string
 let rec symbolic_string_of_expanded_words keep_quotes w =
@@ -1136,7 +1163,11 @@ let rec symbolic_string_of_expanded_words keep_quotes w =
      (* we collapse the result of $@ expansion, too. special cased in expand_control *)
      symbolic_string_of_fields fs ++ symbolic_string_of_expanded_words keep_quotes ws
   | EWSym sym::ws -> Sym sym::symbolic_string_of_expanded_words keep_quotes ws
-  | UsrS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words keep_quotes ws
+  | UsrS s::ws -> 
+     let ss = symbolic_string_of_string s in
+     (* when DQuo generates quotes, we want to escape the other quotes *)
+     (if keep_quotes then escape_quotes ss else ss) ++ 
+     symbolic_string_of_expanded_words keep_quotes ws
   end
 
 val fields_of_expanded_words : expanded_words -> fields
