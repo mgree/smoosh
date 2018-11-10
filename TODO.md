@@ -119,6 +119,7 @@ echo "\\\\\\"
   + postback JS errors to the serve
   + auto-pull and rebuild from a production branch
     use docker-compose to make the reload process simpler
+    identify revision in web-server
 
 - move to int64
   there are almost certainly some bugs around the POSIX spec
