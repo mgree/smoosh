@@ -1,5 +1,7 @@
 FROM smoosh
 
+# :( things go out of date with Debian so quickly
+RUN sudo apt-get update
 RUN sudo apt-get install -y ruby-full ruby-bundler
 RUN sudo gem install childprocess sinatra sinatra-contrib thin
 
