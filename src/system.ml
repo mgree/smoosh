@@ -343,14 +343,29 @@ let real_write_fd (fd:int) (s:string) : bool =
   xwrite (fd_of_int fd) buff
 
 let real_read_all_fd (fd:int) : string option =
-  (* allocate each time... may not be necessary with OCaml's model of shared memory *)
-  let buff = Bytes.make 1024 (Char.chr 0) in
-  let read = Unix.read (fd_of_int fd) buff 0 1024 in
-  if read = 0
-  then Some ""
-  else if read > 0
-  then Some (Bytes.sub_string buff 0 read)
-  else None
+  let rec drain buff ofs =
+    let read = 
+      try Unix.read (fd_of_int fd) buff ofs (Bytes.length buff - ofs) 
+      with Unix.Unix_error(Unix.EPIPE,_,_) -> 0
+         | Unix.Unix_error(Unix.EBADF,_,_) -> 0
+         | Unix.Unix_error(Unix.EINTR,_,_) -> 0
+    in
+    if read = 0
+    then Some (Bytes.sub_string buff 0 ofs)
+    else if read > 0
+    then 
+      (* TODO 2018-11-12 this grows too much *)
+      let ofs' = ofs + read in
+      let buff' = 
+        (* double the buffer as necessary *)
+        if ofs' >= Bytes.length buff 
+        then Bytes.extend buff 0 (Bytes.length buff)
+        else buff
+      in
+      drain buff' ofs'
+    else None
+  in
+  drain (Bytes.make 1024 (Char.chr 0)) 0
 
 (* TODO 2018-10-11 distinguish error and EOF? *)
 let real_read_char_fd (fd:int) : (string,char option) either =

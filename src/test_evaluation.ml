@@ -224,6 +224,11 @@ let stdout_tests : (string * symbolic os_state * string) list =
      os_empty,
      "smoosh\nsmoosh\nsmoosh\nsmoosh\n")
 
+    (* subshells *)
+  ; ("x=$(echo *) ; echo $x", os_complicated_fs, "a b c\n")
+  ; ("x=$(echo hello there); echo $x", os_empty, "hello there\n")
+  ; ("x=$(echo 5); echo $((x * x))", os_empty, "25\n")
+
     (* shift *)
   ; ("set -- a b c ; shift ; echo $#", os_empty, "2\n")
   ; ("set -- a b c ; shift 1 ; echo $#", os_empty, "2\n")

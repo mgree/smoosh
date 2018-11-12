@@ -1357,7 +1357,7 @@ let builtin_read s0 argv env =
      Left (s0, "couldn't handle symbolic variable names: " ^ string_of_fields argv)
   | Just [] -> Left (s0, "no variables specified")
   | Just vars ->
-     match read_line_fd s0  backslash_escapes STDIN with
+     match read_line_fd s0 backslash_escapes STDIN with
      | (s1, ReadError msg) -> Left (s1, msg)
      | (s1, ReadBlocked pid) -> 
         Right (s1, 
