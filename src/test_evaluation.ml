@@ -188,6 +188,7 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("echo *", os_complicated_fs, "a b c\n")
   ; ("echo \\*", os_complicated_fs, "*\n")
   ; ("x=\\* ; echo $x", os_complicated_fs, "a b c\n")
+  ; ("x=\\* ; set -f ; echo $x ; set +f ; echo $x", os_complicated_fs, "*\na b c\n")
   ; ("x=\\* ; cd b ; echo $x", os_complicated_fs, "user\n")
   ; ("case hi\\\"there\\\" in *\\\"there\\\") echo matched;; *) echo did not;; esac", os_complicated_fs, "matched\n")
   ; ("case hi\\\"there\\\" in *\"there\") echo matched;; *) echo did not;; esac", os_complicated_fs, "did not\n")

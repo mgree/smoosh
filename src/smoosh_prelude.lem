@@ -1147,6 +1147,18 @@ val unescape_pattern : symbolic_string -> symbolic_string
 let unescape_pattern (pat : symbolic_string) =
   unescape_chars pattern_escs pat
 
+val unescape_tmp_field : tmp_field -> tmp_field
+let unescape_tmp_field tf =
+  match tf with
+  | WFS -> WFS
+  | FS -> FS
+  | Field ss -> Field (unescape_pattern ss)
+  | QField ss -> QField (unescape_pattern ss)
+  end
+
+val unescape_intermediate_fields : intermediate_fields -> intermediate_fields
+let unescape_intermediate_fields = List.map unescape_tmp_field
+
 val symbolic_string_of_expanded_words 
     : bool (* keep quotes? *) -> expanded_words -> symbolic_string
 let rec symbolic_string_of_expanded_words keep_quotes w =

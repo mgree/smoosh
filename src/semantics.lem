@@ -381,7 +381,8 @@ and step_expansion (os0,st) =
   | ExpSplit f0 -> (ESSplit "", os0, ExpPath (field_splitting os0 f0))
   | ExpPath ifs0 -> 
      if Set.member Sh_noglob os0.sh.opts
-     then (ESPath "set -f: pathname expansion disabled", os0, ExpQuote ifs0)
+     then (ESPath "set -f: pathname expansion disabled", os0, 
+           ExpQuote (unescape_intermediate_fields ifs0))
      else (ESPath "", os0, ExpQuote (pathname_expansion os0 ifs0))
   | ExpQuote ifs0 -> (ESQuote "", os0, ExpDone (quote_removal ifs0))
   (* the following cases should never occur in calls from trace_expansion: *)
@@ -422,8 +423,8 @@ and step_redir os0 er =
                 ExpQuote expanded)
           else ("skipped pathname expansion in interactive shell [produced " ^ 
                 (stringFromNat (length expanded)) ^ " words]",
-                ExpQuote ifs)
-        else ("skipped pathname expansion", ExpQuote ifs)
+                ExpQuote (unescape_intermediate_fields ifs))
+        else ("skipped pathname expansion", ExpQuote (unescape_intermediate_fields ifs))
       in
       REStep (ESPath msg) os1 (set_expanding_redir_state es' er)
    | _ -> REStep step os1 (set_expanding_redir_state st1 er)
