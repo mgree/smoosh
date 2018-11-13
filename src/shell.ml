@@ -181,14 +181,6 @@ let initialize_env s0 : system os_state =
                                  export immediately. *)
                               export = Pset.from_list compare (List.map fst environ) } }
 
-let finish_up s0 =
-  (* TODO 2018-08-14 trap on EXIT etc. goes here? *)
-  match Os.lookup_concrete_param s0 "?" with
-  | None -> failwith "BROKEN INVARIANT: missing or symbolic exit code"
-  | Some s -> 
-     try exit (int_of_string s)
-     with Failure "int_of_string" -> failwith ("BROKEN INVARIANT: bad exit code: " ^ s)
-
 let run_cmds s0 = 
   let ns = Dash.parse_all () in
   let cs = List.map Shim.of_node ns in
@@ -203,7 +195,7 @@ let run_cmds s0 =
     os'
   in
   let s1 = List.fold_left run s0 cs in
-  finish_up s1
+  ignore (run s1 Exit)
 
 let rec repl s0 =
   (* update job list *)
@@ -219,7 +211,7 @@ let rec repl s0 =
          prerr_endline "Use \"exit\" to leave shell."; 
          repl s3
        end
-     else finish_up s3
+     else ignore (real_eval s3 Exit)
   | Error -> repl s3
   | Null -> repl s3
   | Parsed n -> 
