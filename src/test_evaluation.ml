@@ -332,6 +332,8 @@ let stdout_tests : (string * symbolic os_state * string) list =
   (* this test doesn't work, because demand-driven scheduling means the trap
      is never installed before teh signal arrives *)
 (*  ; ("(trap 'echo bye' SIGTERM ; echo hi) & kill %1 ; wait", os_empty, "bye\n") *)
+  ; ("(trap 'echo bye' EXIT) & wait", os_empty, "bye\n")
+  ; ("trap 'echo bye' EXIT", os_empty, "bye\n")
 
     (* getopts *)
   ; ("getopts ab opt -a -b -- c d ; " ^

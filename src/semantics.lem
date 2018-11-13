@@ -1211,19 +1211,10 @@ and step_eval s0 checked stmt =
   | Continue _n -> Right (XSSimple "continue bottomed out", s0, Done)
   | Return -> Right (XSSimple "return bottomed out", s0, Done)
   | Exit -> 
-     (* find and clear trap *)
-     let (s1,m_cmd) =
-       match Map.lookup EXIT s0.sh.traps with
-       | Nothing -> (s0, Nothing)
-       | Just ss_cmd -> (update_trap s0 EXIT Nothing, Just (command_eval ss_cmd))
-     end
-     in
+     let (s1,m_cmd) = exit_trap s0 in
      match m_cmd with
-     | Nothing -> 
-        (* no trap, we can actually exit *)
-        Right (XSSimple "exited", exit s1, Done)
-     | Just cmd ->
-        Right (XSSimple "trapped on exit", s1, Semi cmd Exit)
+     | Nothing -> Right (XSSimple "exited", exit s1, Done)
+     | Just cmd -> Right (XSSimple "trapped on exit", s1, Semi cmd Exit)
      end
   | Done -> Right (XSSimple "", s0, Done)
   end
@@ -1248,7 +1239,8 @@ and full_evaluation os0 stmt0 =
 
 and eval os0 stmt0 =
   let os1 = full_evaluation os0 stmt0 in
-  snd (get_concrete_exit_code os1)
+  let os2 = full_evaluation os1 Exit in
+  snd (get_concrete_exit_code os2)
 
 (**********************************************************************)   
 (* TRACING ************************************************************)   
@@ -1333,7 +1325,7 @@ let rec symbolic_eval_multi os0 stmts =
   if os0.symbolic.exited
   then os0
   else match stmts with
-       | [] -> os0
+       | [] -> full_evaluation os0 Exit
        | stmt::stmts' -> symbolic_eval_multi (full_evaluation os0 stmt) stmts'
        end
 
