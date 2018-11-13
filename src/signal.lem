@@ -191,7 +191,7 @@ declare ocaml target_rep function ocaml_sigxfsz = `Sys.sigxfsz`
 val ocaml_signal_of_signal : signal -> maybe int
 let ocaml_signal_of_signal signal =
   match signal with
-  | EXIT      -> Nothing
+  | EXIT      -> Just 0
   | SIGABRT   -> Just ocaml_sigabrt
   | SIGALRM   -> Just ocaml_sigalrm
   | SIGBUS    -> Just ocaml_sigbus
@@ -285,7 +285,7 @@ let signal_default_behavior signal =
   let S = SigBeh_Stop in
   let C = SigBeh_Continue in
   match signal with
-  | EXIT      -> T (* not really a signal, but okay *)
+  | EXIT      -> I (* not really a signal, but okay *)
   | SIGABRT   -> A
   | SIGALRM   -> T
   | SIGBUS    -> A

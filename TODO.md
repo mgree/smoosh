@@ -54,7 +54,7 @@ echo "\\\\\\"
     execute on restore from step
   plan #2:
     actually put a proc entry in for the top-level shell
-    much more faithful, messes with visualizaton at exists now
+    much more faithful, messes with visualizaton as it exists now
 
 - what is the exact correct behavior for IFS null?
   no field splitting should happen on _strings_
