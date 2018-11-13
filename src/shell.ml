@@ -150,12 +150,8 @@ let setup_handlers () =
   System.real_eval := 
     (fun os stmt -> real_eval_for_exit_code (Obj.magic os) (Obj.magic stmt));
   System.real_eval_string := 
-    (fun cmd -> 
-      real_eval_for_exit_code !last_state (command_eval (symbolic_string_of_string cmd)));
-  at_exit (fun () -> 
-      match List.assoc_opt 0 !System.current_traps with
-      | None -> ()
-      | Some cmd -> ignore (!System.real_eval_string cmd))
+    (fun os cmd -> 
+      real_eval_for_exit_code (Obj.magic os) (command_eval (symbolic_string_of_string cmd)))
 
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
 let initialize_env s0 : system os_state =

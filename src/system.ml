@@ -40,18 +40,20 @@ let all_signals =
   ; Sys.sigxcpu
   ; Sys.sigxfsz]
 
-let gotsigchld = ref false
-let sigblockall () = ignore (Unix.sigprocmask Unix.SIG_BLOCK all_signals)
-let sigunblockall () = ignore (Unix.sigprocmask Unix.SIG_UNBLOCK all_signals)
-
 (* for backpatching the real_eval function 
    takes a command to its exit code
  *)
 type dummy = Dummy (* to make sure we don't get funny unboxing *)
+let shell_state : dummy ref = ref Dummy
+
+let gotsigchld = ref false
+let sigblockall () = ignore (Unix.sigprocmask Unix.SIG_BLOCK all_signals)
+let sigunblockall () = ignore (Unix.sigprocmask Unix.SIG_UNBLOCK all_signals)
+
 let real_eval : (dummy -> dummy -> int) ref =
   ref (fun _ _ -> failwith "real_eval knot is untied")
 
-let real_eval_string : (string -> int) ref = 
+let real_eval_string : (dummy -> string -> int) ref = 
   ref (fun _ -> failwith "real_eval_string knot is untied")
 
 let parse_keqv s = 
@@ -178,7 +180,9 @@ let real_fork_and_eval
   sigblockall ();
   match Unix.fork () with
   | 0 -> 
-     List.iter (fun signal -> Sys.set_signal signal Signal_ignore) handlers;
+     List.iter 
+       (fun signal -> if signal <> 0 then Sys.set_signal signal Signal_ignore) 
+       handlers;
      (* more or less following dash's forkchild in jobs.c:847-907 *)
      if outermost && jc
      then begin
@@ -209,6 +213,8 @@ let real_fork_and_eval
            end;
        end;
      sigunblockall ();
+     (* save state for handlers---will be process-local *)
+     shell_state := Obj.magic os;
      let status = !real_eval (Obj.magic os) (Obj.magic stmt) in 
      (* make sure we restore the terminal *)
      real_exit status
@@ -466,7 +472,7 @@ let handler signal =
     gotsigchld := true;
   match List.assoc_opt signal !current_traps with
   | None -> ()
-  | Some cmd -> ignore (!real_eval_string cmd)
+  | Some cmd -> ignore (!real_eval_string !shell_state cmd)
 
 let real_handle_signal signal action =
   let old_traps = List.remove_assoc signal !current_traps in
