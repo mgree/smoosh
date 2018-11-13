@@ -477,7 +477,8 @@ let real_handle_signal signal action =
     | Some cmd -> ([(signal,cmd)], Sys.Signal_handle handler)
   in
   current_traps := new_traps @ old_traps;
-  Sys.set_signal signal handler
+  if signal <> 0
+  then Sys.set_signal signal handler
 
 let real_signal_pid signal pid as_pg =
   try Unix.kill (if as_pg then -pid else pid) signal; true
