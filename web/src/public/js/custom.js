@@ -1121,8 +1121,9 @@ function renderFormat(info, elt, format) {
 function renderControl(info, elt, control) {
   console.assert(typeof control === 'object', 'expected control object, got ' + control);
   console.assert('tag' in control, 'expected tag for control object');
-  console.assert(['Tilde', 'TildeUser', 'Param', 'LAssign', 'LMatch',
-                  'LError', 'Backtick', 'LBacktick', 'Arith', 'Quote'].includes(control['tag']), 
+  console.assert(['Tilde', 'TildeUser', 'Param', 'LAssign', 'LMatch', 'LError', 
+                  'Backtick', 'LBacktick', 'LBacktickWait', 
+                  'Arith', 'Quote'].includes(control['tag']), 
                  'got weird control tag ' + control['tag']);
 
   elt.addClass('control-' + control['tag']);
@@ -1237,6 +1238,11 @@ function renderControl(info, elt, control) {
       //                                             ("orig", json_of_stmt corig);
       //                                             ("pid", Int pid);
       //                                             ("fd_read", Int fd_read)]
+    case 'LBacktickWait':
+      // | LBacktickWait (corig, pid) -> Assoc [tag "LBacktickWait"; 
+      //                                        ("orig", json_of_stmt corig);
+      //                                        ("pid", Int pid);
+      //                                        ("s", String s)]
 
       elt.append('$(');
       var stmt = $('<span></span>').addClass('stmt').appendTo(elt);

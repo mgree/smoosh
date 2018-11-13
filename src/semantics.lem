@@ -297,12 +297,49 @@ for x in "$@"; do echo "$x"; done # arg  1\narg  2\narg  3
                  s1,
                  [])
         | (s1, Right (Just s)) ->
+           (* "If the output contains any null bytes, the behavior is
+              unspecified."
+
+              "Any valid shell script can be used for command, except a
+              script consisting solely of redirections which produces
+              unspecified results."
+
+            *)
            let s2 = close_fd s1 fd_read in
            let s_trimmed = trimr_newlines s in
-           Right (ESCommand "command exited successfully",
+           (* "If there is no command name, but the command contained
+              a command substitution, the command shall complete with
+              the exit status of the last command substitution
+              performed." *)
+           (* PICK UP HERE:
+              we have to wait for the process to terminate.
+              add a second LBacktickWait node, call waitpid
+            *)
+           Right (ESCommand "command exited successfully, waiting",
                   s2, 
                   NoTilde,
-                  [ExpS s_trimmed], 
+                  [], 
+                  [K (LBacktickWait corig pid s_trimmed)])
+        end
+    | LBacktickWait corig pid s ->
+        match waitpid step_eval s0 pid with
+        | (s1, Nothing) ->
+           Right (ESCommand "command process vanished, leaving exit code unset",
+                  s1,
+                  NoTilde,
+                  [ExpS s],
+                  [])
+        | (s1, Just (Left step)) ->
+           Right (ESEval (ESCommand "command process stepped") step,
+                  s1,
+                  NoTilde,
+                  [],
+                  [K (LBacktickWait corig pid s)])
+        | (s1, Just (Right code)) ->
+           Right (ESCommand "command process terminated",
+                  exit_with code s1,
+                  NoTilde,
+                  [ExpS s],
                   [])
         end
     | Arith f [] ->

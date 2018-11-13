@@ -522,6 +522,10 @@ and json_of_control = function
                                               ("orig", json_of_stmt corig);
                                               ("pid", Int pid);
                                               ("fd_read", Int fd_read)]
+  | LBacktickWait (corig, pid, s) -> Assoc [tag "LBacktickWait"; 
+                                            ("orig", json_of_stmt corig);
+                                            ("pid", Int pid);
+                                            ("s", String s)]
   | Arith (f,w) ->  obj_fw "Arith" f w
   | Quote (f,w) -> obj_fw "Quote" f w
 and json_of_format = function

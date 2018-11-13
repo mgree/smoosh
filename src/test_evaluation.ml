@@ -41,6 +41,9 @@ let exit_code_tests : (string * symbolic os_state * int) list =
   ; ("! false", os_empty, 0)
   ; ("! { true ; false ; }", os_empty, 0)
   ; ("! { false ; true ; }", os_empty, 1)
+  ; ("x=`false`", os_empty, 1)
+  ; ("x=$(exit 5)", os_empty, 5)
+  ; ("exit $(echo 3; exit 5)", os_empty, 3)
 
   (* expansion *)
   ; ("x=5 ; echo ${x?erp}", os_empty, 0)
