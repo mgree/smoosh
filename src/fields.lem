@@ -144,7 +144,7 @@ val pathname_expansion : forall 'a. OS 'a => os_state 'a -> intermediate_fields 
 let rec pathname_expansion s0 f =
   match f with
   | [] -> []
-  | (Field(s)::rst) -> 
+  | Field s::rst -> 
      let matches = 
        match try_concrete s with
        | Just pat -> match_path s0 pat
@@ -157,7 +157,8 @@ let rec pathname_expansion s0 f =
        else insert_field_separators matches 
      in
      expansions ++ pathname_expansion s0 rst
-  | (f::rst) -> f::(pathname_expansion s0 rst)
+  | QField s::rst -> QField (unescape_pattern s)::pathname_expansion s0 rst
+  | f::rst -> f::(pathname_expansion s0 rst)
   end
 
 (*

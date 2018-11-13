@@ -201,6 +201,10 @@ let stdout_tests : (string * symbolic os_state * string) list =
   (* regression: don't do pathname expansion on patterns *)
   ; ("case Linux in *) echo matched;; esac", os_complicated_fs, "matched\n")
   ; ("case Linux in *) echo matched;; esac", os_complicated_fs_in_a, "matched\n")
+  ; ("echo []", os_complicated_fs, "[]\n")
+  ; ("echo \"[]\"", os_complicated_fs, "[]\n")
+  ; ("echo '[]'", os_complicated_fs, "[]\n")
+  ; ("echo \\[]", os_complicated_fs, "[]\n")
 
     (* regression: support [a-zA-Z][a-zA-Z0-9_] as varnames *)
   ; ("var_1=5 ; echo $((var_1 + 1))", os_empty, "6\n")
