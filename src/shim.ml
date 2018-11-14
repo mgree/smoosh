@@ -283,19 +283,58 @@ and to_args (n : node union ptr) : words list =
         let n = n @-> node_narg in
         to_arg n::to_args (getf n narg_next))
 
-let parse_string (cmd : string) : stmt list =
-  Dash.setinputstring cmd;
+(***********************************************************************)
+(** Incremental parsing. ***********************************************)
+(* Protocol: 
+ *
+ *   parse_init -> parse_next* -> parse_done
+ *
+ * ParseDone and ParseError mean you're done, and should stop calling parse_next.
+ * ParseNull represents an empty line. ParseStmt is a successfully parsed line.
+ *
+ * ??? It may or may not be a problem to call parse_done before you're done.
+ *
+ * ??? 2018-11-14 interrupts during parsing? hopefully handled after any forking?
+ *)
+
+type parse_source =
+  | ParseString of string
+  | ParseFile of string
+
+let parse_init src =
+  match src with
+  | ParseString cmd -> Dash.setinputstring cmd
+  | ParseFile file -> Dash.setinputfile ~push:true file
+
+let parse_done () =
+  Dash.popfile ()
+
+type parse_result =
+  | ParseDone
+  | ParseError
+  | ParseNull
+  | ParseStmt of stmt
+
+let parse_next i : parse_result =
+  match Dash.parse_next ~interactive:i () with
+  | Done -> ParseDone
+  | Error -> ParseError 
+  | Null -> ParseNull
+  | Parsed n -> ParseStmt (of_node n)
+
+let parse_all () : stmt list =
   let ns = Dash.parse_all () in
   let stmts = List.map of_node ns in
   Dash.popfile ();
   stmts
 
+let parse_string (cmd : string) : stmt list =
+  Dash.setinputstring cmd;
+  parse_all ()
+
 let parse_file (file : string) : stmt list =
   Dash.setinputfile ~push:true file;
-  let ns = Dash.parse_all () in
-  let stmts = List.map of_node ns in
-  Dash.popfile ();
-  stmts
+  parse_all ()
 
 (************************************************************************)
 (* JSON rendering *******************************************************)
