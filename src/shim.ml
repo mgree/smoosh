@@ -284,7 +284,7 @@ and to_args (n : node union ptr) : words list =
         to_arg n::to_args (getf n narg_next))
 
 (***********************************************************************)
-(** Incremental parsing. ***********************************************)
+(* Incremental parsing *************************************************)
 (* Protocol: 
  *
  *   parse_init -> parse_next* -> parse_done
@@ -292,14 +292,12 @@ and to_args (n : node union ptr) : words list =
  * ParseDone and ParseError mean you're done, and should stop calling parse_next.
  * ParseNull represents an empty line. ParseStmt is a successfully parsed line.
  *
+ * See smoosh.lem for the definition of parse_source and parse_result.
+ *
  * ??? It may or may not be a problem to call parse_done before you're done.
  *
  * ??? 2018-11-14 interrupts during parsing? hopefully handled after any forking?
  *)
-
-type parse_source =
-  | ParseString of string
-  | ParseFile of string
 
 let parse_init src =
   match src with
@@ -308,12 +306,6 @@ let parse_init src =
 
 let parse_done () =
   Dash.popfile ()
-
-type parse_result =
-  | ParseDone
-  | ParseError
-  | ParseNull
-  | ParseStmt of stmt
 
 let parse_next i : parse_result =
   match Dash.parse_next ~interactive:i () with
@@ -453,6 +445,12 @@ let rec json_of_stmt = function
             ("f", String func);
             ("orig", json_of_stmt orig);
             ("c", json_of_stmt c)]
+  | EvalLoop (linno, src, i, top_level) ->
+     Assoc ([tag "EvalLoop";
+             ("linno", Int linno);
+             ("interactive", Bool i);
+             ("top_level", Bool top_level)] @
+             json_field_of_src src)
   | Break n -> Assoc [tag "Break"; ("n", Int n)]
   | Continue n -> Assoc [tag "Continue"; ("n", Int n)]
   | Return -> Assoc [tag "Return"]
@@ -672,6 +670,11 @@ and json_of_evaluation_step = function
                                    ("inner", json_of_evaluation_step inner)]
   | XSStep s -> Assoc [tag "XSStep"; ("msg", String s)]
   | XSExec s -> Assoc [tag "XSExec"; ("msg", String s)]
+  | XSEval (linno,src,s) -> 
+     Assoc ([tag "XSEval"; 
+            ("msg", String s);
+            ("linno", Int linno)] @
+            json_field_of_src src)
   | XSWait s -> Assoc [tag "XSWait"; ("msg", String s)]
   | XSProc (pid, stmt) -> 
      Assoc [tag "XSProc"; 
@@ -680,6 +683,10 @@ and json_of_evaluation_step = function
             ("c_str", String (string_of_stmt stmt))]
   | XSNested (outer, inner) -> Assoc [tag "XSNested"; ("inner", json_of_evaluation_step inner); ("outer", json_of_evaluation_step outer)]
   | XSExpand (eval_step, exp_step) -> Assoc [tag "XSExpand"; ("inner", json_of_expansion_step  exp_step); ("outer", json_of_evaluation_step eval_step)]
+
+and json_field_of_src = function
+  | ParseString cmd -> [("cmd", String cmd)]
+  | ParseFile file -> [("src", String file)]
 
 and json_of_env (env:(string, symbolic_string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))

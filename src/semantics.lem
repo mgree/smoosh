@@ -1148,6 +1148,22 @@ and step_eval s0 checked stmt =
                Call old_loop_nest old_positional_params f orig c')
      end
 
+  (* EVALLOOP *****************************************************************)
+
+  | EvalLoop linno src interactive top_level ->
+     match parse_next interactive with
+     | ParseDone -> 
+        let _ = if top_level then () else parse_done () in
+        Right (XSEval linno src "done", s0, Done)
+     | ParseError -> 
+        let _ = if top_level then () else parse_done () in
+        Right (XSEval linno src "parse error", exit_with 1 s0, Done)
+     | ParseNull -> Right (XSEval linno src "empty line", s0, 
+                           EvalLoop (linno+1) src interactive top_level)
+     | ParseStmt c -> Right (XSEval linno src "", s0, 
+                             Semi c (EvalLoop (linno+1) src interactive top_level))
+     end
+
   (* EXEC *********************************************************************)
   | Exec cmd args env binsh -> 
      match execve s0 cmd args env binsh with

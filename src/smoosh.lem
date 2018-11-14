@@ -1,2 +1,21 @@
 include import Smoosh_prelude
 include import Os
+
+(* TODO 2018-11-14 PICK UP HERE
+   implement Sh_verbose here
+ *)
+
+val parse_init : parse_source -> unit
+declare ocaml target_rep function parse_init = `Shim.parse_init`
+
+val parse_done : unit -> unit
+declare ocaml target_rep function parse_done = `Shim.parse_done`
+
+val parse_next : bool (* interactive? *) -> parse_result
+declare ocaml target_rep function parse_next = `Shim.parse_next`
+
+val parse_string : string -> list stmt
+declare ocaml target_rep function parse_string = `Shim.parse_string`
+
+val parse_file : path -> list stmt
+declare ocaml target_rep function parse_file = `Shim.parse_file`

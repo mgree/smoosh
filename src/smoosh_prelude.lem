@@ -661,7 +661,7 @@ type tilde_mode =
   | YesTilde
 
 (**********************************************************************)
-(* Commands ***********************************************************)
+(* Redirects **********************************************************)
 (**********************************************************************)
 
 type redir_type = To | Clobber | From | FromTo | Append
@@ -738,6 +738,7 @@ and stmt =
   | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (list words * stmt) (* remaining cases *)
   | Defun of string * stmt
   | Call of nat (* outer loop_nest, to be restored *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
+  | EvalLoop of nat (* linno *) * parse_source * bool (* interactive? *) * bool (* top level? *)
   | Break of nat
   | Continue of nat
   | Return
@@ -840,10 +841,21 @@ and evaluation_step =
   | XSStack of string (* function name *) * evaluation_step 
   | XSStep of string
   | XSExec of string
+  | XSEval of nat * parse_source * string
   | XSWait of string
   | XSProc of pid * stmt
   | XSNested of evaluation_step * evaluation_step
   | XSExpand of evaluation_step * expansion_step
+
+and parse_source =
+  | ParseString of string
+  | ParseFile of string
+
+and parse_result =
+  | ParseDone
+  | ParseError
+  | ParseNull
+  | ParseStmt of stmt
 
 (**********************************************************************)
 (* SHELL STATE ********************************************************)
@@ -1438,6 +1450,8 @@ let rec string_of_stmt c =
        concat " " (List.map string_of_case cs) ^ " esac"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
   | Call _loopnest _argv _f _body c -> string_of_stmt c (* TODO leaving stuff out *)
+  | EvalLoop _linno (ParseFile src) _i _tl -> "source " ^ src
+  | EvalLoop _linno (ParseString cmd) _i _tl -> "eval '" ^ cmd ^ "'"
   | Break n -> "break " ^ show n
   | Continue n -> "continue " ^ show n
   | Return -> "return"
@@ -1664,6 +1678,8 @@ and string_of_evaluation_step step =
   | XSStack s step' -> "Stack " ^ s ^ parens (string_of_evaluation_step step')
   | XSStep s -> "Step " ^ s
   | XSExec s -> "Exec " ^ s
+  | XSEval linno src s -> 
+     "EvalLoop " ^ stringFromNat linno ^ " " ^ string_of_parse_source src ^ " " ^ s
   | XSWait s -> "Wait " ^ s
   | XSProc _pid c -> "Proc " ^ string_of_stmt c
   | XSNested step_outer step_inner -> 
@@ -1672,6 +1688,12 @@ and string_of_evaluation_step step =
   | XSExpand step' estep ->
      parens (string_of_evaluation_step step') ^ " " ^ 
      parens (string_of_expansion_step estep)
+  end
+
+and string_of_parse_source src =
+  match src with
+  | ParseString cmd -> "'" ^ cmd ^ "'"
+  | ParseFile file -> file
   end
 
 (**********************************************************************)

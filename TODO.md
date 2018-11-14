@@ -43,8 +43,6 @@ echo "\\\\"
 echo "\\\\\\"
 ```
 
-- eval and ./source should work in a line-oriented fashion
-
 - $$ not installed for symbolic shell
   trickiness: $$ is unchanged in subshells, which can signal the top-level
               need to carefully hold on to such signals
@@ -72,7 +70,7 @@ echo "\\\\\\"
 - job control
   + bg
   + Sh_notify
-  need to update current job statuses on ECHLD, every command loop
+  need to update current job statuses on ECHLD
   jobs command should also be checking!
 
 - non-special shell variables
@@ -108,6 +106,10 @@ echo "\\\\\\"
 - collapse logic for tracing to there's just one eval function
   + split out `step_eval` and `log_step_eval`...
     but also use `log_step` in the middle
+
+- collapse logic so shell.ml can use EvalLoop
+  tricky callback for Parsed case
+  IDEA: special OS "sync" call before calling parse
 
 - generate symbolic results of unknown executables
 

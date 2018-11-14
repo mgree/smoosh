@@ -177,20 +177,14 @@ let initialize_env s0 : system os_state =
                                  export immediately. *)
                               export = Pset.from_list compare (List.map fst environ) } }
 
+let run os c =
+  let os' = real_eval os c in
+  last_state := os';
+  os'
+
 let run_cmds s0 = 
-  let ns = Dash.parse_all () in
-  let cs = List.map Shim.of_node ns in
-  begin
-    if Pset.mem Sh_verbose s0.sh.opts
-    then List.iter (fun c -> prerr_endline (string_of_stmt c)) cs
-    else ()
-  end;
-  let run os c =
-    let os' = real_eval os c in
-    last_state := os';
-    os'
-  in
-  let s1 = List.fold_left run s0 cs in
+  let s1 = run s0 (EvalLoop (1, ParseFile "<STDIN>", 
+                             is_interactive s0, true (* top level *))) in
   ignore (run s1 Exit)
 
 let rec repl s0 =
@@ -217,8 +211,7 @@ let rec repl s0 =
        if Pset.mem Sh_verbose s3.sh.opts
        then prerr_endline (string_of_stmt c)
      end;
-     let s4 = real_eval s3 c in
-     last_state := s4;
+     let s4 = run s3 c in
      let set x v = 
        match try_concrete v with
        (* don't copy over special variables *)

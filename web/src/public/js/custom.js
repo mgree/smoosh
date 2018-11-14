@@ -358,7 +358,7 @@ function renderStmt(info, elt, stmt) {
                   'While', 'WhileCond', 'WhileRunning',
                   'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
                   'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
-                  'Defun', 'Call',
+                  'Defun', 'Call', 'EvalLoop',
                   'Break', 'Continue', 'Return', 
                   'Exec', 'Wait', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
@@ -703,6 +703,27 @@ function renderStmt(info, elt, stmt) {
       comment.append('in call to ' + stmt['f']);
 
       renderStmt(info, cmd, stmt['c']);
+      
+      break;
+
+    case 'EvalLoop':
+      // | EvalLoop (linno, src, i, top_level) ->
+      //    Assoc ([tag "EvalLoop";
+      //            ("linno", Int linno);
+      //            ("interactive", Bool i);
+      //            ("top_level", Bool top_level)] @
+      //            json_field_of_src src)
+      //
+      // and json_field_of_src = function
+      //   | ParseString cmd -> [("cmd", String cmd)]
+      //   | ParseFile file -> [("src", String file)]
+
+      var cmd = $('<span></span>').addClass('evalloop').appendTo(elt);
+      var comment = $('<span></span>').addClass('comment').appendTo(elt);
+      comment.append('in eval loop');
+      if ('src' in stmt) {
+          comment.append(' from ' + stmt['src']);
+      }
       
       break;
       
@@ -1602,7 +1623,8 @@ function renderEvaluationStep(info, step) {
   console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
                   'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
                   'XSFor', 'XSCase', 'XSDefun', 'XSStack', 'XSStep', 'XSProc',
-                  'XSExec', 'XSWait', 'XSNested', 'XSExpand'].includes(step['tag']),
+                  'XSExec', 'XSEval', 'XSWait', 
+                  'XSNested', 'XSExpand'].includes(step['tag']),
                  'got weird step tag ' + step['tag']);
 
   if (!['XSNested', 'XSExpand'].includes(step['tag'])) {
@@ -1725,6 +1747,32 @@ function renderEvaluationStep(info, step) {
       renderMessage(info, 'Exec', step);
 
       break;
+
+    case 'XSEval':
+      // | XSEval (linno,src,s) -> 
+      //    Assoc ([tag "XSEval"; 
+      //           ("msg", String s);
+      //           ("linno", Int linno)] @
+      //           json_field_of_src src)
+      //
+      // and json_field_of_src = function
+      //   | ParseString cmd -> [("cmd", String cmd)]
+      //   | ParseFile file -> [("src", String file)]
+
+      var evalSrc = ' of ';
+      if ('cmd' in step) {
+          evalSrc = 'string command \'' + step['cmd'] + '\'';
+      } else if ('src' in step) {
+          evalSrc = 'file ' + step['src'];
+      } else {
+          evalSrc = '';
+      }
+
+      step['msg'] += ' (line ' + step['linno'].toString() + evalSrc + ')';
+      renderMessage(info, 'Eval', step);
+
+      break;
+
 
     case 'XSWait':
       renderMessage(info, 'Wait', step);

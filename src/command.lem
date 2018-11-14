@@ -416,31 +416,13 @@ let builtin_times s0 _argv _env =
          Done,
          true)
 
-val parse_string : string -> list stmt
-declare ocaml target_rep function parse_string = `Shim.parse_string`
-
-val parse_file : path -> list stmt
-declare ocaml target_rep function parse_file = `Shim.parse_file`
-
 let builtin_eval s0 argv _env = 
   if null argv
   then Right (exit_with 0 s0, Done, true)
   else 
-    let stmts = parse_string (string_of_fields argv) in
-    (* TODO 2018-09-05 evalstring seems to allow arbitrary command here.
-
-       $ eval "alias x=echo
-       > x hi"
-       hi
-
-       with the alias remaining. current impl. here won't support that 
-       properly, since we won't set the alias in the first command for 
-       the parser to see it in the second
-
-       2018-10-22 a possible solution would be to have an AST node that means
-                  'keep pulling lines from the parser'
-     *)
-    Right (s0, foldr Semi (Command [] [] []) stmts, true)
+    let src = ParseString (string_of_fields argv) in
+    let _ = parse_init src in
+    Right (s0, EvalLoop 1 src false (* not interactive *) false (* not top level *), true)
 
 let builtin_source s0 argv _env = 
   match argv with
@@ -462,15 +444,9 @@ let builtin_source s0 argv _env =
                   | Just path -> path
                   end
                end in
-        let stmts = parse_file path in
-        (* TODO 2018-09-05 won't do the right thing for, e.g., alias 
-           really, we should call setinputstring
-           call an appropriate parsecmd in Dash
-           then process that line and continue
-
-           pretty tricky when there are all kinds of subshells, but our popfile() discipline should work it out
-         *)
-        Right (s0, foldr Semi (Command [] [] []) stmts, true)
+        let src = ParseFile path in
+        let _ = parse_init src in
+        Right (s0, EvalLoop 1 src false (* not interactive *) false (* not top level *), true)
      end
   end
 
