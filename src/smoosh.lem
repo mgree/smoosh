@@ -1,21 +1,26 @@
 include import Smoosh_prelude
 include import Os
 
-(* TODO 2018-11-14 PICK UP HERE
-   implement Sh_verbose here
- *)
-
 val parse_init : parse_source -> unit
 declare ocaml target_rep function parse_init = `Shim.parse_init`
 
 val parse_done : unit -> unit
 declare ocaml target_rep function parse_done = `Shim.parse_done`
 
-val parse_next : bool (* interactive? *) -> parse_result
-declare ocaml target_rep function parse_next = `Shim.parse_next`
+val parse_next_internal : bool (* interactive? *) -> parse_result
+declare ocaml target_rep function parse_next_internal = `Shim.parse_next`
 
-val parse_string : string -> list stmt
-declare ocaml target_rep function parse_string = `Shim.parse_string`
-
-val parse_file : path -> list stmt
-declare ocaml target_rep function parse_file = `Shim.parse_file`
+val parse_next : forall 'a. OS 'a => os_state 'a -> bool -> os_state 'a * parse_result
+let parse_next s0 interactive =
+  match parse_next_internal interactive with
+  | ParseDone   -> (s0,ParseDone)
+  | ParseError  -> (s0,ParseError)
+  | ParseNull   -> (s0,ParseNull)
+  | ParseStmt c ->
+     let s1 = 
+       if Set.member Sh_verbose s0.sh.opts
+       then write_stderr (string_of_stmt c ^ "\n") s0
+       else s0
+     in
+     (s1, ParseStmt c)
+  end

@@ -179,15 +179,6 @@ let rec expand_control s0 q tm k =
          end
        else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [], [S ("~" ^ usr)])
     | Param s f -> 
-       (* TODO 2018-09-12 still broken 
-          PICK UP HERE
-          getting everything but the last behavior
-set -- "arg  1" "arg  2" "arg  3"
-for x in $*; do echo "$x"; done # arg\n1\n...
-for x in $@; do echo "$x"; done # arg\n1\n...
-for x in "$*"; do echo "$x"; done # arg  1 arg  2 arg  3
-for x in "$@"; do echo "$x"; done # arg  1\narg  2\narg  3
-        *)
        if s = "@" && q = Quoted
        then 
          let param_vars : fields = 
@@ -1151,16 +1142,26 @@ and step_eval s0 checked stmt =
   (* EVALLOOP *****************************************************************)
 
   | EvalLoop linno src interactive top_level ->
-     match parse_next interactive with
+     (* TODO 2018-11-14 sync call here 
+        
+        then get rid of repl and fix parse input stuff
+      *)
+     let (s1, parsed) = parse_next s0 interactive in
+     match parsed with
      | ParseDone -> 
         let _ = if top_level then () else parse_done () in
-        Right (XSEval linno src "done", s0, Done)
+        let (s2, c) = 
+          if interactive && top_level && Set.member Sh_ignoreeof s1.sh.opts
+          then (write_stderr "Use \"exit\" to leave the shell.\n" s1, Done)
+          else (s1, Done)
+        in
+        Right (XSEval linno src "done", s2, c)
      | ParseError -> 
         let _ = if top_level then () else parse_done () in
-        Right (XSEval linno src "parse error", exit_with 1 s0, Done)
-     | ParseNull -> Right (XSEval linno src "empty line", s0, 
+        Right (XSEval linno src "parse error", exit_with 1 s1, Done)
+     | ParseNull -> Right (XSEval linno src "empty line", s1, 
                            EvalLoop (linno+1) src interactive top_level)
-     | ParseStmt c -> Right (XSEval linno src "", s0, 
+     | ParseStmt c -> Right (XSEval linno src "", s1, 
                              Semi c (EvalLoop (linno+1) src interactive top_level))
      end
 

@@ -848,8 +848,9 @@ and evaluation_step =
   | XSExpand of evaluation_step * expansion_step
 
 and parse_source =
+  | ParseSTDIN
   | ParseString of string
-  | ParseFile of string
+  | ParseFile of string * bool (* push file onto stack of input sources? *)
 
 and parse_result =
   | ParseDone
@@ -1450,8 +1451,9 @@ let rec string_of_stmt c =
        concat " " (List.map string_of_case cs) ^ " esac"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
   | Call _loopnest _argv _f _body c -> string_of_stmt c (* TODO leaving stuff out *)
-  | EvalLoop _linno (ParseFile src) _i _tl -> "source " ^ src
+  | EvalLoop _linno (ParseFile src _push) _i _tl -> "source " ^ src
   | EvalLoop _linno (ParseString cmd) _i _tl -> "eval '" ^ cmd ^ "'"
+  | EvalLoop _linno ParseSTDIN _i _tl -> ": EvalLoop"
   | Break n -> "break " ^ show n
   | Continue n -> "continue " ^ show n
   | Return -> "return"
@@ -1459,7 +1461,7 @@ let rec string_of_stmt c =
   | Exec cmd args _env _binsh -> spaced "exec" (string_of_fields (cmd::args))
   | Wait n _checked _steps -> "wait " ^ string_of_pid n
   | Pushredir s _saved -> string_of_stmt s (* TODO leaving stuff out *)
-  | Done -> "Done"
+  | Done -> ": Done"
   end
 
 and string_of_while c body =
@@ -1692,8 +1694,9 @@ and string_of_evaluation_step step =
 
 and string_of_parse_source src =
   match src with
+  | ParseSTDIN -> "<STDIN>"
   | ParseString cmd -> "'" ^ cmd ^ "'"
-  | ParseFile file -> file
+  | ParseFile file _push -> file
   end
 
 (**********************************************************************)

@@ -183,7 +183,7 @@ let run os c =
   os'
 
 let run_cmds s0 = 
-  let s1 = run s0 (EvalLoop (1, ParseFile "<STDIN>", 
+  let s1 = run s0 (EvalLoop (1, ParseFile ("<STDIN>", false), 
                              is_interactive s0, true (* top level *))) in
   ignore (run s1 Exit)
 

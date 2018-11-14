@@ -287,7 +287,7 @@ and to_args (n : node union ptr) : words list =
 (* Incremental parsing *************************************************)
 (* Protocol: 
  *
- *   parse_init -> parse_next* -> parse_done
+ *   parse_init -> (parse_next* -> parse_done | parse_all)
  *
  * ParseDone and ParseError mean you're done, and should stop calling parse_next.
  * ParseNull represents an empty line. ParseStmt is a successfully parsed line.
@@ -301,8 +301,9 @@ and to_args (n : node union ptr) : words list =
 
 let parse_init src =
   match src with
+  | ParseSTDIN -> Dash.setinputtostdin ()
   | ParseString cmd -> Dash.setinputstring cmd
-  | ParseFile file -> Dash.setinputfile ~push:true file
+  | ParseFile (file, push) -> Dash.setinputfile ~push:push file
 
 let parse_done () =
   Dash.popfile ()
@@ -319,14 +320,6 @@ let parse_all () : stmt list =
   let stmts = List.map of_node ns in
   Dash.popfile ();
   stmts
-
-let parse_string (cmd : string) : stmt list =
-  Dash.setinputstring cmd;
-  parse_all ()
-
-let parse_file (file : string) : stmt list =
-  Dash.setinputfile ~push:true file;
-  parse_all ()
 
 (************************************************************************)
 (* JSON rendering *******************************************************)
@@ -685,8 +678,9 @@ and json_of_evaluation_step = function
   | XSExpand (eval_step, exp_step) -> Assoc [tag "XSExpand"; ("inner", json_of_expansion_step  exp_step); ("outer", json_of_evaluation_step eval_step)]
 
 and json_field_of_src = function
+  | ParseSTDIN -> [("src", String "<STDIN>")]
   | ParseString cmd -> [("cmd", String cmd)]
-  | ParseFile file -> [("src", String file)]
+  | ParseFile (file, _push) -> [("src", String file)]
 
 and json_of_env (env:(string, symbolic_string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))

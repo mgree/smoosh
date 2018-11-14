@@ -17,8 +17,13 @@ let get_exit_code (os : symbolic os_state) =
      end
   | None -> 258
    
+let parse_string cmd =
+  Shim.parse_init (ParseString cmd);
+  let cs = Shim.parse_all () in
+  cs
+
 let run_cmd_for_exit_code (cmd : string) (os0 : symbolic os_state) : int =
-  let cs = Shim.parse_string cmd in
+  let cs = parse_string cmd in
   let os1 = Semantics.symbolic_eval_multi os0 cs in
   if out_of_fuel os1
   then -1
@@ -167,7 +172,7 @@ let exit_code_tests : (string * symbolic os_state * int) list =
 (***********************************************************************)
 
 let run_cmd_for_stdout (cmd : string) (os0 : symbolic os_state) : string =
-  let cs = Shim.parse_string cmd in
+  let cs = parse_string cmd in
   let os1 = Semantics.symbolic_eval_multi os0 cs in
   if out_of_fuel os1
   then "!!! OUT OF FUEL"
