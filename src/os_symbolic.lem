@@ -367,6 +367,8 @@ let symbolic_signal_pid os0 signal pid _as_pg =
 
 
 instance (OS symbolic)
+  let sync_state os = os
+
   let getpwnam os u = Map.lookup u os.symbolic.passwd
 
   let execve os prog argv env binsh =

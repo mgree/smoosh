@@ -157,9 +157,6 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
   (* CTLESC *)
   | '\129'::_ as s,_ -> 
      let (str,s') = parse_string [] s in
-     (* PICK UP HERE 2018-11-09 
-        need to track escaped characters :(
-      *)
      arg_char (S (implode str)) s' bqlist stack
   (* CTLVAR *)
   | '\130'::t::s,_ ->
@@ -287,7 +284,7 @@ and to_args (n : node union ptr) : words list =
 (* Incremental parsing *************************************************)
 (* Protocol: 
  *
- *   parse_init -> (parse_next* -> parse_done | parse_all)
+ *   parse_init (parse_next* . sync_env . parse_done | parse_all)
  *
  * ParseDone and ParseError mean you're done, and should stop calling parse_next.
  * ParseNull represents an empty line. ParseStmt is a successfully parsed line.
@@ -320,6 +317,16 @@ let parse_all () : stmt list =
   let stmts = List.map of_node ns in
   Dash.popfile ();
   stmts
+
+let sync_env os =
+  let set x v = 
+    match try_concrete v with
+    (* don't copy over special variables *)
+    | Some s when not (is_special_param x) -> Dash.setvar x s 
+    | _ -> ()
+  in
+  Pmap.iter set os.sh.env;
+  log_msg "sync_env" os
 
 (************************************************************************)
 (* JSON rendering *******************************************************)

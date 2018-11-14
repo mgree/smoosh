@@ -139,13 +139,6 @@ let prepare_command () : string list (* positional args *) =
 let set_param x v s0 =
   Os.internal_set_param x (symbolic_string_of_string v) s0
 
-(* track the last shell state---used for signal handling, at_exit *)
-let last_state = 
-  ref { Os.sh = { default_shell_state with rootpid = Unix.getpid () }; 
-        Os.log = []; 
-        Os.fuel = None; (* unbounded *)
-        Os.symbolic = (); }
-
 let setup_handlers () =
   System.real_eval := 
     (fun os stmt -> real_eval_for_exit_code (Obj.magic os) (Obj.magic stmt));
@@ -179,47 +172,13 @@ let initialize_env s0 : system os_state =
 
 let run os c =
   let os' = real_eval os c in
-  last_state := os';
-  os'
+  real_sync os'
 
-let run_cmds s0 = 
-  let s1 = run s0 (EvalLoop (1, ParseFile ("<STDIN>", false), 
+let cmdloop () =
+  let s0 = Obj.magic !System.shell_state in
+  let s1 = run s0 (EvalLoop (1, ParseSTDIN, 
                              is_interactive s0, true (* top level *))) in
   ignore (run s1 Exit)
-
-let rec repl s0 =
-  (* update job list *)
-  let (s1, changed) = real_update_jobs s0 in
-  let s2 = Command.show_changed_jobs s1 changed in
-  let s3 = List.fold_left real_delete_job s2 changed in
-  (* no need to actually print PS1: the dash parser will do it for us *)
-  match Dash.parse_next ~interactive:true () with
-  | Done -> 
-     if Pset.mem Sh_ignoreeof s3.sh.opts
-     then 
-       begin
-         prerr_endline "Use \"exit\" to leave shell."; 
-         repl s3
-       end
-     else ignore (real_eval s3 Exit)
-  | Error -> repl s3
-  | Null -> repl s3
-  | Parsed n -> 
-     (* TODO 2018-08-31 record trace in a logfile *)
-     let c = Shim.of_node n in
-     begin 
-       if Pset.mem Sh_verbose s3.sh.opts
-       then prerr_endline (string_of_stmt c)
-     end;
-     let s4 = run s3 c in
-     let set x v = 
-       match try_concrete v with
-       (* don't copy over special variables *)
-       | Some s when not (is_special_param x) -> Dash.setvar x s 
-       | _ -> ()
-     in
-     Pmap.iter set s4.sh.env;
-     repl s4
 
 (* TODO lots of special casing at http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sh.html *)
 let main () =
@@ -236,9 +195,13 @@ let main () =
   (* System.real_reset_tty (); *)
   let positional = prepare_command () in
   let sym_positional = List.map symbolic_string_of_string positional in
-  let s0 = { !last_state with 
-             Os.sh = { !last_state.Os.sh with 
-                       positional_params = sym_positional } } in
+  let s0 = { Os.sh = { default_shell_state with 
+                       rootpid = Unix.getpid ();
+                       positional_params = sym_positional; 
+                     }; 
+             Os.log = []; 
+             Os.fuel = None; (* unbounded *)
+             Os.symbolic = (); } in
   let s1 = initialize_env s0 in
   let s2 =
     if is_interactive s1 
@@ -248,7 +211,7 @@ let main () =
           - SIGINT is caught so that wait is interruptible
        *)
       begin
-        Sys.set_signal Sys.sigint (Signal_handle (fun _ -> repl !last_state));
+        Sys.set_signal Sys.sigint (Signal_handle (fun _ -> cmdloop ()));
         List.fold_left real_ignore_signal s1 [SIGTERM; SIGQUIT]
       end
     else s1 
@@ -260,10 +223,8 @@ let main () =
     then real_set_sh_opt s2 Sh_monitor
     else s2
   in
-  last_state := s3;
-  if is_interactive !last_state
-  then repl !last_state
-  else run_cmds !last_state
+  ignore (real_sync s3);
+  cmdloop ()
 ;;
 
 main ()

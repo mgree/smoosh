@@ -1268,6 +1268,17 @@ val show_jobs : forall 'a. OS 'a => jobs_mode -> nat * nat -> list job_info -> o
 let show_jobs mode cur_prev jobs s0 =
   foldl (fun os job -> show_job mode cur_prev job os) s0 (sort jobs)
 
+(* helper for the interactive shell in -m and -b; used in EvalLoop *)
+val show_changed_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a
+let show_changed_jobs s0 =
+  let (s1,changed) = update_jobs s0 in
+  let s2 = 
+    if Set.member Sh_monitor s1.sh.opts
+    then show_jobs JobsNormal (cur_prev_jobs s1.sh.jobs) changed s1
+    else s1
+  in
+  List.foldl (fun os j -> delete_job os j.id) s2 changed
+
 let rec show_job_specs mode cur_prev specs s0 =
   match specs with
   | [] -> Right (exit_with 0 s0, Done)
@@ -2106,9 +2117,3 @@ let run_command s0 allow_fun checked prog_name argv env =
      end
    end
   
-open import Os_system
-
-(* helper for the interactive shell in -m and -b *)
-val show_changed_jobs : os_state system -> list job_info -> os_state system
-let show_changed_jobs s0 changed =
-  show_jobs JobsNormal (cur_prev_jobs s0.sh.jobs) changed s0

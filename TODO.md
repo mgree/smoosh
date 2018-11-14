@@ -1,7 +1,5 @@
 ### Paper TODO
 
-- figure out crazy bug in dash parameter formats
-  new?!
 - run POSIX tests on dash, bash, and smoosh
   + PICK UP still borking, now silently :(
   + automatically export test journal summaries
@@ -106,10 +104,6 @@ echo "\\\\\\"
 - collapse logic for tracing to there's just one eval function
   + split out `step_eval` and `log_step_eval`...
     but also use `log_step` in the middle
-
-- collapse logic so shell.ml can use EvalLoop
-  tricky callback for Parsed case
-  IDEA: special OS "sync" call before calling parse
 
 - generate symbolic results of unknown executables
 

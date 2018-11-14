@@ -302,10 +302,6 @@ let rec expand_control s0 q tm k =
               a command substitution, the command shall complete with
               the exit status of the last command substitution
               performed." *)
-           (* PICK UP HERE:
-              we have to wait for the process to terminate.
-              add a second LBacktickWait node, call waitpid
-            *)
            Right (ESCommand "command exited successfully, waiting",
                   s2, 
                   NoTilde,
@@ -1142,26 +1138,25 @@ and step_eval s0 checked stmt =
   (* EVALLOOP *****************************************************************)
 
   | EvalLoop linno src interactive top_level ->
-     (* TODO 2018-11-14 sync call here 
-        
-        then get rid of repl and fix parse input stuff
-      *)
-     let (s1, parsed) = parse_next s0 interactive in
+     let s1 = show_changed_jobs s0 in
+     let s2 = sync s1 in
+     let (s3, parsed) = parse_next s2 interactive in
      match parsed with
      | ParseDone -> 
         let _ = if top_level then () else parse_done () in
-        let (s2, c) = 
-          if interactive && top_level && Set.member Sh_ignoreeof s1.sh.opts
-          then (write_stderr "Use \"exit\" to leave the shell.\n" s1, Done)
-          else (s1, Done)
+        let (s4, c) = 
+          if interactive && top_level && Set.member Sh_ignoreeof s3.sh.opts
+          then (write_stderr "Use \"exit\" to leave the shell.\n" s3, 
+                EvalLoop linno src interactive top_level)
+          else (s3, Done)
         in
-        Right (XSEval linno src "done", s2, c)
+        Right (XSEval linno src "done", s4, c)
      | ParseError -> 
         let _ = if top_level then () else parse_done () in
-        Right (XSEval linno src "parse error", exit_with 1 s1, Done)
-     | ParseNull -> Right (XSEval linno src "empty line", s1, 
+        Right (XSEval linno src "parse error", exit_with 1 s3, Done)
+     | ParseNull -> Right (XSEval linno src "empty line", s3, 
                            EvalLoop (linno+1) src interactive top_level)
-     | ParseStmt c -> Right (XSEval linno src "", s1, 
+     | ParseStmt c -> Right (XSEval linno src "", s3, 
                              Semi c (EvalLoop (linno+1) src interactive top_level))
      end
 

@@ -66,6 +66,8 @@ declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
 (**********************************************************************)
 
 class ( OS 'a )
+  (* META CALLS *)
+  val sync_state : os_state 'a -> os_state 'a
 
   (* SYSTEM CALLS *)
   val getpwnam : os_state 'a -> string -> maybe string

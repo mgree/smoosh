@@ -50,6 +50,9 @@ let gotsigchld = ref false
 let sigblockall () = ignore (Unix.sigprocmask Unix.SIG_BLOCK all_signals)
 let sigunblockall () = ignore (Unix.sigprocmask Unix.SIG_UNBLOCK all_signals)
 
+let real_sync_state os =
+  shell_state := Obj.magic os
+
 let real_eval : (dummy -> dummy -> int) ref =
   ref (fun _ _ -> failwith "real_eval knot is untied")
 
