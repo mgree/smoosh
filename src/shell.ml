@@ -28,6 +28,8 @@ let del_opt (opt : sh_opt) : unit =
 
 let params : string list ref = ref []
 
+let parse_source : parse_source ref = ref ParseSTDIN
+
 let implode = Dash.implode
 let explode = Dash.explode
 
@@ -130,11 +132,11 @@ let prepare_command () : string list (* positional args *) =
      begin match !params with
      | [] -> 
         if not !explicitly_unset_i then add_opt Sh_interactive; 
-        Dash.setinputtostdin (); [Sys.argv.(0)] 
-     | cmd::args -> Dash.setinputfile cmd; cmd::args
+        parse_source := ParseSTDIN; [Sys.argv.(0)] 
+     | cmd::args -> parse_source := ParseFile (cmd, false (* don't pushfile *)); cmd::args
      end
-  | SFlag -> Dash.setinputtostdin (); Sys.argv.(0)::!params
-  | CFlag cmd -> Dash.setinputstring cmd; cmd::!params
+  | SFlag -> parse_source := ParseSTDIN; Sys.argv.(0)::!params
+  | CFlag cmd -> parse_source := ParseString cmd; cmd::!params
 
 let set_param x v s0 =
   Os.internal_set_param x (symbolic_string_of_string v) s0
@@ -176,7 +178,7 @@ let run os c =
 
 let cmdloop () =
   let s0 = Obj.magic !System.shell_state in
-  let s1 = run s0 (EvalLoop (1, ParseSTDIN, 
+  let s1 = run s0 (EvalLoop (1, None, !parse_source, 
                              is_interactive s0, true (* top level *))) in
   ignore (run s1 Exit)
 
@@ -224,6 +226,7 @@ let main () =
     else s2
   in
   ignore (real_sync s3);
+  Shim.parse_init !parse_source;
   cmdloop ()
 ;;
 

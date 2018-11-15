@@ -284,39 +284,53 @@ and to_args (n : node union ptr) : words list =
 (* Incremental parsing *************************************************)
 (* Protocol: 
  *
- *   parse_init (parse_next* . sync_env . parse_done | parse_all)
+ *   parse_init (parse_next* sync_env parse_done)
  *
  * ParseDone and ParseError mean you're done, and should stop calling parse_next.
  * ParseNull represents an empty line. ParseStmt is a successfully parsed line.
+ *
+ * The parse_string function is a convenience for testing. parse_done will be
+ * called for you when you evaluate the resulting command.
  *
  * See smoosh.lem for the definition of parse_source and parse_result.
  *
  * ??? It may or may not be a problem to call parse_done before you're done.
  *
  * ??? 2018-11-14 interrupts during parsing? hopefully handled after any forking?
+ *
  *)
 
 let parse_init src =
-  match src with
-  | ParseSTDIN -> Dash.setinputtostdin ()
-  | ParseString cmd -> Dash.setinputstring cmd
-  | ParseFile (file, push) -> Dash.setinputfile ~push:push file
+  begin 
+    match src with
+    | ParseSTDIN -> Dash.setinputtostdin ()
+    | ParseString cmd -> Dash.setinputstring cmd
+    | ParseFile (file, push) -> Dash.setinputfile ~push:push file
+  end
 
 let parse_done () =
   Dash.popfile ()
 
-let parse_next i : parse_result =
+let parse_next i m_smark : parse_result =
+  let stackmark = 
+    match m_smark with
+    | None -> Dash.init_stack ()
+    | Some smark -> smark
+  in
   match Dash.parse_next ~interactive:i () with
-  | Done -> ParseDone
+  | Done -> Dash.pop_stack stackmark; ParseDone
   | Error -> ParseError 
   | Null -> ParseNull
-  | Parsed n -> ParseStmt (of_node n)
+  | Parsed n -> 
+     let c = of_node n in      (* translate AST... *)
+     Dash.pop_stack stackmark; (* ...dealloc dash AST *)
+     ParseStmt c
 
-let parse_all () : stmt list =
-  let ns = Dash.parse_all () in
-  let stmts = List.map of_node ns in
-  Dash.popfile ();
-  stmts
+let parse_string cmd =
+  let src = ParseString cmd in
+  parse_init src;
+  let stackmark = Dash.init_stack () in
+  Semi (EvalLoop (1, Some stackmark, src, false, false (* not top level, will call parse_done *)), Exit)
 
 let sync_env os =
   let set x v = 
@@ -445,7 +459,7 @@ let rec json_of_stmt = function
             ("f", String func);
             ("orig", json_of_stmt orig);
             ("c", json_of_stmt c)]
-  | EvalLoop (linno, src, i, top_level) ->
+  | EvalLoop (linno, _stackmark, src, i, top_level) ->
      Assoc ([tag "EvalLoop";
              ("linno", Int linno);
              ("interactive", Bool i);

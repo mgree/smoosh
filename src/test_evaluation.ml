@@ -17,14 +17,9 @@ let get_exit_code (os : symbolic os_state) =
      end
   | None -> 258
    
-let parse_string cmd =
-  Shim.parse_init (ParseString cmd);
-  let cs = Shim.parse_all () in
-  cs
-
 let run_cmd_for_exit_code (cmd : string) (os0 : symbolic os_state) : int =
-  let cs = parse_string cmd in
-  let os1 = Semantics.symbolic_eval_multi os0 cs in
+  let c = Shim.parse_string cmd in
+  let os1 = Semantics.symbolic_full_evaluation os0 c in
   if out_of_fuel os1
   then -1
   else snd (get_concrete_exit_code os1)
@@ -172,8 +167,8 @@ let exit_code_tests : (string * symbolic os_state * int) list =
 (***********************************************************************)
 
 let run_cmd_for_stdout (cmd : string) (os0 : symbolic os_state) : string =
-  let cs = parse_string cmd in
-  let os1 = Semantics.symbolic_eval_multi os0 cs in
+  let c = Shim.parse_string cmd in
+  let os1 = Semantics.symbolic_full_evaluation os0 c in
   if out_of_fuel os1
   then "!!! OUT OF FUEL"
   else get_stdout os1
@@ -235,6 +230,10 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("echo $0 ; set -- a b c ; echo $0 ; shift ; echo $0 ; shift 2 ; echo $0",
      os_empty,
      "smoosh\nsmoosh\nsmoosh\nsmoosh\n")
+
+     (* regression: eval and set *)
+  ; ("eval set -- 1 2 3 ; echo $#", os_empty, "3\n")
+  ; ("eval set -- 1 2 3 ; echo $*", os_empty, "1 2 3\n")
 
     (* subshells *)
   ; ("x=$(echo *) ; echo $x", os_complicated_fs, "a b c\n")

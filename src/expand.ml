@@ -10,7 +10,7 @@ open Printf
 (**********************************************************************)
        
 let verbose = ref false
-let input_src : string option ref = ref None
+let parse_source : parse_source ref = ref ParseSTDIN
 let initial_os_state : (symbolic os_state) ref = ref os_empty
 
 let set_fuel n =
@@ -21,11 +21,6 @@ let set_fuel n =
 let set_unbounded () =
   initial_os_state := { !initial_os_state with fuel = None }
                            
-let set_input_src () =
-  match !input_src with
-  | None -> Dash.setinputtostdin ()
-  | Some f -> Dash.setinputfile f
-
 let parse_entry (unescape:bool) (s:string) =
   let (name,value) = System.parse_keqv s in
   try
@@ -72,7 +67,8 @@ let parse_args () =
      "-env-ambient",Arg.Unit ambient_env,"use the ambient environment";
      "-user-file",Arg.String load_dirs,"file containing username/directory pairings for tilde expansion (one username=dir per line)"
     ]
-    (function | "-" -> input_src := None | f -> input_src := Some f)
+    (function | "-" -> parse_source := ParseSTDIN 
+              | f -> parse_source := ParseFile (f, false))
     "Final argument should be either a filename or - (for STDIN); only the last such argument is used"
 
 (**********************************************************************)
@@ -93,13 +89,12 @@ let show_trace trace =
 let main () =
   Dash.initialize ();
   parse_args ();
-  set_input_src ();
-  try 
-    let ns = Dash.parse_all () in
-    let cs = List.map Shim.of_node ns in
-    let (trace,_final_os_state) = trace_evaluation_multi !initial_os_state cs in
-    show_trace trace
-  with Dash.Parse_error -> exit 1;;
+  let stackmark = Shim.parse_init !parse_source in
+  let (trace,_final_os_state) = 
+    run_trace_evaluation !initial_os_state (EvalLoop (1, None, !parse_source, false, true))
+  in
+  show_trace trace
+;;
 
 main ()
 

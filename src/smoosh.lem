@@ -4,15 +4,21 @@ include import Os
 val parse_init : parse_source -> unit
 declare ocaml target_rep function parse_init = `Shim.parse_init`
 
+val stack_init : unit -> stackmark
+declare ocaml target_rep function stack_init = `Dash.init_stack`
+
+val stack_pop : stackmark -> unit
+declare ocaml target_rep function stack_pop = `Dash.pop_stack`
+
 val parse_done : unit -> unit
 declare ocaml target_rep function parse_done = `Shim.parse_done`
 
-val parse_next_internal : bool (* interactive? *) -> parse_result
+val parse_next_internal : bool (* interactive? *) -> maybe stackmark -> parse_result
 declare ocaml target_rep function parse_next_internal = `Shim.parse_next`
 
-val parse_next : forall 'a. OS 'a => os_state 'a -> bool -> os_state 'a * parse_result
-let parse_next s0 interactive =
-  match parse_next_internal interactive with
+val parse_next : forall 'a. OS 'a => os_state 'a -> bool -> maybe stackmark -> os_state 'a * parse_result
+let parse_next s0 interactive stackmark =
+  match parse_next_internal interactive stackmark with
   | ParseDone   -> (s0,ParseDone)
   | ParseError  -> (s0,ParseError)
   | ParseNull   -> (s0,ParseNull)

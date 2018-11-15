@@ -422,7 +422,10 @@ let builtin_eval s0 argv _env =
   else 
     let src = ParseString (string_of_fields argv) in
     let _ = parse_init src in
-    Right (s0, EvalLoop 1 src false (* not interactive *) false (* not top level *), true)
+    Right (s0, 
+           EvalLoop 1 (Just (stack_init ())) src 
+             false (* not interactive *) false (* not top level *), 
+           true)
 
 let builtin_source s0 argv _env = 
   match argv with
@@ -446,7 +449,10 @@ let builtin_source s0 argv _env =
                end in
         let src = ParseFile path true (* push onto input stack *) in
         let _ = parse_init src in
-        Right (s0, EvalLoop 1 src false (* not interactive *) false (* not top level *), true)
+        Right (s0, 
+               EvalLoop 1 Nothing src 
+                 false (* not interactive *) false (* not top level *), 
+               true)
      end
   end
 
