@@ -173,8 +173,7 @@ let initialize_env s0 : system os_state =
                               export = Pset.from_list compare (List.map fst environ) } }
 
 let run os c =
-  let os' = real_eval os c in
-  real_sync os'
+  real_sync (real_eval (real_sync os) c)
 
 let cmdloop () =
   let s0 = Obj.magic !System.shell_state in

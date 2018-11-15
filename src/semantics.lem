@@ -1139,7 +1139,7 @@ and step_eval s0 checked stmt =
 
   | EvalLoop linno stackmark src interactive top_level ->
      let s1 = show_changed_jobs s0 in
-     let s2 = sync s1 in
+     let s2 = if top_level then sync s1 else sync_env s1 in
      let (s3, parsed) = parse_next s2 interactive stackmark in
      match parsed with
      | ParseDone -> 

@@ -301,12 +301,10 @@ and to_args (n : node union ptr) : words list =
  *)
 
 let parse_init src =
-  begin 
-    match src with
-    | ParseSTDIN -> Dash.setinputtostdin ()
-    | ParseString cmd -> Dash.setinputstring cmd
-    | ParseFile (file, push) -> Dash.setinputfile ~push:push file
-  end
+  match src with
+  | ParseSTDIN -> Dash.setinputtostdin ()
+  | ParseString cmd -> Dash.setinputstring cmd
+  | ParseFile (file, push) -> Dash.setinputfile ~push:push file
 
 let parse_done () =
   Dash.popfile ()
