@@ -504,7 +504,7 @@ let set_getopt_shortopt c cs fields =
     Just (opt,argrest)
   end
 
-val set_add_opt : list sh_opt * list sh_opt -> bool -> maybe (sh_opt * fields) -> maybe (maybe (list sh_opt * list sh_opt) * fields)
+val set_add_opt : list sh_opt * list sh_opt -> bool -> maybe (sh_opt * fields) -> maybe (maybe (list sh_opt * list sh_opt) * fields * bool)
 let set_add_opt (on,off) add_to_on res =
   match res with
   | Nothing -> Nothing
@@ -512,19 +512,20 @@ let set_add_opt (on,off) add_to_on res =
      Just (Just (if add_to_on 
                  then (opt::on,List.delete opt off)
                  else (List.delete opt on,opt::off)), 
-           fields)
+           fields,
+           false)
   end
 
-val set_getopt : list sh_opt * list sh_opt -> fields -> maybe (maybe (list sh_opt * list sh_opt) * fields)
+val set_getopt : list sh_opt * list sh_opt -> fields -> maybe (maybe (list sh_opt * list sh_opt) * fields * bool)
 let rec set_getopt opts fields =
   match fields with
-  | [] -> Just (Nothing, [])
+  | [] -> Just (Nothing, [], false)
   | arg::fields' ->
      match try_concrete arg with
      | Nothing -> Nothing
      | Just s -> 
         match toCharList s with
-        | #'-'::#'-'::[] -> Just (Nothing, fields')
+        | #'-'::#'-'::[] -> Just (Nothing, fields', true)
         (* - means turn it ON *)
         | #'-'::#'o'::[] ->
            set_add_opt opts true (set_getopt_longopt fields')
@@ -535,19 +536,21 @@ let rec set_getopt opts fields =
            set_add_opt opts false (set_getopt_longopt fields')
         | #'+'::c::cs -> 
            set_add_opt opts false (set_getopt_shortopt c cs fields')
-        | _ -> Just (Nothing, arg::fields')
+        | _ -> Just (Nothing, arg::fields', true)
         end
      end
    end
 
-val set_getopts : list sh_opt * list sh_opt -> fields -> maybe ((list sh_opt * list sh_opt) * fields)
+val set_getopts : list sh_opt * list sh_opt -> fields -> maybe ((list sh_opt * list sh_opt) * fields * bool)
 let rec set_getopts opts fields = 
   match set_getopt opts fields with
   | Nothing -> Nothing (* bad parse is a failure. need explict -- for args *)
-  | Just (Nothing, fields') ->
-     (* stop! we hit -- or some such *)
-     Just (opts, fields')
-  | Just (Just opts',fields') -> set_getopts opts' fields'
+  | Just (Nothing, fields', set_param) ->
+     (* stop! we hit -- or some such 
+        set_param will be true if we have (0 or more) params to set
+      *)
+     Just (opts, fields', set_param)
+  | Just (Just opts',fields',_set_param) -> set_getopts opts' fields'
   end
 
 let set_showopts s0 show = 
@@ -593,14 +596,14 @@ OR
      match set_getopts ([],[]) argv with
      | Nothing ->
         Left (s0, "illegal option")
-     | Just ((on,off),params) ->
+     | Just ((on,off),params,set_param) ->
         let s1 = foldr (fun opt os -> set_sh_opt os opt) s0 on in
         let s2 = foldr (fun opt os -> unset_sh_opt os opt) s1 off in
         (* only update params when they've been given *)
         let s3 = 
-          if null params
-          then s2
-          else set_function_params s2.sh.loop_nest (* keep the same *) params s2 
+          if set_param
+          then set_function_params s2.sh.loop_nest (* keep the same *) params s2 
+          else s2
         in
         Right (s3, Done, true) 
      end

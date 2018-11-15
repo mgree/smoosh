@@ -231,10 +231,14 @@ let stdout_tests : (string * symbolic os_state * string) list =
      os_empty,
      "smoosh\nsmoosh\nsmoosh\nsmoosh\n")
 
-     (* regression: eval and set *)
+    (* regression: eval and set *)
   ; ("eval set -- 1 2 3 ; echo $#", os_empty, "3\n")
   ; ("eval set -- 1 2 3 ; echo $*", os_empty, "1 2 3\n")
 
+
+    (* regression: set -- *)
+  ; ("set -- 1 2 3; echo $#; set --; echo $#", os_empty, "3\n0\n")
+     
     (* subshells *)
   ; ("x=$(echo *) ; echo $x", os_complicated_fs, "a b c\n")
   ; ("x=$(echo hello there); echo $x", os_empty, "hello there\n")
