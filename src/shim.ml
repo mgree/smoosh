@@ -302,33 +302,43 @@ and to_args (n : node union ptr) : words list =
 
 let parse_init src =
   match src with
-  | ParseSTDIN -> Dash.setinputtostdin ()
-  | ParseString cmd -> Dash.setinputstring cmd
-  | ParseFile (file, push) -> Dash.setinputfile ~push:push file
+  | ParseSTDIN -> Dash.setinputtostdin (); None
+  | ParseString cmd ->
+     let ss = Dash.alloc_stack_string cmd in
+     Dash.setinputstring ss;
+     Some ss
+  | ParseFile (file, push) -> Dash.setinputfile ~push:push file; None
 
-let parse_done () =
-  Dash.popfile ()
+let parse_done m_ss =
+  Dash.popfile ();
+  begin
+    match m_ss with
+    | None -> ()
+    | Some ss -> Dash.free_stack_string ss
+  end
 
 let parse_next i m_smark : parse_result =
-  let stackmark = 
-    match m_smark with
-    | None -> Dash.init_stack ()
-    | Some smark -> smark
+  let stackmark = Dash.init_stack () in
+  let res =
+    match Dash.parse_next ~interactive:i () with
+    | Done -> ParseDone
+    | Error -> ParseError 
+    | Null -> ParseNull
+    | Parsed n -> 
+       let c = of_node n in
+       ParseStmt c
   in
-  match Dash.parse_next ~interactive:i () with
-  | Done -> Dash.pop_stack stackmark; ParseDone
-  | Error -> ParseError 
-  | Null -> ParseNull
-  | Parsed n -> 
-     let c = of_node n in      (* translate AST... *)
-     Dash.pop_stack stackmark; (* ...dealloc dash AST *)
-     ParseStmt c
+  Dash.pop_stack stackmark;
+  res
 
 let parse_string cmd =
   let src = ParseString cmd in
-  parse_init src;
+  let sstr = parse_init src in
   let stackmark = Dash.init_stack () in
-  Semi (EvalLoop (1, Some stackmark, src, false, false (* not top level, will call parse_done *)), Exit)
+  Semi
+    (EvalLoop (1, (sstr, Some stackmark), src,
+               false, false (* not top level, will call parse_done *)),
+     Exit)
 
 let sync_env os =
   let set x v = 
@@ -457,7 +467,7 @@ let rec json_of_stmt = function
             ("f", String func);
             ("orig", json_of_stmt orig);
             ("c", json_of_stmt c)]
-  | EvalLoop (linno, _stackmark, src, i, top_level) ->
+  | EvalLoop (linno, _ctx, src, i, top_level) ->
      Assoc ([tag "EvalLoop";
              ("linno", Int linno);
              ("interactive", Bool i);

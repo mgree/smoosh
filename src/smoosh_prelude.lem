@@ -5,11 +5,11 @@ include import Signal
 import Debug
 
 (* ??? What character set does lem use for strings? Does it matter? *)
-
+      
 (**********************************************************************)
 (* UTILITY FUNCTIONS **************************************************)
 (**********************************************************************)
-
+      
 val alphabetic : list char
 let alphabetic = 
   toCharList "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -677,6 +677,9 @@ type pid = nat
 type stackmark
 declare ocaml target_rep type stackmark = `Ctypes.structure` `Dash.stackmark`
 
+type dash_string
+declare ocaml target_rep type dash_string = `Ctypes.ptr` char
+                                        
 type format =
     Normal
   | Default of words
@@ -741,7 +744,7 @@ and stmt =
   | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (list words * stmt) (* remaining cases *)
   | Defun of string * stmt
   | Call of nat (* outer loop_nest, to be restored *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
-  | EvalLoop of nat (* linno *) * maybe stackmark * parse_source * bool (* interactive? *) * bool (* top level? *)
+  | EvalLoop of nat (* linno *) * parse_context * parse_source * bool (* interactive? *) * bool (* top level? *)
   | Break of nat
   | Continue of nat
   | Return
@@ -860,6 +863,9 @@ and parse_result =
   | ParseError
   | ParseNull
   | ParseStmt of stmt
+
+and parse_context =
+  maybe dash_string * maybe stackmark
 
 (**********************************************************************)
 (* SHELL STATE ********************************************************)
@@ -1454,9 +1460,9 @@ let rec string_of_stmt c =
        concat " " (List.map string_of_case cs) ^ " esac"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
   | Call _loopnest _argv _f _body c -> string_of_stmt c (* TODO leaving stuff out *)
-  | EvalLoop _linno _stackmark (ParseFile src _push) _i _tl -> "source " ^ src
-  | EvalLoop _linno _stackmark (ParseString cmd) _i _tl -> "eval '" ^ cmd ^ "'"
-  | EvalLoop _linno _stackmark ParseSTDIN _i _tl -> ": EvalLoop"
+  | EvalLoop _linno _ctx (ParseFile src _push) _i _tl -> "source " ^ src
+  | EvalLoop _linno _ctx (ParseString cmd) _i _tl -> "eval '" ^ cmd ^ "'"
+  | EvalLoop _linno _ctx ParseSTDIN _i _tl -> ": EvalLoop"
   | Break n -> "break " ^ show n
   | Continue n -> "continue " ^ show n
   | Return -> "return"

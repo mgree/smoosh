@@ -175,9 +175,9 @@ let initialize_env s0 : system os_state =
 let run os c =
   real_sync (real_eval (real_sync os) c)
 
-let cmdloop () =
+let cmdloop sstr =
   let s0 = Obj.magic !System.shell_state in
-  let s1 = run s0 (EvalLoop (1, None, !parse_source, 
+  let s1 = run s0 (EvalLoop (1, (sstr, None), !parse_source, 
                              is_interactive s0, true (* top level *))) in
   ignore (run s1 Exit)
 
@@ -212,7 +212,7 @@ let main () =
           - SIGINT is caught so that wait is interruptible
        *)
       begin
-        Sys.set_signal Sys.sigint (Signal_handle (fun _ -> cmdloop ()));
+        Sys.set_signal Sys.sigint (Signal_handle (fun _ -> cmdloop None));
         List.fold_left real_ignore_signal s1 [SIGTERM; SIGQUIT]
       end
     else s1 
@@ -225,8 +225,8 @@ let main () =
     else s2
   in
   ignore (real_sync s3);
-  Shim.parse_init !parse_source;
-  cmdloop ()
+  let sstr = Shim.parse_init !parse_source in
+  cmdloop sstr
 ;;
 
 main ()

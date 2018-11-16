@@ -89,9 +89,9 @@ let show_trace trace =
 let main () =
   Dash.initialize ();
   parse_args ();
-  let stackmark = Shim.parse_init !parse_source in
+  let sstr = Shim.parse_init !parse_source in
   let (trace,_final_os_state) = 
-    run_trace_evaluation !initial_os_state (EvalLoop (1, None, !parse_source, false, true))
+    run_trace_evaluation !initial_os_state (EvalLoop (1, (sstr, None), !parse_source, false, true))
   in
   show_trace trace
 ;;

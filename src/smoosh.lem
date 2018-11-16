@@ -1,7 +1,7 @@
 include import Smoosh_prelude
 include import Os
 
-val parse_init : parse_source -> unit
+val parse_init : parse_source -> maybe dash_string
 declare ocaml target_rep function parse_init = `Shim.parse_init`
 
 val stack_init : unit -> stackmark
@@ -10,7 +10,7 @@ declare ocaml target_rep function stack_init = `Dash.init_stack`
 val stack_pop : stackmark -> unit
 declare ocaml target_rep function stack_pop = `Dash.pop_stack`
 
-val parse_done : unit -> unit
+val parse_done : maybe dash_string -> unit
 declare ocaml target_rep function parse_done = `Shim.parse_done`
 
 val parse_next_internal : bool (* interactive? *) -> maybe stackmark -> parse_result
