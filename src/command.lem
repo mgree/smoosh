@@ -1989,7 +1989,7 @@ let builtin_getopts os0 argv _env =
   | _ -> Left (os0, "usage: getopts optstring name [arg...]")
   end
 
-let builtin_fg os0 argv _env =
+let send_sigcont os0 argv setfg =
   let m_pid =
     match argv with
     | [] -> 
@@ -2003,19 +2003,19 @@ let builtin_fg os0 argv _env =
   match m_pid with
   | Left err -> Left (os0, err)
   | Right pid -> 
-     let (os1, _tc_ok) = tc_setfg os0 pid in
+     let (os1, _tc_ok) = if setfg then tc_setfg os0 pid else (os0, true) in
      let (os2, _signal_ok) = signal_pid os1 SIGCONT pid true in
-     Right (os2, Wait pid false Nothing)
+     Right (os2, if setfg then Wait pid false Nothing else Done)
   end
+
+let builtin_fg os0 argv _env = send_sigcont os0 argv true (* call tc_setfg *)
+
+let builtin_bg os0 argv _env = send_sigcont os0 argv false (* call tc_setfg *)
      
 (* TODO 2018-10-01 remaining worthwhile operations *)
 
 (* history *)
 let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stuff *)
-(* TODO 2018-08-13 job control *)
-(* bg/fg are implemented as the same command in dash. 
-   not too bad, need some fancy logic per restartjob *)
-let builtin_bg = builtin_unimplemented (* UP *)
 
 (* LATER 2018-10-01 *)
 let builtin_local = builtin_unimplemented (* unspec, but nice to have? *)
@@ -2069,7 +2069,9 @@ let run_command s0 allow_fun checked prog_name argv env =
         (* 1b. b. If the command name matches the name of a utility
            listed in the following table, the results are unspecified. *)
         if is_unspecified_utility prog
-        then Right (s0, Done, true)
+        then
+          let s1 = write_stderr (prog ^ ": unspecified, doing nothing") s0 in
+          Right (s1, Done, true)
         else 
           (* 1c. If the command name matches the name of a function
              known to this shell, the function shall be invoked as
