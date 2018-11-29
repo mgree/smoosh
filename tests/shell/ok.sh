@@ -2,7 +2,7 @@
 
 set -e
 
-: ${TEST_TIME=$(date "+%Y-%m-%d_%H:%M")}
+: ${TEST_TIME:=$(date "+%Y-%m-%d_%H:%M")}
 TEST_SCRIPT=${0##*/}
 
 msg() {
@@ -29,10 +29,11 @@ passed() {
     debug "$1 passed"
 }
 
+[ -n "${TEST_ENV}" ] && source ${TEST_ENV}
 [ -n "${TEST_SHELL}" ] || abort "please set TEST_SHELL to the path to the shell under test"
-[ -z "${TEST_SHELL_FLAGS}" ] || debug "using shell flags '${TEST_SHELL_FLAGS}'"
+[ -n "${TEST_SHELL_FLAGS}" ] && debug "using shell flags '${TEST_SHELL_FLAGS}'"
 
-: ${TEST_LOGDIR=log/${TEST_TIME}}
+: ${TEST_LOGDIR:=log/${TEST_TIME}}
 mkdir -p ${TEST_LOGDIR}/ok
 
 count=0
