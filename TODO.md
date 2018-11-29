@@ -8,6 +8,7 @@
 
 ### Artifact TODO
 
+- simplify suite to use files to represent expected exit codes, output, etc.
 - test suite for shell, expand
   + kill
   + pipes and redirects
