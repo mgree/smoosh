@@ -1,7 +1,6 @@
 ### Paper TODO
 
 - run POSIX tests on dash, bash, and smoosh
-  + PICK UP still borking, now silently :(
   + automatically export test journal summaries
 - performance tests vs. dash and bash?
   + we lose, of course. but how badly?
@@ -10,6 +9,13 @@
 ### Artifact TODO
 
 - test suite for shell, expand
+  + kill
+  + pipes and redirects
+  + eval/.
+  + shell within shell
+
+- VM for POSIX testing
+  run on dash, bash
 
 ### Bugs
 
@@ -57,6 +63,10 @@ echo "\\\\\\"
 
 - `string_of_fields` pretty printing
   put single quotes around fields that have WS in them
+
+- bare redirects
+  cf. https://mail-index.netbsd.org/tech-userlevel/2018/11/24/msg011468.html
+  via David Holland
 
 ### Last of the shell semantics
 
@@ -150,17 +160,6 @@ echo "\\\\\\"
 
 - per Ryan Culpepper: controlling dynamic extents to restrict phases.
   Ralf &co are more or less doing this with their restriction on aliases
-
-### Testing
-
-- tests of the shell proper
-  + kill
-  + pipes and redirects
-  + eval/.
-  + shell within shell
-
-- VM for POSIX testing
-  run on dash, bash
 
 ### Parsing
 
