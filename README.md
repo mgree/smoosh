@@ -24,16 +24,17 @@ To build by hand, you should more or less follow the steps in the Dockerfile, ad
 ## Testing in more detail
 
 - To run the test suite after building, run: `docker build -t smoosh-test -f Dockerfile.test . && docker run smoosh-test`
-- To explore the built image, run: `docker run -ti smoosh`
+- To explore the built image, run: `docker run -it smoosh`
 
-To test by hand, there are two sets of relevant tests: the libdash tests (in `libdash/test`) and the smoosh tests (in `src`). Both have directories have `Makefile`s with appropriate test targets, so you can test both by running the following:
+To test by hand, there are three sets of relevant tests: the libdash tests (in `libdash/test`), the unit tests for symbolic smoosh (in `src`), and the shell test suite (in `tests`). All three directories have `Makefile`s with appropriate `test` targets, so you can test both by running the following:
 
 ```
 make -C libdash/test test
 make -C src/ test
+make -C tests test
 ```
 
-You can do so by running `docker run -ti smoosh` to get an interactive environment.
+You can do so by running `docker run -it smoosh` to get an interactive environment.
 
 # How to use the web interface
 

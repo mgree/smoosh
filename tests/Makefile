@@ -2,13 +2,13 @@ TEST_ENV ?= $(shell pwd)/default.env
 
 export TEST_ENV TEST_LOGDIR TEST_SHELL TEST_SHELL_FLAGS
 
-.PHONY : all shell expand clean veryclean
+.PHONY : test shell expand clean veryclean
 
-all : shell expand
+test : shell expand
 
 shell : $(TEST_ENV)
 	@echo == Running shell tests ===============================================
-	@./run.sh
+	@./shell_tests.sh
 
 expand :
 	@echo == Running expansion tests ===========================================

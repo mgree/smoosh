@@ -5,6 +5,6 @@ ADD --chown=opam:opam tests tests
 ENTRYPOINT [ "opam", "config", "exec", "--" ]
 CMD make -C libdash/test test && \
     make -C src/ test && \
-    make -C tests/ && \
+    make -C tests/ test && \
     echo ======================================================================== \
     && echo ALL TESTS PASSED >&2
