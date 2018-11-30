@@ -36,7 +36,16 @@ passed() {
     debug "$1 passed"
 }
 
-[ -n "${TEST_ENV}" ] && source ${TEST_ENV}
+if [ -n "${TEST_ENV}" ]
+then
+    if [ -s "${TEST_ENV}" ] 
+    then 
+        . ${TEST_ENV}
+    else 
+        abort "couldn't find TEST_ENV=${TEST_ENV}"
+    fi
+fi 
+
 [ -n "${TEST_SHELL}" ] || abort "please set TEST_SHELL to the path to the shell under test"
 [ -n "${TEST_SHELL_FLAGS}" ] && debug "using flags '${TEST_SHELL_FLAGS}'"
 
