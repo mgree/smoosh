@@ -2,15 +2,15 @@ TEST_ENV ?= $(shell pwd)/default.env
 
 export TEST_ENV TEST_LOGDIR TEST_SHELL TEST_SHELL_FLAGS
 
-.PHONY : all shell expand clean
+.PHONY : all shell expand clean veryclean
 
 all : shell expand
 
 shell : $(TEST_ENV)
 	@echo == Running shell tests ===============================================
-	@$(MAKE) -C $@
+	@./run.sh
 
-expand : $(TEST_ENV)
+expand :
 	@echo == Running expansion tests ===========================================
 	@$(MAKE) -C $@
 
@@ -21,5 +21,7 @@ $(shell pwd)/default.env :
 
 clean :
 	-rm -f default.env
-	$(MAKE) -C shell clean
 	$(MAKE) -C expand clean
+
+veryclean : clean
+	-rm -rf log
