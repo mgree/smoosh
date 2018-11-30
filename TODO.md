@@ -9,6 +9,11 @@
 ### Artifact TODO
 
 - simplify suite to use files to represent expected exit codes, output, etc.
+  foo.test
+  foo.ec -- holds expected exit code (absent => 0)
+  foo.out -- holds expected stdout   (absent => log; otherwise only log on failure)
+  foo.err -- holds expected stderr   (absent => log; otherwise only log on failure)
+
 - test suite for shell, expand
   + kill
   + pipes and redirects
