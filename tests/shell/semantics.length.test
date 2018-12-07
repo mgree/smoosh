@@ -1,0 +1,2 @@
+# https://www.spinics.net/lists/dash/msg01749.html
+v=abc; echo ab${#v}cd

@@ -19,6 +19,8 @@
   + pipes and redirects
   + eval/.
   + shell within shell
+  + cf. https://github.com/modernish/modernish to check for quirks, bugs, etc.
+    * modernish --test!
 
 - VM for POSIX testing
   run on dash, bash
