@@ -1,12 +1,10 @@
-# change these paths as necessary
-
-PRELUDEFILES=smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem os.lem os_symbolic.lem os_system.lem
-LEMFILES=smoosh.lem arith.lem pattern.lem path.lem fields.lem test.lem command.lem semantics.lem
-
 OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num,extunix -linkpkg
 
-SRCFILES=config.ml system.ml $(PRELUDEFILES) shim.ml $(LEMFILES)
+SRCFILES=config.ml smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem \
+	 os.lem os_symbolic.lem system.ml os_system.lem shim.ml smoosh.lem arith.lem \
+	 pattern.lem path.lem fields.lem test.lem command.lem semantics.lem
 MLFILES=$(SRCFILES:.lem=.ml)
+LEMFILES=$(filter %.lem,$(SRCFILES))
 TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_evaluation.ml
 
 .PHONY : all test loc clean veryclean
@@ -38,7 +36,7 @@ loc :  $(SRCFILES)
 	lem -ocaml $<
 
 clean :
-	-rm -f $(PRELUDEFILES:.lem=.ml) $(LEMFILES:.lem=.ml)
+	-rm -f $(LEMFILES:.lem=.ml)
 	-rm expand shell runtest
 	-rm *.{cmi,cmo,cmx,o} *~
 

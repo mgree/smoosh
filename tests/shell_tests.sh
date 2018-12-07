@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -e
-
 : ${TEST_TIME:=$(date "+%Y-%m-%d_%H:%M")}
 TEST_SCRIPT=${0##*/}
 
@@ -65,7 +63,6 @@ do
     if [ -s "${case_ec}" ]
     then
         expected_ec="$(cat ${case_ec})"
-        echo expecting error code ${expected_ec}
     fi
 
     expected_out=${case_name}.out
@@ -75,10 +72,8 @@ do
     got_err=${TEST_LOGDIR}/${case_name}.err
 
     # actually run the test
-    set +e
     ${TEST_SHELL} ${TEST_SHELL_FLAGS} ${test_case} >${got_out} 2>${got_err}
     got_ec="$?"
-    set -e
 
     saved_ec=${TEST_LOGDIR}/${case_name}.ec.${got_ec}
     echo ${got_ec} >${saved_ec}
@@ -86,18 +81,16 @@ do
     failures=0
 
     # check exit code
-    echo checking code
     if [ "${expected_ec}" -ne "${got_ec}" ]
     then
         debug "${case_name}: expected ${expected_ec} and got ${got_ec}"
         : $((failures += 1))
     else
-        echo deleting ${saved_ec}
         rmlog ${saved_ec}
     fi
     
     # check stdout
-    if [ -f "${expected_out}" ] && diff -q ${expected_out} ${got_out}
+    if [ -f "${expected_out}" ] && ! diff -q ${expected_out} ${got_out} >/dev/null
     then
         debug "${case_name}: expected STDOUT ${expected_out} differs from logged STDOUT ${got_out}"
         : $((failures += 1))
@@ -110,7 +103,7 @@ do
     fi
 
     # check stderr
-    if [ -f "${expected_err}" ] && diff -q ${expected_err} ${got_err}
+    if [ -f "${expected_err}" ] && ! diff -q ${expected_err} ${got_err} >/dev/null
     then
         debug "${case_name}: expected STDERR ${expected_err} differs from logged STDERR ${got_err}"
         : $((failures += 1))

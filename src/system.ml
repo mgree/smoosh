@@ -43,20 +43,21 @@ let all_signals =
 (* for backpatching the real_eval function 
    takes a command to its exit code
  *)
-type dummy = Dummy (* to make sure we don't get funny unboxing *)
-let shell_state : dummy ref = ref Dummy
+type real_os_state = unit Os.os_state
+let shell_state : real_os_state option ref = ref None
 
 let gotsigchld = ref false
 let sigblockall () = ignore (Unix.sigprocmask Unix.SIG_BLOCK all_signals)
 let sigunblockall () = ignore (Unix.sigprocmask Unix.SIG_UNBLOCK all_signals)
 
 let real_sync_state os =
-  shell_state := Obj.magic os
+  shell_state := Some os;
+  os
 
-let real_eval : (dummy -> dummy -> int) ref =
+let real_eval : (real_os_state -> Smoosh_prelude.stmt -> int) ref =
   ref (fun _ _ -> failwith "real_eval knot is untied")
 
-let real_eval_string : (dummy -> string -> int) ref = 
+let real_eval_string : (real_os_state -> string -> int) ref = 
   ref (fun _ -> failwith "real_eval_string knot is untied")
 
 let parse_keqv s = 
@@ -172,7 +173,7 @@ let real_exit (code : int) =
 
 let real_fork_and_eval 
       (handlers : int list) 
-      (os : 'a) (stmt : 'b) 
+      (os : 'a) (stmt : Smoosh_prelude.stmt) 
       (bg : bool) (pgid : int option) (outermost : bool) (jc : bool) (interactive : bool) : int =
   let pgrp pid =
        match pgid with
@@ -215,11 +216,11 @@ let real_fork_and_eval
              Sys.set_signal Sys.sigquit Signal_default;
            end;
        end;
-     sigunblockall ();
      (* save state for handlers---will be process-local *)
-     shell_state := Obj.magic os;
-     let status = !real_eval (Obj.magic os) (Obj.magic stmt) in 
-     (* make sure we restore the terminal *)
+     shell_state := Some os;
+     sigunblockall ();
+     let status = !real_eval os stmt in 
+     (* TODO restore the terminal? *)
      real_exit status
   | pid -> 
      sigunblockall (); 
@@ -475,7 +476,10 @@ let handler signal =
     gotsigchld := true;
   match List.assoc_opt signal !current_traps with
   | None -> ()
-  | Some cmd -> ignore (!real_eval_string !shell_state cmd)
+  | Some cmd -> 
+     match !shell_state with
+     | None -> failwith "uninitialized shell_state in handler"
+     | Some os -> ignore (!real_eval_string os cmd)
 
 let real_handle_signal signal action =
   let old_traps = List.remove_assoc signal !current_traps in

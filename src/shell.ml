@@ -143,10 +143,10 @@ let set_param x v s0 =
 
 let setup_handlers () =
   System.real_eval := 
-    (fun os stmt -> real_eval_for_exit_code (Obj.magic os) (Obj.magic stmt));
+    (fun os stmt -> real_eval_for_exit_code os stmt);
   System.real_eval_string := 
     (fun os cmd -> 
-      real_eval_for_exit_code (Obj.magic os) (command_eval (symbolic_string_of_string cmd)))
+      real_eval_for_exit_code os (command_eval (symbolic_string_of_string cmd)))
 
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
 let initialize_env s0 : system os_state =
@@ -173,10 +173,15 @@ let initialize_env s0 : system os_state =
                               export = Pset.from_list compare (List.map fst environ) } }
 
 let run os c =
-  real_sync (real_eval (real_sync os) c)
+  let os_out = real_sync (real_eval (real_sync os) c) in
+  os_out
 
 let cmdloop sstr =
-  let s0 = Obj.magic !System.shell_state in
+  let s0 = 
+    match !System.shell_state with
+    | None -> failwith "uninitialized shell_state in cmdloop"
+    | Some s0 -> s0
+  in
   let s1 = run s0 (EvalLoop (1, (sstr, None), !parse_source, 
                              is_interactive s0, true (* top level *))) in
   ignore (run s1 Exit)
@@ -203,7 +208,7 @@ let main () =
              Os.log = []; 
              Os.fuel = None; (* unbounded *)
              Os.symbolic = (); } in
-  let s1 = initialize_env s0 in
+  let s1 = real_sync (initialize_env s0) in
   let s2 =
     if is_interactive s1 
     then
