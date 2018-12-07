@@ -10,14 +10,14 @@ msg() {
 }
 
 rmlog() {
-    if [ -n "${TEST_DEBUG}" ]
+    if [ "${TEST_DEBUG+set}" != "set" ]
     then
         rm "$@"
     fi
 }
 
 debug() {
-    if [ -n "${TEST_DEBUG}" ]
+    if [ "${TEST_DEBUG+set}" != "set" ]
     then
         msg "$@"
     fi
@@ -62,30 +62,37 @@ do
     case_ec=${case_name}.ec 
 
     expected_ec=0
-    if [ -s ${case_ec} ]
+    if [ -s "${case_ec}" ]
     then
         expected_ec="$(cat ${case_ec})"
+        echo expecting error code ${expected_ec}
     fi
 
     expected_out=${case_name}.out
     expected_err=${case_name}.err
 
-    # run the test
     got_out=${TEST_LOGDIR}/${case_name}.out
     got_err=${TEST_LOGDIR}/${case_name}.err
+
+    # actually run the test
+    set +e
     ${TEST_SHELL} ${TEST_SHELL_FLAGS} ${test_case} >${got_out} 2>${got_err}
     got_ec="$?"
-    saved_ec=${TEST_LOGDIR}/${case_name}.ec.$?
+    set -e
+
+    saved_ec=${TEST_LOGDIR}/${case_name}.ec.${got_ec}
     echo ${got_ec} >${saved_ec}
 
     failures=0
 
     # check exit code
+    echo checking code
     if [ "${expected_ec}" -ne "${got_ec}" ]
     then
         debug "${case_name}: expected ${expected_ec} and got ${got_ec}"
         : $((failures += 1))
     else
+        echo deleting ${saved_ec}
         rmlog ${saved_ec}
     fi
     
