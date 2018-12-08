@@ -184,7 +184,7 @@ Bash
 
 Dash
   - Found (and fixed) arithmetic bug
-  - Are EXP_VARTILDE and EXP_VARTILDE2 necessary? 
+  - Are `EXP_VARTILDE` and `EXP_VARTILDE2` necessary? 
     it seems to me that the parser is properly separating things out...
     test it!
 
@@ -192,3 +192,4 @@ Dash
 
 BOTH
   - printf %5% seems perfectly valid, but both reject it as ill formatted
+  - kill -l doesn't fit the output format
