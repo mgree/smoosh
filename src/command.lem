@@ -229,7 +229,7 @@ let builtin_break s0 argv _env =
     else if s0.sh.loop_nest = 0
     then (write_stderr "break: only meaningful in a `for', `while', or `until' loop\n" s0,
           0)
-    else (write_stderr ("break: loop count of " ^ stringFromNat n ^ "is out of range, truncating to " ^
+    else (write_stderr ("break: loop count of " ^ stringFromNat n ^ " is out of range, truncating to " ^
                           stringFromNat s0.sh.loop_nest ^ "\n") s0,
           s0.sh.loop_nest)
   in
