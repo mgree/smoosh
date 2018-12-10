@@ -379,7 +379,7 @@ instance (OS symbolic)
        should record that in symbolic state for fancier symbolic signal handling
      *)
     let proc_num = length os.symbolic.procs in
-    let (subsh,_handlers) = clear_traps_for_subshell os.sh in
+    let (subsh,_handlers) = prepare_subshell os.sh in
     let proc = Shell Proc_Running stmt subsh os.symbolic.sh_fds in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a

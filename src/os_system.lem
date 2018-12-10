@@ -211,7 +211,7 @@ instance (OS unit)
     (os3, real_execve prog argv env binsh)
 
   let fork_and_subshell os stmt bg pgid jc =
-    let (subsh,handlers) = clear_traps_for_subshell os.sh in
+    let (subsh,handlers) = prepare_subshell os.sh in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
        command substitution containing only a single trap command,

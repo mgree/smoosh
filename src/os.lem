@@ -541,8 +541,7 @@ let clear_traps_for_subshell sh =
     partition (fun (_signal,cmd) -> string_of_symbolic_string cmd = "") traps 
   in
    (* clear handled traps (but keep ignored ones) *)
-  (<| sh with outermost = false;
-              traps = Map.fromList ignored |>,
+  (<| sh with traps = Map.fromList ignored |>,
    (* indicate which handled traps are now cleared *)
    map fst handled)
 
@@ -692,7 +691,7 @@ let enter_loop os =
 val exit_loop : forall 'a. os_state 'a -> os_state 'a
 let exit_loop os = 
   <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest - 1 |> |>
-
+                                  
 (* Special variables ($?, $!, $-) **************************************)
 
 val exit_with : forall 'a. nat -> os_state 'a -> os_state 'a
@@ -792,4 +791,22 @@ val free_alias : forall 'a. os_state 'a -> string -> os_state 'a
 let free_alias os name =
   let _ = dash_unalias name in
   <| os with sh = <| os.sh with aliases = Map.delete name os.sh.aliases |> |>
+
+(* Subshell prep ******************************************************)
+
+(* Returns a shell state that's ready for spawning.
+ * 
+ * Clears traps, resets shell state like loop nesting, etc.
+ *
+ * Returns a list of signals that _were_ handled so they can be set to default actions.
+ *)
+val prepare_subshell : shell_state -> shell_state * list signal
+let prepare_subshell sh0 =
+  let sh1 =
+    <| sh0 with outermost = false;
+                optoff = Nothing;
+                jobs = [];
+                loop_nest = 0
+    |> in
+  clear_traps_for_subshell sh1
 
