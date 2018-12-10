@@ -1,0 +1,4 @@
+echo hi
+{ sleep 1 ; echo derp ; } &
+echo bye
+wait
