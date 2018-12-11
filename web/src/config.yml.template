@@ -1,9 +1,9 @@
 development:
-  expand_executable: /full/path/to/expand
+  shtepper_executable: /full/path/to/shtepper
   submissions_tmpdir: /full/path/to/tmpdir
 test:
-  expand_executable: /full/path/to/expand
+  shtepper_executable: /full/path/to/shtepper
   submissions_tmpdir: /full/path/to/tmpdir
 production:
-  expand_executable: /full/path/to/expand
+  shtepper_executable: /full/path/to/shtepper
   submissions_tmpdir: /full/path/to/tmpdir

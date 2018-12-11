@@ -16,7 +16,7 @@ expand :
 
 $(shell pwd)/default.env :
 	@echo == Generating test environment =======================================
-	@echo TEST_SHELL=$$(cd ../src; pwd)/shell >$@
+	@echo TEST_SHELL=$$(cd ../src; pwd)/smoosh >$@
 	@echo TEST_TIME=$$(date +%Y-%m-%d_%H:%M) >>$@
 
 clean :

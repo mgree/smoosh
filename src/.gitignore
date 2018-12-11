@@ -3,7 +3,8 @@
 *.o
 *.cmi
 *.cmo
-expand
+shtepper
+smoosh
 smoosh_prelude.ml
 expansion.ml
 arith.ml
@@ -21,7 +22,6 @@ os.ml
 os_symbolic.ml
 os_system.ml
 command.ml
-shell
 signal_platform.lem
 signal_platform.ml
 signal.ml

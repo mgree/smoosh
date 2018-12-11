@@ -1,13 +1,13 @@
 development:
-  expand_executable: /home/opam/src/expand
+  shtepper_executable: /home/opam/src/shtepper
   submissions_tmpdir: /home/opam/web/submissions
   bind: 0.0.0.0
 test:
-  expand_executable: /home/opam/src/expand
+  shtepper_executable: /home/opam/src/shtepper
   submissions_tmpdir: /home/opam/web/submissions
   bind: 0.0.0.0
 production:
-  expand_executable: /home/opam/src/expand
+  shtepper_executable: /home/opam/src/shtepper
   submissions_tmpdir: /home/opam/web/submissions
   bind: 0.0.0.0
 

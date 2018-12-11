@@ -7,17 +7,21 @@ MLFILES=$(SRCFILES:.lem=.ml)
 LEMFILES=$(filter %.lem,$(SRCFILES))
 TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_evaluation.ml
 
-.PHONY : all test loc clean veryclean
+.PHONY : all install test loc clean veryclean
 
-all : expand shell runtest
+all : shtepper smoosh runtest
+
+install : shtepper smoosh
+	cp shtepper /usr/local/bin/shtepper
+	cp smoosh /usr/local/bin/smoosh
 
 test : runtest
 	./runtest
 
-expand : $(MLFILES) expand.ml
+shtepper : $(MLFILES) shtepper.ml
 	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
 
-shell : $(MLFILES) shell.ml
+smoosh : $(MLFILES) shell.ml
 	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
 
 runtest : $(MLFILES) $(TESTFILES) runtest.ml
@@ -28,7 +32,7 @@ signal_platform.lem : mk_signal_platform.sh
 
 loc :  $(SRCFILES)
 	@echo "Source LOC: "
-	wc -l $(SRCFILES) expand.ml shell.ml
+	wc -l $(SRCFILES) shtepper.ml shell.ml
 	@echo "Test LOC: "
 	wc -l $(TESTFILES) runtest.ml
 
@@ -37,7 +41,7 @@ loc :  $(SRCFILES)
 
 clean :
 	-rm -f $(LEMFILES:.lem=.ml)
-	-rm expand shell runtest
+	-rm shtepper smoosh runtest
 	-rm *.{cmi,cmo,cmx,o} *~
 
 veryclean : clean

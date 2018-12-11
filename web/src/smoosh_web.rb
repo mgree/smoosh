@@ -23,12 +23,12 @@ class SmooshWeb < Sinatra::Base
     erb :index
   end
 
-  get '/stepper' do
+  get '/shtepper' do
     @title = " - Stepper"
-    erb :stepper
+    erb :shtepper
   end
 
-  post '/stepper' do
+  post '/shtepper' do
     require 'src/command'
 
     # remove illegal characters, drop carriage returns from combos
@@ -59,13 +59,13 @@ class SmooshWeb < Sinatra::Base
     end
     user.close
 
-    # run expander for JSON
-    #   /path/to/expand -env-file env -user-file users shell
-    expand = Command.new(settings.expand_executable, 
+    # run shtepper for JSON
+    #   /path/to/shtepper -env-file env -user-file users shell
+    shtepper = Command.new(settings.shtepper_executable, 
                          '-env-file', File.path(env), 
                          '-user-file', File.path(user), 
                          File.path(shell))
-    result = expand.execute!
+    result = shtepper.execute!
 
     log.write result
     log.close

@@ -1768,7 +1768,7 @@ function renderEvaluationStep(info, step) {
           evalSrc = '';
       }
 
-      step['msg'] += ' (line ' + step['linno'].toString() + evalSrc + ')';
+      step['msg'] += ' (line ' + step['linno'].toString() + ' of ' + evalSrc + ')';
       renderMessage(info, 'Eval', step);
 
       break;
@@ -1853,7 +1853,7 @@ function renderStream(elt, last, force, step, name) {
  */
 // Submit the expansion form
 $('#expansionForm').submit(function(e) {
-  var url = '/stepper';
+  var url = '/shtepper';
 
   var orNone = function(maybeString) {
     if(maybeString === undefined) {
