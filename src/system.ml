@@ -422,11 +422,11 @@ let real_savefd (fd:int) : (string,int) either =
   try
     let newfd = Unix.dup ~cloexec:true (fd_of_int fd) in
     Right (int_of_fd newfd)
-  with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
+  with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e ^ ": " ^ string_of_int fd)
 
 let real_dup2 (orig_fd:int) (tgt_fd:int) : string option =
   try Unix.dup2 (fd_of_int orig_fd) (fd_of_int tgt_fd); None
-  with Unix.Unix_error(e,_,_) -> Some (Unix.error_message e)
+  with Unix.Unix_error(e,_,_) -> Some (Unix.error_message e  ^ ": " ^ string_of_int orig_fd)
 
 let real_close (fd:int) : unit =
   try Unix.close (fd_of_int fd)
