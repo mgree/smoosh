@@ -224,7 +224,7 @@ let builtin_break s0 argv _env =
      outermost enclosing loop shall be exited. If there is no
      enclosing loop, the behavior is unspecified." *)
   let bounded n =
-    if n < s0.sh.loop_nest
+    if n <= s0.sh.loop_nest
     then (s0, n)
     else if s0.sh.loop_nest = 0
     then (write_stderr "break: only meaningful in a `for', `while', or `until' loop\n" s0,

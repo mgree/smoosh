@@ -1,0 +1,2 @@
+# https://git.kernel.org/pub/scm/utils/dash/dash.git/commit/?id=a29e9a1738a4e7040211842f3f3d90e172fa58ce
+foo=bar; echo ${foo=BUG}; echo $foo
