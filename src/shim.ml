@@ -709,7 +709,9 @@ and json_of_evaluation_step = function
 and json_field_of_src = function
   | ParseSTDIN -> [("src", String "<STDIN>")]
   | ParseString cmd -> [("cmd", String cmd)]
-  | ParseFile (file, _push) -> [("src", String file)]
+  | ParseFile (file, _push) ->
+     (* we trim it to basename because we don't want to leak filenames in the web server *)
+     [("src", String (Filename.basename file))]
 
 and json_of_env (env:(string, symbolic_string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))
