@@ -3,6 +3,16 @@
 : ${TEST_TIME:=$(date "+%Y-%m-%d_%H:%M")}
 TEST_SCRIPT=${0##*/}
 
+cleanup () {
+    if ! [ -z "$TMP" ]
+    then
+        echo Cleaning up temporary directory $TMP...
+        rm -r $TMP
+    fi
+}
+
+trap 'cleanup' EXIT INT
+
 msg() {
     printf "${TEST_SCRIPT}: $@\n"
 }
@@ -47,7 +57,8 @@ fi
 [ -n "${TEST_SHELL}" ] || abort "please set TEST_SHELL to the path to the shell under test"
 [ -n "${TEST_SHELL_FLAGS}" ] && debug "using flags '${TEST_SHELL_FLAGS}'"
 
-: ${TEST_LOGDIR:=log/${TEST_TIME}}
+BASE=$(pwd)
+: ${TEST_LOGDIR:=$BASE/log/${TEST_TIME}}
 mkdir -p ${TEST_LOGDIR}/shell
 
 count=0
@@ -72,9 +83,14 @@ do
     got_err=${TEST_LOGDIR}/${case_name}.err
 
     # actually run the test
-    ${TEST_SHELL} ${TEST_SHELL_FLAGS} ${test_case} >${got_out} 2>${got_err}
+    TMP=$(mktemp -d)
+    cd $TMP
+    ${TEST_SHELL} ${TEST_SHELL_FLAGS} $BASE/${test_case} >${got_out} 2>${got_err}
     got_ec="$?"
-
+    cd $BASE
+    rm -r $TMP
+    TMP=
+    
     saved_ec=${TEST_LOGDIR}/${case_name}.ec.${got_ec}
     echo ${got_ec} >${saved_ec}
 
