@@ -24,6 +24,11 @@ type redir_exp_result 'a =
   | REError of fields
   | REStep of expansion_step * 'a * expanding_redir
 
+type step_assign_result 'a =
+    SADone of list (string * fields)
+  | SAError of fields
+  | SAStep of evaluation_step * os_state 'a * list (string * expansion_state)
+            
 val expand_control : forall 'a. OS 'a => 
                      os_state 'a -> quoting_mode -> tilde_mode -> control ->
                      either (expansion_step * os_state 'a * expanded_words) 
@@ -41,9 +46,8 @@ val step_redir : forall 'a. OS 'a =>
 val step_redir_state : forall 'a. OS 'a => os_state 'a -> redir_state -> 
                        os_state 'a * string * maybe (redir_state * maybe expansion_step)
 val step_assign : forall 'a. OS 'a => 
-                  os_state 'a -> list (string * expansion_state) ->
-                  either (os_state 'a * list (string * fields)) (* Done state *)
-                         (evaluation_step * os_state 'a * list (string * expansion_state)) 
+                    os_state 'a -> list (string * expansion_state) ->
+                    step_assign_result 'a
 val step_eval : forall 'a. OS 'a => step_fun 'a (* see os.lem for defn *)
 
 val full_evaluation : forall 'a. OS 'a => os_state 'a -> stmt -> os_state 'a
@@ -484,20 +488,17 @@ and step_redir_state os0 redir_state =
  *   we return the Left type to continue on the arg expansion. *)
 and step_assign s0 assigns =
   match assigns with
-  | [] -> Left (s0, [])
-  | ((x, ExpError f) as error)::assigns' ->
-    match step_assign s0 assigns' with
-    | Right (step, s1, processed) -> Right (step, s1, error::processed)
-    | Left (s1, completed) -> Left (s1, (x, f)::completed)
-    end
+  | [] -> SADone []
+  | (_x, ExpError f)::_assigns -> SAError f
   | ((x, ExpDone f) as finished)::assigns' ->
     match step_assign s0 assigns' with
-    | Right (step, s1, processed) -> Right (step, s1, finished::processed)
-    | Left (s1, completed) -> Left (s1, (x, f)::completed)
+    | SAStep step s1 processed -> SAStep step s1 (finished::processed)
+    | SAError err -> SAError err
+    | SADone completed -> SADone ((x, f)::completed)
     end
   | (x, exp_state)::assigns' ->
     let (step, s1, next_state) = step_expansion (s0, exp_state) in
-    Right (XSExpand (XSSimple x) step, s1, (x, next_state)::assigns')
+    SAStep (XSExpand (XSSimple x) step) s1 ((x, next_state)::assigns')
   end
 
 and step_eval s0 checked stmt =
@@ -528,47 +529,61 @@ and step_eval s0 checked stmt =
             s0,
             CommandExpAssign
               (map (fun (x, w) -> (x, ExpStart w)) assigns)
+              false (* haven't yet run a command substitution *)
               ws
               redirs)
   (* COMMAND: SPECIAL CASE: plain assignment, no command **********************)
-  (* in this case, we WANT the visibility between each assignment, so don't bother
-     with the step_assigns rigamarole below *)
-  | CommandExpAssign ((x,exp_state0)::assigns) [] redirs ->
-     match step_expansion (s0, exp_state0)  with
-     | (_step, s1, ExpDone f) -> 
+  (* in this case, we WANT the visibility between each assignment, so
+     don't bother with the step_assigns rigamarole below
+
+     "If there is no command name, but the command contained a command
+     substitution, the command shall complete with the exit status of
+     the last command substitution performed. Otherwise, the command
+     shall complete with a zero exit status" *)
+  | CommandExpAssign ((x,exp_state0)::assigns) ran_cmd_subst [] redirs ->
+     let (step, s1, exp_state1) = step_expansion (s0, exp_state0) in
+     let ran_cmd_subst' = ran_cmd_subst || ran_command_substitution step in
+     match exp_state1  with
+     | ExpDone f -> 
         match set_param x (symbolic_string_of_fields f) s1 with
         | Left err -> Left (XSSimple err, write_stderr (err ^ "\n") s1)
         | Right s2 ->
            let s3 = trace (x ^ "=" ^ string_of_fields f) s2 in
            Right (XSSimple ("assign " ^ x),
                   s3, 
-                  CommandExpAssign assigns [] redirs)
+                  CommandExpAssign assigns ran_cmd_subst' [] redirs)
         end
-     | (step, s1, ExpError f) -> 
-        Right (XSExpand (XSSimple ("error in " ^ x ^ ": " ^ string_of_fields f)) step,
-               s1, 
-               CommandExpAssign assigns [] redirs)
-     | (step, s1, exp_state1) -> 
+     | ExpError f -> 
+        Left (XSExpand (XSSimple ("error in " ^ x ^ ": " ^ string_of_fields f)) step,
+              write_stderr (string_of_fields f) s1)
+     | _ -> 
         Right (XSExpand (XSSimple "") step,
                s1, 
-               CommandExpAssign ((x,exp_state1)::assigns) [] redirs)
+               CommandExpAssign ((x,exp_state1)::assigns) ran_cmd_subst' [] redirs)
      end
-  | CommandExpAssign [] [] redirs ->
+  | CommandExpAssign [] ran_cmd_subst [] redirs ->
      (* keep on expanding, since we have to actually expand the redirects no matter what *)
-     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] [] ([], Nothing, redirs) true)
+     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] ran_cmd_subst [] ([], Nothing, redirs) true)
 
-  (* GENERAL CASE: command with possible assignments, which no longer go in the general environment *)
-  | CommandExpAssign assigns ws redirs ->
+  (* GENERAL CASE: command with possible assignments, which no longer
+     go in the general environment 
+
+     we therefore fake ran_cmd_subst as 'true' below, not that it will
+     matter *)
+  | CommandExpAssign assigns _ran_cmd_subst ws redirs ->
      match step_assign s0 assigns with
      (* Perform an expansion step in an assignment *)
-     | Right (exp_step, s1, assigns') ->
+     | SAStep exp_step s1 assigns' ->
         Right (exp_step,
                s1,
-               CommandExpAssign assigns' ws redirs)
+               CommandExpAssign assigns' true ws redirs)
+     | SAError f ->
+        Left (XSSimple ("error in expansion " ^ string_of_fields f),
+              write_stderr (string_of_fields f) s0)
      (* Done, move on to expanding arguments *)
-     | Left (s1, fields) ->
+     | SADone fields ->
         Right (XSSimple "assignments fully expanded",
-               s1,
+               s0,
                CommandExpArgs fields (ExpStart ws) redirs)
     end
   | CommandExpArgs assigns exp_state redirs ->
@@ -587,7 +602,7 @@ and step_eval s0 checked stmt =
            in
            Right (XSExpand (XSSimple msg) step, 
                   s1, 
-                  CommandExpRedirs assigns f ([], Nothing, redirs) true)
+                  CommandExpRedirs assigns true (* fake ran_subst_cmd *) f ([], Nothing, redirs) true)
         | _ ->
            Right(XSExpand (XSSimple "argument expansion step") step,
                  s1,
@@ -595,7 +610,7 @@ and step_eval s0 checked stmt =
       end
   (* COMMAND: Redirect expansion **********************************************)
   (* expansion is done, try to run command *)
-  | (CommandExpRedirs assigns (prog::args) (ers, Nothing, []) allow_fun as cmd) ->
+  | (CommandExpRedirs assigns _ran_subst_cmd (prog::args) (ers, Nothing, []) allow_fun as cmd) ->
      if Set.member Sh_noexec s0.sh.opts
      then Right (XSSimple "set -n: skipping command", s0, Done)
      else
@@ -692,7 +707,7 @@ and step_eval s0 checked stmt =
        end
      end
   (* expansion is done, but there's no command *)
-  | (CommandExpRedirs _assigns [] (ers, Nothing, []) _allow_fun as cmd) ->
+  | (CommandExpRedirs _assigns ran_subst_cmd [] (ers, Nothing, []) _allow_fun as cmd) ->
      (* we've already done whatever assignments above, in the special
         case.  it remains to set up redirects for side effects/file
         creation
@@ -719,24 +734,28 @@ and step_eval s0 checked stmt =
                fail_with msg s1, 
                Done)
      | (s1, Right saved_fds) ->
+        let s2 = trace (string_of_stmt cmd) s1 in
+        let s3 = if ran_subst_cmd then s2 else exit_with 0 s2 in
         Right (XSSimple "ran empty command",
-               trace (string_of_stmt cmd) s1, 
+               s3,
                pushredir Done saved_fds)
      end
    (* expand redirs *)
-   | CommandExpRedirs assigns args redir_state allow_fun ->
+   | CommandExpRedirs assigns ran_cmd_subst args redir_state allow_fun ->
       match step_redir_state s0 redir_state with
       | (s1, msg, Nothing) ->
          Right (XSSimple "error in redirect expansion", 
                 fail_with msg s1, 
                 Done)
       | (s1, msg, Just (redir_state', mstep)) ->
-         let step =
+         let (ran_cmd_subst', step) =
            match mstep with
-           | Just estep -> XSExpand (XSSimple msg) estep
-           | Nothing -> XSSimple msg
+           | Just estep -> (ran_cmd_subst || ran_command_substitution estep,
+                            XSExpand (XSSimple msg) estep)
+           | Nothing -> (ran_cmd_subst, XSSimple msg)
            end in
-         Right (step, s1, CommandExpRedirs assigns args redir_state' allow_fun)
+         Right (step, s1,
+                CommandExpRedirs assigns ran_cmd_subst' args redir_state' allow_fun)
       end
 
   (* PIPE *********************************************************************)

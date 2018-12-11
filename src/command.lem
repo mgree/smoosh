@@ -1026,6 +1026,7 @@ let builtin_command s0 argv env =
      Right (s0,
             CommandExpRedirs 
               (assigns_of_env env) (* convert env *)
+              true (* fake ran_subst_cmd *)
               argv' (* copy over command args *)
               ([],Nothing,[])
               false (* don't allow functions *))

@@ -398,7 +398,7 @@ let rec json_of_stmt = function
             ("assigns", List (List.map json_of_assign assigns));
             ("args", json_of_words args);
             ("rs", json_of_redirs rs)]
-  | CommandExpAssign (assigns, args, rs) -> 
+  | CommandExpAssign (assigns, _ran_subst_cmd, args, rs) -> 
      Assoc [tag "CommandExpAssign"; 
             ("assigns", List (List.map json_of_inprogress_assign assigns));
             ("args", json_of_words args);
@@ -408,7 +408,7 @@ let rec json_of_stmt = function
             ("assigns", List (List.map json_of_expanded_assign assigns));
             ("args", json_of_expansion_state args);
             ("rs", json_of_redirs rs)]
-  | CommandExpRedirs (assigns, args, redir_state, _allow_fun) ->
+  | CommandExpRedirs (assigns, _ran_subst_cmd, args, redir_state, _allow_fun) ->
      Assoc ([tag "CommandExpRedirs"; 
              ("assigns", List (List.map json_of_expanded_assign assigns));
              ("args", json_of_fields args)]

@@ -719,9 +719,9 @@ and words = list entry
 
 and stmt =
     Command of list (string * words) * words * list redir
-  | CommandExpAssign of list (string * expansion_state) * words * list redir
+  | CommandExpAssign of list (string * expansion_state) * bool (* ran command subst? *) * words * list redir
   | CommandExpArgs of list (string * fields) * expansion_state * list redir
-  | CommandExpRedirs of list (string * fields) * fields * redir_state * bool (* allow function ? *)
+  | CommandExpRedirs of list (string * fields) * bool (* ran command subst? *) * fields * redir_state * bool (* allow function ? *)
   | Pipe of bool (* bg? *) * list stmt
   | Redir of stmt * redir_state
   | Background of stmt * redir_state
@@ -1265,6 +1265,7 @@ val simple_command : string -> fields -> env -> stmt
 let simple_command cmd args env =
   CommandExpRedirs
     (assigns_of_env env)
+    true (* fake ran_subst_cmd *)
     ((symbolic_string_of_string cmd)::args)
     ([], Nothing, [])
     true (* allow functions *)
@@ -1352,6 +1353,23 @@ let string_of_job_status status =
   | JobDone code -> "Done (" ^ stringFromNat code ^ ")"
   end
 
+val ran_command_substitution : expansion_step -> bool
+let rec ran_command_substitution estep =
+  match estep with
+  | ESTilde _s -> false
+  | ESParam _s -> false
+  | ESCommand _s -> true
+  | ESArith _s -> false
+  | ESSplit _s -> false
+  | ESPath _s -> false
+  | ESQuote _s -> false
+  | ESStep _s -> false
+  | ESNested estep_outer estep_inner ->
+     ran_command_substitution estep_outer || 
+     ran_command_substitution estep_inner
+  | ESEval _estep' _step -> true
+  end    
+      
 (**********************************************************************)
 (* PRETTY PRINTING ****************************************************)
 (**********************************************************************)
@@ -1400,13 +1418,13 @@ let rec string_of_stmt c =
   | Command assigns cmds redirs ->
      string_of_simple string_of_words string_of_words string_of_redirs
        assigns cmds redirs
-  | CommandExpAssign assigns cmds redirs -> 
+  | CommandExpAssign assigns _ran_cmd_subst cmds redirs -> 
      string_of_simple string_of_expansion_state string_of_words string_of_redirs
        assigns cmds redirs
   | CommandExpArgs assigns cmds redirs -> 
      string_of_simple string_of_fields string_of_expansion_state string_of_redirs
        assigns cmds redirs
-  | CommandExpRedirs assigns cmds redir_state _allow_fun ->
+  | CommandExpRedirs assigns _ran_cmd_subst cmds redir_state _allow_fun ->
      string_of_simple string_of_fields string_of_fields string_of_redir_state
        assigns cmds redir_state
   | Pipe bg cmds ->
