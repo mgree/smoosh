@@ -106,6 +106,9 @@ declare ocaml target_rep function real_file_perms = `System.real_file_perms`
 val real_file_type : path -> maybe file_type
 declare ocaml target_rep function real_file_type = `System.real_file_type`
 
+val real_file_type_follow : path -> maybe file_type
+declare ocaml target_rep function real_file_type_follow = `System.real_file_type_follow`
+                                                 
 val real_is_tty : fd -> bool
 declare ocaml target_rep function real_is_tty = `System.real_is_tty`
 
@@ -253,6 +256,8 @@ instance (OS unit)
     end
 
   let file_type _os path = real_file_type path
+
+  let file_type_follow _os path = real_file_type_follow path
 
   let is_tty _os fd = real_is_tty fd
 

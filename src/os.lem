@@ -109,7 +109,10 @@ class ( OS 'a )
   val readdir : os_state 'a -> path -> set (path * file unit)
   val file_exists : os_state 'a -> path -> bool
 
+  (* type of the file *)
   val file_type : os_state 'a -> path -> maybe file_type
+  (* type of the file, following links *)
+  val file_type_follow : os_state 'a -> path -> maybe file_type
   val file_size : os_state 'a -> path -> maybe nat
   val file_perms : os_state 'a -> path -> maybe perms
   val is_tty : os_state 'a -> fd -> bool

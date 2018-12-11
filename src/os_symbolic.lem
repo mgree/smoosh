@@ -365,7 +365,17 @@ let symbolic_signal_pid os0 signal pid _as_pg =
      end
   end
 
+let symbolic_file_type os path =   
+    match symbolic_fs_resolve_path os.symbolic.fs_root path with
+    | Nothing -> Nothing
+    | Just File -> Just FileRegular
+    | Just (Dir _) -> Just FileDirectory
+    end
 
+let symbolic_file_type_follow os path =
+  (* TODO 2018-12-11 support links in the symbolic fs *)
+  symbolic_file_type os path   
+   
 instance (OS symbolic)
   let sync_state os = os
 
@@ -462,12 +472,9 @@ instance (OS symbolic)
     | Just File -> Just (invert_perms default_umask)
     end
 
-  let file_type os path =
-    match symbolic_fs_resolve_path os.symbolic.fs_root path with
-    | Nothing -> Nothing
-    | Just File -> Just FileRegular
-    | Just (Dir _) -> Just FileDirectory
-    end
+  let file_type os path = symbolic_file_type os path
+
+  let file_type_follow os path = symbolic_file_type_follow os path
 
   let is_tty os fd =
     match symbolic_resolve_fd os.symbolic fd with

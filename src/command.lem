@@ -81,7 +81,7 @@ let resolve_command_name_in_path s0 path prog =
     (* Otherwise, the command shall be searched for using the PATH
        environment variable as described in XBD Environment Variables *)
     let paths = split_string_on true (* escapable *) #':' path in
-    let ok path = file_exists s0 path && file_type s0 path = Just FileRegular in
+    let ok path = file_exists s0 path && file_type_follow s0 path = Just FileRegular in
     resolve_path_with ok paths prog
 
 let resolve_command_name s0 prog =

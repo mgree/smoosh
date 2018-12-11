@@ -304,6 +304,10 @@ let real_file_type (path : string) : Unix.file_kind option =
   try Some (Unix.lstat path).st_kind
   with Unix.Unix_error(_,_,_) -> None
 
+let real_file_type_follow (path : string) : Unix.file_kind option =
+  try Some (Unix.stat path).st_kind
+  with Unix.Unix_error(_,_,_) -> None
+                               
 let real_isdir (path : string) : bool = 
   Sys.file_exists path && Sys.is_directory path
 
