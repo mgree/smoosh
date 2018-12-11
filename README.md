@@ -11,6 +11,8 @@ Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OC
 
 If you don't load the git submodules, the libdash and Lem references won't resolve properly---the directories will be empty!
 
+Whenever you pull, remember to run `git submodule update` to make sure that the submodules are at the correct versions.
+
 # How to build and test it
 
 - Run: `./build.sh`
