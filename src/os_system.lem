@@ -175,6 +175,9 @@ val real_openhere : string -> either string fd
 declare ocaml target_rep function real_openhere = `System.real_openhere`
 
 let real_close_and_save_fd fd =
+  (* NB we won't ever get any errors from real_close but if fd isn't
+     open, we'll get EBADF from real_savefd and the shell will error
+     appropriately, anyway *)
   match real_savefd fd with
   | Left err -> Left err
   | Right saved_fd ->

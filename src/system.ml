@@ -80,12 +80,26 @@ let rec real_execve (cmd : string) (argv : string list) (environ : string list) 
   try Unix.execve cmd (Array.of_list (cmd::argv)) env
   with 
     | Unix.Unix_error(Unix.EINTR,_,_) -> real_execve cmd argv environ binsh
+    | Unix.Unix_error(Unix.ENOENT,_,_) ->
+       begin
+         Printf.eprintf "exec: %s: not found\n%!" cmd;
+         exit 127
+       end
     | Unix.Unix_error(Unix.ENOEXEC,_,_) as err ->
        if binsh && cmd <> "/bin/sh"
        then 
          (* tell execve what our command name is, once to pass it to the shell *)
          Unix.execve "/bin/sh" (Array.of_list ("/bin/sh"::cmd::argv)) env
-       else raise err
+       else
+         begin
+           Printf.eprintf "exec: %s: Permission denied" cmd;
+           exit 127
+         end
+    | Unix.Unix_error(Unix.EACCES,_,_) ->
+       begin
+         Printf.eprintf "exec: %s: Permission denied" cmd;
+         exit 126
+       end      
 
 let ttyfd : Unix.file_descr option ref = ref None
 let initialpgrp = ref (-1)

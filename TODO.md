@@ -8,12 +8,6 @@
 
 ### Artifact TODO
 
-- simplify suite to use files to represent expected exit codes, output, etc.
-  foo.test
-  foo.ec -- holds expected exit code (absent => 0)
-  foo.out -- holds expected stdout   (absent => log; otherwise only log on failure)
-  foo.err -- holds expected stderr   (absent => log; otherwise only log on failure)
-
 - test suite for shell, expand
   + kill
   + pipes and redirects
@@ -26,6 +20,18 @@
   run on dash, bash
 
 ### Bugs
+
+- ENOENT on bad execve?
+  fat fingered, which crashed exec 9&<-
+  Exec in semantics needs to check cmd's existence and signal errors before ACTUALLY execve'ing
+  put error handling code into system.ml, but that's too late
+
+- file descriptor numbering
+  "all implementations shall support at least 0 to 9, inclusive, for use by the application"
+  
+  + current implementation of `real_save_fd` can hit the wrong number
+    write a custom function for OCaml, link it in w/Ctypes
+  + symbolic impl also wrong
 
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
