@@ -428,14 +428,14 @@ let real_read_line_fd backslash_escapes (fd:int)
   | Right (cs, eof) -> Right (implode (List.rev cs), eof)
 
 let real_savefd (fd:int) : (string,int) either =
-  (* dash is careful to get a new fd>10 by using an explicit fcntl call.
-     we don't have access to fcntl in Unix.cmx;
-     ocaml-unix-fcntl doesn't seeem to offer the fd functions
-     so: we'll just take the fd that we get. it'll be fresh, in any case
-   *)
   try
-    let newfd = Unix.dup ~cloexec:true (fd_of_int fd) in
-    Right (int_of_fd newfd)
+    match Dash.freshfd_ge10 fd with
+    | None -> Left ("error duplicating fd " ^ string_of_int fd)
+    | Some newfd ->
+       begin
+         Unix.set_close_on_exec (fd_of_int newfd);
+         Right newfd
+       end
   with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e ^ ": " ^ string_of_int fd)
 
 let real_dup2 (orig_fd:int) (tgt_fd:int) : string option =

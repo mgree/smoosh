@@ -29,9 +29,7 @@
 - file descriptor numbering
   "all implementations shall support at least 0 to 9, inclusive, for use by the application"
   
-  + current implementation of `real_save_fd` can hit the wrong number
-    write a custom function for OCaml, link it in w/Ctypes
-  + symbolic impl also wrong
+  + symbolic impl wrong
 
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
