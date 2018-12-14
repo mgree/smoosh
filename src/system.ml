@@ -429,14 +429,18 @@ let real_read_line_fd backslash_escapes (fd:int)
 
 let real_savefd (fd:int) : (string,int) either =
   try
-    match Dash.freshfd_ge10 fd with
-    | None -> Left ("error duplicating fd " ^ string_of_int fd)
-    | Some newfd ->
-       begin
-         Unix.set_close_on_exec (fd_of_int newfd);
-         Right newfd
-       end
-  with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e ^ ": " ^ string_of_int fd)
+    let newfd = Dash.freshfd_ge10 fd in
+    if newfd == -1
+    then Left "EBADF"
+    else if newfd < 0
+    then Left ("error duplicating fd " ^ string_of_int fd)
+    else
+      begin
+        Unix.set_close_on_exec (fd_of_int newfd);
+        Right newfd
+      end
+  with Unix.Unix_error(Unix.EBADF,_,_) -> Left "EBADF"
+     | Unix.Unix_error(e,_,_) -> Left (Unix.error_message e ^ ": " ^ string_of_int fd)
 
 let real_dup2 (orig_fd:int) (tgt_fd:int) : string option =
   try Unix.dup2 (fd_of_int orig_fd) (fd_of_int tgt_fd); None

@@ -175,10 +175,8 @@ val real_openhere : string -> either string fd
 declare ocaml target_rep function real_openhere = `System.real_openhere`
 
 let real_close_and_save_fd fd =
-  (* NB we won't ever get any errors from real_close but if fd isn't
-     open, we'll get EBADF from real_savefd and the shell will error
-     appropriately, anyway *)
   match real_savefd fd with
+  | Left "EBADF" -> Right [] (* it was already closed *)
   | Left err -> Left err
   | Right saved_fd ->
      let () = real_close fd in
@@ -193,6 +191,7 @@ let real_renumber_fd (close : bool) (new_fd : fd) (wanted_fd : fd) =
     Right (if close then [(wanted_fd,Close)] else [])
     else (* need to save wanted_fd and then dup *)
       match real_savefd wanted_fd with
+      | Left "EBADF" -> Right []
       | Left err -> Left err
       | Right saved_fd -> 
          match real_dup2 new_fd wanted_fd with

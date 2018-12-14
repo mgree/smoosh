@@ -21,14 +21,6 @@
 
 ### Bugs
 
-- file descriptor numbering
-  "all implementations shall support at least 0 to 9, inclusive, for use by the application"
-  
-  + real_savefd should be cleverer when the fd is already closed
-    (see recent emails on dash list; id:7bd61c96-8c14-aaba-d410-1ec4335a0608@inlv.org)
-  
-  + symbolic impl wrong
-
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
   + INTON/INTOFF to get correct command editing behavior:

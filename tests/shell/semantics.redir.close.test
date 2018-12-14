@@ -1,0 +1,2 @@
+# https://www.spinics.net/lists/dash/msg01775.html
+{ exec 8</dev/null; } 8<&-; : <&8 && echo "oops, still open"

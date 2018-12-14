@@ -595,6 +595,14 @@ instance (OS symbolic)
     | Just sym3 -> Right (<| os0 with symbolic = sym3 |>, fd)
     end
 
+  (* TODO 2018-12-14 This isn't 100% faithful to what an implementation
+     can do.
+
+     Because we're simulating all of POSIX, we don't need to
+     _actually_ dup2 anything.  But a real implementation will choose an
+     fd >= 10 for renumbering, since the shell is only guaranteed to have
+     fds 0-9.
+   *)
   let close_and_save_fd os0 fd = 
     (* precomupte potential next os *)
     let sym1 = <| os0.symbolic with sh_fds = Map.delete fd os0.symbolic.sh_fds |> in
