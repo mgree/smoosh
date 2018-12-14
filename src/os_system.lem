@@ -55,9 +55,6 @@ let job_status_of_ocaml_status ocaml_status =
      JobStopped stopper
   end
 
-val real_sync_state : os_state system -> os_state system
-declare ocaml target_rep function real_sync_state = `System.real_sync_state`
-
 val real_wait_child : bool (* jc? *) -> maybe (pid * ocaml_job_status)
 declare ocaml target_rep function real_wait_child = `System.real_wait_child`
 
@@ -205,8 +202,6 @@ let real_renumber_fd (close : bool) (new_fd : fd) (wanted_fd : fd) =
       end
 
 instance (OS unit)
-  let sync_state os = real_sync_state os
-
   let getpwnam _os nam = real_getpwnam nam
                        
   let execve os0 sprog sargv senv binsh =

@@ -366,8 +366,6 @@ let symbolic_file_type_follow os path =
   symbolic_file_type os path   
    
 instance (OS symbolic)
-  let sync_state os = os
-
   let getpwnam os u = Map.lookup u os.symbolic.passwd
 
   let execve os prog argv env binsh =

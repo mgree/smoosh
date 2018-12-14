@@ -75,6 +75,24 @@ let parse_args () =
 (* OUTPUT *************************************************************)
 (**********************************************************************)
 
+let json_of_fs (fs:fs) : json = String "TODO"
+
+let json_of_fifo symbolic num =
+  match List.nth_opt symbolic.fifos num with
+  | None -> String ""
+  | Some s -> String s
+
+let json_of_evaluation_trace_entry (step, sh, symbolic, stmt) =
+  Assoc [("step", json_of_evaluation_step step)
+        (* 2017-12-22 TODO dump more of the shell state, e.g., FS? *)
+        ;("env", json_of_env sh.env)
+        ;("STDOUT", json_of_fifo symbolic 1)
+        ;("STDERR", json_of_fifo symbolic 2)
+        ;("term", json_of_stmt stmt)
+        ]
+
+let json_of_trace t = List (List.map json_of_evaluation_trace_entry t)
+
 let show_trace trace =
   let out = Buffer.create (List.length trace * 250) in
   begin

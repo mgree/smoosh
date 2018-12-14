@@ -30,14 +30,3 @@ let parse_next s0 interactive stackmark =
      in
      (s1, ParseStmt c)
   end
-
-val sync_env : forall 'a. OS 'a => os_state 'a -> os_state 'a
-declare ocaml target_rep function sync_env = `Shim.sync_env`
-
-val sync : forall 'a. OS 'a => os_state 'a -> os_state 'a
-let sync os = sync_env (sync_state os)
-
-(* instantiated for shell.ml *)
-import Os_system
-val real_sync : os_state Os_system.system -> os_state Os_system.system
-let real_sync os = sync os

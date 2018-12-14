@@ -2,7 +2,6 @@ open Ctypes
 open Foreign
 open Dash
 open Smoosh_prelude
-open Os
 
 let skip = Command ([],[],[])
 
@@ -340,15 +339,14 @@ let parse_string cmd =
                false, false (* not top level, will call parse_done *)),
      Exit)
 
-let sync_env os =
+let real_sync_env env =
   let set x v = 
     match try_concrete v with
     (* don't copy over special variables *)
     | Some s when not (is_special_param x) -> Dash.setvar x s 
     | _ -> ()
   in
-  Pmap.iter set os.sh.env;
-  log_msg "sync_env" os
+  Pmap.iter set env
 
 (************************************************************************)
 (* JSON rendering *******************************************************)
@@ -721,22 +719,3 @@ and json_of_shell_state (sh:shell_state) : json =
          ("cwd", String sh.cwd);
          ("locale", String sh.locale.name)]
 
-open Os_symbolic
-
-let json_of_fs (fs:fs) : json = String "TODO"
-
-let json_of_fifo symbolic num =
-  match List.nth_opt symbolic.fifos num with
-  | None -> String ""
-  | Some s -> String s
-
-let json_of_evaluation_trace_entry (step, sh, symbolic, stmt) =
-  Assoc [("step", json_of_evaluation_step step)
-        (* 2017-12-22 TODO dump more of the shell state, e.g., FS? *)
-        ;("env", json_of_env sh.env)
-        ;("STDOUT", json_of_fifo symbolic 1)
-        ;("STDERR", json_of_fifo symbolic 2)
-        ;("term", json_of_stmt stmt)
-        ]
-
-let json_of_trace t = List (List.map json_of_evaluation_trace_entry t)

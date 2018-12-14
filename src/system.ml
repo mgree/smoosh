@@ -40,25 +40,18 @@ let all_signals =
   ; Sys.sigxcpu
   ; Sys.sigxfsz]
 
+let pending_signals = ref []
+let gotsigchld = ref false (* TODO 2018-12-14 for set -o notify *)
+let sigblockall () = ignore (Unix.sigprocmask Unix.SIG_BLOCK all_signals)
+let sigunblockall () = ignore (Unix.sigprocmask Unix.SIG_UNBLOCK all_signals)
+
 (* for backpatching the real_eval function 
    takes a command to its exit code
  *)
 type real_os_state = unit Os.os_state
-let shell_state : real_os_state option ref = ref None
-
-let gotsigchld = ref false
-let sigblockall () = ignore (Unix.sigprocmask Unix.SIG_BLOCK all_signals)
-let sigunblockall () = ignore (Unix.sigprocmask Unix.SIG_UNBLOCK all_signals)
-
-let real_sync_state os =
-  shell_state := Some os;
-  os
 
 let real_eval : (real_os_state -> Smoosh_prelude.stmt -> int) ref =
   ref (fun _ _ -> failwith "real_eval knot is untied")
-
-let real_eval_string : (real_os_state -> string -> int) ref = 
-  ref (fun _ -> failwith "real_eval_string knot is untied")
 
 let parse_keqv s = 
   let eq = String.index s '=' in
@@ -231,7 +224,6 @@ let real_fork_and_eval
            end;
        end;
      (* save state for handlers---will be process-local *)
-     shell_state := Some os;
      sigunblockall ();
      let status = !real_eval os stmt in 
      (* TODO restore the terminal? *)
@@ -489,31 +481,34 @@ let real_openhere (s : string) : (string,int) either =
          end
   with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
 
-let current_traps : (int * string) list ref = ref []
-
 let handler signal =
   if signal = Sys.sigchld
   then 
-    (* TODO 2018-10-29 handle set -o notify properly *)
-    gotsigchld := true;
-  match List.assoc_opt signal !current_traps with
-  | None -> ()
-  | Some cmd -> 
-     match !shell_state with
-     | None -> failwith "uninitialized shell_state in handler"
-     | Some os -> ignore (!real_eval_string os cmd)
+    begin
+      (* TODO 2018-10-29 handle set -o notify properly *)
+      gotsigchld := true;
+      try 
+        let smoosh_signal = Signal.signal_of_ocaml_signal signal in
+        pending_signals := 
+          smoosh_signal :: 
+            (List.filter (fun s -> s <> smoosh_signal) !pending_signals)
+      with _ -> 
+        (* in case signal_of_ocaml_signal fails. this shouldn't happen,
+           because we'll only install handlers for signals we know about.
+           but: safety first! *)
+        () 
+    end
 
 let real_handle_signal signal action =
-  let old_traps = List.remove_assoc signal !current_traps in
-  let (new_traps,handler) =
-    match action with
-    | None     -> ([],             Sys.Signal_default)
-    | Some  "" -> ([(signal,"")],  Sys.Signal_ignore)
-    | Some cmd -> ([(signal,cmd)], Sys.Signal_handle handler)
-  in
-  current_traps := new_traps @ old_traps;
   if signal <> 0
-  then Sys.set_signal signal handler
+  then
+    let handler =
+      match action with
+      | None     -> Sys.Signal_default
+      | Some  "" -> Sys.Signal_ignore
+      | Some cmd -> Sys.Signal_handle handler
+    in
+    Sys.set_signal signal handler
 
 let real_signal_pid signal pid as_pg =
   try Unix.kill (if as_pg then -pid else pid) signal; true

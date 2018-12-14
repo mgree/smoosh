@@ -43,6 +43,8 @@
     set -e; trap "false; echo BUG" USR1; kill -s USR1 $$
     # currently fails due to a state-sync issue
 
+    - something to show exit_code in the shtepper
+
 - save exit codes in traps
   trap 'f() { false; return; }; f; echo $?' EXIT
   "When exit is executed in a trap action, the last command is considered to be the command that executed immediately preceding the trap action."

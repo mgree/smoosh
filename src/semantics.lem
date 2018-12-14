@@ -1145,26 +1145,25 @@ and step_eval s0 checked stmt =
 
   | EvalLoop linno ((sstr,stackmark) as ctx) src interactive top_level ->
      let s1 = show_changed_jobs s0 in
-     let s2 = if top_level then sync s1 else sync_env s1 in
-     let (s3, parsed) = parse_next s2 interactive stackmark in
+     let (s2, parsed) = parse_next s1 interactive stackmark in
      match parsed with
      | ParseDone -> 
         let _ = if top_level then () else parse_done sstr in
-        let (s4, c) = 
-          if interactive && top_level && Set.member Sh_ignoreeof s3.sh.opts
-          then (write_stderr "Use \"exit\" to leave the shell.\n" s3, 
+        let (s3, c) = 
+          if interactive && top_level && Set.member Sh_ignoreeof s2.sh.opts
+          then (write_stderr "Use \"exit\" to leave the shell.\n" s2, 
                 EvalLoop linno ctx src interactive top_level)
-          else (s3, Done)
+          else (s2, Done)
         in
-        Right (XSEval linno src "done", s4, c)
+        Right (XSEval linno src "done", s3, c)
      | ParseError -> 
         let _ = if top_level then () else parse_done sstr (* TODO ??? *) in
-        Right (XSEval linno src "parse error", exit_with 1 s3, Done)
+        Right (XSEval linno src "parse error", exit_with 1 s2, Done)
      | ParseNull ->
-        Right (XSEval linno src "empty line", s3, 
+        Right (XSEval linno src "empty line", s2, 
                EvalLoop (linno+1) ctx src interactive top_level)
      | ParseStmt c ->
-        Right (XSEval linno src "", s3,
+        Right (XSEval linno src "", s2,
                Semi c (EvalLoop (linno+1) ctx src interactive top_level))
      end
 

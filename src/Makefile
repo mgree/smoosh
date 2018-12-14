@@ -1,7 +1,7 @@
 OCAMLOPTS=-w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num,extunix -linkpkg
 
 SRCFILES=config.ml smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem \
-	 os.lem os_symbolic.lem system.ml os_system.lem shim.ml smoosh.lem arith.lem \
+	 shim.ml os.lem os_symbolic.lem system.ml os_system.lem smoosh.lem arith.lem \
 	 pattern.lem path.lem fields.lem test.lem command.lem semantics.lem
 MLFILES=$(SRCFILES:.lem=.ml)
 LEMFILES=$(filter %.lem,$(SRCFILES))
