@@ -28,16 +28,21 @@
   key for having the same execution environment!
   
   PLAN:
-    - cleaner storage of exit_code
     - add a `trap_saved_exit_code : maybe nat` to `shell_state`
     - change the system signal handler to hold on to pending signals
       need to have a pending signal list in `shell_state`, too!
     - have 'check traps' happen at appropriate points in step_eval
       + between semis, etc.
+      + easiest option: `CheckTraps of stmt` AST node
     - InTrap AST node to track when we've popped back out and can drop the saved exit code
     
     all this should result in a much simpler system.ml
     no longer need to sync shell_state!!!!
+    
+    need to check in about the KLUDGE at os_symbolic.lem:277 for the exit trap
+    
+    set -e; trap "false; echo BUG" USR1; kill -s USR1 $$
+    # currently fails due to a state-sync issue
 
 - save exit codes in traps
   trap 'f() { false; return; }; f; echo $?' EXIT
@@ -131,8 +136,6 @@ echo "\\\\\\"
   + pretty printer for JSON output
 
 ### Long-term
-
-- numeric exit code in state, possibly symbolic
 
 - actually use log_unspec etc
 

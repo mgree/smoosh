@@ -920,6 +920,8 @@ and shell_state = <|
     traps: map signal symbolic_string;
     (* tricky invariant with job ids! *)
     jobs: list job_info;
+    (* exit state info *)
+    exit_code : nat;
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
@@ -1731,8 +1733,7 @@ and string_of_parse_source src =
 (**********************************************************************)
 
 let env_default : env = 
-  Map.insert "OPTIND" (symbolic_string_of_string "1")
- (Map.insert "?" (symbolic_string_of_string "0") Map.empty)
+  Map.insert "OPTIND" (symbolic_string_of_string "1") Map.empty
 
 let default_shell_state = <|
       rootpid = 0;
@@ -1740,6 +1741,7 @@ let default_shell_state = <|
       opts = Set.empty;
       traps = Map.empty;
       jobs = [];
+      exit_code = 0;
       positional_params = [symbolic_string_of_string "smoosh"]; (* $0, $1, $2, $3 ... *)
       env = env_default;
       optoff = Nothing;

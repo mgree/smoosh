@@ -297,26 +297,13 @@ instance (OS unit)
     (os, fd_read, fd_write)
 
   let exit os =
-    let ec = 
-      match Map.lookup "?" os.sh.env with
-      | Nothing -> 127
-      | Just ss -> 
-         match try_concrete ss with
-         | Nothing -> 128
-         | Just s -> 
-            match readNat (toCharList s) with
-            | Right n -> n
-            | Left _err -> 2
-            end
-         end
-      end in
     (* turn off SIGINT handling if it's the interactive 'continue repl' handler *)
     let _ =
       if is_interactive os && not (Map.member SIGINT os.sh.traps)
       then real_handle_signal ocaml_sigint Nothing
       else ()
     in
-    real_exit ec
+    real_exit os.sh.exit_code
 
   let waitpid _step_eval os pid =
     let code = real_waitpid os.sh.rootpid pid (is_monitoring os) in

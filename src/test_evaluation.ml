@@ -7,22 +7,13 @@ open Printf
 (***********************************************************************)
 (* EXIT CODE TESTS *****************************************************)
 (***********************************************************************)
-
-let get_exit_code (os : symbolic os_state) =
-  match lookup_concrete_param os "?" with
-  | Some digits ->
-     begin 
-       try int_of_string digits
-       with Failure "int_of_string" -> 257 (* unrepresentable in shell *)
-     end
-  | None -> 258
    
 let run_cmd_for_exit_code (cmd : string) (os0 : symbolic os_state) : int =
   let c = Shim.parse_string cmd in
   let os1 = Semantics.symbolic_full_evaluation os0 c in
   if out_of_fuel os1
   then -1
-  else snd (get_concrete_exit_code os1)
+  else os1.sh.exit_code
 
 let check_exit_code (cmd, state, expected) =
   checker (run_cmd_for_exit_code cmd) (=) (cmd, state, expected)

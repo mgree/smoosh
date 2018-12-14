@@ -692,10 +692,9 @@ and step_eval s0 checked stmt =
        (* run command *)
        match run_command s2 allow_fun checked prog args env with
        | Right (s3, stmt', restore) -> 
-          let (s4, ec) = get_concrete_exit_code s3 in
           Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
-                 s4, 
-                 if exit_on_error && ec <> 0
+                 s3, 
+                 if exit_on_error && s3.sh.exit_code <> 0
                  then Exit
                  else if restore 
                  then pushredir stmt' saved_fds 
@@ -867,11 +866,9 @@ and step_eval s0 checked stmt =
       | Right (step, s1, Break n) -> Right (step, s1, Break n)
       | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
       | Right (_step, s1, Done) ->
-          match get_last_exit_code s1 with
-          | Just 0 -> Right (XSAnd "exit code was 0, continuing", s1, r)
-          | Just _ -> Right (XSAnd "exit code was non-zero, short-circuiting", s1, Done)
-          | Nothing -> Left (XSAnd "unset or symbolic exit code", s1)
-          end
+         if s1.sh.exit_code = 0
+         then Right (XSAnd "exit code was 0, continuing", s1, r)
+         else Right (XSAnd "exit code was non-zero, short-circuiting", s1, Done)
       | Right (step, s1, l') -> Right (XSNested (XSAnd "") step, s1, And l' r)
       end
 
@@ -884,11 +881,9 @@ and step_eval s0 checked stmt =
       | Right (step, s1, Break n) -> Right (step, s1, Break n)
       | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
       | Right (_step, s1, Done) ->
-          match get_last_exit_code s1 with
-          | Just 0 -> Right (XSOr "exit code was 0, short-circuiting", s1, Done)
-          | Just _ -> Right (XSOr "exit code was non-zero, continuing", s1, r)
-          | Nothing -> Left (XSOr "unset or symbolic exit code", s1)
-          end
+         if s1.sh.exit_code = 0
+         then Right (XSOr "exit code was 0, short-circuiting", s1, Done)
+         else Right (XSOr "exit code was non-zero, continuing", s1, r)
       | Right (step, s1, l') -> Right (XSNested (XSOr "") step, s1, Or l' r)
       end
 
@@ -901,13 +896,9 @@ and step_eval s0 checked stmt =
       | Right (step, s1, Break n) -> Right (step, s1, Break n)
       | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
       | Right (_step, s1, Done) ->
-          match get_last_exit_code s1 with
-          | Just 0 -> 
-             Right (XSNot "0 -> 1", exit_with 1 s1, Done)
-          | Just _ -> 
-             Right ((XSNot "_ -> 0"), exit_with 0 s1, Done)
-          | Nothing -> Left (XSNot "unset or symbolic exit code", s1)
-          end
+         if s1.sh.exit_code = 0
+         then Right (XSNot "0 -> 1", exit_with 1 s1, Done)
+         else Right ((XSNot "_ -> 0"), exit_with 0 s1, Done)
       | Right (step, s1, stmt'') -> Right (XSNested (XSNot "") step, s1, Not stmt'')
       end
 
@@ -932,11 +923,9 @@ and step_eval s0 checked stmt =
       | Right (step, s1, Break n) -> Right (step, s1, Break n)
       | Right (step, s1, Continue n) -> Right (step, s1, Continue n)
       | Right (_step, s1, Done) ->
-          match get_last_exit_code s1 with
-          | Just 0 -> Right (XSIf "exit code was 0, taking the true branch", s1, t)
-          | Just _ -> Right (XSIf "exit code was non-zero, taking the false branch", s1, e)
-          | Nothing -> Left (XSIf "unset or symbolic exit code", s1)
-          end
+         if s1.sh.exit_code = 0
+         then Right (XSIf "exit code was 0, taking the true branch", s1, t)
+         else Right (XSIf "exit code was non-zero, taking the false branch", s1, e)
       | Right (step, s1, c') -> Right (XSNested (XSIf "") step, s1, If c' t e)
       end
 
@@ -955,11 +944,9 @@ and step_eval s0 checked stmt =
       | Right (step, s1, Continue 1) -> Right (XSNested (XSWhile "continuing loop") step, s1, WhileCond c c body)
       | Right (step, s1, Continue n) -> Right (XSNested (XSWhile "continuing to outer loop") step, exit_loop s1, Continue (n-1))
       | Right (_step, s1, Done) ->
-          match get_last_exit_code s1 with
-          | Just 0 -> Right (XSWhile "exit code was 0, running the loop body", s1, WhileRunning c body body)
-          | Just _ -> Right (XSWhile "exit code was non-zero, taking the false branch", exit_loop s1, Done)
-          | Nothing -> Left (XSWhile "unset or symbolic exit code", s1)
-          end
+         if s1.sh.exit_code = 0
+         then Right (XSWhile "exit code was 0, running the loop body", s1, WhileRunning c body body)
+         else Right (XSWhile "exit code was non-zero, taking the false branch", exit_loop s1, Done)
       | Right (step, s1, cur') -> Right (XSNested (XSWhile "") step, s1, WhileCond c cur' body)
       end
   | WhileRunning c body cur ->
@@ -1276,7 +1263,7 @@ and full_evaluation os0 stmt0 =
 and eval os0 stmt0 =
   let os1 = full_evaluation os0 stmt0 in
   let os2 = full_evaluation os1 Exit in
-  snd (get_concrete_exit_code os2)
+  os2.sh.exit_code
 
 (**********************************************************************)   
 (* TRACING ************************************************************)   

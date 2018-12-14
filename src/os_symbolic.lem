@@ -290,25 +290,14 @@ let symbolic_step_pid step_eval os0 pid =
             Just (Left (XSNested (XSSimple "trapped on EXIT") (XSProc pid handler))))
         | Nothing ->        
           (* terminated! grab the code, update everything *)
-          let ec = (* can't use get_last_exit_code because we're DEFINING the type class *)
-            match Map.lookup "?" os3.sh.env with
-            | Nothing -> 255
-            | Just ss -> 
-               match try_concrete ss with
-               | Nothing -> 255
-               | Just s -> 
-                  match readNat (toCharList s) with
-                  | Right n -> 
-                     n
-                  | Left _err -> 255
-                  end
-               end
-            end in
-          (<| os3 with sh = os0.sh; 
-                       symbolic = <| os3.symbolic with 
-                                        sh_fds = os0.symbolic.sh_fds;
-                                        procs = update os3.symbolic.procs pid (Zombie ec) |> |>,
-           Just (Right ec))
+           let ec = os3.sh.exit_code in
+           (<| os3 with 
+                  sh = os0.sh; 
+                  symbolic = 
+                    <| os3.symbolic with 
+                        sh_fds = os0.symbolic.sh_fds;
+                        procs = update os3.symbolic.procs pid (Zombie ec) |> |>,
+            Just (Right ec))
         end
      | Right (step, os2, stmt') ->
         (<| os2 with sh = os0.sh; 
