@@ -90,6 +90,7 @@ class ( OS 'a )
   val waitchild : os_state 'a -> os_state 'a * maybe (pid * job_status)
   val handle_signal : os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
   val signal_pid : os_state 'a -> signal -> pid -> bool (* as pg? *) -> os_state 'a * bool
+  val pending_signal : os_state 'a -> os_state 'a * maybe signal
   val tc_setfg : os_state 'a -> pid -> os_state 'a * bool
   val set_job_control : os_state 'a -> bool -> os_state 'a
   val times : os_state 'a -> 

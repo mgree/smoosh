@@ -64,6 +64,9 @@ declare ocaml target_rep function real_handle_signal = `System.real_handle_signa
 val real_signal_pid : int -> pid -> bool (* as pg? *) -> bool
 declare ocaml target_rep function real_signal_pid = `System.real_signal_pid`
 
+val real_pending_signal : unit -> maybe signal
+declare ocaml target_rep function real_pending_signal = `System.real_pending_signal`
+
 val real_tcsetpgrp : pid -> bool
 declare ocaml target_rep function real_tcsetpgrp = `System.xtcsetpgrp`
 
@@ -334,6 +337,9 @@ instance (OS unit)
        let success = real_signal_pid ocaml_signal pid as_pg in
        (os0, success)
     end
+
+  let pending_signal os0 = 
+    (os0, real_pending_signal ())
 
   let tc_setfg os0 pid =
     if is_monitoring os0

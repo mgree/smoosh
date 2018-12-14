@@ -400,6 +400,10 @@ instance (OS symbolic)
 
   let signal_pid os0 signal pid as_pg = symbolic_signal_pid os0 signal pid as_pg
 
+  let pending_signal os0 =
+    (* TODO 2018-12-14 track and manage pending signals *)
+    (os0, Nothing)
+
   let tc_setfg os0 _pid = 
     (* TODO 2018-10-30 track console control info *)
     (os0, false)

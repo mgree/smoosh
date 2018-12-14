@@ -28,8 +28,6 @@
   key for having the same execution environment!
   
   PLAN:
-    - change the system signal handler to hold on to pending signals
-      need to have a pending signal list in `shell_state`, too!
     - have 'check traps' happen at appropriate points in step_eval
       + between semis, etc.
       + easiest option: `CheckTraps of stmt` AST node

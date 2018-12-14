@@ -45,6 +45,39 @@ let gotsigchld = ref false (* TODO 2018-12-14 for set -o notify *)
 let sigblockall () = ignore (Unix.sigprocmask Unix.SIG_BLOCK all_signals)
 let sigunblockall () = ignore (Unix.sigprocmask Unix.SIG_UNBLOCK all_signals)
 
+let real_pending_signal () =
+  match !pending_signals with
+  | [] -> None
+  | signal::rest ->
+     begin
+       pending_signals := rest;
+       Some signal
+     end
+
+(* TODO 2018-12-14 dash has a different strategy for ordering signal
+   handling.
+
+   But: "If multiple signals are pending for the shell for which there
+   are associated trap actions, the order of execution of trap actions
+   is unspecified."  *)
+let add_pending_signal ocaml_signal =
+  begin
+    if ocaml_signal = Sys.sigchld
+    then
+      (* TODO 2018-10-29 handle set -o notify properly *)
+      gotsigchld := true
+  end;
+  try 
+    let smoosh_signal = Signal.signal_of_ocaml_signal ocaml_signal in
+    pending_signals := 
+      smoosh_signal :: 
+        (List.filter (fun s -> s <> smoosh_signal) !pending_signals)
+  with _ -> 
+    (* in case signal_of_ocaml_signal fails. this shouldn't happen,
+       because we'll only install handlers for signals we know about.
+       but: safety first! *)
+    () 
+
 (* for backpatching the real_eval function 
    takes a command to its exit code
  *)
@@ -481,23 +514,7 @@ let real_openhere (s : string) : (string,int) either =
          end
   with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
 
-let handler signal =
-  if signal = Sys.sigchld
-  then 
-    begin
-      (* TODO 2018-10-29 handle set -o notify properly *)
-      gotsigchld := true;
-      try 
-        let smoosh_signal = Signal.signal_of_ocaml_signal signal in
-        pending_signals := 
-          smoosh_signal :: 
-            (List.filter (fun s -> s <> smoosh_signal) !pending_signals)
-      with _ -> 
-        (* in case signal_of_ocaml_signal fails. this shouldn't happen,
-           because we'll only install handlers for signals we know about.
-           but: safety first! *)
-        () 
-    end
+let handler signal = add_pending_signal signal
 
 let real_handle_signal signal action =
   if signal <> 0
