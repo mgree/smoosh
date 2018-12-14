@@ -922,6 +922,7 @@ and shell_state = <|
     jobs: list job_info;
     (* exit state info *)
     exit_code : nat;
+    pretrap_exit_code : maybe nat;
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
@@ -1742,6 +1743,7 @@ let default_shell_state = <|
       traps = Map.empty;
       jobs = [];
       exit_code = 0;
+      pretrap_exit_code = Nothing;
       positional_params = [symbolic_string_of_string "smoosh"]; (* $0, $1, $2, $3 ... *)
       env = env_default;
       optoff = Nothing;

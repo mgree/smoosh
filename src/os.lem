@@ -588,8 +588,13 @@ let lookup_nonat_param os str =
   | (Left _,"@") -> Nothing (* specifically excluded! *)
   | (Left _,"*") -> Just (symbolic_string_of_fields (get_function_params os))
   | (Left _,"?") -> 
-     (* TODO 2018-12-14 special-case this when in a trap *)
-     Just (symbolic_string_of_string (stringFromNat os.sh.exit_code))
+     let ec =
+       match os.sh.pretrap_exit_code with
+       | Just ec -> ec
+       | Nothing -> os.sh.exit_code
+       end
+     in
+     Just (symbolic_string_of_string (stringFromNat ec))
   | (Left _,"#") -> 
      let num_params = length os.sh.positional_params in
      Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1))))

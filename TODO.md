@@ -28,7 +28,6 @@
   key for having the same execution environment!
   
   PLAN:
-    - add a `trap_saved_exit_code : maybe nat` to `shell_state`
     - change the system signal handler to hold on to pending signals
       need to have a pending signal list in `shell_state`, too!
     - have 'check traps' happen at appropriate points in step_eval
