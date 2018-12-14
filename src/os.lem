@@ -77,7 +77,7 @@ class ( OS 'a )
     list symbolic_string -> (* argv *)
     env -> 
     bool -> (* try /bin/sh? *)
-    os_state 'a * stmt
+    os_state 'a * either string stmt
   val fork_and_subshell : 
     os_state 'a -> 
     stmt -> 

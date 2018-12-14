@@ -1182,9 +1182,12 @@ and step_eval s0 checked stmt =
      end
 
   (* EXEC *********************************************************************)
-  | Exec cmd args env binsh -> 
+  | Exec cmd args env binsh ->
+     (* INVARIANT: we should have called check_execve before generating an Exec *)
      match execve s0 cmd args env binsh with
-     | (_s1, _stmt) -> 
+     | (s1, Left msg) ->
+        Left (XSExec msg, s1)
+     | (_s1, Right _stmt) -> 
         (* we'll only actually return if we're running symbolically.
            with real OS calls, that execve never comes back! *)
         Left (XSExec "symbolic execve unimplemented", s0)

@@ -21,13 +21,11 @@
 
 ### Bugs
 
-- ENOENT on bad execve?
-  fat fingered, which crashed exec 9&<-
-  Exec in semantics needs to check cmd's existence and signal errors before ACTUALLY execve'ing
-  put error handling code into system.ml, but that's too late
-
 - file descriptor numbering
   "all implementations shall support at least 0 to 9, inclusive, for use by the application"
+  
+  + real_savefd should be cleverer when the fd is already closed
+    (see recent emails on dash list; id:7bd61c96-8c14-aaba-d410-1ec4335a0608@inlv.org)
   
   + symbolic impl wrong
 

@@ -382,7 +382,7 @@ instance (OS symbolic)
   let getpwnam os u = Map.lookup u os.symbolic.passwd
 
   let execve os prog argv env binsh =
-    (os, Exec prog argv env binsh)
+    (os, Left "symbolic execve unimplemented")
 
   let fork_and_subshell os stmt _bg _pgid _jc =
     (* TODO 2018-10-24 if bg is false, this command will be controlling the terminal

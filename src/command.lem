@@ -13,7 +13,7 @@ val run_command : forall 'a. OS 'a =>
                   env ->
                   either (os_state 'a * string) 
                          (os_state 'a * stmt * bool (* restore redirs *))
-
+  
 (* NB that special builtins have to return the restore_redirs bool,
    but it'll automatically get set to true for everything else.  all
    of this is a bunch of silliness to properly allow exec its two
@@ -86,6 +86,39 @@ let resolve_command_name_in_path s0 path prog =
 
 let resolve_command_name s0 prog =
   resolve_command_name_in_path s0 (get_path s0) prog
+
+(* Checks whether it's okay to call execve. 
+   If not, this function will emit an appropriate error message and set the ec. *) 
+val check_execve : forall 'a. OS 'a =>
+                   maybe string -> (* prefix for error messages *)
+                   os_state 'a ->
+                   string ->
+                   os_state 'a * maybe string (* nothing means failure *)
+let check_execve mpfx s0 prog =
+  let prefix = 
+    match mpfx with
+    | Nothing -> ""
+    | Just pfx -> pfx ^ ": "
+    end
+  in
+  match resolve_command_name s0 prog with
+  | Nothing -> 
+     (* If the search is unsuccessful, the command shall
+        fail with an exit status of 127 and the shell
+        shall write an error message. *)
+     let s1 = write_stderr (prefix ^ prog ^ ": command not found\n") s0 in
+     (exit_with 127 s1, Nothing)
+  | Just executable ->
+     if file_exists s0 executable
+     then if is_executable s0 executable
+          then (s0, Just executable)
+          else
+            let s1 = write_stderr (prefix ^ executable ^ ": command not executable\n") s0 in
+            (exit_with 126 s1, Nothing)
+     else 
+       let s1 = write_stderr (prefix ^ executable ^ ": command not found\n") s0 in
+       (exit_with 127 s1, Nothing)
+  end
 
 (**********************************************************************)
 (* ARGUMENT PROCESSING ************************************************)
@@ -477,20 +510,17 @@ let builtin_exec s0 argv env =
   | [] -> 
      Right (s0, Done, false (* don't restore *))
   | scmd::args ->
-     (* resolve the command path *)
-     let cmd_path = 
-       match try_concrete scmd with
-       | Nothing -> scmd
-       | Just cmd ->
-          match resolve_command_name s0 cmd with
-          | Nothing -> scmd
-          | Just path -> symbolic_string_of_string path
-          end
-       end in
-     (* leave behind an exec to the full command *)
-     Right (s0, 
-            Exec cmd_path args env false, 
-            false (* but it doesn't matter, we'll never return *))
+     match try_concrete scmd with
+     | Nothing -> Left (s0, "exec: couldn't handle symbolic argument " ^ string_of_symbolic_string scmd)
+     | Just cmd ->
+        match check_execve (Just "exec") s0 cmd with
+        | (s1, Nothing) -> Right (s1, Done, true)
+        | (s1, Just executable) -> 
+           Right (s1, 
+                  Exec (symbolic_string_of_string executable) args env false, 
+                  false (* but it doesn't matter, we'll never return *))
+        end
+     end
   end
 
 let set_getopt_longopt fields =
@@ -2115,33 +2145,21 @@ let run_command s0 allow_fun checked prog_name argv env =
                 | Right (s1, stmt) -> Right (s1, stmt, true)
                 end
              | Nothing ->
-                match resolve_command_name s0 prog with
-                | Nothing -> 
-                   (* If the search is unsuccessful, the command shall
-                      fail with an exit status of 127 and the shell
-                      shall write an error message. *)
-                   let s1 = write_stderr (prog ^ ": command not found\n") s0 in
-                   Right (exit_with 127 s1, Done, true)
-                | Just executable ->
-                   if file_exists s0 executable
-                   then if is_executable s0 executable
-                        then 
-                          let (s1,pid) = fork_and_execve 
-                                           s0 
-                                           (symbolic_string_of_string executable) 
-                                           argv 
-                                           env 
-                          in
-                          Right (s1, Wait pid checked Nothing, true)
-                        else
-                          let s1 = write_stderr (executable ^ ": command not executable\n") s0 in
-                          Right (exit_with 126 s1, Done, true)
-                   else 
-                     let s1 = write_stderr (executable ^ ": command not found\n") s0 in
-                     Right (exit_with 127 s1, Done, true)
+                match check_execve Nothing (* no prefix *) s0 prog with
+                | (s1, Nothing) -> 
+                   (* failed... and emitted an error message and set the ec *)
+                   Right (s1, Done, true)
+                | (s1, Just executable) ->
+                   let (s2,pid) = fork_and_execve 
+                                    s1
+                                    (symbolic_string_of_string executable) 
+                                    argv 
+                                    env 
+                   in
+                   Right (s2, Wait pid checked Nothing, true)
                 end
              end
           end
      end
    end
-  
+ 
