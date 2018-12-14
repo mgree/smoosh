@@ -21,6 +21,24 @@
 
 ### Bugs
 
+- trap architecture is broken
+  dash calls dotrap (trap.c:318)
+    + within evaltree (eval.c:210, :313) before and after running each command
+    + dotrap checks pending signals and runs trap in the right order
+  key for having the same execution environment!
+  
+  PLAN:
+    - cleaner storage of exit_code
+    - add a `trap_saved_exit_code : maybe nat` to `shell_state`
+    - change the system signal handler to hold on to pending signals
+    - have 'check traps' happen at appropriate points in step_eval
+      + between semis, etc.
+
+- save exit codes in traps
+  trap 'f() { false; return; }; f; echo $?' EXIT
+  "When exit is executed in a trap action, the last command is considered to be the command that executed immediately preceding the trap action."
+  "When return is executed in a trap action, the last command is considered to be the command that executed immediately preceding the trap action."
+
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
   + INTON/INTOFF to get correct command editing behavior:
