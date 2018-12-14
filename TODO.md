@@ -34,6 +34,10 @@
       need to have a pending signal list in `shell_state`, too!
     - have 'check traps' happen at appropriate points in step_eval
       + between semis, etc.
+    - InTrap AST node to track when we've popped back out and can drop the saved exit code
+    
+    all this should result in a much simpler system.ml
+    no longer need to sync shell_state!!!!
 
 - save exit codes in traps
   trap 'f() { false; return; }; f; echo $?' EXIT
