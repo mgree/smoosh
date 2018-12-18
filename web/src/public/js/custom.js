@@ -360,7 +360,7 @@ function renderStmt(info, elt, stmt) {
                   'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
                   'Defun', 'Call', 'EvalLoop',
                   'Break', 'Continue', 'Return', 
-                  'Exec', 'Wait', 'Exit', 'Done'].includes(stmt['tag']), 
+                  'Exec', 'Wait', 'Trapped', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
 
   elt.addClass('stmt stmt-' + stmt['tag']);
@@ -785,6 +785,24 @@ function renderStmt(info, elt, stmt) {
           var comment = $('<span></span>').addClass('comment').appendTo(elt);
           comment.append('waiting ' + stmt['steps'].toString() + ' steps');
       }
+
+      break;
+
+    case 'Trapped':
+       // | Trapped (signal, c_handler, c_cont) ->
+       //    Assoc [tag "Trapped";
+       //           ("signal", String (string_of_signal signal));
+       //           ("handler", json_of_stmt c_handler);
+       //           ("cont", json_of_stmt c_cont)]
+
+      var cmd = $('<span></span>').addClass('command control trap').appendTo(elt);
+      renderStmt(info, cmd, stmt['handler']);
+      
+      var comment = $('<span></span>').addClass('comment').appendTo(cmd);
+      comment.append('trapped on ' + stmt['signal']);
+
+      var cont = $('<span></span>').addClass('command continuation').appendTo(elt);
+      renderStmt(info, cont, stmt['cont']);
 
       break;
 
@@ -1623,7 +1641,7 @@ function renderEvaluationStep(info, step) {
   console.assert(['XSSimple', 'XSPipe', 'XSRedir', 'XSBackground', 'XSSubshell',
                   'XSAnd', 'XSOr', 'XSNot', 'XSSemi', 'XSIf', 'XSWhile',
                   'XSFor', 'XSCase', 'XSDefun', 'XSStack', 'XSStep', 'XSProc',
-                  'XSExec', 'XSEval', 'XSWait', 
+                  'XSExec', 'XSEval', 'XSWait', 'XSTrap',
                   'XSNested', 'XSExpand'].includes(step['tag']),
                  'got weird step tag ' + step['tag']);
 
@@ -1773,9 +1791,17 @@ function renderEvaluationStep(info, step) {
 
       break;
 
-
     case 'XSWait':
       renderMessage(info, 'Wait', step);
+
+      break;
+
+    case 'XSTrap':
+      // | XSTrap (signal, s) -> Assoc [tag "XSTrap"; 
+      //                                ("msg", String s); 
+      //                                ("signal", String (string_of_signal signal))]
+      
+      renderMessage(info, 'Trapped SIG' + step['signal'], step);
 
       break;
 

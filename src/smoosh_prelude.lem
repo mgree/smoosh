@@ -753,6 +753,7 @@ and stmt =
   | Wait of pid 
           * bool (* checked exit status? true means ignore Sh_errexit*) 
           * maybe nat (* Nothing = block; Just n = n steps *)
+  | Trapped of signal * stmt (* current handler *) * stmt (* continuation *)
   | Pushredir of stmt * saved_fds
   | Done
 
@@ -849,6 +850,7 @@ and evaluation_step =
   | XSExec of string
   | XSEval of nat * parse_source * string
   | XSWait of string
+  | XSTrap of signal * string
   | XSProc of pid * stmt
   | XSNested of evaluation_step * evaluation_step
   | XSExpand of evaluation_step * expansion_step
@@ -1497,6 +1499,9 @@ let rec string_of_stmt c =
   | Exit -> "exit"
   | Exec cmd args _env _binsh -> spaced "exec" (string_of_fields (cmd::args))
   | Wait n _checked _steps -> "wait " ^ string_of_pid n
+  | Trapped signal c_handler c_cont -> 
+     ": trap on " ^ string_of_signal signal ^ " ; " ^ string_of_stmt c_handler ^ " ; " ^
+     ": end trap ; " ^ string_of_stmt c_cont
   | Pushredir s _saved -> string_of_stmt s (* TODO leaving stuff out *)
   | Done -> ": Done"
   end
@@ -1720,6 +1725,7 @@ and string_of_evaluation_step step =
   | XSEval linno src s -> 
      "EvalLoop " ^ stringFromNat linno ^ " " ^ string_of_parse_source src ^ " " ^ s
   | XSWait s -> "Wait " ^ s
+  | XSTrap signal s -> "Trap " ^ string_of_signal signal ^ " " ^ s
   | XSProc _pid c -> "Proc " ^ string_of_stmt c
   | XSNested step_outer step_inner -> 
      parens (string_of_evaluation_step step_outer) ^ " " ^ 

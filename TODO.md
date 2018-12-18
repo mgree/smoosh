@@ -22,20 +22,9 @@
 ### Bugs
 
 - trap architecture is broken
-  dash calls dotrap (trap.c:318)
-    + within evaltree (eval.c:210, :313) before and after running each command
-    + dotrap checks pending signals and runs trap in the right order
-  key for having the same execution environment!
   
   PLAN:
-    - have 'check traps' happen at appropriate points in step_eval
-      + between semis, etc.
-      + easiest option: `CheckTraps of stmt` AST node
-    - InTrap AST node to track when we've popped back out and can drop the saved exit code
-    
-    all this should result in a much simpler system.ml
-    no longer need to sync shell_state!!!!
-    
+    track pending signals in symbolic state
     need to check in about the KLUDGE at os_symbolic.lem:277 for the exit trap
     
     set -e; trap "false; echo BUG" USR1; kill -s USR1 $$

@@ -485,6 +485,11 @@ let rec json_of_stmt = function
               match bound with
               | None -> []
               | Some steps -> [("steps", Int steps)])
+  | Trapped (signal, c_handler, c_cont) ->
+     Assoc [tag "Trapped";
+            ("signal", String (string_of_signal signal));
+            ("handler", json_of_stmt c_handler);
+            ("cont", json_of_stmt c_cont)]
   | Pushredir (c, saved_fds) -> 
      Assoc [tag "Pushredir"; 
             ("c", json_of_stmt c);
@@ -696,6 +701,9 @@ and json_of_evaluation_step = function
             ("linno", Int linno)] @
             json_field_of_src src)
   | XSWait s -> Assoc [tag "XSWait"; ("msg", String s)]
+  | XSTrap (signal, s) -> Assoc [tag "XSTrap"; 
+                                 ("msg", String s); 
+                                 ("signal", String (string_of_signal signal))]
   | XSProc (pid, stmt) -> 
      Assoc [tag "XSProc"; 
             ("c", json_of_stmt stmt);

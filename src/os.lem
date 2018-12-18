@@ -20,11 +20,14 @@ type os_state 'a = <|
    fuel: maybe nat;
  |>                   
 
+type step_result 'a =
+  either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)
+
 type step_fun 'a = 
   os_state 'a -> 
   bool (* exit status checked elsewhere? *) ->
   stmt -> 
-  either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)
+  step_result 'a
 
 (**********************************************************************)
 (* FS STATE ***********************************************************)
@@ -552,6 +555,17 @@ let exit_trap s0 =
   | Nothing -> (s0, Nothing)
   | Just ss_cmd -> (update_trap s0 EXIT Nothing, Just (command_eval ss_cmd))
   end
+
+val cleanup_trap : forall 'a. os_state 'a -> os_state 'a
+let cleanup_trap s0 =
+  let old_ec = 
+    match s0.sh.pretrap_exit_code with
+    | Nothing -> s0.sh.exit_code
+    | Just ec -> ec
+    end
+  in
+  <| s0 with sh = <| s0.sh with pretrap_exit_code = Nothing; 
+                                exit_code = old_ec |> |>
 
 (* Parameters and the environment *************************************)
 
