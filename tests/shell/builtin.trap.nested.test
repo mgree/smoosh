@@ -1,0 +1,2 @@
+# https://www.spinics.net/lists/dash/msg01762.html
+trap '(trap "echo exit" EXIT; :)' EXIT

@@ -1,0 +1,2 @@
+# https://www.spinics.net/lists/dash/msg01761.html
+trap '(true) || echo bug' EXIT; false
