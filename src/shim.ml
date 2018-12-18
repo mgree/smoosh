@@ -485,9 +485,10 @@ let rec json_of_stmt = function
               match bound with
               | None -> []
               | Some steps -> [("steps", Int steps)])
-  | Trapped (signal, c_handler, c_cont) ->
+  | Trapped (signal, ec, c_handler, c_cont) ->
      Assoc [tag "Trapped";
             ("signal", String (string_of_signal signal));
+            ("ec", Int ec);
             ("handler", json_of_stmt c_handler);
             ("cont", json_of_stmt c_cont)]
   | Pushredir (c, saved_fds) -> 

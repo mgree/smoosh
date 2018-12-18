@@ -72,8 +72,9 @@ let rec internal_check_traps step s0 c =
           EvalLoop 1 (sstr, Just (stack_init ())) src 
             false (* not interactive *) false (* not top level *)
         in
-        let s3 = save_trap_ec s2 in
-        (XSNested (XSTrap signal "trapped") step, s3, Trapped signal c_handler c)
+        (XSNested (XSTrap signal "trapped") step, 
+         s2, 
+         Trapped signal s2.sh.exit_code c_handler c)
      end
   end
 
@@ -1285,13 +1286,13 @@ and step_eval s0 checked stmt =
      end            
 
   (* EXEC *********************************************************************)
-  | Trapped signal c_handler c_cont ->
+  | Trapped signal old_ec c_handler c_cont ->
      if is_terminating_control c_handler
      then 
        let (s1, c) =
          if c_handler = Exit
          then (s0, Exit) (* don't restore old exit code! *)
-         else (cleanup_trap s0, c_cont)
+         else (exit_with old_ec s0, c_cont)
        in
        Right (XSTrap signal "finished",
               s1,
@@ -1299,12 +1300,12 @@ and step_eval s0 checked stmt =
      else match step_eval s0 false c_handler with
           | Left (step, s1) -> 
              Right (XSNested (XSTrap signal "errored out") step,
-                    cleanup_trap s1,
+                    exit_with old_ec s1,
                     c_cont)
           | Right (step, s1, c_handler') ->
              Right (XSNested (XSTrap signal "") step,
                     s1,
-                    Trapped signal c_handler' c_cont)
+                    Trapped signal old_ec c_handler' c_cont)
           end
 
   (* PUSHREDIR ****************************************************************)
@@ -1403,7 +1404,11 @@ let rec run_trace_evaluation os0 stmt0 =
   else 
     let os1 = tick os0 in
     match stmt0 with
-    | Done -> run_trace_evaluation os1 Exit
+    | Done -> 
+       match exit_trap os0 with
+       | (s1, Nothing) -> ([], s1)
+       | (s1, Just c_handler) -> run_trace_evaluation s1 c_handler
+       end
     | _ ->
         match step_eval os1 false stmt0 with
         | Right (step, os2, stmt1) -> 

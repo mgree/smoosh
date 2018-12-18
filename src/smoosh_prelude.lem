@@ -753,7 +753,7 @@ and stmt =
   | Wait of pid 
           * bool (* checked exit status? true means ignore Sh_errexit*) 
           * maybe nat (* Nothing = block; Just n = n steps *)
-  | Trapped of signal * stmt (* current handler *) * stmt (* continuation *)
+  | Trapped of signal * nat (* ec to restore *) * stmt (* current handler *) * stmt (* continuation *)
   | Pushredir of stmt * saved_fds
   | Done
 
@@ -924,7 +924,6 @@ and shell_state = <|
     jobs: list job_info;
     (* exit state info *)
     exit_code : nat;
-    pretrap_exit_code : maybe nat;
     (* no explicit stack of params... we use Call stmt as a stack frame *)
     positional_params: list symbolic_string; (* $0, $1, $2, $3, ... *)
     env: env;
@@ -1499,7 +1498,7 @@ let rec string_of_stmt c =
   | Exit -> "exit"
   | Exec cmd args _env _binsh -> spaced "exec" (string_of_fields (cmd::args))
   | Wait n _checked _steps -> "wait " ^ string_of_pid n
-  | Trapped signal c_handler c_cont -> 
+  | Trapped signal _ec c_handler c_cont -> 
      ": trap on " ^ string_of_signal signal ^ " ; " ^ string_of_stmt c_handler ^ " ; " ^
      ": end trap ; " ^ string_of_stmt c_cont
   | Pushredir s _saved -> string_of_stmt s (* TODO leaving stuff out *)
@@ -1756,7 +1755,6 @@ let default_shell_state = <|
       traps = Map.empty;
       jobs = [];
       exit_code = 0;
-      pretrap_exit_code = Nothing;
       positional_params = [symbolic_string_of_string "smoosh"]; (* $0, $1, $2, $3 ... *)
       env = env_default;
       optoff = Nothing;

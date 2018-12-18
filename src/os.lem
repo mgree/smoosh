@@ -549,36 +549,12 @@ let clear_traps_for_subshell sh =
    (* indicate which handled traps are now cleared *)
    map fst handled)
 
-val save_trap_ec : forall 'a. os_state 'a -> os_state 'a
-let save_trap_ec s0 =
-  let saved_ec = 
-    match s0.sh.pretrap_exit_code with
-    | Nothing -> Just s0.sh.exit_code
-    | Just saved_ec -> Just saved_ec
-    end
-  in
-  <| s0 with sh = <| s0.sh with pretrap_exit_code = saved_ec |> |>
-
 val exit_trap : forall 'a. os_state 'a -> os_state 'a * maybe stmt
 let exit_trap s0 =
   match Map.lookup EXIT s0.sh.traps with
   | Nothing -> (s0, Nothing)
-  | Just ss_cmd -> 
-     let s1 = update_trap s0 EXIT Nothing in
-     let s2 = save_trap_ec s1 in
-     (s2, Just (command_eval ss_cmd))
+  | Just ss_cmd -> (update_trap s0 EXIT Nothing, Just (command_eval ss_cmd))
   end
-
-val cleanup_trap : forall 'a. os_state 'a -> os_state 'a
-let cleanup_trap s0 =
-  let old_ec = 
-    match s0.sh.pretrap_exit_code with
-    | Nothing -> s0.sh.exit_code
-    | Just ec -> ec
-    end
-  in
-  <| s0 with sh = <| s0.sh with pretrap_exit_code = Nothing; 
-                                exit_code = old_ec |> |>
 
 (* Parameters and the environment *************************************)
 
@@ -811,8 +787,7 @@ let prepare_subshell sh0 =
     <| sh0 with outermost = false;
                 optoff = Nothing;
                 jobs = [];
-                loop_nest = 0;
-                pretrap_exit_code = Nothing
+                loop_nest = 0
     |> in
   clear_traps_for_subshell sh1
 

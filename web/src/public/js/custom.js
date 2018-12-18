@@ -792,6 +792,7 @@ function renderStmt(info, elt, stmt) {
        // | Trapped (signal, c_handler, c_cont) ->
        //    Assoc [tag "Trapped";
        //           ("signal", String (string_of_signal signal));
+       //           ("ec", Int ec);
        //           ("handler", json_of_stmt c_handler);
        //           ("cont", json_of_stmt c_cont)]
 
@@ -799,7 +800,7 @@ function renderStmt(info, elt, stmt) {
       renderStmt(info, cmd, stmt['handler']);
       
       var comment = $('<span></span>').addClass('comment').appendTo(cmd);
-      comment.append('trapped on ' + stmt['signal']);
+      comment.append('trapped on ' + stmt['signal'] + ' will restore ec ' + stmt['ec']);
 
       var cont = $('<span></span>').addClass('command continuation').appendTo(elt);
       renderStmt(info, cont, stmt['cont']);
