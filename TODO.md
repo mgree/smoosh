@@ -21,27 +21,10 @@
 
 ### Bugs
 
-- trap architecture is broken
-  
-  PLAN:
+- traps in symbolic mode
     track pending signals in symbolic state
     need to check in about the KLUDGE at os_symbolic.lem:277 for the exit trap
-    
-    tricky bug w/multiple traps at once
-      `check_traps` should return a list and clear the pending.
-      Trapped should store the list of signals, find the handlers in there
-    
-    shtepper code isn't running exit trap
-    
-    set -e; trap "false; echo BUG" USR1; kill -s USR1 $$
-    # currently fails due to a state-sync issue
-
-    - something to show exit_code in the shtepper
-
-- save exit codes in traps
-  trap 'f() { false; return; }; f; echo $?' EXIT
-  "When exit is executed in a trap action, the last command is considered to be the command that executed immediately preceding the trap action."
-  "When return is executed in a trap action, the last command is considered to be the command that executed immediately preceding the trap action."
+    something to show `exit_code` in the shtepper
 
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
