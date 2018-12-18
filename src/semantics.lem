@@ -66,13 +66,14 @@ let rec internal_check_traps step s0 c =
      | Nothing -> internal_check_traps step s1 c
      | Just ss_handler ->
         let (s2,_,s_handler) = concretize s1 ss_handler in
-            let src = ParseString s_handler in
-            let sstr = parse_init src in
-            let c_handler =                    
-              EvalLoop 1 (sstr, Just (stack_init ())) src 
-                false (* not interactive *) false (* not top level *)
-            in
-            (XSNested (XSTrap signal "trapped") step, s2, Trapped signal c_handler c)
+        let src = ParseString s_handler in
+        let sstr = parse_init src in
+        let c_handler =                    
+          EvalLoop 1 (sstr, Just (stack_init ())) src 
+            false (* not interactive *) false (* not top level *)
+        in
+        let s3 = save_trap_ec s2 in
+        (XSNested (XSTrap signal "trapped") step, s3, Trapped signal c_handler c)
      end
   end
 
@@ -1402,7 +1403,7 @@ let rec run_trace_evaluation os0 stmt0 =
   else 
     let os1 = tick os0 in
     match stmt0 with
-    | Done -> ([], os1)
+    | Done -> run_trace_evaluation os1 Exit
     | _ ->
         match step_eval os1 false stmt0 with
         | Right (step, os2, stmt1) -> 

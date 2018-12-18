@@ -1,0 +1,2 @@
+# https://www.spinics.net/lists/dash/msg01766.html
+trap '(:; exit) && echo WEIRD' EXIT; false

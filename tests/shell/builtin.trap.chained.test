@@ -1,0 +1,4 @@
+# https://www.spinics.net/lists/dash/msg01771.html
+trap exit INT
+trap 'true; kill -s INT $$' EXIT
+false
