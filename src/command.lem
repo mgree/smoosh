@@ -2118,17 +2118,27 @@ let rec help_trace log tr =
   end
 
 let builtin_help os0 argv _env =
-  let show_version os = write_stdout ("smoosh shell v" ^ version_number ^ "\n") os in
-  let show_list ls os = write_stdout (String.concat "\n" ls ^ "\n") os in
+  let show_list ls os = exit_with 0 (write_stdout (String.concat "\n" ls ^ "\n") os) in
   match argv with
   | [] -> 
-     let os1 = show_version os0  in
-     let os2 = write_stdout "implemented builtins:\n" os1 in
-     Right (show_list builtin_names os2, Done)
+     let usage =
+       "usage:\n" ^
+       "    help builtins    list implemented builtins\n" ^
+       "    help version     show smoosh version number\n" ^
+       "    help steps       show evaluation steps\n" ^
+       "    help spec        show unspecified/undefined behaviors\n" ^
+       "    help trace       show full trace\n"
+     in
+     Right (exit_with 1 (write_stderr usage os0), Done)
   | [ss_arg] ->
      let (os1,_,s_arg) = concretize os0 ss_arg in
      match s_arg with
-     | "version" -> Right (show_version os1, Done)
+     | "builtins" -> 
+        let os2 = write_stdout "implemented builtins:\n" os1 in
+        Right (show_list builtin_names os2, Done)
+     | "version" -> 
+        let os2 = write_stdout ("smoosh shell v" ^ version_number ^ "\n") os1 in
+        Right (exit_with 0 os2, Done)
      | "steps" ->
         let steps = List.reverseMap string_of_evaluation_step (extract_trace os1) in
         Right (show_list steps os1, Done)
@@ -2140,7 +2150,8 @@ let builtin_help os0 argv _env =
         then
           let steps = List.reverse (extract_unspec os1) in
           Right (show_list steps os1, Done)
-        else Right (write_stdout "no unspecified/undefined behavior\n" os1, Done)
+        else 
+          Right (exit_with 0 (write_stdout "no unspecified/undefined behavior\n" os1), Done)
      | _ -> Left (os0, "unknown argument: " ^ s_arg)
      end
   | _ ->
