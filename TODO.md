@@ -22,8 +22,13 @@
 ### Bugs
 
 - traps in symbolic mode
-    track pending signals in symbolic state
+    track pid in each shell
+      can do away with outermost! just compare pid and rootpid
+    track pending signals for each pid in symbolic state
+      special entry for pid 0, i.e., outermost shell
+      
     need to check in about the KLUDGE at os_symbolic.lem:277 for the exit trap
+
     something to show `exit_code` in the shtepper
     
 - job control and PIDs
