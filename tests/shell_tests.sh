@@ -141,3 +141,6 @@ do
 done
 
 printf "${TEST_SCRIPT}: %d/%d tests passed\n" ${passed} ${count}
+
+# set exit code
+[ "${passed}" -eq "${count}" ]
