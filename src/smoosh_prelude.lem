@@ -1114,39 +1114,6 @@ let rec try_concrete_fields_list fs =
      end
   end
 
-val string_of_symbolic : sym -> string
-let string_of_symbolic _sym = "<<SYMBOLIC>>"
-
-val string_of_symbolic_char : symbolic_char -> string
-let string_of_symbolic_char c =
-  match c with
-  | C c -> toString [c]
-  | Sym sym -> string_of_symbolic sym
-  end
-
-val char_list_of_symbolic_string : symbolic_string -> list char
-let rec char_list_of_symbolic_string sym_str =
-  match sym_str with
-  | [] -> []
-  | (C c::cs) -> c::char_list_of_symbolic_string cs
-  | (Sym sym)::cs -> toCharList (string_of_symbolic sym) ++ char_list_of_symbolic_string cs
-  end
-   
-val string_of_symbolic_string : symbolic_string -> string
-let rec string_of_symbolic_string sym_str =
-  match sym_str with
-  | [] -> ""
-  | c::cs -> string_of_symbolic_char c ^ string_of_symbolic_string cs
-  end
-
-val string_of_fields : fields -> string
-let rec string_of_fields fs = 
-  match fs with
-  | [] -> ""
-  | [f] -> string_of_symbolic_string f
-  | f::fs' -> string_of_symbolic_string f ^ " " ^ string_of_fields fs'
-  end
-
 let escape_quote_symbolic_char sc =
   match sc with
   | C #'\"' -> [C #'\\'; C #'\"']
@@ -1212,31 +1179,12 @@ let rec symbolic_string_of_expanded_words keep_quotes w =
 val fields_of_expanded_words : expanded_words -> fields
 let fields_of_expanded_words w = [symbolic_string_of_expanded_words false w]
 
-val split_equal : string -> symbolic_string -> string * maybe symbolic_string
-let rec split_equal var ss =
-  match ss with
-  | [] -> (var, Nothing)
-  | (C #'=')::ss' -> (var, Just ss')
-  | (C c)::ss' -> split_equal (var ^ toString [c]) ss'
-  | _ -> (var ^ string_of_symbolic_string ss, Nothing)
-  end
-
-val try_split_assign : symbolic_string -> string * maybe symbolic_string
-let try_split_assign ss = split_equal "" ss
-
 val quote : string -> string
 let rec quote s = 
   (* TODO 2018-09-05 implement *)
   s
                                     
 (* Number type helpers *)
-
-val nat_of_symbolic_string : symbolic_string -> either string nat
-let nat_of_symbolic_string ss =
-  match try_concrete ss with
-  | Nothing -> Left ("can't parse number in symbolic string '" ^ string_of_symbolic_string ss ^ "'")
-  | Just s -> readNat (toCharList s)
-  end
 
 val symbolic_string_of_nat : nat -> symbolic_string
 let symbolic_string_of_nat n = symbolic_string_of_string (stringFromNat n)
@@ -1390,6 +1338,11 @@ val string_of_words : words -> string
 val string_of_entry : entry -> string
 val string_of_expansion_step : expansion_step -> string
 val string_of_evaluation_step : evaluation_step -> string
+val string_of_symbolic : sym -> string
+val string_of_symbolic_char : symbolic_char -> string
+val char_list_of_symbolic_string : symbolic_string -> list char
+val string_of_symbolic_string : symbolic_string -> string
+val string_of_fields : fields -> string
 
 let braces s = "{ " ^ s ^ " ; }"
 
@@ -1424,7 +1377,43 @@ let string_of_simple f_a f_c f_r assigns cmds redirs =
   let s_redirs = f_r redirs in
   spaced_many [s_assigns; s_cmds; s_redirs]
 
-let rec string_of_stmt c = 
+let rec string_of_symbolic sym = 
+  match sym with
+  | SymArith f -> "<<arith(" ^ string_of_fields f ^ ")>>"
+  | SymCommand stmt -> "<<eval(" ^ string_of_stmt stmt ^ ")>>"
+  | SymPat side mode pat s ->
+     "<<pat(" ^ string_of_substring side mode ^ "," 
+              ^ string_of_symbolic_string pat ^ ","
+              ^ string_of_symbolic_string s ^ ")>>"
+  end
+
+and string_of_symbolic_char c =
+  match c with
+  | C c -> toString [c]
+  | Sym sym -> string_of_symbolic sym
+  end
+
+and char_list_of_symbolic_string sym_str =
+  match sym_str with
+  | [] -> []
+  | (C c::cs) -> c::char_list_of_symbolic_string cs
+  | (Sym sym)::cs -> toCharList (string_of_symbolic sym) ++ char_list_of_symbolic_string cs
+  end
+   
+and string_of_symbolic_string sym_str =
+  match sym_str with
+  | [] -> ""
+  | c::cs -> string_of_symbolic_char c ^ string_of_symbolic_string cs
+  end
+
+and string_of_fields fs = 
+  match fs with
+  | [] -> ""
+  | [f] -> string_of_symbolic_string f
+  | f::fs' -> string_of_symbolic_string f ^ " " ^ string_of_fields fs'
+  end
+
+and string_of_stmt c = 
   match c with
   | Command assigns cmds redirs ->
      string_of_simple string_of_words string_of_words string_of_redirs
@@ -1686,14 +1675,14 @@ and string_of_expansion_state exp_state =
 
 and string_of_expansion_step estep =
   match estep with
-  | ESTilde s -> "Tilde " ^ s
-  | ESParam s -> "Param " ^ s
-  | ESCommand s -> "Command " ^ s
-  | ESArith s -> "Arith " ^ s
-  | ESSplit s -> "Split " ^ s
-  | ESPath s -> "Path " ^ s
-  | ESQuote s -> "Quote " ^ s
-  | ESStep s -> "Step " ^ s
+  | ESTilde s -> spaced "Tilde" s
+  | ESParam s -> spaced "Param" s
+  | ESCommand s -> spaced "Command" s
+  | ESArith s -> spaced "Arith" s
+  | ESSplit s -> spaced "Split" s
+  | ESPath s -> spaced "Path" s
+  | ESQuote s -> spaced "Quote" s
+  | ESStep s -> spaced "Step" s
   | ESNested estep_outer estep_inner ->
      parens (string_of_expansion_step estep_outer) ^ " " ^
      parens (string_of_expansion_step estep_inner)
@@ -1704,27 +1693,27 @@ and string_of_expansion_step estep =
 
 and string_of_evaluation_step step =
   match step with
-  | XSSimple s -> "Simple " ^ s
-  | XSPipe s -> "Pipe " ^ s
-  | XSRedir s -> "Redir " ^ s
-  | XSBackground s -> "Background " ^ s
-  | XSSubshell s -> "Subshell " ^ s
-  | XSAnd s -> "And " ^ s
-  | XSOr s -> "Or " ^ s
-  | XSNot s -> "Not " ^ s
-  | XSSemi s -> "Semi " ^ s
-  | XSIf s -> "If " ^ s
-  | XSWhile s -> "While " ^ s
-  | XSFor s -> "For " ^ s
-  | XSCase s -> "Case " ^ s
-  | XSDefun s -> "Defun " ^ s
-  | XSStack s step' -> "Stack " ^ s ^ parens (string_of_evaluation_step step')
-  | XSStep s -> "Step " ^ s
-  | XSExec s -> "Exec " ^ s
+  | XSSimple s -> spaced "Simple" s
+  | XSPipe s -> spaced "Pipe" s
+  | XSRedir s -> spaced "Redir" s
+  | XSBackground s -> spaced "Background" s
+  | XSSubshell s -> spaced "Subshell" s
+  | XSAnd s -> spaced "And" s
+  | XSOr s -> spaced "Or" s
+  | XSNot s -> spaced "Not" s
+  | XSSemi s -> spaced "Semi" s
+  | XSIf s -> spaced "If" s
+  | XSWhile s -> spaced "While" s
+  | XSFor s -> spaced "For" s
+  | XSCase s -> spaced "Case" s
+  | XSDefun s -> spaced "Defun" s
+  | XSStack s step' -> spaced "Stack" s ^ " " ^ parens (string_of_evaluation_step step')
+  | XSStep s -> spaced "Step" s
+  | XSExec s -> spaced "Exec" s
   | XSEval linno src s -> 
      "EvalLoop " ^ stringFromNat linno ^ " " ^ string_of_parse_source src ^ " " ^ s
-  | XSWait s -> "Wait " ^ s
-  | XSTrap signal s -> "Trap " ^ string_of_signal signal ^ " " ^ s
+  | XSWait s -> spaced "Wait" s
+  | XSTrap signal s -> "Trap " ^ spaced (string_of_signal signal) s
   | XSProc _pid c -> "Proc " ^ string_of_stmt c
   | XSNested step_outer step_inner -> 
      parens (string_of_evaluation_step step_outer) ^ " " ^ 
@@ -1740,6 +1729,26 @@ and string_of_parse_source src =
   | ParseString cmd -> "'" ^ cmd ^ "'"
   | ParseFile file _push -> file
   end
+
+val nat_of_symbolic_string : symbolic_string -> either string nat
+let nat_of_symbolic_string ss =
+  match try_concrete ss with
+  | Nothing -> Left ("can't parse number in symbolic string '" ^ string_of_symbolic_string ss ^ "'")
+  | Just s -> readNat (toCharList s)
+  end
+
+val split_equal : string -> symbolic_string -> string * maybe symbolic_string
+let rec split_equal var ss =
+  match ss with
+  | [] -> (var, Nothing)
+  | (C #'=')::ss' -> (var, Just ss')
+  | (C c)::ss' -> split_equal (var ^ toString [c]) ss'
+  | _ -> (var ^ string_of_symbolic_string ss, Nothing)
+  end
+
+val try_split_assign : symbolic_string -> string * maybe symbolic_string
+let try_split_assign ss = split_equal "" ss
+
 
 (**********************************************************************)
 (* DEFAULT SHELL STATE ************************************************)

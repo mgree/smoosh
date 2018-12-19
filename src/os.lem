@@ -196,7 +196,18 @@ val in_unspecified_state : forall 'a. os_state 'a -> bool
 let in_unspecified_state os = any entry_unspecified os.log
 
 val in_undefined_state : forall 'a. os_state 'a -> bool
-let in_unefined_state os = any entry_undefined os.log
+let in_undefined_state os = any entry_undefined os.log
+
+val extract_unspec : forall 'a. os_state 'a -> list string
+let extract_unspec os =
+  List.mapMaybe 
+    (fun entry ->
+      match entry with
+      | LogUnspecified msg -> Just ("UNSPECIFIED: " ^ msg)
+      | LogUndefined msg ->   Just ("  UNDEFINED: " ^ msg)
+      | _ -> Nothing
+      end)
+    os.log
 
 val extract_trace : forall 'a. os_state 'a -> list evaluation_step
 let extract_trace os = List.mapMaybe try_entry_step os.log

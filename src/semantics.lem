@@ -82,7 +82,9 @@ let check_traps res =
   match res with
   | Left _ -> res
   | Right (_,_,Exit) -> res
-  | Right (step0,s0,c0) -> Right (internal_check_traps step0 s0 c0)
+  | Right (step0,s0,c0) -> 
+     let s1 = log_msg "checked traps" s0 in
+     Right (internal_check_traps step0 s1 c0)
   end
 
 (**********************************************************************)   
