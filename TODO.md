@@ -25,6 +25,8 @@
     track pending signals in symbolic state
     need to check in about the KLUDGE at os_symbolic.lem:277 for the exit trap
     something to show `exit_code` in the shtepper
+    
+- `exec 8<&- ; exec 8</dev/null` segfaults in docker but not OS X?
 
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
