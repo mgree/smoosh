@@ -3,10 +3,6 @@ open Either
 (* use the ExtUnix sub-library where calls that compile are implemented *)
 module ExtUnix = ExtUnixSpecific
 
-(* NB on Unix systems, the abstract type `file_descriptor` is just an int *)
-let fd_of_int : int -> Unix.file_descr = Obj.magic
-let int_of_fd : Unix.file_descr -> int = Obj.magic
-
 let implode = Dash.implode
 let explode = Dash.explode
 
@@ -362,7 +358,7 @@ let real_chdir (path : string) : string option =
       else Some ("no such directory " ^ path)
   with Unix.Unix_error(e,_,_) -> Some (Unix.error_message e)
 
-let real_is_tty (fd : int) = Unix.isatty (fd_of_int fd)
+let real_is_tty (fd : int) = Unix.isatty (ExtUnix.file_descr_of_int fd)
 
 type open_flags = Unix.open_flag list
 
@@ -373,13 +369,13 @@ let fromto_flags = [Unix.O_RDWR; Unix.O_CREAT]
 let append_flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_APPEND]
 
 let real_open (file:string) (flags:open_flags) : (string,int) either =
-  try Right (int_of_fd (Unix.openfile file flags 0o666))
+  try Right (ExtUnix.int_of_file_descr (Unix.openfile file flags 0o666))
   with 
   | Unix.Unix_error(Unix.EEXIST,_,_) -> Left ("cannot create " ^ file ^ ": file exists")
   | Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
 
 let real_close (fd:int) : unit =
-  try Unix.close (fd_of_int fd)
+  try Unix.close (ExtUnix.file_descr_of_int fd)
   with Unix.Unix_error(_,_,_) -> ()
 
 (* uninterruptable write, per dash *)
@@ -393,12 +389,12 @@ let rec xwrite (fd:Unix.file_descr) (buff : Bytes.t) : bool =
 
 let real_write_fd (fd:int) (s:string) : bool =
   let buff = Bytes.of_string s in
-  xwrite (fd_of_int fd) buff
+  xwrite (ExtUnix.file_descr_of_int fd) buff
 
 let real_read_all_fd (fd:int) : string option =
   let rec drain buff ofs =
     let read = 
-      try Unix.read (fd_of_int fd) buff ofs (Bytes.length buff - ofs) 
+      try Unix.read (ExtUnix.file_descr_of_int fd) buff ofs (Bytes.length buff - ofs) 
       with Unix.Unix_error(Unix.EPIPE,_,_) -> 0
          | Unix.Unix_error(Unix.EBADF,_,_) -> 0
          | Unix.Unix_error(Unix.EINTR,_,_) -> 0
@@ -424,7 +420,7 @@ let real_read_all_fd (fd:int) : string option =
 let real_read_char_fd (fd:int) : (string,char option) either =
   let buff = Bytes.make 1 (Char.chr 0) in
   try 
-    match Unix.read (fd_of_int fd) buff 0 1 with
+    match Unix.read (ExtUnix.file_descr_of_int fd) buff 0 1 with
     | 0 -> Right None
     | 1 -> Right (Some (Bytes.get buff 0))
     | _ -> Left ("couldn't read " ^ string_of_int fd)
@@ -455,29 +451,25 @@ let real_read_line_fd backslash_escapes (fd:int)
 let real_savefd (fd:int) : (string,int) either =
   try
     let newfd = Dash.freshfd_ge10 fd in
-    if newfd == -1
+    if newfd = -1
     then Left "EBADF"
     else if newfd < 0
     then Left ("error duplicating fd " ^ string_of_int fd)
-    else
-      begin
-        Unix.set_close_on_exec (fd_of_int newfd);
-        Right newfd
-      end
+    else Right newfd
   with Unix.Unix_error(Unix.EBADF,_,_) -> Left "EBADF"
      | Unix.Unix_error(e,_,_) -> Left (Unix.error_message e ^ ": " ^ string_of_int fd)
 
 let real_dup2 (orig_fd:int) (tgt_fd:int) : string option =
-  try Unix.dup2 (fd_of_int orig_fd) (fd_of_int tgt_fd); None
+  try Unix.dup2 (ExtUnix.file_descr_of_int orig_fd) (ExtUnix.file_descr_of_int tgt_fd); None
   with Unix.Unix_error(e,_,_) -> Some (Unix.error_message e  ^ ": " ^ string_of_int orig_fd)
 
 let real_close (fd:int) : unit =
-  try Unix.close (fd_of_int fd)
+  try Unix.close (ExtUnix.file_descr_of_int fd)
   with Unix.Unix_error(_,_,_) -> ()
 
 let real_pipe () : int * int =
   let (fd_read,fd_write) = Unix.pipe () in
-  (int_of_fd fd_read, int_of_fd fd_write)
+  (ExtUnix.int_of_file_descr fd_read, ExtUnix.int_of_file_descr fd_write)
 
 let real_openhere (s : string) : (string,int) either =
   let buff = Bytes.of_string s in
@@ -489,7 +481,7 @@ let real_openhere (s : string) : (string,int) either =
       begin
         ignore (xwrite fd_write buff);
         Unix.close fd_write;
-        Right (int_of_fd fd_read)
+        Right (ExtUnix.int_of_file_descr fd_read)
       end       
     else 
       (* heredoc is too big for the pipe, so spin up a process to do the writing *)
@@ -510,7 +502,7 @@ let real_openhere (s : string) : (string,int) either =
       | _pid -> 
          begin
            Unix.close fd_write;
-           Right (int_of_fd fd_read)
+           Right (ExtUnix.int_of_file_descr fd_read)
          end
   with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
 

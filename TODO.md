@@ -26,8 +26,8 @@
     need to check in about the KLUDGE at os_symbolic.lem:277 for the exit trap
     something to show `exit_code` in the shtepper
     
-- `exec 8<&- ; exec 8</dev/null` segfaults in docker but not OS X?
-
+    count number of steps between trap checks? things seem to be running much slower
+    
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
   + INTON/INTOFF to get correct command editing behavior:
