@@ -11,7 +11,7 @@ TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_eval
 
 all : shtepper smoosh runtest
 
-all.byte : shtepper.byte smoosh.byte runtest.byte
+all.byte : smoosh.byte
 
 install : shtepper smoosh
 	cp shtepper /usr/local/bin/shtepper
