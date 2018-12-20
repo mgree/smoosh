@@ -140,16 +140,34 @@ let rec insert_field_separators fs =
 
 val pathname_expansion : forall 'a. OS 'a => os_state 'a -> intermediate_fields -> intermediate_fields
 
+(* 2018-12-20 
+   Steve Chong helped me discover that pathname expansion was brutally slow.
+   We do a quick check to see whether pathname expansion would even do anything.
+*)
+let rec needs_expansion ss =
+  match ss with
+  | [] -> false
+  | C #'['::[] -> false (* kludge for a bare [ *)
+  | C #'?'::_ -> true
+  | C #'*'::_ -> true
+  | C #'['::_ -> true
+  | C #'\"'::_ -> true
+  | C #'\''::_ -> true
+  | _::ss' -> needs_expansion ss'
+  end
+
 (* Parameter expansion only happens on unquoted fields *)
 let rec pathname_expansion s0 f =
   match f with
   | [] -> []
   | Field s::rst -> 
      let matches = 
-       match try_concrete s with
-       | Just pat -> match_path s0 pat
-       | Nothing -> [] (* slightly inaccurate: we're not modeling symbolic pathname expansions *)
-       end 
+       if needs_expansion s
+       then match try_concrete s with
+            | Just pat -> match_path s0 pat
+            | Nothing -> [] (* slightly inaccurate: we're not modeling symbolic pathname expansions *)
+            end 
+       else []
      in
      let expansions = 
        if null matches 
