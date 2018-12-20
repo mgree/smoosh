@@ -21,6 +21,12 @@
 
 ### Bugs
 
+- performance regressions
+  environment size seems to be a factor... 
+  can we do something better viz. sync_env?
+    in fact, we only need to sync PS1 and PS2
+    automatically sync whenever those vars are set
+
 - traps in symbolic mode
     track pid in each shell
       can do away with outermost! just compare pid and rootpid
