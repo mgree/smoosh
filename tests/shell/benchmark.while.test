@@ -1,0 +1,8 @@
+#!/Users/mgree/smoosh/src/smoosh
+
+x=0
+while [ $x -lt 200 ]
+do
+    : $((x+=1))
+done
+echo $x
