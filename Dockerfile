@@ -43,7 +43,7 @@ ADD --chown=opam:opam src src
 ADD --chown=opam:opam README.md .
 
 # build smoosh
-RUN cd src; opam config exec -- make
+RUN cd src; opam config exec -- make all all.byte
 
 ENTRYPOINT [ "opam", "config", "exec", "--" ]
 CMD [ "bash" ]

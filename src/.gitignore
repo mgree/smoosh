@@ -29,3 +29,4 @@ libdash.a
 runtest
 fields.ml
 test.ml
+*.byte

@@ -1,5 +1,6 @@
 # compiled code anywhere
 **/*.native
+**/*.byte
 **/*.o
 **/*.lo
 **/*.cmx
@@ -89,7 +90,6 @@ libdash/ocaml/test.err
 ################################################################################
 # src
 
-src/expand
 src/fsh_prelude.ml
 src/expansion.ml
 src/arith.ml
@@ -107,11 +107,12 @@ src/os.ml
 src/fields.ml
 src/test.ml
 src/command.ml
-src/shell
 src/signal_platform.lem
 src/signal_platform.ml
 src/signal.ml
-src/libdash.a
+
+src/smoosh
+src/shtepper
 src/runtest
 
 ################################################################################

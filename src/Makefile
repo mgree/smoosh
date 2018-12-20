@@ -1,4 +1,4 @@
-OCAMLOPTS=-p -w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num,extunix -linkpkg
+OCAMLOPTS=-g -w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num,extunix -linkpkg
 
 SRCFILES=config.ml smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem \
 	 shim.ml os.lem os_symbolic.lem system.ml os_system.lem smoosh.lem arith.lem \
@@ -7,9 +7,11 @@ MLFILES=$(SRCFILES:.lem=.ml)
 LEMFILES=$(filter %.lem,$(SRCFILES))
 TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_evaluation.ml
 
-.PHONY : all install test loc clean veryclean
+.PHONY : all all.byte install test loc rebuild clean veryclean
 
 all : shtepper smoosh runtest
+
+all.byte : shtepper.byte smoosh.byte runtest.byte
 
 install : shtepper smoosh
 	cp shtepper /usr/local/bin/shtepper
@@ -27,6 +29,9 @@ smoosh : $(MLFILES) shell.ml
 runtest : $(MLFILES) $(TESTFILES) runtest.ml
 	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
 
+smoosh.byte : $(MLFILES) shell.ml
+	ocamlfind ocamlc $(OCAMLOPTS) -o $@ $^
+
 signal_platform.lem : mk_signal_platform.sh
 	./mk_signal_platform.sh >signal_platform.lem
 
@@ -39,9 +44,13 @@ loc :  $(SRCFILES)
 %.ml : %.lem
 	lem -ocaml $<
 
+rebuild : 
+	-rm shtepper smoosh runtest shtepper.byte smoosh.byte runtest.byte
+	$(MAKE) all
+
 clean :
 	-rm -f $(LEMFILES:.lem=.ml)
-	-rm shtepper smoosh runtest
+	-rm shtepper smoosh runtest shtepper.byte smoosh.byte runtest.byte
 	-rm *.{cmi,cmo,cmx,o} *~
 
 veryclean : clean
