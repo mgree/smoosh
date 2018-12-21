@@ -30,7 +30,17 @@
     need to check in about the KLUDGE at os_symbolic.lem:277 for the exit trap
 
     something to show `exit_code` in the shtepper
-    
+
+- "A trap on EXIT shall be executed before the shell terminates,
+  except when the exit utility is invoked in that trap itself, in
+  which case the shell shall exit immediately."
+
+- segfault on bad source
+
+- broken interactive mode
+  echo exit | PS1='$ ' ./smoosh -i
+  breaks setpgid
+
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
   + INTON/INTOFF to get correct command editing behavior:

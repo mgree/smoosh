@@ -70,8 +70,8 @@ declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
 
 class ( OS 'a )
   (* PARSER INTERACTIONS *)
-  val set_ps1 : os_state 'a -> string -> os_state 'a
-  val set_ps2 : os_state 'a -> string -> os_state 'a
+  val set_ps1 : os_state 'a -> symbolic_string -> os_state 'a
+  val set_ps2 : os_state 'a -> symbolic_string -> os_state 'a
 
   (* SYSTEM CALLS *)
   val getpwnam : os_state 'a -> string -> maybe string
@@ -573,14 +573,6 @@ let exit_trap s0 =
 
 (* Parameters and the environment *************************************)
 
-val real_sync_env : env -> unit
-declare ocaml target_rep function real_sync_env = `Shim.real_sync_env`
-
-val sync_env : forall 'a. os_state 'a -> os_state 'a
-let sync_env os = 
-  let _ = real_sync_env os.sh.env in
-  log_msg "sync_env" os
-
 val printable_shell_env : forall 'a. os_state 'a -> string
 let printable_shell_env os = 
   foldr (fun (k, v) s -> k ^ "=" ^ quote (string_of_symbolic_string v) ^ "\n" ^ s) 
@@ -680,12 +672,17 @@ let set_param x v os0 =
       then <| os1 with sh = <| os1.sh with export = Set.insert x os1.sh.export |> |>
       else os1
     in
+    (* special variable handling for the parser and other internals *)
     let os3 = 
       if x = "OPTIND" 
       then <| os2 with sh = <| os2.sh with optoff = Nothing |> |>
+      else if x = "PS1"
+      then set_ps1 os2 v
+      else if x = "PS2"
+      then set_ps2 os2 v
       else os2
     in
-    Right (sync_env os3)
+    Right os3
 
 val unset_param : forall 'a. string -> os_state 'a -> os_state 'a
 let unset_param x os0 = <| os0 with sh = <| os0.sh with env = Map.delete x os0.sh.env |> |>

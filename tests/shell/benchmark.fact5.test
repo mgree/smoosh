@@ -1,0 +1,16 @@
+fact() {
+  n=$1
+  if [ "$n" -le 0 ]
+  then echo 1
+  else echo $((n * $(fact $(($n-1)) ) ))
+  fi
+}
+
+fact 5
+
+timing=$(times | head -n 1)
+minutes=$(echo $timing | sed 's/\([0-9]*\)m\([0-9]*\).\([0-9]*\)s.*/\1/')
+seconds=$(echo $timing | sed 's/\([0-9]*\)m\([0-9]*\).\([0-9]*\)s.*/\2/')
+fractional=$(echo $timing | sed 's/\([0-9]*\)m\([0-9]*\).\([0-9]*\)s.*/\3/')
+
+[ "$minutes" -eq 0 ] && [ "$seconds" -eq 0 ] && [ 1"$fractional" -lt 1001000 ]
