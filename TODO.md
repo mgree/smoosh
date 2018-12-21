@@ -35,8 +35,6 @@
   except when the exit utility is invoked in that trap itself, in
   which case the shell shall exit immediately."
 
-- segfault on bad source
-
 - job control and PIDs
   + real_waitpid needs to know more job info about what it's waiting for
   + INTON/INTOFF to get correct command editing behavior:

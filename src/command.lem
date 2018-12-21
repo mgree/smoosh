@@ -523,11 +523,11 @@ let builtin_eval s0 argv _env =
 
 let builtin_source s0 argv _env = 
   match argv with
-  | [] -> Left (s0, ".: usage: . filename")
+  | [] -> Left (s0, "usage: . filename")
   | sfile::_ ->
      match try_concrete sfile with
      | Nothing -> 
-        Left (s0, ".: couldn't handle symbolic argument " ^ string_of_symbolic_string sfile)
+        Left (s0, "couldn't handle symbolic argument " ^ string_of_symbolic_string sfile)
      | Just file ->
         let path = 
           if elem #'/' (toCharList file)
@@ -541,12 +541,16 @@ let builtin_source s0 argv _env =
                   | Just path -> path
                   end
                end in
-        let src = ParseFile path true (* push onto input stack *) in
-        let sstr = parse_init src in
-        Right (s0, 
-               EvalLoop 1 (sstr, Nothing) src 
-                 false (* not interactive *) false (* not top level *), 
-               true)
+        if file_exists s0 path
+        then
+          let src = ParseFile path true (* push onto input stack *) in
+          let sstr = parse_init src in
+          Right (s0, 
+                 EvalLoop 1 (sstr, Nothing) src 
+                   false (* not interactive *) false (* not top level *), 
+                 true)
+        else
+          Left (s0,path ^ ": not found")
      end
   end
 
@@ -556,7 +560,7 @@ let builtin_exec s0 argv env =
      Right (s0, Done, false (* don't restore *))
   | scmd::args ->
      match try_concrete scmd with
-     | Nothing -> Left (s0, "exec: couldn't handle symbolic argument " ^ string_of_symbolic_string scmd)
+     | Nothing -> Left (s0, "couldn't handle symbolic argument " ^ string_of_symbolic_string scmd)
      | Just cmd ->
         match check_execve (Just "exec") s0 cmd with
         | (s1, Nothing) -> Right (s1, Done, true)
