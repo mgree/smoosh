@@ -169,14 +169,10 @@ let initialize_env s0 : system os_state =
                                  export immediately. *)
                               export = Pset.from_list compare (List.map fst environ) } }
 
-let run os c =
-  let os_out = sync_env (real_eval (sync_env os) c) in
-  os_out
-
 let cmdloop s0 sstr =
-  let s1 = run s0 (EvalLoop (1, (sstr, None), !parse_source, 
-                             is_interactive s0, true (* top level *))) in
-  ignore (run s1 Exit)
+  let s1 = real_eval s0 (EvalLoop (1, (sstr, None), !parse_source, 
+                                   is_interactive s0, true (* top level *))) in
+  ignore (real_eval s1 Exit)
 
 (* TODO lots of special casing at http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sh.html *)
 let main () =
@@ -221,9 +217,8 @@ let main () =
     then real_set_sh_opt s2 Sh_monitor
     else s2
   in
-  let s4 = sync_env s3 in
   let sstr = Shim.parse_init !parse_source in
-  cmdloop s4 sstr
+  cmdloop s3 sstr
 ;;
 
 main ()

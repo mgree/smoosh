@@ -69,6 +69,10 @@ declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
 (**********************************************************************)
 
 class ( OS 'a )
+  (* PARSER INTERACTIONS *)
+  val set_ps1 : os_state 'a -> symbolic_string -> os_state 'a
+  val set_ps2 : os_state 'a -> symbolic_string -> os_state 'a
+
   (* SYSTEM CALLS *)
   val getpwnam : os_state 'a -> string -> maybe string
   val execve : 
@@ -569,14 +573,6 @@ let exit_trap s0 =
 
 (* Parameters and the environment *************************************)
 
-val real_sync_env : env -> unit
-declare ocaml target_rep function real_sync_env = `Shim.real_sync_env`
-
-val sync_env : forall 'a. os_state 'a -> os_state 'a
-let sync_env os = 
-  let _ = real_sync_env os.sh.env in
-  log_msg "sync_env" os
-
 val printable_shell_env : forall 'a. os_state 'a -> string
 let printable_shell_env os = 
   foldr (fun (k, v) s -> k ^ "=" ^ quote (string_of_symbolic_string v) ^ "\n" ^ s) 
@@ -601,6 +597,9 @@ let lookup_nonat_param os str =
   | (Left _,"@") -> Nothing (* specifically excluded! *)
   | (Left _,"*") -> Just (symbolic_string_of_fields (get_function_params os))
   | (Left _,"?") -> Just (symbolic_string_of_string (stringFromNat os.sh.exit_code))
+  | (Left _,"-") -> 
+     let char_opts = List.mapMaybe char_of_sh_opt (Set_extra.toList os.sh.opts) in
+     Just (symbolic_string_of_string (toString char_opts))
   | (Left _,"#") -> 
      let num_params = length os.sh.positional_params in
      Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1))))
@@ -659,7 +658,7 @@ val internal_set_param
 let internal_set_param x v os = 
   <| os with sh = <| os.sh with env = Map.insert x v os.sh.env |> |>
 
-val set_param : forall 'a.
+val set_param : forall 'a. OS 'a =>
                   string -> symbolic_string -> os_state 'a -> either string (os_state 'a)
 let set_param x v os0 = 
   if is_readonly x os0
@@ -673,12 +672,17 @@ let set_param x v os0 =
       then <| os1 with sh = <| os1.sh with export = Set.insert x os1.sh.export |> |>
       else os1
     in
+    (* special variable handling for the parser and other internals *)
     let os3 = 
       if x = "OPTIND" 
       then <| os2 with sh = <| os2.sh with optoff = Nothing |> |>
+      else if x = "PS1"
+      then set_ps1 os2 v
+      else if x = "PS2"
+      then set_ps2 os2 v
       else os2
     in
-    Right (sync_env os3)
+    Right os3
 
 val unset_param : forall 'a. string -> os_state 'a -> os_state 'a
 let unset_param x os0 = <| os0 with sh = <| os0.sh with env = Map.delete x os0.sh.env |> |>
@@ -726,11 +730,6 @@ val set_last_pid : forall 'a. pid -> os_state 'a -> os_state 'a
 let set_last_pid pid os = 
   internal_set_param "!" (symbolic_string_of_string (string_of_pid pid)) os
 
-let internal_fixup_dollardash os =
-  let char_opts = List.mapMaybe char_of_sh_opt (Set_extra.toList os.sh.opts) in
-  let dash = toString char_opts in
-  internal_set_param "-" (symbolic_string_of_string dash) os
-
 val set_sh_opt : forall 'a. OS 'a => os_state 'a -> sh_opt -> os_state 'a
 let set_sh_opt os0 opt =
   let os1 = 
@@ -749,8 +748,7 @@ let set_sh_opt os0 opt =
       set_job_control os2_3 true
     else os1
   in
-  internal_fixup_dollardash
-    <| os2 with sh = <| os2.sh with opts = Set.insert opt os2.sh.opts |> |>
+  <| os2 with sh = <| os2.sh with opts = Set.insert opt os2.sh.opts |> |>
 
 val unset_sh_opt : forall 'a. OS 'a => os_state 'a -> sh_opt -> os_state 'a
 let unset_sh_opt os0 opt =
@@ -763,8 +761,7 @@ let unset_sh_opt os0 opt =
       set_job_control os1_3 false
     else os0
   in
-  internal_fixup_dollardash
-    <| os1 with sh = <| os1.sh with opts = Set.delete opt os1.sh.opts |> |>
+  <| os1 with sh = <| os1.sh with opts = Set.delete opt os1.sh.opts |> |>
 
 (* Aliases ************************************************************)
 

@@ -366,6 +366,12 @@ let symbolic_file_type_follow os path =
   symbolic_file_type os path   
    
 instance (OS symbolic)
+  (* we don't want to actually send these to libdash, which will actually display
+     them on STDOUT when we're in interactive mode
+   *)
+  let set_ps1 os _new_ps1 = os
+  let set_ps2 os _new_ps2 = os
+  
   let getpwnam os u = Map.lookup u os.symbolic.passwd
 
   let execve os prog argv env binsh =

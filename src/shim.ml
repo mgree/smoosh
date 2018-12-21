@@ -283,7 +283,7 @@ and to_args (n : node union ptr) : words list =
 (* Incremental parsing *************************************************)
 (* Protocol: 
  *
- *   parse_init (parse_next* sync_env parse_done)
+ *   parse_init (parse_next* parse_done)
  *
  * ParseDone and ParseError mean you're done, and should stop calling parse_next.
  * ParseNull represents an empty line. ParseStmt is a successfully parsed line.
@@ -292,6 +292,9 @@ and to_args (n : node union ptr) : words list =
  * called for you when you evaluate the resulting command.
  *
  * See smoosh.lem for the definition of parse_source and parse_result.
+ *
+ * It's critical that set_ps1 and set_ps2 be called whenever those prompts are 
+ * updated---parsers do the prompting themselves.
  *
  * ??? It may or may not be a problem to call parse_done before you're done.
  *
@@ -339,14 +342,11 @@ let parse_string cmd =
                false, false (* not top level, will call parse_done *)),
      Exit)
 
-let real_sync_env env =
-  let set x v = 
-    match try_concrete v with
-    (* don't copy over special variables *)
-    | Some s when not (is_special_param x) -> Dash.setvar x s 
-    | _ -> ()
-  in
-  Pmap.iter set env
+let dash_setvar x v = 
+  match try_concrete v with
+  (* don't copy over special variables *)
+  | Some s when not (is_special_param x) -> Dash.setvar x s 
+  | _ -> ()
 
 (************************************************************************)
 (* JSON rendering *******************************************************)

@@ -204,7 +204,18 @@ let real_renumber_fd (close : bool) (new_fd : fd) (wanted_fd : fd) =
          end
       end
 
+val dash_setvar : string -> symbolic_string -> unit
+declare ocaml target_rep function dash_setvar = `Shim.dash_setvar`
+
 instance (OS unit)
+  let set_ps1 os new_ps1 = 
+    let _ = dash_setvar "PS1" new_ps1 in
+    os
+
+  let set_ps2 os new_ps2 = 
+    let _ = dash_setvar "PS2" new_ps2 in
+    os
+
   let getpwnam _os nam = real_getpwnam nam
                        
   let execve os0 sprog sargv senv binsh =
