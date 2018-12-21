@@ -57,6 +57,9 @@ fi
 [ -n "${TEST_SHELL}" ] || abort "please set TEST_SHELL to the path to the shell under test"
 [ -n "${TEST_SHELL_FLAGS}" ] && debug "using flags '${TEST_SHELL_FLAGS}'"
 
+# make sure the child shell knows about it
+export TEST_SHELL
+
 BASE=$(pwd)
 : ${TEST_LOGDIR:=$BASE/log/${TEST_TIME}}
 mkdir -p ${TEST_LOGDIR}/shell

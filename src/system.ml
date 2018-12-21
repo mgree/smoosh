@@ -181,6 +181,7 @@ let xsetpgid pid pgrp =
   if pgrp >= 0
   then try ExtUnix.setpgid pid pgrp
        with Unix.Unix_error(Unix.EINVAL,_,_) -> ()
+          | Unix.Unix_error(Unix.EPERM,_,_) -> () (* must not be a tty... *)
           
 let real_enable_jobcontrol rootpid =
   open_ttyfd ();

@@ -131,7 +131,7 @@ let prepare_command () : string list (* positional args *) =
   | NoFlag -> 
      begin match !params with
      | [] -> 
-        if not !explicitly_unset_i then add_opt Sh_interactive; 
+        if not !explicitly_unset_i && Unix.isatty Unix.stdin then add_opt Sh_interactive; 
         parse_source := ParseSTDIN; [Sys.argv.(0)] 
      | cmd::args -> parse_source := ParseFile (cmd, false (* don't pushfile *)); cmd::args
      end

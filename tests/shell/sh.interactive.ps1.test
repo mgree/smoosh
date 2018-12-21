@@ -1,0 +1,1 @@
+echo exit | PS1='$ ' $TEST_SHELL -i
