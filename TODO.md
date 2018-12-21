@@ -70,6 +70,10 @@ echo "\\\\\\"
     actually put a proc entry in for the top-level shell
     much more faithful, messes with visualizaton as it exists now
 
+  + treat $$ and $! specially
+    bonus: simpler logic on special parameters (never in env)
+    
+
 - what is the exact correct behavior for IFS null?
   no field splitting should happen on _strings_
 
@@ -88,7 +92,6 @@ echo "\\\\\\"
   + HISTFILE
 
 - job control
-  + bg
   + Sh_notify
   need to update current job statuses on ECHLD
   jobs command should also be checking!
@@ -118,6 +121,16 @@ echo "\\\\\\"
   + pretty printer for JSON output
 
 ### Long-term
+
+- abstract over parser
+  + functions:
+    support for `EvalLoop`
+      * context (e.g., stackmark/parser state)
+      * parse_next function
+    `set_ps1`
+    `set_ps2`
+  + libdash instance
+  + morbig instance
 
 - actually use log_unspec etc
 

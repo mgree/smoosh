@@ -339,14 +339,14 @@ let parse_string cmd =
                false, false (* not top level, will call parse_done *)),
      Exit)
 
+let dash_setvar x v = 
+  match try_concrete v with
+  (* don't copy over special variables *)
+  | Some s when not (is_special_param x) -> Dash.setvar x s 
+  | _ -> ()
+
 let real_sync_env env =
-  let set x v = 
-    match try_concrete v with
-    (* don't copy over special variables *)
-    | Some s when not (is_special_param x) -> Dash.setvar x s 
-    | _ -> ()
-  in
-  Pmap.iter set env
+  Pmap.iter dash_setvar env
 
 (************************************************************************)
 (* JSON rendering *******************************************************)
