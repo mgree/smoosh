@@ -45,12 +45,12 @@ loc :  $(SRCFILES)
 	lem -ocaml $<
 
 rebuild : 
-	-rm shtepper smoosh runtest shtepper.byte smoosh.byte runtest.byte
+	-rm shtepper smoosh runtest smoosh.byte
 	$(MAKE) all
 
 clean :
 	-rm -f $(LEMFILES:.lem=.ml)
-	-rm shtepper smoosh runtest shtepper.byte smoosh.byte runtest.byte
+	-rm shtepper smoosh runtest smoosh.byte 
 	-rm *.{cmi,cmo,cmx,o} *~
 
 veryclean : clean
