@@ -461,12 +461,15 @@ let do_redirs os0 ers =
 val fork_and_execve : forall 'a. OS 'a =>
     os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * pid
 let fork_and_execve s0 cmd args env =
-  fork_and_subshell 
-    s0 
-    (Exec cmd args env true (* try /bin/sh *)) 
-    false (* not in bg *) 
-    Nothing (* no existing process group *)
-    true (* do job control *)
+  let (s1,pid) = 
+    fork_and_subshell 
+      s0 
+      (Exec cmd args env true (* try /bin/sh *)) 
+      false (* not in bg *) 
+      Nothing (* no existing process group *)
+      true (* do job control *)
+  in
+  (s1,pid)
 
 val run_pipe_loop : forall 'a. OS 'a =>
                  os_state 'a ->
@@ -594,6 +597,7 @@ val lookup_nonat_param : forall 'a. os_state 'a -> string -> maybe symbolic_stri
 let lookup_nonat_param os str =
   match (readNat (toCharList str),str) with
   | (Right num,_) -> lookup_positional_param num os
+  | (Left _,"$") -> Just (symbolic_string_of_nat os.sh.rootpid)
   | (Left _,"@") -> Nothing (* specifically excluded! *)
   | (Left _,"*") -> Just (symbolic_string_of_fields (get_function_params os))
   | (Left _,"?") -> Just (symbolic_string_of_string (stringFromNat os.sh.exit_code))

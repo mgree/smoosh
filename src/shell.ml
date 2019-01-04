@@ -156,10 +156,9 @@ let initialize_env s0 : system os_state =
     else environ
   in
   let s1 = List.fold_right (fun (x,v) os -> real_set_param x v os) fixed_environ s0 in
-  let s2 = Os.internal_set_param "$" (symbolic_string_of_nat (Unix.getpid ())) s1 in
   (* set up shell options, will set up $- *)
-  let s3 = List.fold_right (fun opt os -> real_set_sh_opt os opt) !opts s2 in
-  { s3 with sh = { s3.sh with cwd = Unix.getcwd (); 
+  let s2 = List.fold_right (fun opt os -> real_set_sh_opt os opt) !opts s1 in
+  { s2 with sh = { s2.sh with cwd = Unix.getcwd (); 
                               (* If a variable is initialized from the
                                  environment, it shall be marked for
                                  export immediately. *)
