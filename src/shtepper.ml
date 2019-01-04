@@ -11,7 +11,8 @@ open Printf
        
 let verbose = ref false
 let parse_source : parse_source ref = ref ParseSTDIN
-let initial_os_state : (symbolic os_state) ref = ref os_empty
+let initial_os_state : (symbolic os_state) ref = 
+  ref (symbolic_set_param "$" "0" os_empty)
 
 let set_fuel n =
   if n <= 0

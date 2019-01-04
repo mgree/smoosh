@@ -412,6 +412,13 @@ instance (OS unit)
     os    
 end
 
+val real_set_param : string -> string -> os_state system -> os_state system 
+let real_set_param x v os = 
+  match set_param x (symbolic_string_of_string v) os with
+  | Left _err -> os
+  | Right os' -> os'
+  end
+
 val real_set_sh_opt : os_state system -> sh_opt -> os_state system
 let real_set_sh_opt os opt = set_sh_opt os opt
 

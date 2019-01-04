@@ -138,9 +138,6 @@ let prepare_command () : string list (* positional args *) =
   | SFlag -> parse_source := ParseSTDIN; Sys.argv.(0)::!params
   | CFlag cmd -> parse_source := ParseString cmd; cmd::!params
 
-let set_param x v s0 =
-  Os.internal_set_param x (symbolic_string_of_string v) s0
-
 let setup_handlers () =
   System.real_eval := 
     (fun os stmt -> real_eval_for_exit_code os stmt)
@@ -149,21 +146,20 @@ let setup_handlers () =
 let initialize_env s0 : system os_state =
   (* will bork if we have privileges *)
   let environ = System.real_environment () in
-  let set (x,v) os = 
-    Dash.setvar x v;
-    set_param x v os
-  in
-  let s1 = List.fold_right set environ s0 in
-  let s2 = 
+  let fixed_environ =
     if !override_prompts
-    then set ("PS1","$ ") (set ("PS2","> ") (set ("PS4","+ ") s1))
-    else s1
+    then 
+      [("PS1", "$ "); ("PS2", "> "); ("PS4", "+ ")] @
+      List.remove_assoc "PS1" 
+        (List.remove_assoc "PS2" 
+           (List.remove_assoc "PS4" environ))
+    else environ
   in
-  let s3 = set_param "$" (string_of_int (Unix.getpid ())) s2 in
-  (* override the prompt by default *)
+  let s1 = List.fold_right (fun (x,v) os -> real_set_param x v os) fixed_environ s0 in
+  let s2 = Os.internal_set_param "$" (symbolic_string_of_nat (Unix.getpid ())) s1 in
   (* set up shell options, will set up $- *)
-  let s4 = List.fold_right (fun opt os -> real_set_sh_opt os opt) !opts s3 in
-  { s4 with sh = { s4.sh with cwd = Unix.getcwd (); 
+  let s3 = List.fold_right (fun opt os -> real_set_sh_opt os opt) !opts s2 in
+  { s3 with sh = { s3.sh with cwd = Unix.getcwd (); 
                               (* If a variable is initialized from the
                                  environment, it shall be marked for
                                  export immediately. *)

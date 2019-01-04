@@ -1754,8 +1754,14 @@ let try_split_assign ss = split_equal "" ss
 (* DEFAULT SHELL STATE ************************************************)
 (**********************************************************************)
 
+val getppid : unit -> pid
+declare ocaml target_rep function getppid = `Unix.getppid`
+
 let env_default : env = 
-  Map.insert "OPTIND" (symbolic_string_of_string "1") Map.empty
+  Map.fromList
+    [ ("OPTIND", symbolic_string_of_string "1") 
+    ; ("PPID", symbolic_string_of_nat (getppid ()))
+    ]
 
 let default_shell_state = <|
       rootpid = 0;

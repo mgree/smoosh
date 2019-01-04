@@ -663,3 +663,9 @@ let get_stdout os = fromMaybe "" (index os.symbolic.fifos 1)
 val get_stderr : os_state symbolic -> string
 let get_stderr os = fromMaybe "" (index os.symbolic.fifos 2)
 
+val symbolic_set_param : string -> string -> os_state symbolic -> os_state symbolic
+let symbolic_set_param x v os = 
+  match set_param x (symbolic_string_of_string v) os with
+  | Left _err -> os
+  | Right os' -> os'
+  end
