@@ -324,6 +324,9 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("printf %x -5", os_empty, "fffffffffffffffb")
   ; ("printf %u -5", os_empty, "18446744073709551611")
 
+    (* regression: printf should rerun to print all arguments *)
+  ; ("printf '%d %d' 1 2 3 4 5 6 7 8 9", os_empty, "1 23 45 67 89 0")
+
     (* kill *)
   ; ("echo hi & wait", os_empty, "hi\n")
   ; ("echo hi & kill %1 ; wait", os_empty, "")

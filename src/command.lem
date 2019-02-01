@@ -1793,19 +1793,40 @@ let printf_format s0 fmt0 args0 =
   (write_stdout padded s1, fmt2, args1)
 
 (* invariant: called with an exit code of 0, to be changed later *)
-let rec printf_loop s0 fmt args =
+let rec printf_loop s0 orig_fmt orig_args fmt args =
   match fmt with
-  | [] -> Right (s0, Done)
+  | [] ->
+     match args with
+     | [] -> Right (s0, Done)
+     | _ ->
+        (* The format operand shall be reused as often as necessary to
+           satisfy the argument operands. Any extra b, c, or s
+           conversion specifiers shall be evaluated as if a null
+           string argument were supplied; other extra conversion
+           specifications shall be evaluated as if a zero argument
+           were supplied. *)
+        if args = orig_args
+        then (* If the format operand contains no conversion
+                specifications and argument operands are present, the
+                results are unspecified.  We'll avoid an infinite loop
+                if we haven't actually consumed an arg.  *)
+          Right (s0, Done) 
+        else 
+          (* We _shouldn't_ need to reset args---if we got here, we
+             consumed at least one arg and the whole process is
+             deterministic. But here we are! *)
+          printf_loop s0 orig_fmt args orig_fmt args
+     end
   | #'\\'::fmt' ->
      let (escaped, fmt'') = sprintf_esc fmt' in
      let s1 = write_stdout escaped s0 in
-     printf_loop s1 fmt'' args
+     printf_loop s1 orig_fmt orig_args fmt'' args
   | #'%'::fmt' -> 
      let (s1, fmt'', args') = printf_format s0 fmt' args in
-     printf_loop s1 fmt'' args'
+     printf_loop s1 orig_fmt orig_args fmt'' args'
   | c::fmt' ->
      let s1 = write_stdout (toString [c]) s0 in
-     printf_loop s1 fmt' args
+     printf_loop s1 orig_fmt orig_args fmt' args
   end
 
 let builtin_printf s0 argv _env =
@@ -1815,7 +1836,9 @@ let builtin_printf s0 argv _env =
   | sfmt::args ->
      match try_concrete sfmt with
      | Nothing -> Right (fail_with_code 3 "printf: symbolic format string" s0, Done)
-     | Just fmt -> printf_loop (exit_with 0 s0) (toCharList fmt) args
+     | Just fmt -> 
+        let fmt_cl = toCharList fmt in
+        printf_loop (exit_with 0 s0) fmt_cl args fmt_cl args
      end
   end
 
