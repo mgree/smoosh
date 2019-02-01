@@ -3,7 +3,10 @@ FROM smoosh
 # :( things go out of date with Debian so quickly
 RUN sudo apt-get update
 RUN sudo apt-get install -y ruby-full ruby-bundler
-RUN sudo gem install childprocess sinatra sinatra-contrib thin
+RUN sudo gem install -v 0.9.0 childprocess 
+RUN sudo gem install -v 2.0.4 sinatra
+RUN sudo gem install -v 2.0.4 sinatra-contrib
+RUN sudo gem install -v 1.7.2 thin
 
 ADD --chown=opam:opam web web
 RUN cd web; bundle install
