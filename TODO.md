@@ -212,3 +212,33 @@ Dash
 BOTH
   - printf %5% seems perfectly valid, but both reject it as ill formatted
   - kill -l doesn't fit the output format
+
+POSIX test suite
+  
+  - bug in `sh_05.sh`
+  
+In `sh_05.sh` lines 5806-5815, we find the snippet:
+
+```
+    function func_sh5_326 {
+        if [ $1 -eq 1 ] && [ $2 -eq 2 ] && [ $2 -eq 2 ] && 
+           [ $3 -eq 3 ] && [ $4 -eq 4 ] && [ $5 -eq 5 ] &&
+           [ $6 -eq 6 ] && [ $7 -eq 7 ] && [ $8 -eq 8 ] && [ $9 -eq 9 ]
+        then
+                return 0
+        else
+                return 1
+        fi
+    }
+```
+
+But that's not the right syntax. It should instead be:
+
+```
+    func_sh5_326() {
+        ...
+    }
+```
+
+Confirmed by Brian Selves of OpenGroup on 2019-01-07; will be fixed in
+the next version.
