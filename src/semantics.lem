@@ -204,7 +204,7 @@ let rec expand_control s0 q tm k =
            | Just dir -> ("", ExpS dir)
            end in
            Right (ESTilde msg, s0, YesTilde, [dir], [])
-        else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [UsrS "~"], [])
+        else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [ExpS "~"], [])
     | TildeUser usr -> 
        if tm = YesTilde
        then
@@ -216,7 +216,7 @@ let rec expand_control s0 q tm k =
                    s0, YesTilde, [ExpS ("~" ^ usr)], []) 
          | Just path -> Right (ESTilde "", s0, YesTilde, [ExpS path], [])
          end
-       else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [UsrS ("~" ^ usr)], [])
+       else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [ExpS ("~" ^ usr)], [])
     | Param s f -> 
        if s = "@" && q = Quoted
        then 
