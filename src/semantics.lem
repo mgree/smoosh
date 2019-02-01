@@ -173,7 +173,7 @@ let rec expand_control s0 q tm k =
     match k with
     | Tilde -> 
        if tm = YesTilde then
-         let (msg, dir) = match expand_param s0 Unquoted "HOME" Normal with
+         let (msg, dir) = match lookup_concrete_param s0 "HOME" with
          (* if HOME is unset, results are unspecified---we return "~" 
             dash:
               $ unset HOME
@@ -199,11 +199,12 @@ let rec expand_control s0 q tm k =
 
             lol
           *)
-           | [S ""] -> ("defaulting to dash behavior for unset HOME (unspec per 2.6.1)", [S "~"])
-           | dir -> ("", dir)
+           | Nothing -> ("defaulting to dash behavior for unset HOME (unspec per 2.6.1)", 
+                         ExpS "~")
+           | Just dir -> ("", ExpS dir)
            end in
-           Right (ESTilde msg, s0, NoTilde, [], dir)
-        else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [], [S "~"])
+           Right (ESTilde msg, s0, YesTilde, [dir], [])
+        else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [UsrS "~"], [])
     | TildeUser usr -> 
        if tm = YesTilde
        then
@@ -212,10 +213,10 @@ let rec expand_control s0 q tm k =
             (* unspec per 2.6.1, but we follow dash *)
             Right (ESTilde ("defaulting to dash behavior for failed getpwnam " ^
                             "(unspec per 2.6.1)"), 
-                   s0, NoTilde, [], [S ("~" ^ usr)]) 
-         | Just path -> Right (ESTilde "", s0, NoTilde, [], [S path])
+                   s0, YesTilde, [ExpS ("~" ^ usr)], []) 
+         | Just path -> Right (ESTilde "", s0, YesTilde, [ExpS path], [])
          end
-       else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [], [S ("~" ^ usr)])
+       else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [UsrS ("~" ^ usr)], [])
     | Param s f -> 
        if s = "@" && q = Quoted
        then 
@@ -394,21 +395,22 @@ let rec expand_control s0 q tm k =
 
 and expand_words s0 q tm sm (f,w) =
   match w with
-    | [] -> Right (ESStep "done", s0, YesTilde, f, w)
-    | (F::ws) -> Right (ESStep "user field separator", s0, YesTilde, f ++ [UsrF], ws)
-    | (S(s)::ws) ->
+    | [] -> Right (ESStep "done", s0, tm, f, w)
+    | F::ws -> Right (ESStep "user field separator", s0, YesTilde, f ++ [UsrF], ws)
+    | S ""::ws -> expand_words s0 q tm sm (f,ws)
+    | S s ::ws ->
        let f1 = match (q, sm) with
          | (Quoted, _) -> [DQuo (symbolic_string_of_string s)]
          | (Unquoted, UserString) -> [UsrS s]
          | (Unquoted, GeneratedString) -> [ExpS s]
        end in
        Right (ESStep "plain string", s0, NoTilde, f ++ f1, ws)
-    | (K(k)::ws) ->
+    | K k::ws ->
        match expand_control s0 q tm k with
-       | Right (step, s1, _tm1, f1, w1) -> Right (step, s1, NoTilde, f++f1, (w1 ++ ws))
+       | Right (step, s1, tm1, f1, w1) -> Right (step, s1, tm1, f++f1, (w1 ++ ws))
        | Left err -> Left err
        end
-    | (ESym(c)::ws) -> Right (ESStep "skipping symbolic result", s0, NoTilde, f ++ [EWSym c], ws)
+    | ESym c::ws -> Right (ESStep "skipping symbolic result", s0, tm, f ++ [EWSym c], ws)
   end
 
 (**********************************************************************)
