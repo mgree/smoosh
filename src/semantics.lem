@@ -88,6 +88,23 @@ let check_traps res =
   end
 
 (**********************************************************************)   
+(* FORK MANAGEMENT ****************************************************)   
+(**********************************************************************)   
+
+let try_avoid_fork stmt =
+  match stmt with
+  | Command assigns args redirs opts ->
+     Command assigns args redirs <| opts with should_fork = false |>
+  | CommandExpAssign exp_assigns args redirs opts ->
+     CommandExpAssign exp_assigns args redirs <| opts with should_fork = false |>
+  | CommandExpArgs assigns exp_args redirs opts ->
+     CommandExpArgs assigns exp_args redirs <| opts with should_fork = false |>
+  | CommandExpRedirs assigns args exp_redirs opts ->
+     CommandExpRedirs assigns args exp_redirs <| opts with should_fork = false |>
+  | _ -> stmt
+  end
+   
+(**********************************************************************)   
 (* EXPANSION **********************************************************)   
 (**********************************************************************)   
    
@@ -560,14 +577,14 @@ and step_eval s0 checked stmt =
   *)
   match stmt with
   (* COMMAND ******************************************************************)
-  | Command assigns ws redirs ->
+  | Command assigns ws redirs opts ->
      Right (XSSimple "begin expansion",
             s0,
             CommandExpAssign
               (map (fun (x, w) -> (x, ExpStart w)) assigns)
-              false (* haven't yet run a command substitution *)
               ws
-              redirs)
+              redirs
+              opts)
   (* COMMAND: SPECIAL CASE: plain assignment, no command **********************)
   (* in this case, we WANT the visibility between each assignment, so
      don't bother with the step_assigns rigamarole below
@@ -576,9 +593,12 @@ and step_eval s0 checked stmt =
      substitution, the command shall complete with the exit status of
      the last command substitution performed. Otherwise, the command
      shall complete with a zero exit status" *)
-  | CommandExpAssign ((x,exp_state0)::assigns) ran_cmd_subst [] redirs ->
+  | CommandExpAssign ((x,exp_state0)::assigns) [] redirs opts ->
      let (step, s1, exp_state1) = step_expansion (s0, exp_state0) in
-     let ran_cmd_subst' = ran_cmd_subst || ran_command_substitution step in
+     let opts' = <| opts with
+         ran_cmd_subst = opts.ran_cmd_subst || ran_command_substitution step
+       |>
+     in
      match exp_state1  with
      | ExpDone f -> 
         match set_param x (symbolic_string_of_fields f) s1 with
@@ -587,7 +607,7 @@ and step_eval s0 checked stmt =
            let s3 = trace (x ^ "=" ^ string_of_fields f) s2 in
            Right (XSSimple ("assign " ^ x),
                   s3, 
-                  CommandExpAssign assigns ran_cmd_subst' [] redirs)
+                  CommandExpAssign assigns [] redirs opts')
         end
      | ExpError f -> 
         Left (XSExpand (XSSimple ("error in " ^ x ^ ": " ^ string_of_fields f)) step,
@@ -595,24 +615,24 @@ and step_eval s0 checked stmt =
      | _ -> 
         Right (XSExpand (XSSimple "") step,
                s1, 
-               CommandExpAssign ((x,exp_state1)::assigns) ran_cmd_subst' [] redirs)
+               CommandExpAssign ((x,exp_state1)::assigns) [] redirs opts')
      end
-  | CommandExpAssign [] ran_cmd_subst [] redirs ->
+  | CommandExpAssign [] [] redirs opts ->
      (* keep on expanding, since we have to actually expand the redirects no matter what *)
-     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] ran_cmd_subst [] ([], Nothing, redirs) true)
+     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] [] ([], Nothing, redirs) opts)
 
   (* GENERAL CASE: command with possible assignments, which no longer
      go in the general environment 
 
      we therefore fake ran_cmd_subst as 'true' below, not that it will
      matter *)
-  | CommandExpAssign assigns _ran_cmd_subst ws redirs ->
+  | CommandExpAssign assigns ws redirs opts ->
      match step_assign s0 assigns with
      (* Perform an expansion step in an assignment *)
      | SAStep exp_step s1 assigns' ->
         Right (exp_step,
                s1,
-               CommandExpAssign assigns' true ws redirs)
+               CommandExpAssign assigns' ws redirs opts)
      | SAError f ->
         Left (XSSimple ("error in expansion " ^ string_of_fields f),
               write_stderr (string_of_fields f) s0)
@@ -620,9 +640,9 @@ and step_eval s0 checked stmt =
      | SADone fields ->
         Right (XSSimple "assignments fully expanded",
                s0,
-               CommandExpArgs fields (ExpStart ws) redirs)
+               CommandExpArgs fields (ExpStart ws) redirs opts)
     end
-  | CommandExpArgs assigns exp_state redirs ->
+  | CommandExpArgs assigns exp_state redirs opts ->
       let (step, s1, st1) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError err ->                  
@@ -638,15 +658,15 @@ and step_eval s0 checked stmt =
            in
            Right (XSExpand (XSSimple msg) step, 
                   s1, 
-                  CommandExpRedirs assigns true (* fake ran_subst_cmd *) f ([], Nothing, redirs) true)
+                  CommandExpRedirs assigns f ([], Nothing, redirs) opts)
         | _ ->
            Right (XSExpand (XSSimple "argument expansion step") step,
                   s1,
-                  CommandExpArgs assigns st1 redirs)
+                  CommandExpArgs assigns st1 redirs opts)
       end
   (* COMMAND: Redirect expansion **********************************************)
   (* expansion is done, try to run command *)
-  | (CommandExpRedirs assigns _ran_subst_cmd (prog::args) (ers, Nothing, []) allow_fun as cmd) ->
+  | (CommandExpRedirs assigns (prog::args) (ers, Nothing, []) opts as cmd) ->
      if Set.member Sh_noexec s0.sh.opts
      then Right (XSSimple "set -n: skipping command", s0, Done)
      else
@@ -727,7 +747,7 @@ and step_eval s0 checked stmt =
                   if exit_on_error then Exit else Done))
      | (s2, Right saved_fds) ->
        (* run command *)
-       match run_command s2 allow_fun checked prog args env with
+       match run_command s2 opts checked prog args env with
        | Right (s3, stmt', restore) -> 
           Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
                  s3, 
@@ -744,7 +764,7 @@ and step_eval s0 checked stmt =
        end
      end
   (* expansion is done, but there's no command *)
-  | (CommandExpRedirs _assigns ran_subst_cmd [] (ers, Nothing, []) _allow_fun as cmd) ->
+  | (CommandExpRedirs _assigns [] (ers, Nothing, []) opts as cmd) ->
      (* we've already done whatever assignments above, in the special
         case.  it remains to set up redirects for side effects/file
         creation
@@ -772,13 +792,13 @@ and step_eval s0 checked stmt =
                             Done))
      | (s1, Right saved_fds) ->
         let s2 = trace (string_of_stmt cmd) s1 in
-        let s3 = if ran_subst_cmd then s2 else exit_with 0 s2 in
+        let s3 = if opts.ran_cmd_subst then s2 else exit_with 0 s2 in
         check_traps (Right (XSSimple "ran empty command",
                             s3,
                             pushredir Done saved_fds))
      end
    (* expand redirs *)
-   | CommandExpRedirs assigns ran_cmd_subst args redir_state allow_fun ->
+   | CommandExpRedirs assigns args redir_state opts ->
       match step_redir_state s0 redir_state with
       | (s1, msg, Nothing) ->
          check_traps (Right (XSSimple "error in redirect expansion", 
@@ -787,12 +807,13 @@ and step_eval s0 checked stmt =
       | (s1, msg, Just (redir_state', mstep)) ->
          let (ran_cmd_subst', step) =
            match mstep with
-           | Just estep -> (ran_cmd_subst || ran_command_substitution estep,
+           | Just estep -> (opts.ran_cmd_subst || ran_command_substitution estep,
                             XSExpand (XSSimple msg) estep)
-           | Nothing -> (ran_cmd_subst, XSSimple msg)
-           end in
+           | Nothing -> (opts.ran_cmd_subst, XSSimple msg)
+         end in
+         let opts' = <| opts with ran_cmd_subst = ran_cmd_subst' |> in
          Right (step, s1,
-                CommandExpRedirs assigns ran_cmd_subst' args redir_state' allow_fun)
+                CommandExpRedirs assigns args redir_state' opts')
       end
 
   (* PIPE *********************************************************************)
@@ -847,12 +868,14 @@ and step_eval s0 checked stmt =
 
   (* BACKGROUND ***************************************************************)
   | Background stmt' ((_, Nothing, []) as redir_state) ->
+     (* don't spawn a subshell if it's a plain command---sets $! correctly *)
+     let no_fork_stmt' = try_avoid_fork stmt' in
      (* defer to Redir to load redirs *)
      let (s1,pid) = 
-       fork_and_subshell s0 (Redir stmt' redir_state) 
+       fork_and_subshell s0 (Redir no_fork_stmt' redir_state) 
          true (* bg *) Nothing (* no pgid *) true (* job control *)
      in
-     let s2 = add_job s1 pid (Background stmt' redir_state) in
+     let s2 = add_job s1 pid (Background no_fork_stmt' redir_state) in
      let s3 = set_last_pid pid s2 in
      check_traps
        (Right (XSBackground ("started background process with pid " ^ 

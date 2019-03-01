@@ -1,0 +1,5 @@
+echo 'echo $$ > pid.out' >showpid.sh
+chmod +x showpid.sh
+./showpid.sh &
+sleep 1
+[ "$!" -eq "$(cat pid.out)" ]

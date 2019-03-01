@@ -12,7 +12,7 @@ let check_expansion (test_name, s0, w_in, f_expected) : fields result =
 
 let concrete = List.map (fun x -> List.map (fun c -> Smoosh.C c) (Xstring.explode x))
 
-let symcommand : symbolic_char = Sym (SymCommand (Command ([], [S "command"], [])))
+let symcommand : symbolic_char = Sym (SymCommand (Command ([], [S "command"], [], default_cmd_opts)))
 let os_var_x_foofoobarbar : symbolic os_state = add_literal_env_string "x" "foofoobarbar" os_empty
 let os_var_x_foocommand : symbolic os_state = internal_set_param "x" ((symbolic_string_of_string "foo") @ [symcommand]) os_empty
 

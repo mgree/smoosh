@@ -717,11 +717,17 @@ and entry =
 
 and words = list entry
 
+and command_opts =
+  <| ran_cmd_subst : bool;
+     should_fork : bool;
+     allow_functions : bool
+  |>
+          
 and stmt =
-    Command of list (string * words) * words * list redir
-  | CommandExpAssign of list (string * expansion_state) * bool (* ran command subst? *) * words * list redir
-  | CommandExpArgs of list (string * fields) * expansion_state * list redir
-  | CommandExpRedirs of list (string * fields) * bool (* ran command subst? *) * fields * redir_state * bool (* allow function ? *)
+    Command of list (string * words) * words * list redir * command_opts
+  | CommandExpAssign of list (string * expansion_state) * words * list redir * command_opts
+  | CommandExpArgs of list (string * fields) * expansion_state * list redir * command_opts
+  | CommandExpRedirs of list (string * fields) * fields * redir_state * command_opts
   | Pipe of bool (* bg? *) * list stmt
   | Redir of stmt * redir_state
   | Background of stmt * redir_state
@@ -1218,16 +1224,21 @@ let rec sequence stmts =
   | [] -> Done
   | [stmt] -> stmt
   | stmt::stmts' -> Semi stmt (sequence stmts')
-  end
+end
+
+let default_cmd_opts =
+  <| ran_cmd_subst = false;
+     should_fork = true;
+     allow_functions = true
+  |>     
 
 val simple_command : string -> fields -> env -> stmt
 let simple_command cmd args env =
   CommandExpRedirs
     (assigns_of_env env)
-    true (* fake ran_subst_cmd *)
     ((symbolic_string_of_string cmd)::args)
     ([], Nothing, [])
-    true (* allow functions *)
+    <| default_cmd_opts with ran_cmd_subst = true |> (* ensure ec is set *)
 
 val skip : stmt
 let skip = simple_command ":" [] Map.empty
@@ -1415,16 +1426,16 @@ and string_of_fields fs =
 
 and string_of_stmt c = 
   match c with
-  | Command assigns cmds redirs ->
+  | Command assigns cmds redirs _opts ->
      string_of_simple string_of_words string_of_words string_of_redirs
        assigns cmds redirs
-  | CommandExpAssign assigns _ran_cmd_subst cmds redirs -> 
+  | CommandExpAssign assigns cmds redirs _opts -> 
      string_of_simple string_of_expansion_state string_of_words string_of_redirs
        assigns cmds redirs
-  | CommandExpArgs assigns cmds redirs -> 
+  | CommandExpArgs assigns cmds redirs _opts -> 
      string_of_simple string_of_fields string_of_expansion_state string_of_redirs
        assigns cmds redirs
-  | CommandExpRedirs assigns _ran_cmd_subst cmds redir_state _allow_fun ->
+  | CommandExpRedirs assigns cmds redir_state _opts ->
      string_of_simple string_of_fields string_of_fields string_of_redir_state
        assigns cmds redir_state
   | Pipe bg cmds ->
@@ -1504,7 +1515,7 @@ and string_of_if c t e =
   "if " ^ string_of_stmt c ^
   "; then " ^ string_of_stmt t ^
   (match e with
-   | Command [] [] [] -> "; fi" (* one-armed if *)
+   | Command [] [] [] _ -> "; fi" (* one-armed if *)
    | If c t e -> "; el" ^ string_of_if c t e
    | _ -> "; else " ^ string_of_stmt e ^ "; fi"
    end)

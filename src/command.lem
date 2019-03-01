@@ -6,7 +6,7 @@ import Debug
 
 val run_command : forall 'a. OS 'a => 
                   os_state 'a -> 
-                  bool (* allow functions? *) ->
+                  command_opts ->
                   bool (* exit status checked elsewhere? *) ->
                   symbolic_string (* prog *) -> 
                   fields (* argv *) ->
@@ -1105,10 +1105,9 @@ let builtin_command s0 argv env =
      Right (s0,
             CommandExpRedirs 
               (assigns_of_env env) (* convert env *)
-              true (* fake ran_subst_cmd *)
               argv' (* copy over command args *)
               ([],Nothing,[])
-              false (* don't allow functions *))
+              <| default_cmd_opts with allow_functions = false |>)
   | (CMVerbose human_readable, _) ->
      show_commands
        (if human_readable then human_readable_command_type else concise_command_type)
@@ -2231,7 +2230,7 @@ let builtins =
     ; ("wait", builtin_wait)
     ]
 
-let run_command s0 allow_fun checked prog_name argv env =
+let run_command s0 opts checked prog_name argv env =
   match try_concrete prog_name with
   | Nothing -> Left (s0,"can't run symbolic command")
   | Just prog ->
@@ -2254,7 +2253,7 @@ let run_command s0 allow_fun checked prog_name argv env =
              form of a function, it shall not be recognized at this
              point. It shall be invoked in conjunction with the path
              search in step 1e. *)
-          match (allow_fun, lookup_function prog s0) with
+          match (opts.allow_functions, lookup_function prog s0) with
           | (true, Just body) ->
              Right (set_function_params 0 argv s0,
                     Call s0.sh.loop_nest (get_function_params s0) prog body body,
@@ -2277,13 +2276,15 @@ let run_command s0 allow_fun checked prog_name argv env =
                    (* failed... and emitted an error message and set the ec *)
                    Right (s1, Done, true)
                 | (s1, Just executable) ->
-                   let (s2,pid) = fork_and_execve 
-                                    s1
-                                    (symbolic_string_of_string executable) 
-                                    argv 
-                                    env 
-                   in
-                   Right (s2, Wait pid checked Nothing, true)
+                   let cmd = symbolic_string_of_string executable in
+                   if opts.should_fork 
+                   then
+                     let (s2,pid) = fork_and_execve s1 cmd argv env in
+                     Right (s2, Wait pid checked Nothing, true)
+                   else 
+                     (* ??? 2019-03-01 
+                        do we need to restore the redirs when we're execing anyway? *)
+                     Right (s1, Exec cmd argv env true (* try /bin/sh *), true)
                 end
              end
           end

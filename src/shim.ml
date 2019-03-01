@@ -2,8 +2,8 @@ open Ctypes
 open Foreign
 open Dash
 open Smoosh_prelude
-
-let skip = Command ([],[],[])
+   
+let skip = Command ([],[],[], default_cmd_opts )
 
 let var_type vstype w = 
   match vstype with
@@ -40,7 +40,8 @@ let rec of_node (n : node union ptr) : stmt =
      let n = n @-> node_ncmd in
      Command (to_assigns (getf n ncmd_assign),
               join (to_args (getf n ncmd_args)),
-              redirs (getf n ncmd_redirect))
+              redirs (getf n ncmd_redirect),
+              default_cmd_opts)
   (* NPIPE *)
   | 1 ->
      let n = n @-> node_npipe in
@@ -395,22 +396,22 @@ let obj name = Assoc [tag name]
 let obj_v name v = Assoc [tag name; ("v", String v)]
 
 let rec json_of_stmt = function
-  | Command (assigns, args, rs) -> 
+  | Command (assigns, args, rs, _opts) -> 
      Assoc [tag "Command"; 
             ("assigns", List (List.map json_of_assign assigns));
             ("args", json_of_words args);
             ("rs", json_of_redirs rs)]
-  | CommandExpAssign (assigns, _ran_subst_cmd, args, rs) -> 
+  | CommandExpAssign (assigns, args, rs, _opts) -> 
      Assoc [tag "CommandExpAssign"; 
             ("assigns", List (List.map json_of_inprogress_assign assigns));
             ("args", json_of_words args);
             ("rs", json_of_redirs rs)]
-  | CommandExpArgs (assigns, args, rs) ->
+  | CommandExpArgs (assigns, args, rs, _opts) ->
      Assoc [tag "CommandExpArgs"; 
             ("assigns", List (List.map json_of_expanded_assign assigns));
             ("args", json_of_expansion_state args);
             ("rs", json_of_redirs rs)]
-  | CommandExpRedirs (assigns, _ran_subst_cmd, args, redir_state, _allow_fun) ->
+  | CommandExpRedirs (assigns, args, redir_state, _opts) ->
      Assoc ([tag "CommandExpRedirs"; 
              ("assigns", List (List.map json_of_expanded_assign assigns));
              ("args", json_of_fields args)]
