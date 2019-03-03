@@ -220,11 +220,7 @@ let rec expand_control s0 q tm k =
     | Param s f -> 
        if s = "@" && q = Quoted
        then 
-         let param_vars : fields = 
-           match s0.sh.positional_params with
-           | [] -> []
-           | _prog_name::params -> params
-           end in
+         let param_vars = get_function_params s0 in
          (* TODO it doesn't seem specified what happens with the various formats.
 
             -, = and ? don't seem to adhere, since $@ is never unset/null
@@ -255,7 +251,10 @@ let rec expand_control s0 q tm k =
             | Nothing -> build_at []
             end
          | _ -> build_at param_vars
-         end         
+         end
+       else if (s = "@" || s = "*") && f = Normal
+       then let param_vars = expanded_words_of_fields (get_function_params s0) in
+            Right (ESParam "expanded *", s0, NoTilde, param_vars, [])
        else expand_words s0 q YesTilde GeneratedString ([], expand_param s0 q s f)
     | LAssign s f [] ->
        match set_param s (concat_expanded f) s0 with

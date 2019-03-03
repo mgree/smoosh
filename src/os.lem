@@ -580,13 +580,13 @@ let get_function_params os =
   end
 
 (* The result is nothing if the parameter is unset, and the empty string if it's null. *)
-val lookup_nonat_param : forall 'a. os_state 'a -> string -> maybe symbolic_string
-let lookup_nonat_param os str =
+val lookup_string_param : forall 'a. os_state 'a -> string -> maybe symbolic_string
+let lookup_string_param os str =
   match (readNat (toCharList str),str) with
   | (Right num,_) -> lookup_positional_param num os
   | (Left _,"$") -> Just (symbolic_string_of_nat os.sh.rootpid)
-  | (Left _,"@") -> Nothing (* specifically excluded! *)
-  | (Left _,"*") -> Just (symbolic_string_of_fields (get_function_params os))
+  | (Left _,"@") -> Assert_extra.failwith "broken invariant: called lookup_string_param on @"
+  | (Left _,"*") -> Assert_extra.failwith "broken invariant: called lookup_string_param on *"
   | (Left _,"?") -> Just (symbolic_string_of_string (stringFromNat os.sh.exit_code))
   | (Left _,"-") -> 
      let char_opts = List.mapMaybe char_of_sh_opt (Set_extra.toList os.sh.opts) in
@@ -600,9 +600,9 @@ let lookup_nonat_param os str =
 
 val lookup_param : forall 'a. os_state 'a -> string -> maybe fields
 let lookup_param os str =
-  if str = "@"
+  if str = "@" || str = "*"
   then Just (get_function_params os)
-  else match lookup_nonat_param os str with
+  else match lookup_string_param os str with
        | Nothing -> Nothing
        | Just v -> Just [v]
        end

@@ -94,13 +94,13 @@ let collapse_quoted w =
   end
 
 let split_fields s0 exp_words =
-  let ifs = lookup_nonat_param s0 "IFS" in
+  let ifs = lookup_string_param s0 "IFS" in
   let (f, _) = match ifs with
     | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
     | Just fs -> 
        match try_concrete fs with
        | Nothing -> 
-          (* TODO 2018-08-29 unsoundly usinsg default IFS. symbolic IFS is basically impossible. should record this unsoundness. *)
+          (* TODO 2018-08-29 unsoundly using default IFS. symbolic IFS is basically impossible. should record this unsoundness. *)
           split_word (toCharList " \n\t") ([], exp_words)
        | Just s -> split_word (toCharList s) ([], exp_words)
        end

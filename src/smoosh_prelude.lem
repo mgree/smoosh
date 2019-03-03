@@ -1057,7 +1057,12 @@ let rec words_of_symbolic_string sym_str =
   end
 
 val words_of_fields : fields -> words
-let words_of_fields fs = words_of_symbolic_string (symbolic_string_of_fields fs)
+let rec words_of_fields fs = 
+  match fs with
+  | [] -> []
+  | [ss] -> words_of_symbolic_string ss
+  | ss::fs' -> words_of_symbolic_string ss ++ [F] ++ words_of_fields fs'
+  end
 
 val expanded_words_of_symbolic_string : symbolic_string -> expanded_words
 let rec expanded_words_of_symbolic_string sym_str =
@@ -1070,7 +1075,12 @@ let rec expanded_words_of_symbolic_string sym_str =
   end
 
 val expanded_words_of_fields : fields -> expanded_words
-let expanded_words_of_fields fs = expanded_words_of_symbolic_string (symbolic_string_of_fields fs)
+let rec expanded_words_of_fields fs = 
+  match fs with
+  | [] -> []
+  | [ss] -> expanded_words_of_symbolic_string ss
+  | ss::fs' -> expanded_words_of_symbolic_string ss ++ [UsrF] ++ expanded_words_of_fields fs'
+  end
 
 val symbolic_string_of_char_list : list char -> symbolic_string
 let symbolic_string_of_char_list cs = map C cs

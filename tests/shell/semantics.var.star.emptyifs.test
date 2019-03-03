@@ -1,0 +1,5 @@
+IFS=""
+bee="b  e   e"
+set a "$bee" c
+
+printf '<%s>\n' $*
