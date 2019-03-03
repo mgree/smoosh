@@ -3,3 +3,4 @@ bee="b  e   e"
 set a "$bee" c
 
 printf '<%s>\n' $*
+printf '<%s>\n' HI$*BYE
