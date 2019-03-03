@@ -2277,14 +2277,22 @@ let run_command s0 opts checked prog_name argv env =
                    Right (s1, Done, true)
                 | (s1, Just executable) ->
                    let cmd = symbolic_string_of_string executable in
+                   let exec = Exec cmd argv env true (* try /bin/sh *) in
                    if opts.should_fork 
                    then
-                     let (s2,pid) = fork_and_execve s1 cmd argv env in
+                     let (s2,pid) =
+                       fork_and_subshell 
+                         s1 
+                         exec
+                         false (* not in bg *) 
+                         Nothing (* no existing process group *)
+                         true (* do job control *)
+                     in
                      Right (s2, Wait pid checked Nothing, true)
                    else 
                      (* ??? 2019-03-01 
                         do we need to restore the redirs when we're execing anyway? *)
-                     Right (s1, Exec cmd argv env true (* try /bin/sh *), true)
+                     Right (s1, exec, true)
                 end
              end
           end

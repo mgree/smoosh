@@ -242,7 +242,7 @@ instance (OS unit)
       real_fork_and_eval 
         (List.mapMaybe ocaml_signal_of_signal handlers) (* ignore these signals! *)
         (<| os with sh = subsh |>) (* update the traps *)
-        stmt
+        (try_avoid_fork stmt)
         bg
         pgid
         os.sh.outermost

@@ -456,20 +456,7 @@ let do_redirs os0 ers =
   then (os0, Right [])
   else really_do_redirs os0 ers
 
-(* Pipes and forking **************************************************)
-
-val fork_and_execve : forall 'a. OS 'a =>
-    os_state 'a -> symbolic_string -> list symbolic_string -> env -> os_state 'a * pid
-let fork_and_execve s0 cmd args env =
-  let (s1,pid) = 
-    fork_and_subshell 
-      s0 
-      (Exec cmd args env true (* try /bin/sh *)) 
-      false (* not in bg *) 
-      Nothing (* no existing process group *)
-      true (* do job control *)
-  in
-  (s1,pid)
+(* Pipes **************************************************************)
 
 val run_pipe_loop : forall 'a. OS 'a =>
                  os_state 'a ->
@@ -486,7 +473,7 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid =
        fork_and_subshell 
          s0 
          (with_redirs 
-            stmt 
+            (try_avoid_fork stmt)
             [ERDup ToFD true (* close orig *) STDIN (Just fd_prev)])
          bg
          pgid

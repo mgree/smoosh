@@ -1262,6 +1262,22 @@ val close_fd_and_then : fd -> stmt -> stmt
 let close_fd_and_then fd stmt =
   Semi (Pushredir Done [(fd, Close)]) stmt
 
+val try_avoid_fork : stmt -> stmt
+let rec try_avoid_fork stmt =
+  match stmt with
+  | Command assigns args redirs opts ->
+     Command assigns args redirs <| opts with should_fork = false |>
+  | CommandExpAssign exp_assigns args redirs opts ->
+     CommandExpAssign exp_assigns args redirs <| opts with should_fork = false |>
+  | CommandExpArgs assigns exp_args redirs opts ->
+     CommandExpArgs assigns exp_args redirs <| opts with should_fork = false |>
+  | CommandExpRedirs assigns args exp_redirs opts ->
+     CommandExpRedirs assigns args exp_redirs <| opts with should_fork = false |>
+  | Redir stmt' redir_state ->
+     Redir (try_avoid_fork stmt') redir_state
+  | _ -> stmt
+  end
+
 val is_terminating_control : stmt -> bool
 let is_terminating_control c =
   match c with

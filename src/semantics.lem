@@ -86,23 +86,6 @@ let check_traps res =
      let s1 = log_msg "checked traps" s0 in
      Right (internal_check_traps step0 s1 c0)
   end
-
-(**********************************************************************)   
-(* FORK MANAGEMENT ****************************************************)   
-(**********************************************************************)   
-
-let try_avoid_fork stmt =
-  match stmt with
-  | Command assigns args redirs opts ->
-     Command assigns args redirs <| opts with should_fork = false |>
-  | CommandExpAssign exp_assigns args redirs opts ->
-     CommandExpAssign exp_assigns args redirs <| opts with should_fork = false |>
-  | CommandExpArgs assigns exp_args redirs opts ->
-     CommandExpArgs assigns exp_args redirs <| opts with should_fork = false |>
-  | CommandExpRedirs assigns args exp_redirs opts ->
-     CommandExpRedirs assigns args exp_redirs <| opts with should_fork = false |>
-  | _ -> stmt
-  end
    
 (**********************************************************************)   
 (* EXPANSION **********************************************************)   
@@ -868,14 +851,12 @@ and step_eval s0 checked stmt =
 
   (* BACKGROUND ***************************************************************)
   | Background stmt' ((_, Nothing, []) as redir_state) ->
-     (* don't spawn a subshell if it's a plain command---sets $! correctly *)
-     let no_fork_stmt' = try_avoid_fork stmt' in
      (* defer to Redir to load redirs *)
      let (s1,pid) = 
-       fork_and_subshell s0 (Redir no_fork_stmt' redir_state) 
+       fork_and_subshell s0 (Redir stmt' redir_state) 
          true (* bg *) Nothing (* no pgid *) true (* job control *)
      in
-     let s2 = add_job s1 pid (Background no_fork_stmt' redir_state) in
+     let s2 = add_job s1 pid (Background stmt' redir_state) in
      let s3 = set_last_pid pid s2 in
      check_traps
        (Right (XSBackground ("started background process with pid " ^ 

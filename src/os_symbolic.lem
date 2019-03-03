@@ -383,7 +383,7 @@ instance (OS symbolic)
      *)
     let proc_num = length os.symbolic.procs in
     let (subsh,_handlers) = prepare_subshell os.sh in
-    let proc = Shell Proc_Running stmt subsh os.symbolic.sh_fds in
+    let proc = Shell Proc_Running (try_avoid_fork stmt) subsh os.symbolic.sh_fds in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
        command substitution containing only a single trap command,
