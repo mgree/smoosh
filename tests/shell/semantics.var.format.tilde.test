@@ -1,0 +1,7 @@
+unset x
+tilde=~
+: ${x:=~}
+ext=~/foo
+[ "$x" = "$tilde" ] && \
+[ "/foo" = ${ext#~} ] && \
+! $TEST_SHELL -c 'echo ${y?~}'
