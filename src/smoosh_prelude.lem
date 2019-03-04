@@ -1028,13 +1028,17 @@ let rec null_fields fs =
      end
    end
 
-val symbolic_string_of_fields : fields -> symbolic_string
-let rec symbolic_string_of_fields fs = 
+
+val symbolic_string_of_fields_sep : symbolic_string -> fields -> symbolic_string
+let rec symbolic_string_of_fields_sep sep fs = 
   match fs with
   | [] -> []
   | [f] -> f
-  | f::fs' -> f ++ [C #' '] ++ symbolic_string_of_fields fs'
+  | f::fs' -> f ++ sep ++ symbolic_string_of_fields_sep sep fs'
   end
+
+val symbolic_string_of_fields : fields -> symbolic_string
+let symbolic_string_of_fields = symbolic_string_of_fields_sep [C #' ']
 
 val maximal_char_list : symbolic_string -> (list char * symbolic_string)
 let rec maximal_char_list sym_str =

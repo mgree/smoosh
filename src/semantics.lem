@@ -252,6 +252,21 @@ let rec expand_control s0 q tm k =
             end
          | _ -> build_at param_vars
          end
+       else if s = "*" && q = Quoted
+       then let param_vars = get_function_params s0 in
+            let (s1,sep) = 
+              match lookup_string_param s0 "IFS" with
+              | Nothing -> (s0,[C #' '])
+              | Just ss ->
+                 let (s1,_,ifs) = concretize s0 ss in
+                 match toCharList ifs with
+                 | [] -> (s1, [])
+                 | c::_ -> (s1, [C c])
+                 end
+              end 
+            in
+            let joined = symbolic_string_of_fields_sep sep param_vars in
+            Right (ESParam "expanded quoted *", s1, NoTilde, expanded_words_of_symbolic_string joined, [])
        else if (s = "@" || s = "*") && f = Normal
        then let param_vars = expanded_words_of_fields (get_function_params s0) in
             Right (ESParam "expanded *", s0, NoTilde, param_vars, [])
