@@ -26,6 +26,7 @@ val concat_expanded : expanded_words -> symbolic_string
 val collapse_quoted : expanded_words -> expanded_words
 val split_fields : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields
 val clean_fields : intermediate_fields -> intermediate_fields
+val skip_field_splitting : expanded_words -> intermediate_fields
 val field_splitting : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields  
   
 let is_ws c = elem c (toCharList " \n\t")

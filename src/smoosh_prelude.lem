@@ -816,8 +816,8 @@ and intermediate_fields = list tmp_field
 
 and expansion_state = 
     (* the constructor name indicates the *next* step to perform *)
-    ExpStart of words
-  | ExpExpand of tilde_mode * expanded_words * words 
+    ExpStart of bool (* perform splitting? *) * words
+  | ExpExpand of bool (* perform splitting? *) * tilde_mode * expanded_words * words 
   | ExpSplit of expanded_words
   | ExpPath of intermediate_fields
   | ExpQuote of intermediate_fields
@@ -1194,6 +1194,17 @@ let rec symbolic_string_of_expanded_words keep_quotes w =
      (* when DQuo generates quotes, we want to escape the other quotes *)
      (if keep_quotes then escape_quotes ss else ss) ++ 
      symbolic_string_of_expanded_words keep_quotes ws
+  end
+
+val symbolic_string_of_intermediate_fields : intermediate_fields -> symbolic_string
+let rec symbolic_string_of_intermediate_fields ifs =
+  match ifs with
+  | [] -> []
+  | FS::ifs' -> C #' '::symbolic_string_of_intermediate_fields ifs'
+  | WFS::ifs' -> C #' '::symbolic_string_of_intermediate_fields ifs'
+  | Field s::ifs' -> s ++ symbolic_string_of_intermediate_fields ifs'
+  | QField s::ifs' -> [C #'\"'] ++ s ++ [C #'\"'] ++ 
+                        symbolic_string_of_intermediate_fields ifs'
   end
 
 val fields_of_expanded_words : expanded_words -> fields
@@ -1705,8 +1716,8 @@ and string_of_substring side mode =
 
 and string_of_expansion_state exp_state =
   match exp_state with
-  | ExpStart w -> string_of_words w
-  | ExpExpand _tm ew w -> string_of_expanded_words ew ^ string_of_words w
+  | ExpStart _split w -> string_of_words w
+  | ExpExpand _split _tm ew w -> string_of_expanded_words ew ^ string_of_words w
   | ExpSplit ew -> string_of_expanded_words ew
   | ExpPath ifs -> string_of_intermediate_fields ifs
   | ExpQuote ifs -> string_of_intermediate_fields ifs

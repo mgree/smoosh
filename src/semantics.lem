@@ -11,6 +11,15 @@ import Debug
 (* SHARED DECLARATIONS FOR EXPANSION AND EVALUATION *******************)   
 (**********************************************************************)   
 
+(* TECHNICAL DEBT 2019-03-04 just have an opts record *)
+
+type splitting_mode =
+    Split
+  | NoSplit
+
+let splitting_mode b =
+  if b then Split else NoSplit
+
 type string_mode =
     UserString
   | GeneratedString
@@ -30,11 +39,11 @@ type step_assign_result 'a =
   | SAStep of evaluation_step * os_state 'a * list (string * expansion_state)
             
 val expand_control : forall 'a. OS 'a => 
-                     os_state 'a -> quoting_mode -> tilde_mode -> control ->
+                     os_state 'a -> splitting_mode -> quoting_mode -> tilde_mode -> control ->
                      either (expansion_step * os_state 'a * expanded_words) 
                             (expansion_step * os_state 'a * tilde_mode * expanded_words * words) 
 val expand_words : forall 'a. OS 'a => 
-                   os_state 'a -> quoting_mode -> tilde_mode -> string_mode -> 
+                   os_state 'a -> splitting_mode -> quoting_mode -> tilde_mode -> string_mode -> 
                    (expanded_words * words) ->
                    either (expansion_step * os_state 'a * expanded_words) 
                           (expansion_step * os_state 'a * tilde_mode * expanded_words * words) 
@@ -95,7 +104,6 @@ let expansion_error s0 evalstep expstep err =
                       s1,
                       if is_interactive s1 then Done else Exit))
 
-
 (**********************************************************************)   
 (* EXPANSION **********************************************************)   
 (**********************************************************************)   
@@ -104,7 +112,7 @@ let expansion_error s0 evalstep expstep err =
  * Stage 1 Expansion: Word expansion
  *)
 
-val expand_param : forall 'a. OS 'a => os_state 'a -> quoting_mode -> string -> format -> os_state 'a * expanded_words * words
+val expand_param : forall 'a. OS 'a => os_state 'a -> splitting_mode -> quoting_mode -> string -> format -> os_state 'a * expanded_words * words
 
 (* TODO 2017-12-01
  * In an N____ case, when null_string fs is Nothing, the
@@ -113,12 +121,12 @@ val expand_param : forall 'a. OS 'a => os_state 'a -> quoting_mode -> string -> 
  * true or false, we don't know". This means we need to branch
  * and allow for both cases to progress.
  *)
-let expand_param s0 q str f =
+let expand_param s0 split q str f =
   (* return type says we yield `expanded_words * words`, but really
      only one or the other these functions package up the possible
      bits of logic *)
   let (s1, value) =
-    if str = "*" && q = Quoted
+    if str = "*" && (q = Quoted || split = NoSplit)
     then 
       let (s1, sep) = 
         match lookup_string_param s0 "IFS" with
@@ -206,7 +214,7 @@ let expand_param s0 q str f =
   | (Just fs, Substring s m w) -> ctrl (LMatch fs s m [] w)
   end
 
-let rec expand_control s0 q tm k =
+let rec expand_control s0 split q tm k =
     match k with
     | Tilde -> 
        if tm = YesTilde then
@@ -278,7 +286,7 @@ let rec expand_control s0 q tm k =
                   s0
            else s0
          in
-         let expand_more w = expand_words s1 q NoTilde GeneratedString ([],w) in
+         let expand_more w = expand_words s1 split q NoTilde GeneratedString ([],w) in
          let build_at v = Right (ESParam "expanding @", s1, NoTilde, [At v], []) in
          match f with
          | Default _ -> build_at param_vars
@@ -319,8 +327,8 @@ let rec expand_control s0 q tm k =
          | _ -> build_at param_vars
          end
        else 
-         let (s1, ew, w) = expand_param s0 q s f in
-         expand_words s1 q YesTilde GeneratedString (ew, w)
+         let (s1, ew, w) = expand_param s0 split q s f in
+         expand_words s1 split q YesTilde GeneratedString (ew, w)
     | LAssign s f [] ->
        match set_param s (concat_expanded f) s0 with
        | Left err -> Left (ESParam "bad or readonly variable", s0, ExpS err::f)
@@ -328,7 +336,7 @@ let rec expand_control s0 q tm k =
        end
     | LAssign s f w ->
        let tm = if f = [] then YesTilde else NoTilde in
-       match expand_words s0 q tm GeneratedString ([], w) with
+       match expand_words s0 split q tm GeneratedString ([], w) with
        | Right (step, s1, tm1, f1, w1) ->
           Right (ESNested (ESParam "assignment") step, 
                  s1, tm1, [], [K (LAssign s (f ++ f1) w1)])
@@ -344,7 +352,7 @@ let rec expand_control s0 q tm k =
               words_of_symbolic_string matched)
     | LMatch s side mode f w ->
        let tm = if f = [] then YesTilde else NoTilde in
-       match expand_words s0 q tm GeneratedString ([], w) with
+       match expand_words s0 split q tm GeneratedString ([], w) with
        | Right (step, s1, tm1, f1, w1) -> 
           Right (ESNested (ESParam "match") step, 
                  s1, tm1, [], [K (LMatch s side mode (f ++ f1) w1)])
@@ -355,7 +363,7 @@ let rec expand_control s0 q tm k =
        Left (ESParam "raising requested error", s0, ExpS (str ^ ": ")::f) 
     | LError str f w ->
        let tm = if f = [] then YesTilde else NoTilde in
-       match expand_words s0 q tm GeneratedString ([], w) with
+       match expand_words s0 split q tm GeneratedString ([], w) with
        | Right (step, s1, tm1, f1, w1) -> 
           Right (ESNested (ESParam "error") step, 
                  s1, tm1, [], [K (LError str (f ++ f1) w1)])
@@ -443,7 +451,7 @@ let rec expand_control s0 q tm k =
         | Left e -> Left (ESArith "arithmetic error", s0, [ExpS e])
         end
     | Arith f w ->
-       match expand_words s0 q YesTilde GeneratedString ([],w) with
+       match expand_words s0 split q YesTilde GeneratedString ([],w) with
        | Right (step, s1, tm1, f1, w1) -> 
           Right (ESNested (ESArith "before arithmetic parsing") step, 
                  s1, tm1, [], [K (Arith (f ++ f1) w1)])
@@ -453,18 +461,18 @@ let rec expand_control s0 q tm k =
       Right (ESQuote "finished quote expansion", 
              s0, NoTilde, collapse_quoted f, [])
    | Quote f w -> 
-       match expand_words s0 Quoted NoTilde GeneratedString ([],w) with
+       match expand_words s0 split Quoted NoTilde GeneratedString ([],w) with
        | Right (step, s1, _tm1, f1, w1) -> 
           Right (step, s1, NoTilde, [], [K (Quote (f ++ f1) w1)])
        | Left err -> Left err
        end
   end
 
-and expand_words s0 q tm sm (f,w) =
+and expand_words s0 split q tm sm (f,w) =
   match w with
     | [] -> Right (ESStep "done", s0, tm, f, w)
     | F::ws -> Right (ESStep "user field separator", s0, YesTilde, f ++ [UsrF], ws)
-    | S ""::ws -> expand_words s0 q tm sm (f,ws)
+    | S ""::ws -> expand_words s0 split q tm sm (f,ws)
     | S s ::ws ->
        let f1 = match (q, sm) with
          | (Quoted, _) -> [DQuo (symbolic_string_of_string s)]
@@ -475,7 +483,7 @@ and expand_words s0 q tm sm (f,w) =
        let tm' = if last_char = #':' then YesTilde else NoTilde in
        Right (ESStep "plain string", s0, tm', f ++ f1, ws)
     | K k::ws ->
-       match expand_control s0 q tm k with
+       match expand_control s0 split q tm k with
        | Right (step, s1, tm1, f1, w1) -> Right (step, s1, tm1, f++f1, (w1 ++ ws))
        | Left err -> Left err
        end
@@ -486,20 +494,42 @@ and expand_words s0 q tm sm (f,w) =
 (* EXPANSION TRANSITIONS **********************************************)
 (**********************************************************************)
 
+ (* TECHNICAL DEBT 2019-03-04
+
+   There are a variety of ways to run only part of expansion.
+
+   dash accomplishes this with a variety of flags.
+
+   we have a variety of ad hoc ways (boolean flags, interrupting
+    stepping)
+
+   can we make this uniform? how many different ways of expanding are
+    there, really?
+ *)
+ (* TECHNICAL DEBT 2019-03-04
+
+    ExpExpand below is _visible_ it steps to a final state before
+    transitioning to the next stage of expansion. Plenty of bits of
+    expansion/evaluation have the opportunity for visibility, but most
+    of our step relations do some invisible work.
+
+    It's probably better if _everything_ is made visible.
+  *)
+
 and step_expansion (os0,st) =
   match st with
-  | ExpStart w0 -> 
-     match expand_words os0 Unquoted YesTilde UserString ([],w0) with
-     | Right (step, os1, tm, f1, w1) -> (step, os1, ExpExpand tm f1 w1)
+  | ExpStart split w0 -> 
+     match expand_words os0 (splitting_mode split) Unquoted YesTilde UserString ([],w0) with
+     | Right (step, os1, tm, f1, w1) -> (step, os1, ExpExpand split tm f1 w1)
      | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
-  | ExpExpand tm0 f0 w0 -> 
-     match expand_words os0 Unquoted tm0 UserString (f0,w0) with
-     | Right (step, os1, tm1, f1, w1) ->
-        match w1 with
-        | [] -> (step, os1, ExpSplit f1)
-        | _ ->  (step, os1, ExpExpand tm1 f1 w1)
-        end
+  | ExpExpand split _tm0 f0 [] ->
+     if split
+     then (ESSplit "starting field splitting", os0, ExpSplit f0)
+     else (ESSplit "skipping field splitting", os0, ExpPath (skip_field_splitting f0))
+  | ExpExpand split tm0 f0 w0 -> 
+     match expand_words os0 (splitting_mode split) Unquoted tm0 UserString (f0,w0) with
+     | Right (step, os1, tm1, f1, w1) -> (step, os1, ExpExpand split tm1 f1 w1)
      | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
   | ExpSplit f0 -> (ESSplit "", os0, ExpPath (field_splitting os0 f0))
@@ -560,10 +590,10 @@ and step_redir_state os0 redir_state =
   | (ers, Nothing, r::redirs) ->
      let (msg, ers, exp_state) =
        match r with
-       | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart w)))
+       | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart true (* splitting? *) w)))
        | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty false (* don't close orig *) src tgt], Nothing)
        | RHeredoc XHere src w -> 
-          ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart w)))
+          ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart true (* splitting? *) w)))
        | RHeredoc Here src w -> 
           ("not expanding quoted heredoc", 
            ers ++ [ERHeredoc Here src [symbolic_string_of_string (string_of_words w)]], 
@@ -633,7 +663,7 @@ and step_eval s0 checked stmt =
      Right (XSSimple "begin expansion",
             s0,
             CommandExpAssign
-              (map (fun (x, w) -> (x, ExpStart w)) assigns)
+              (map (fun (x, w) -> (x, ExpStart false (* don't split *) w)) assigns)
               ws
               redirs
               opts)
@@ -688,7 +718,7 @@ and step_eval s0 checked stmt =
      | SADone fields ->
         Right (XSSimple "assignments fully expanded",
                s0,
-               CommandExpArgs fields (ExpStart ws) redirs opts)
+               CommandExpArgs fields (ExpStart true (* split args *) ws) redirs opts)
     end
   | CommandExpArgs assigns exp_state redirs opts ->
       let (step, s1, st1) = step_expansion (s0, exp_state) in
@@ -1090,7 +1120,7 @@ and step_eval s0 checked stmt =
       end
 
   (* FOR **********************************************************************)
-  | For var ws body -> Right (XSFor "begin arg expansion", s0, ForExpArgs var (ExpStart ws) body)
+  | For var ws body -> Right (XSFor "begin arg expansion", s0, ForExpArgs var (ExpStart true (* split *) ws) body)
   | ForExpArgs var exp_state body ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
@@ -1148,12 +1178,12 @@ and step_eval s0 checked stmt =
       end
 
   (* CASE *********************************************************************)
-  | Case ws cases -> Right (XSCase "begin arg expansion", s0, CaseExpArg (ExpStart ws) cases)
+  | Case ws cases -> Right (XSCase "begin arg expansion", s0, CaseExpArg (ExpStart false (* don't split *) ws) cases)
   | CaseExpArg exp_state cases ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError err -> expansion_error os1 (XSCase "arg expansion") step err
-        | ExpSplit ew ->
+        | ExpExpand _split _tm ew [] ->
         (* "...matched by the string resulting from the tilde
            expansion, parameter expansion, command substitution,
            arithmetic expansion, and quote removal of the given word." *)
@@ -1175,22 +1205,19 @@ and step_eval s0 checked stmt =
         | (pat::pats', cmd)::cases' ->
            Right (XSCase "checking pattern match",
                   s0,
-                  CaseCheckMatch f (ExpStart pat) cmd ((pats',cmd)::cases'))
+                  CaseCheckMatch f (ExpStart false (* don't split *) pat) cmd ((pats',cmd)::cases'))
       end
   | CaseCheckMatch f pat cmd cases ->
       let (step, os1, st1) = step_expansion (s0, pat) in
       match st1 with
         | ExpError err -> expansion_error os1 (XSCase "error in argument expansion") step err
-        | ExpSplit pat_ew' ->
+        | ExpExpand _split _tm ew [] ->
            (* "each pattern that labels a compound-list shall be
               subjected to tilde expansion, parameter expansion,
-              command substitution, and arithmetic expansion" ... so
-              we stop at ExpSplit 
-
-              TODO 2018-11-07 the nicer way to do this is to express our stopping point in ExpStart, but whatevs
+              command substitution, and arithmetic expansion" ...
             *)
            (* TODO 2018-08-29 use proper locale *)
-           let pat' = symbolic_string_of_expanded_words true (* keep quotes *) pat_ew' in
+           let pat' = symbolic_string_of_expanded_words true (* keep quotes *) ew in
            match match_exact lc_ambient pat' f with
            | NoMatch -> Right (XSCase "case did not match, trying the next",
                                os1, CaseMatch f cases)
@@ -1439,7 +1466,7 @@ let rec symbolic_run_full_expansion os0 st0 =
 
 val symbolic_full_expansion 
     : os_state symbolic -> words -> os_state symbolic * fields
-let symbolic_full_expansion s0 w0 = symbolic_run_full_expansion s0 (ExpStart w0)
+let symbolic_full_expansion s0 w0 = symbolic_run_full_expansion s0 (ExpStart true (* split *) w0)
 
 val symbolic_full_evaluation : os_state symbolic -> stmt -> os_state symbolic
 let symbolic_full_evaluation s0 c = full_evaluation s0 c
@@ -1480,9 +1507,3 @@ let real_eval = full_evaluation
 
 val real_eval_for_exit_code : os_state system -> stmt -> nat
 let real_eval_for_exit_code = eval
-
-(**********************************************************************)   
-(* PROPERTIES *********************************************************)   
-(**********************************************************************)   
-
-lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x Normal = (s0, [ExpS s], [])
