@@ -544,7 +544,7 @@ let rec eval_arith bits s0 e =
           | Lt -> Right (s2, bool_to_num (n1 < n2))
           | Lte -> Right (s2, bool_to_num (n1 <= n2))
           | Gt -> Right (s2, bool_to_num (n1 > n2))
-          | Gte -> Right (s2, bool_to_num (n1 <= n2))
+          | Gte -> Right (s2, bool_to_num (n1 >= n2))
           | Eq -> Right (s2, bool_to_num (n1 = n2))
           | NEq -> Right (s2, bool_to_num (n1 <> n2))
           | BitAnd -> Right (s2, n1 land n2)
