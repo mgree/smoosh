@@ -45,12 +45,10 @@ let rec split_expstring ifs clst =
    match clst with
    | [] -> []
    | c::cs ->
-       if is_ws c
-       then WFS::split_expstring ifs cs
-       else if elem c ifs
-       then FS::split_expstring ifs cs
-       else let (cc, cs1) = collect_non_ifs ifs cs in 
-            (Field (symbolic_string_of_char_list (c::cc)))::(split_expstring ifs cs1)
+      if elem c ifs
+      then (if is_ws c then WFS else FS)::split_expstring ifs cs
+      else let (cc, cs1) = collect_non_ifs ifs cs in 
+           (Field (symbolic_string_of_char_list (c::cc)))::(split_expstring ifs cs1)
   end
 
 let rec split_word ifs p =
@@ -129,8 +127,8 @@ let rec combine_fields f =
   | [] -> []
   | [WFS] -> [] (* Remove trailing field separators *)
   | (WFS::WFS::rst) -> combine_fields (WFS::rst) (* Combine adjacent whitespace separators *)
-(*  | (WFS::FS::rst) -> combine_fields (FS::rst)
-  | (FS::WFS::rst) -> combine_fields (FS::rst) *)
+  | (WFS::FS::rst) -> combine_fields (FS::rst)
+  | (FS::WFS::rst) -> combine_fields (FS::rst)
   | (Field(s1)::Field(s2)::rst) -> combine_fields (Field(s1 ++ s2)::rst)
   | (WFS::rst) -> FS::(combine_fields rst)
   | (f::rst) -> f::(combine_fields rst)
