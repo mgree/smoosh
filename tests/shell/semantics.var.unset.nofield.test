@@ -1,0 +1,2 @@
+count() { echo $#; }
+[ $(count a $nonesuch b) -eq 2 ]

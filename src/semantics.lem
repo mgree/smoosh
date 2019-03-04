@@ -153,7 +153,7 @@ let expand_param s0 split q str f =
   then ctrl (LError str [ExpS "parameter not set"] [])
   else match (value, f) with
   (* NORMAL *)
-  | (Nothing, Normal)     -> cstr "" (* null *)
+  | (Nothing, Normal)     -> wrds [] (* unset, no field *)
   | (Just fs, Normal)     -> ewfs fs
   (* DEFAULT *)
   | (Nothing, Default w)  -> wrds w

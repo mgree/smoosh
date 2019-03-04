@@ -54,6 +54,7 @@ let rec split_expstring ifs clst =
 let rec split_word ifs p =
   match p with
   | (f, []) -> f
+  | (f, UsrF::UsrF::wrds) -> split_word ifs (f, UsrF::wrds)
   | (f, UsrF::wrds) -> split_word ifs (f ++ [FS], wrds)
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_expstring ifs (toCharList s) in
