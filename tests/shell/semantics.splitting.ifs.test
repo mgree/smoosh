@@ -1,0 +1,6 @@
+cat << EOF > input
+-,1-,-2,-,3,-
+EOF
+
+IFS="-,"
+echo `cat input`

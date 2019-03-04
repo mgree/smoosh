@@ -44,9 +44,10 @@ let rec split_expstring ifs clst =
    match clst with
    | [] -> []
    | c::cs ->
-       if elem c ifs
-       then let fs = if is_ws c then WFS else FS 
-            in fs::split_expstring ifs cs
+       if is_ws c
+       then WFS::split_expstring ifs cs
+       else if elem c ifs
+       then FS::split_expstring ifs cs
        else let (cc, cs1) = collect_non_ifs ifs cs in 
             (Field (symbolic_string_of_char_list (c::cc)))::(split_expstring ifs cs1)
   end
@@ -111,8 +112,8 @@ let rec combine_fields f =
   | [] -> []
   | [WFS] -> [] (* Remove trailing field separators *)
   | (WFS::WFS::rst) -> combine_fields (WFS::rst) (* Combine adjacent whitespace separators *)
-  | (WFS::FS::rst) -> combine_fields (FS::rst)
-  | (FS::WFS::rst) -> combine_fields (FS::rst)
+(*  | (WFS::FS::rst) -> combine_fields (FS::rst)
+  | (FS::WFS::rst) -> combine_fields (FS::rst) *)
   | (Field(s1)::Field(s2)::rst) -> combine_fields (Field(s1 ++ s2)::rst)
   | (WFS::rst) -> FS::(combine_fields rst)
   | (f::rst) -> f::(combine_fields rst)
@@ -124,7 +125,17 @@ let rec clean_fields f =
   | _ -> combine_fields f
   end
 
-let field_splitting s0 w = clean_fields (split_fields s0 w)
+let debug_tmp_field tf =
+  match tf with
+  | WFS -> "WFS"
+  | FS -> "FS"
+  | Field s -> "Field(" ^ string_of_symbolic_string s ^ ")"
+  | QField s -> "QField(" ^ string_of_symbolic_string s ^ ")"
+  end
+
+let field_splitting s0 w = 
+  let fs = split_fields s0 w in
+  clean_fields fs
 
 (*
  * Stage 3 Expansion: Pathname expansion
@@ -197,15 +208,14 @@ let rec remove_quotes f =
 
 let rec to_fields f =
   match f with
-  | []           -> []
-  | FS::FS::rst  -> (symbolic_string_of_string "")::(to_fields rst)
-  | Field fs::rst -> 
-     fs::(to_fields rst)
-  | FS::rst      -> to_fields rst
+  | []            -> []
+  | Field fs::rst -> fs::(to_fields rst)
+  | FS::FS::rst   -> (symbolic_string_of_string "")::(to_fields (FS::rst))
+  | FS::rst       -> to_fields rst
   (* TODO 2017-12-01 Preferably we need an AST that doesn't have WFS or QField's at this point, or lem failure *)
-  | WFS::_       -> 
+  | WFS::_        -> 
      Assert_extra.failwith "broken invariant in to_fields: didn't expect WFS"
-  | QField _::_  -> 
+  | QField _::_   -> 
      Assert_extra.failwith "broken invariant in to_fields: didn't expect QField"
   end
 
