@@ -4,4 +4,4 @@ var=:~
 [ "\$var" = ":$tilde" ]
 EOF
 chmod +x test_script
-./test_script
+$TEST_SHELL test_script

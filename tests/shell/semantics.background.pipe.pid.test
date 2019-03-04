@@ -1,5 +1,5 @@
 echo 'echo $$ > pid.out' >showpid.sh
 chmod +x showpid.sh
-true | ./showpid.sh &
+true | $TEST_SHELL showpid.sh &
 sleep 1
 [ "$!" -eq "$(cat pid.out)" ]
