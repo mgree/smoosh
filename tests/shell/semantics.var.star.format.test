@@ -3,3 +3,6 @@ tn=$(printf '%b' 'and\ttabs\n and newlines')
 set -- a "$sp" b c "$tn"
 IFS=": "
 printf '<%s>\n' "${var=$*}"
+unset var
+unset IFS
+printf '<%s>\n' "${var=$*}"
