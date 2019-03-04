@@ -21,7 +21,7 @@ val is_ws : char -> bool
 val collect_non_ifs : list char -> list char -> (list char) * (list char)
 (*val collect_ifs_whitespace : list char -> list char -> list char*)
 val split_expstring : list char -> list char -> intermediate_fields
-val split_word : list char -> (intermediate_fields * expanded_words) -> (intermediate_fields * expanded_words)
+val split_word : list char -> (intermediate_fields * expanded_words) -> intermediate_fields
 val concat_expanded : expanded_words -> symbolic_string
 val collapse_quoted : expanded_words -> expanded_words
 val split_fields : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields
@@ -54,7 +54,7 @@ let rec split_expstring ifs clst =
 
 let rec split_word ifs p =
   match p with
-  | (f, []) -> (f, [])
+  | (f, []) -> f
   | (f, UsrF::wrds) -> split_word ifs (f ++ [FS], wrds)
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_expstring ifs (toCharList s) in
@@ -94,18 +94,34 @@ let collapse_quoted w =
   | _ -> Assert_extra.failwith "broken invariant in collapse_quoted: couldn't find At anywhere, but got weird output"
   end
 
+let rec skip_field_splitting w =
+  match w with
+  | [] -> []
+  | UsrF::ws -> FS::skip_field_splitting ws
+  | UsrS s::ws -> Field (symbolic_string_of_string s)::skip_field_splitting ws
+  | ExpS s::ws -> Field (symbolic_string_of_string s)::skip_field_splitting ws
+  | DQuo s::ws -> QField s::skip_field_splitting ws
+  | At fs::ws -> intersperse FS (List.map QField fs) ++ skip_field_splitting ws
+  | EWSym sym::ws -> Field [Sym sym]::skip_field_splitting ws
+  end
+
 let split_fields s0 exp_words =
   let ifs = lookup_string_param s0 "IFS" in
-  let (f, _) = match ifs with
-    | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
-    | Just fs -> 
-       match try_concrete fs with
-       | Nothing -> 
-          (* TODO 2018-08-29 unsoundly using default IFS. symbolic IFS is basically impossible. should record this unsoundness. *)
-          split_word (toCharList " \n\t") ([], exp_words)
-       | Just s -> split_word (toCharList s) ([], exp_words)
-       end
-  end in f
+  match ifs with
+  | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
+  | Just fs -> 
+     match try_concrete fs with
+     | Nothing -> 
+        (* TODO 2018-08-29 unsoundly using default IFS. symbolic IFS
+           is basically impossible. should record this
+           unsoundness. *)
+        split_word (toCharList " \n\t") ([], exp_words)
+     | Just "" -> 
+        (* If the value of IFS is null, no field splitting shall be performed. *)
+        skip_field_splitting exp_words
+     | Just s -> split_word (toCharList s) ([], exp_words)
+     end
+  end
 
 let rec combine_fields f =
   match f with

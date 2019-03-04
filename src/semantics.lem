@@ -91,7 +91,6 @@ let check_traps res =
 let expansion_error s0 evalstep expstep err =
   let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
   let s1 = fail_with msg s0 in
-  let _ = Debug.print_endline ("failing with: " ^ msg) in
   check_traps (Right ((XSExpand evalstep expstep),
                       s1,
                       if is_interactive s1 then Done else Exit))
