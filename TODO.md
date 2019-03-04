@@ -78,8 +78,8 @@ echo "\\\\\\"
     bonus: simpler logic on special parameters (never in env)
     
 
-- what is the exact correct behavior for IFS null?
-  no field splitting should happen on _strings_
+- IFS=" \n\t" should work
+  not obviously in the spec?
 
 - `string_of_fields` pretty printing
   put single quotes around fields that have WS in them
