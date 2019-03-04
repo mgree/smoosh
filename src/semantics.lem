@@ -95,7 +95,7 @@ let check_traps res =
  * Stage 1 Expansion: Word expansion
  *)
 
-val expand_param : forall 'a. OS 'a => os_state 'a -> quoting_mode -> string -> format -> words
+val expand_param : forall 'a. OS 'a => os_state 'a -> quoting_mode -> string -> format -> expanded_words * words
 (* Runs expansion all the way, for testing purposes only *)
 val control_code_expansion : forall 'a. OS 'a => os_state 'a -> quoting_mode -> words -> (os_state 'a * expanded_words)
 
@@ -106,67 +106,96 @@ val control_code_expansion : forall 'a. OS 'a => os_state 'a -> quoting_mode -> 
  * true or false, we don't know". This means we need to branch
  * and allow for both cases to progress.
  *)
-let expand_param s0 _q str f =
-  let value = lookup_param s0 str in
+let expand_param s0 q str f =
+  (* return type says we yield `expanded_words * words`, but really
+     only one or the other these functions package up the possible
+     bits of logic *)
+  let cstr s  = ([ExpS s], []) in
+  let ewfs fs = (expanded_words_of_fields fs, []) in
+  let wrds w  = ([], w) in
+  let ctrl k  = ([], [K k]) in
+  let value =
+    if str = "*" && q = Quoted
+    then 
+      let param_vars = get_function_params s0 in
+      (* TODO 2019-03-03 thread state for concretization 
+
+         PICK UP HERE
+       *)
+      let (_s1,sep) = 
+        match lookup_string_param s0 "IFS" with
+        | Nothing -> (s0,[C #' '])
+        | Just ss ->
+           let (s1,_,ifs) = concretize s0 ss in
+           match toCharList ifs with
+           | [] -> (s1, [])
+           | c::_ -> (s1, [C c])
+           end
+        end 
+      in
+      Just [symbolic_string_of_fields_sep sep param_vars]
+    else
+      lookup_param s0 str
+  in
   if not (elem str ["@"; "*"]) && 
      Set.member Sh_nounset s0.sh.opts &&
      value = Nothing
-  then [K (LError str [ExpS "parameter not set"] [])]
+  then ctrl (LError str [ExpS "parameter not set"] [])
   else match (value, f) with
   (* NORMAL *)
-  | (Nothing, Normal)     -> [S ""] (* null *)
-  | (Just fs, Normal)     -> words_of_fields fs
+  | (Nothing, Normal)     -> cstr "" (* null *)
+  | (Just fs, Normal)     -> ewfs fs
   (* DEFAULT *)
-  | (Nothing, Default w)  -> w
-  | (Just fs, Default _)  -> words_of_fields fs
-  | (Nothing, NDefault w) -> w
+  | (Nothing, Default w)  -> wrds w
+  | (Just fs, Default _)  -> ewfs fs
+  | (Nothing, NDefault w) -> wrds w
   | (Just fs, NDefault w) ->
      match null_fields fs with
-     | Nothing -> words_of_fields fs
-     | Just true -> w
-     | Just false -> words_of_fields fs
+     | Nothing -> ewfs fs
+     | Just true -> wrds w
+     | Just false -> ewfs fs
      end
   (* ASSIGN *)
-  | (Nothing, Assign w)  -> [K (LAssign str [] w)]
-  | (Just fs, Assign _)  -> words_of_fields fs       
-  | (Nothing, NAssign w) -> [K (LAssign str [] w)]
+  | (Nothing, Assign w)  -> ctrl (LAssign str [] w)
+  | (Just fs, Assign _)  -> ewfs fs       
+  | (Nothing, NAssign w) -> ctrl (LAssign str [] w)
   | (Just fs, NAssign w) -> 
      match null_fields fs with
-     | Nothing -> words_of_fields fs
-     | Just true -> [K (LAssign str [] w)]
-     | Just false -> words_of_fields fs
+     | Nothing -> ewfs fs
+     | Just true -> ctrl (LAssign str [] w)
+     | Just false -> ewfs fs
      end
   (* ERROR *)
-  | (Nothing, Error w)  -> [K (LError str [] w)]
-  | (Just fs, Error _)  -> words_of_fields fs
-  | (Nothing, NError w) -> [K (LError str [] w)]
+  | (Nothing, Error w)  -> ctrl (LError str [] w)
+  | (Just fs, Error _)  -> ewfs fs
+  | (Nothing, NError w) -> ctrl (LError str [] w)
   | (Just fs, NError w) -> 
      match null_fields fs with
-     | Nothing -> words_of_fields fs
-     | Just true -> [K (LError str [] w)]
-     | Just false -> words_of_fields fs
+     | Nothing -> ewfs fs
+     | Just true -> ctrl (LError str [] w)
+     | Just false -> ewfs fs
      end
   (* LENGTH *)
-  | (Nothing, Length) -> [S "0"]
+  | (Nothing, Length) -> cstr "0"
   | (Just fs, Length) ->
      (* TODO 2018-10-08 need to return a new state to support logging of concretization *)
      match try_concrete_fields fs with
-     | Nothing -> (* TODO This should be the length of the symbolic result of fs *) [S "0"]
-     | Just strs -> [S (show (stringLength strs))]
+     | Nothing -> (* TODO This should be the length of the symbolic result of fs *) cstr "0"
+     | Just strs -> cstr (show (stringLength strs))
      end
   (* ALT *)
-  | (Nothing, Alt _)  -> [S ""]
-  | (Just _, Alt w)  -> w
-  | (Nothing, NAlt _) -> [S ""]
+  | (Nothing, Alt _)  -> cstr ""
+  | (Just _, Alt w)  -> wrds w
+  | (Nothing, NAlt _) -> cstr ""
   | (Just fs, NAlt w) ->
      match null_fields fs with
-     | Nothing -> words_of_fields fs
-     | Just true -> [S ""]
-     | Just false -> w
+     | Nothing -> wrds w (* TODO 2019-03-03 log symbolic defaulting to nonempty *)
+     | Just true -> cstr ""
+     | Just false -> wrds w
      end
   (* SUBTRINGS (prefix/suffix) *)
-  | (Nothing, Substring _ _ _) -> [S ""]
-  | (Just fs, Substring s m w) -> [K (LMatch fs s m [] w)]
+  | (Nothing, Substring _ _ _) -> cstr ""
+  | (Just fs, Substring s m w) -> ctrl (LMatch fs s m [] w)
   end
 
 let rec expand_control s0 q tm k =
@@ -223,19 +252,38 @@ let rec expand_control s0 q tm k =
          let param_vars = get_function_params s0 in
          (* TODO it doesn't seem specified what happens with the various formats.
 
-            -, = and ? don't seem to adhere, since $@ is never unset/null
+            PICK UP HERE
+            TODO 2019-03-03 Technically, # and substring are unspec on * and @.
+
+            -, = and ? can adhere when no params set
             + should always just expand the words, since $@ is never unset/null
             # should expand everything, convert to a string, and count. same as *.
             %/%% operates on the last param and #/## on the first param (in dash)
           *)
          let expand_more w = expand_words s0 q NoTilde GeneratedString ([],w) in
-         let build_at v = 
-           Right (ESParam "expanding @", s0, NoTilde, [At v], []) 
-         in
+         let build_at v = Right (ESParam "expanding @", s0, NoTilde, [At v], []) in
          match f with
+         | Default _ -> build_at param_vars
+         | NDefault w ->
+            if null param_vars
+            then expand_more w
+            else build_at param_vars
+         | Assign _ -> build_at param_vars
+         | NAssign _ -> 
+            if null param_vars
+            then expand_more [K (LError "@" [ExpS "bad variable name"] [])]
+            else build_at param_vars
+         | Error _ -> build_at param_vars
+         | NError w ->
+            if null param_vars
+            then expand_more [K (LError "@" [] w)]
+            else build_at param_vars
          | Length -> expand_more [K (Param "*" Length)]
          | Alt w -> expand_more w
-         | NAlt w -> expand_more w
+         | NAlt w -> 
+            if null param_vars
+            then build_at param_vars
+            else expand_more w
          | Substring Prefix mode w -> 
             match param_vars with
             | v1::vars -> 
@@ -252,25 +300,7 @@ let rec expand_control s0 q tm k =
             end
          | _ -> build_at param_vars
          end
-       else if s = "*" && q = Quoted
-       then let param_vars = get_function_params s0 in
-            let (s1,sep) = 
-              match lookup_string_param s0 "IFS" with
-              | Nothing -> (s0,[C #' '])
-              | Just ss ->
-                 let (s1,_,ifs) = concretize s0 ss in
-                 match toCharList ifs with
-                 | [] -> (s1, [])
-                 | c::_ -> (s1, [C c])
-                 end
-              end 
-            in
-            let joined = symbolic_string_of_fields_sep sep param_vars in
-            Right (ESParam "expanded quoted *", s1, NoTilde, expanded_words_of_symbolic_string joined, [])
-       else if (s = "@" || s = "*") && f = Normal
-       then let param_vars = expanded_words_of_fields (get_function_params s0) in
-            Right (ESParam "expanded *", s0, NoTilde, param_vars, [])
-       else expand_words s0 q YesTilde GeneratedString ([], expand_param s0 q s f)
+       else expand_words s0 q YesTilde GeneratedString (expand_param s0 q s f)
     | LAssign s f [] ->
        match set_param s (concat_expanded f) s0 with
        | Left err -> Left (ESParam "bad or readonly variable", s0, ExpS err::f)
@@ -1455,4 +1485,4 @@ let real_eval_for_exit_code = eval
 (* PROPERTIES *********************************************************)   
 (**********************************************************************)   
 
-lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x Normal = [S s]
+lemma normal_expands_to_string : forall s0 x qm. exists s. expand_param s0 qm x Normal = ([ExpS s], [])
