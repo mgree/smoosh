@@ -199,7 +199,7 @@ let expand_param s0 split q str f =
      end
   (* ALT *)
   | (Nothing, Alt _)  -> cstr ""
-  | (Just _, Alt w)  -> wrds w
+  | (Just _, Alt w)  -> ctrl (LAlt str [] w)
   | (Nothing, NAlt _) -> cstr ""
   | (Just fs, NAlt w) ->
      match null_fields fs with
@@ -207,7 +207,7 @@ let expand_param s0 split q str f =
         let s2 = log_msg "Unsoundly treating symbolic fields as non-empty" s1 in
         (s2, expanded_words_of_fields fs, [])
      | Just true -> cstr ""
-     | Just false -> wrds w
+     | Just false -> ctrl (LAlt str [] w)
      end
   (* SUBTRINGS (prefix/suffix) *)
   | (Nothing, Substring _ _ _) -> cstr ""
@@ -335,8 +335,8 @@ let rec expand_control s0 split q tm k =
        | Right s1 -> Right (ESParam "finished assignment", s1, NoTilde, f, [])
        end
     | LAssign s f w ->
-       let tm = if f = [] then YesTilde else NoTilde in
-       match expand_words s0 split q tm GeneratedString ([], w) with
+       let tm' = if f = [] then YesTilde else NoTilde in
+       match expand_words s0 NoSplit q tm' GeneratedString ([], w) with
        | Right (step, s1, tm1, f1, w1) ->
           Right (ESNested (ESParam "assignment") step, 
                  s1, tm1, [], [K (LAssign s (f ++ f1) w1)])
@@ -351,8 +351,8 @@ let rec expand_control s0 split q tm k =
               s1, NoTilde, [], 
               words_of_symbolic_string matched)
     | LMatch s side mode f w ->
-       let tm = if f = [] then YesTilde else NoTilde in
-       match expand_words s0 split q tm GeneratedString ([], w) with
+       let tm' = if f = [] then YesTilde else NoTilde in
+       match expand_words s0 NoSplit q tm' GeneratedString ([], w) with
        | Right (step, s1, tm1, f1, w1) -> 
           Right (ESNested (ESParam "match") step, 
                  s1, tm1, [], [K (LMatch s side mode (f ++ f1) w1)])
@@ -362,11 +362,22 @@ let rec expand_control s0 split q tm k =
        (* dash seems to print erroring variable name; TODO should we also have linno? *)
        Left (ESParam "raising requested error", s0, ExpS (str ^ ": ")::f) 
     | LError str f w ->
-       let tm = if f = [] then YesTilde else NoTilde in
-       match expand_words s0 split q tm GeneratedString ([], w) with
+       let tm' = if f = [] then YesTilde else NoTilde in
+       match expand_words s0 NoSplit q tm' GeneratedString ([], w) with
        | Right (step, s1, tm1, f1, w1) -> 
           Right (ESNested (ESParam "error") step, 
                  s1, tm1, [], [K (LError str (f ++ f1) w1)])
+       | Left err -> Left err
+       end
+    | LAlt _str f [] -> 
+       (* dash seems to print erroring variable name; TODO should we also have linno? *)
+       Right (ESParam "returning alternate", s0, tm, f, [])
+    | LAlt str f w ->
+       let tm' = if f = [] then YesTilde else NoTilde in
+       match expand_words s0 NoSplit q tm' GeneratedString ([], w) with
+       | Right (step, s1, tm1, f1, w1) -> 
+          Right (ESNested (ESParam "alt") step, 
+                 s1, tm1, [], [K (LAlt str (f ++ f1) w1)])
        | Left err -> Left err
        end
     | Backtick c ->

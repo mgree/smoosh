@@ -1,0 +1,5 @@
+sp="s p  aces"
+tn=$(printf '%b' 'and\ttabs\n and newlines')
+set -- a "$sp" b c "$tn"
+IFS=": "
+printf '<%s>\n' "${var=$*}"

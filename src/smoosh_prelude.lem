@@ -703,6 +703,7 @@ and control =
   | LAssign of string * expanded_words * words (* runtime technicality *)
   | LMatch of fields * substring_side * substring_mode * expanded_words * words (* runtime technicality *)
   | LError of string * expanded_words * words (* runtime technicality *)
+  | LAlt of string * expanded_words * words (* runtime technicality *)
   | Backtick of stmt
   | LBacktick of stmt (* original stmt *) * pid * fd (* pipe [read] *)
   | LBacktickWait of stmt (* original stmt *) * pid * string (* result of command *)
@@ -1679,6 +1680,8 @@ and string_of_control code =
   | LMatch f _side _mode _ew _w -> string_of_fields f (* TODO leaving stuff out *)
   | LError var ew w ->
      "${" ^ var ^ "?" ^ string_of_expanded_words ew ^ string_of_words w ^ "}"
+  | LAlt var ew w ->
+     "${" ^ var ^ "+" ^ string_of_expanded_words ew ^ string_of_words w ^ "}"
   | Backtick c -> 
      "$( " ^ string_of_stmt c ^ " )" (* spaces to prevent arith parsing issues *)
   | LBacktick c _pid _fd -> "$( " ^ string_of_stmt c ^ " )"
