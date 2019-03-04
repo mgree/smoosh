@@ -1,0 +1,7 @@
+tilde=~
+cat << EOF >test_script
+var=:~
+[ "\$var" = ":$tilde" ]
+EOF
+chmod +x test_script
+./test_script

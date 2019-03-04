@@ -5,4 +5,4 @@ echo $var > var.out
 [ -s tilde.out ] && [ -s var.out ] && \
 [ $(cat tilde.out) = $(cat var.out) ] && \
 [ $(cat tilde.out) != "~" ]
-ec=$?
+
