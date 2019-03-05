@@ -585,8 +585,6 @@ and json_of_control = function
                                        ("f", json_of_expanded_words f); ("w", json_of_words w)]
   | LError (x,f,w) -> Assoc [tag "LError"; ("var", String x);
                              ("f", json_of_expanded_words f); ("w", json_of_words w)]
-  | LAlt (x,f,w) -> Assoc [tag "LAlt"; ("var", String x);
-                           ("f", json_of_expanded_words f); ("w", json_of_words w)]
   | Backtick c -> Assoc [tag "Backtick"; ("stmt", json_of_stmt c)]
   | LBacktick (corig, pid, fd_read) -> Assoc [tag "LBacktick"; 
                                               ("orig", json_of_stmt corig);

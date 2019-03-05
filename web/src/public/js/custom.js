@@ -1161,7 +1161,7 @@ function renderFormat(info, elt, format) {
 function renderControl(info, elt, control) {
   console.assert(typeof control === 'object', 'expected control object, got ' + control);
   console.assert('tag' in control, 'expected tag for control object');
-  console.assert(['Tilde', 'TildeUser', 'Param', 'LAssign', 'LMatch', 'LError', 'LAlt', 
+  console.assert(['Tilde', 'TildeUser', 'Param', 'LAssign', 'LMatch', 'LError', 
                   'Backtick', 'LBacktick', 'LBacktickWait', 
                   'Arith', 'Quote'].includes(control['tag']), 
                  'got weird control tag ' + control['tag']);
@@ -1252,25 +1252,6 @@ function renderControl(info, elt, control) {
 
       var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
       fmt.append('?');
-
-      var f = $('<span></span>').appendTo(fmt);
-      renderExpandedWords(info, f, control['f']);
-
-      var w = $('<span></span>').appendTo(fmt);
-      renderWords(info, w, control['w']);
-
-      elt.append('}');
-
-      break;
-
-    case 'LAlt':
-      // | LAlt (x,f,w) -> Assoc [tag "LAlt"; ("var", String x);
-      //                          ("f", json_of_expanded_words f); ("w", json_of_words w)]
-      elt.append('${');
-      elt.append('<span></span>').addClass('param-varname').append(control['var']);
-
-      var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
-      fmt.append('+');
 
       var f = $('<span></span>').appendTo(fmt);
       renderExpandedWords(info, f, control['f']);
