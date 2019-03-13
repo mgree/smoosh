@@ -148,6 +148,12 @@ and to_arg (n : narg structure) : words =
   assert (stack = []);
   a  
 
+and in_quote stack =
+  match stack with
+  | [] -> false
+  | `CTLQuo::_ -> true
+  | _::stack' -> in_quote stack'
+
 and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
   match s,stack with
   | [],[] -> [],[],bqlist,[]
@@ -156,7 +162,7 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
   | [],`CTLQuo::_ -> failwith "End of string before CTLQUOTEMARK"
   (* CTLESC *)
   | '\129'::_ as s,_ -> 
-     let (str,s') = parse_string [] s in
+     let (str,s') = parse_string [] (in_quote stack) s in
      arg_char (S (implode str)) s' bqlist stack
   (* CTLVAR *)
   | '\130'::t::s,_ ->
@@ -223,7 +229,7 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
        end
   (* ordinary character *)
   | _::_,_ -> 
-     let (str,s') = parse_string [] s in
+     let (str,s') = parse_string [] (in_quote stack) s in
      arg_char (S (implode str)) s' bqlist stack
 
 and parse_tilde acc = 
@@ -241,7 +247,7 @@ and parse_tilde acc =
   (* ordinary char *)
   | c::s' -> parse_tilde (acc @ [c]) s'  
 
-and parse_string acc = function
+and parse_string acc quoted = function
   | [] -> List.rev acc, []
   | '\130'::_ as s -> List.rev acc, s
   | '\131'::_ as s -> List.rev acc, s
@@ -250,15 +256,26 @@ and parse_string acc = function
   | '\135'::_ as s -> List.rev acc, s
   | '\136'::_ as s -> List.rev acc, s
   | '~'   ::_ as s -> List.rev acc, s
-  | '\129'::c::s -> 
-     let c' = match c with
-      | '*' -> ['\\'; c]
-      | '?' -> ['\\'; c]
-      | '[' -> ['\\'; c]
-      | _   -> [c]
+  | '\129'::'\\'::'\129'::c::s when quoted ->
+     let c' = 
+       match c with
+       | 'b' -> ['\b']
+       | 'n' -> ['\n']
+       | 'r' -> ['\r']
+       | 't' -> ['\t']
+       | _   -> ['\\'; c]
      in
-     parse_string (List.rev c' @ acc) s
-  | c::s -> parse_string (c::acc) s
+     parse_string (List.rev c' @ acc) quoted s
+  | '\129'::c::s -> 
+     let c' = 
+       match c with
+       | '*' -> ['\\'; c]
+       | '?' -> ['\\'; c]
+       | '[' -> ['\\'; c]
+       | _   -> [c]
+     in
+     parse_string (List.rev c' @ acc) quoted s
+  | c::s -> parse_string (c::acc) quoted s
               
 and arg_char c s bqlist stack =
   let a,s,bqlist,stack = parse_arg s bqlist stack in

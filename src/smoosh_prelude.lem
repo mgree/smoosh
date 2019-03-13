@@ -1155,7 +1155,7 @@ let rec unescape_chars escs ss =
   end
 
 val pattern_escs : list char
-let pattern_escs = toCharList "*?[\""
+let pattern_escs = toCharList "*?["
 
 val unescape_pattern : symbolic_string -> symbolic_string
 let unescape_pattern (pat : symbolic_string) =
