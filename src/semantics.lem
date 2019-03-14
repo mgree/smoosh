@@ -58,7 +58,7 @@ val step_assign : forall 'a. OS 'a =>
                     os_state 'a -> list (string * expansion_state) ->
                     step_assign_result 'a
 val check_traps : forall 'a. OS 'a => step_result 'a -> step_result 'a (* see os.lem for defn *)
-val expansion_error : forall 'a. OS 'a => os_state 'a -> evaluation_step -> expansion_step -> fields -> step_result 'a (* see os.lem for defn *)
+val expansion_error : forall 'a. OS 'a => bool (* may exit? *) -> os_state 'a -> evaluation_step -> expansion_step -> fields -> step_result 'a (* see os.lem for defn *)
 val step_eval : forall 'a. OS 'a => step_fun 'a (* see os.lem for defn *)
 
 val full_evaluation : forall 'a. OS 'a => os_state 'a -> stmt -> os_state 'a
@@ -97,12 +97,12 @@ let check_traps res =
      Right (internal_check_traps step0 s1 c0)
   end
 
-let expansion_error s0 evalstep expstep err =
+let expansion_error may_exit s0 evalstep expstep err =
   let msg = string_of_symbolic_string (symbolic_string_of_fields err) in
   let s1 = fail_with msg s0 in
   check_traps (Right ((XSExpand evalstep expstep),
                       s1,
-                      if is_interactive s1 then Done else Exit))
+                      if may_exit && is_interactive s1 then Done else Exit))
 
 (**********************************************************************)   
 (* EXPANSION **********************************************************)   
@@ -693,7 +693,7 @@ and step_eval s0 checked stmt =
                   s3, 
                   CommandExpAssign assigns [] redirs opts')
         end
-     | ExpError err -> expansion_error s1 (XSSimple "assignment expansion") step err
+     | ExpError err -> expansion_error true (* may exit *) s1 (XSSimple "assignment expansion") step err
      | _ -> 
         Right (XSExpand (XSSimple "") step,
                s1, 
@@ -719,7 +719,7 @@ and step_eval s0 checked stmt =
         Right (exp_step,
                s1,
                CommandExpAssign assigns' ws redirs opts)
-     | SAError f -> expansion_error s0 (XSSimple "assign expansion") (ESStep "") f
+     | SAError f -> expansion_error true (* may exit *) s0 (XSSimple "assign expansion") (ESStep "") f
      (* Done, move on to expanding arguments *)
      | SADone fields ->
         Right (XSSimple "assignments fully expanded",
@@ -729,7 +729,7 @@ and step_eval s0 checked stmt =
   | CommandExpArgs assigns exp_state redirs opts ->
       let (step, s1, st1) = step_expansion (s0, exp_state) in
       match st1 with
-        | ExpError err -> expansion_error s1 (XSSimple "arg expansion") step err
+        | ExpError err -> expansion_error true (* may exit *) s1 (XSSimple "arg expansion") step err
         | ExpDone f ->
            let msg = 
              show (length f) ^ " " ^ if length f = 1 then "argument" else "arguments" ^ 
@@ -880,7 +880,15 @@ and step_eval s0 checked stmt =
    | CommandExpRedirs assigns args redir_state opts ->
       match step_redir_state s0 redir_state with
       | (s1, msg, Nothing) ->
-         expansion_error s1 (XSSimple "error in redirect expansion") (ESStep "") 
+         let (s2, may_exit) =
+           match args with
+           | ss_prog::_ ->
+              let (s2, _, prog) = concretize s1 ss_prog in
+              (s2, is_special_builtin prog)
+           | _ -> (s1, false)
+           end
+         in
+         expansion_error may_exit s2 (XSSimple "error in redirect expansion") (ESStep "") 
            [symbolic_string_of_string msg]
       | (s1, msg, Just (redir_state', mstep)) ->
          let (ran_cmd_subst', step) =
@@ -1130,7 +1138,7 @@ and step_eval s0 checked stmt =
   | ForExpArgs var exp_state body ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
-        | ExpError err -> expansion_error os1 (XSFor "arg expansion") step err
+        | ExpError err -> expansion_error true (* may exit *) os1 (XSFor "arg expansion") step err
         | ExpDone f ->
            Right (XSFor "arguments fully expanded",
                   os1,
@@ -1188,7 +1196,7 @@ and step_eval s0 checked stmt =
   | CaseExpArg exp_state cases ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
-        | ExpError err -> expansion_error os1 (XSCase "arg expansion") step err
+        | ExpError err -> expansion_error true (* may exit *)os1 (XSCase "arg expansion") step err
         | ExpExpand _split _glob _tm ew [] ->
         (* "...matched by the string resulting from the tilde
            expansion, parameter expansion, command substitution,
@@ -1216,7 +1224,7 @@ and step_eval s0 checked stmt =
   | CaseCheckMatch f pat cmd cases ->
       let (step, os1, st1) = step_expansion (s0, pat) in
       match st1 with
-        | ExpError err -> expansion_error os1 (XSCase "error in argument expansion") step err
+        | ExpError err -> expansion_error true (* may exit *)os1 (XSCase "error in argument expansion") step err
         | ExpExpand _split _glob _tm ew [] ->
            (* "each pattern that labels a compound-list shall be
               subjected to tilde expansion, parameter expansion,

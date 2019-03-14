@@ -1,0 +1,2 @@
+unset x
+echo ${x?alas, poor yorick}
