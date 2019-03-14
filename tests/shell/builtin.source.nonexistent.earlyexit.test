@@ -1,0 +1,3 @@
+source not_a_thing
+echo hi
+exit 0

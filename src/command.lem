@@ -521,9 +521,9 @@ let builtin_eval s0 argv _env =
              false (* not interactive *) false (* not top level *), 
            true)
 
-let builtin_source s0 argv _env = 
+let builtin_source argv0 s0 argv _env = 
   match argv with
-  | [] -> Left (s0, "usage: . filename")
+  | [] -> Left (s0, "usage: " ^ argv0 ^ " filename")
   | sfile::_ ->
      match try_concrete sfile with
      | Nothing -> 
@@ -550,7 +550,14 @@ let builtin_source s0 argv _env =
                    false (* not interactive *) false (* not top level *), 
                  true)
         else
-          Left (s0,path ^ ": not found")
+          (* If no readable file is found, a non-interactive shell
+             shall abort; an interactive shell shall write a
+             diagnostic message to standard error, but this condition
+             shall not be considered a syntax error. *)
+          let msg = path ^ ": not found" in
+          if is_interactive s0
+          then Left (s0, msg)
+          else Right (fail_with (argv0 ^ ": " ^ msg) s0, Exit, true)
      end
   end
 
@@ -794,7 +801,7 @@ val special_builtins :
        either (os_state 'a * string) (os_state 'a * stmt * bool))
 let special_builtins =  
   Map.fromList
-    [ (".", builtin_source)
+    [ (".", builtin_source ".")
     ; (":", builtin_colon)
     ; ("break", builtin_break)
     ; ("continue", builtin_continue)
@@ -805,7 +812,7 @@ let special_builtins =
     ; ("readonly", builtin_readonly)
     ; ("return", builtin_return)
     ; ("shift", builtin_shift)
-    ; ("source", builtin_source)
+    ; ("source", builtin_source "source")
     ; ("set", builtin_set)
     ; ("times", builtin_times)
     ; ("trap", builtin_trap)
