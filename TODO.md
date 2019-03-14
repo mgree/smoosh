@@ -25,6 +25,9 @@
   is all of the \ handling correct?
   what should echo do?
 
+  2019-03-14 there's some serious technical debt around triggering expansion within commands.
+      need a uniform set of options/modes so that our congruences can be cleaner
+
 - traps in symbolic mode
     track pid in each shell
       can do away with outermost! just compare pid and rootpid

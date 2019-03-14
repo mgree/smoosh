@@ -816,10 +816,10 @@ and intermediate_fields = list tmp_field
 
 and expansion_state = 
     (* the constructor name indicates the *next* step to perform *)
-    ExpStart of bool (* perform splitting? *) * words
-  | ExpExpand of bool (* perform splitting? *) * tilde_mode * expanded_words * words 
-  | ExpSplit of expanded_words
-  | ExpPath of intermediate_fields
+    ExpStart of bool (* perform splitting? *) * bool (* perform globbing? *) * words
+  | ExpExpand of bool (* perform splitting? *) * bool (* perform globbing? *) * tilde_mode * expanded_words * words 
+  | ExpSplit of bool (* perform globbing? *) * expanded_words
+  | ExpPath of bool (* perform globbing? *) * intermediate_fields
   | ExpQuote of intermediate_fields
   | ExpError of fields
   | ExpDone of fields
@@ -1155,7 +1155,7 @@ let rec unescape_chars escs ss =
   end
 
 val pattern_escs : list char
-let pattern_escs = toCharList "*?["
+let pattern_escs = toCharList "*?[\""
 
 val unescape_pattern : symbolic_string -> symbolic_string
 let unescape_pattern (pat : symbolic_string) =
@@ -1172,6 +1172,18 @@ let unescape_tmp_field tf =
 
 val unescape_intermediate_fields : intermediate_fields -> intermediate_fields
 let unescape_intermediate_fields = List.map unescape_tmp_field
+
+val unescape_heredoc : intermediate_fields -> intermediate_fields
+let unescape_heredoc =
+  let unescape_heredoc_field tf =
+    match tf with
+    | WFS -> WFS
+    | FS -> FS
+    | Field ss -> Field (unescape_chars [] ss)
+    | QField ss -> QField (unescape_chars [] ss)
+    end
+  in
+  List.map unescape_heredoc_field
 
 val symbolic_string_of_expanded_words 
     : bool (* keep quotes? *) -> expanded_words -> symbolic_string
@@ -1716,10 +1728,10 @@ and string_of_substring side mode =
 
 and string_of_expansion_state exp_state =
   match exp_state with
-  | ExpStart _split w -> string_of_words w
-  | ExpExpand _split _tm ew w -> string_of_expanded_words ew ^ string_of_words w
-  | ExpSplit ew -> string_of_expanded_words ew
-  | ExpPath ifs -> string_of_intermediate_fields ifs
+  | ExpStart _split _glob w -> string_of_words w
+  | ExpExpand _split _glob _tm ew w -> string_of_expanded_words ew ^ string_of_words w
+  | ExpSplit _glob ew -> string_of_expanded_words ew
+  | ExpPath _glob ifs -> string_of_intermediate_fields ifs
   | ExpQuote ifs -> string_of_intermediate_fields ifs
   | ExpError f -> string_of_fields f
   | ExpDone f -> string_of_fields f

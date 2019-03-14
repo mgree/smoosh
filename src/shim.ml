@@ -683,10 +683,10 @@ and json_of_expansion_step = function
   | ESEval (exp_step, eval_step) ->  Assoc [tag "ESEval"; ("inner", json_of_evaluation_step eval_step); ("outer", json_of_expansion_step exp_step)]
 
 and json_of_expansion_state = function
-  | ExpStart (_split, w) -> obj_w "ExpStart" w
-  | ExpExpand (_split, _tm, f, w) -> obj_fw "ExpExpand" f w
-  | ExpSplit f -> obj_f "ExpSplit" f
-  | ExpPath ifs -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
+  | ExpStart (_split, _glob, w) -> obj_w "ExpStart" w
+  | ExpExpand (_split, _glob, _tm, f, w) -> obj_fw "ExpExpand" f w
+  | ExpSplit (_glob, f) -> obj_f "ExpSplit" f
+  | ExpPath (_glob, ifs) -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
   | ExpQuote ifs -> Assoc [tag "ExpQuote"; ("ifs", json_of_intermediate_fields ifs)]
   | ExpError f -> Assoc [tag "ExpError"; ("msg", json_of_fields f)]
   | ExpDone fs -> Assoc [tag "ExpDone"; ("f", json_of_fields fs)]
