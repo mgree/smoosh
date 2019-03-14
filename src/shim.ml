@@ -257,14 +257,7 @@ and parse_string acc quoted = function
   | '\136'::_ as s -> List.rev acc, s
   | '~'   ::_ as s -> List.rev acc, s
   | '\129'::'\\'::'\129'::c::s when quoted ->
-     let c' = 
-       match c with
-       | 'b' -> ['\b']
-       | 'n' -> ['\n']
-       | 'r' -> ['\r']
-       | 't' -> ['\t']
-       | _   -> ['\\'; c]
-     in
+     let c' = ['\\'; c] in
      parse_string (List.rev c' @ acc) quoted s
   | '\129'::c::s -> 
      let c' = 

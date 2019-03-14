@@ -21,6 +21,10 @@
 
 ### Bugs
 
+- escape codes
+  is all of the \ handling correct?
+  what should echo do?
+
 - traps in symbolic mode
     track pid in each shell
       can do away with outermost! just compare pid and rootpid
