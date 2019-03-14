@@ -1184,7 +1184,7 @@ and step_eval s0 checked stmt =
       end
 
   (* CASE *********************************************************************)
-  | Case ws cases -> Right (XSCase "begin arg expansion", s0, CaseExpArg (ExpStart false (* don't split *) false (* don't glob *) ws) cases)
+  | Case ws cases -> Right (XSCase "begin arg expansion", s0, CaseExpArg (ExpStart true (* split *) false (* don't glob *) ws) cases)
   | CaseExpArg exp_state cases ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with

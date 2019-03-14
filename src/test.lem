@@ -201,11 +201,11 @@ val eval_test_expr
     : forall 'a. OS 'a => os_state 'a -> test_expr -> bool
 let rec eval_test_expr s0 expr = 
   match expr with
-  | TestBlock path         -> file_type s0 path = Just FileBlock     
-  | TestCharacter path     -> file_type s0 path = Just FileCharacter
-  | TestDirectory path     -> file_type s0 path = Just FileDirectory
+  | TestBlock path         -> file_type_follow s0 path = Just FileBlock     
+  | TestCharacter path     -> file_type_follow s0 path = Just FileCharacter
+  | TestDirectory path     -> file_type_follow s0 path = Just FileDirectory
   | TestExists path        -> file_exists s0 path
-  | TestFile path          -> file_type s0 path = Just FileRegular
+  | TestFile path          -> file_type_follow s0 path = Just FileRegular
   | TestSetgid path        -> 
      match file_perms s0 path with
      | Nothing -> false
@@ -217,9 +217,9 @@ let rec eval_test_expr s0 expr =
      | Nothing -> false
      | Just perms -> perms.sticky
      end
-  | TestFifo path          -> file_type s0 path = Just FileFIFO
+  | TestFifo path          -> file_type_follow s0 path = Just FileFIFO
   | TestReadable path      -> is_readable s0 path
-  | TestSocket path        -> file_type s0 path = Just FileSocket
+  | TestSocket path        -> file_type_follow s0 path = Just FileSocket
   | TestNonempty_file path -> 
      match file_size s0 path with
      | Nothing -> false
