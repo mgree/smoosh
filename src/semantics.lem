@@ -798,8 +798,9 @@ and step_eval s0 checked stmt =
 
         *)
      let (s0_logged, concretized, prog_name) = concretize s0_traced prog in
+     let prog_special = is_special_builtin prog_name in
      let s1 = 
-       if not concretized && is_special_builtin prog_name
+       if not concretized && prog_special
        then
          (* need a call to set_param, which has the right logic for
             Sh_allexport.
@@ -818,12 +819,12 @@ and step_eval s0 checked stmt =
      in
      let exit_on_error = not checked && Set.member Sh_errexit s1.sh.opts in
      match do_redirs s1 ers with
-     | (s2, Left msg) -> 
+     | (s2, Left msg) ->
         check_traps
           (Right (XSSimple ("error in redirection: " ^ msg), 
                   fail_with msg s2, 
                   (* TODO 2018-09-05 implement table 2.8.1: non-interactive shells may exit *)
-                  if exit_on_error then Exit else Done))
+                  if exit_on_error || prog_special then Exit else Done))
      | (s2, Right saved_fds) ->
        (* run command *)
        match run_command s2 opts checked prog args env with
