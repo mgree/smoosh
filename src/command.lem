@@ -470,7 +470,11 @@ let rec update_varlist s0 cmd update args =
         update_varlist (update s0 var) cmd update args'
      | Just value ->
         match set_param var value s0 with
-        | Left msg -> Left (s0, msg) (* var is readonly, exit early *)
+        | Left msg ->
+           (* var is readonly: noninteractive shells must exit per 2.8.1 *)
+           if is_interactive s0
+           then Left (s0, msg)
+           else Right (fail_with (cmd ^ ": " ^ msg) s0, Exit, true) 
         | Right s1 -> update_varlist (update s1 var) cmd update args'
         end
      end

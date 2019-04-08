@@ -265,12 +265,15 @@ let real_fork_and_eval
        xsetpgid pid (pgrp pid);
      pid
 
-let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int = 
+let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int =
+  let ec signal =
+    128 + Signal_platform.platform_int_of_ocaml_signal signal
+  in
   let code =
     try match Unix.waitpid [] pid with
         | (_,Unix.WEXITED code) -> code
-        | (_,Unix.WSIGNALED signal) -> 128 + signal (* bash, dash behavior *)
-        | (_,Unix.WSTOPPED signal) -> 128 + signal (* bash, dash behavior *)
+        | (_,Unix.WSIGNALED signal) -> ec signal (* bash, dash behavior *)
+        | (_,Unix.WSTOPPED signal) -> ec signal (* bash, dash behavior *)
     with Unix.Unix_error(Unix.EINTR,_,_) -> real_waitpid rootpid pid jc
        | Unix.Unix_error(Unix.ECHILD,_,_) -> gotsigchld := true; 0
   in

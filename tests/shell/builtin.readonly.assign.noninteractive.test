@@ -1,0 +1,3 @@
+readonly a=b
+export a=c
+echo egad
