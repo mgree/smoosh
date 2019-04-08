@@ -84,11 +84,11 @@ let exit_code_tests : (string * symbolic os_state * int) list =
 
   (* readonly *)
   ; ("x=5 ; readonly x", os_empty, 0)
-  ; ("x=5 ; readonly x ; ! readonly x=10", os_empty, 0)
-  ; ("x=- ; ! readonly $x=derp", os_empty, 0)
+  ; ("x=5 ; readonly x ; readonly x=10", os_empty, 1)
+  ; ("x=- ; readonly $x=derp", os_empty, 1)
 
   (* export *)
-  ; ("x=- ; ! export $x=derp", os_empty, 0)
+  ; ("x=- ; export $x=derp", os_empty, 1)
 
   (* eval *)
   ; ("eval exit 0", os_empty, 0)
