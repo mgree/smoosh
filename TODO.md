@@ -21,6 +21,14 @@
 
 ### Bugs
 
+- tp404
+
+  getting an error that i can't reproduce.
+
+  i suspect the problem is that fd 9 (which should, by default, point
+  to nothing) is actually getting used at some point by the test
+  harness and inherited by the subshell.
+
 - escape codes
   is all of the \ handling correct?
   what should echo do?
