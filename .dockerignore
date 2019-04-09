@@ -120,6 +120,7 @@ src/runtest
 
 tests/default.env
 tests/log
+tests/util/fds
 
 ################################################################################
 # web
