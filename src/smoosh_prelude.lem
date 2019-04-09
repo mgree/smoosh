@@ -1283,6 +1283,16 @@ let skip = simple_command ":" [] Map.empty
 val command_eval : symbolic_string -> stmt
 let command_eval cmd = simple_command "eval" [cmd] Map.empty
 
+let string_of_saved_fd (fd,saved_fd_info) =
+  stringFromNat fd ^ "|->" ^
+    match saved_fd_info with
+    | Saved fd' -> stringFromNat fd'
+    | Close -> "-"
+    end
+
+let string_of_saved_fds saved_fds =
+  "[" ^ concat " " (List.map string_of_saved_fd saved_fds) ^ "]"
+
 val pushredir : stmt -> saved_fds -> stmt
 let pushredir stmt saved_fds =
   if null saved_fds

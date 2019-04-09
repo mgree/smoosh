@@ -176,10 +176,10 @@ declare ocaml target_rep function real_openhere = `System.real_openhere`
 
 let real_close_and_save_fd fd =
   match real_savefd fd with
-  | Left "EBADF" -> Right [] (* it was already closed *)
+  | Left "EBADF" -> Right [(fd,Close)]
   | Left err -> Left err
-  | Right saved_fd ->
-     let () = real_close fd in
+  | Right saved_fd -> 
+     let _ = real_close fd in
      Right [(fd,Saved saved_fd)]
   end
 
@@ -190,18 +190,20 @@ let real_renumber_fd (close : bool) (new_fd : fd) (wanted_fd : fd) =
        just remember to clean up when you're done *)
     Right (if close then [(wanted_fd,Close)] else [])
     else (* need to save wanted_fd and then dup *)
-      match real_savefd wanted_fd with
-      | Left "EBADF" -> Right []
-      | Left err -> Left err
-      | Right saved_fd -> 
-         match real_dup2 new_fd wanted_fd with
-         | Just err -> Left err
-         | Nothing -> 
-            (* close the actual fd we got, now that we've
-               relocated it where we want it *)
-            let () = if close then real_close new_fd else () in
-            Right [(wanted_fd, Saved saved_fd)]
-         end
+      let saved = 
+        match real_savefd wanted_fd with
+        | Left "EBADF" -> Right [(wanted_fd, Close)]
+        | Left err -> Left err
+        | Right saved_fd -> Right [(wanted_fd, Saved saved_fd)]
+        end
+      in
+      match real_dup2 new_fd wanted_fd with
+        | Just err -> Left err
+        | Nothing -> 
+           (* close the actual fd we got, now that we've
+              relocated it where we want it *)
+           let () = if close then real_close new_fd else () in
+           saved
       end
 
 val dash_setvar : string -> symbolic_string -> unit
