@@ -104,12 +104,13 @@ and redirs (n : node union ptr) =
       RFile (ty,getf n nfile_fd,to_arg (getf n nfile_fname @-> node_narg)) in
     let mk_dup ty =
       let n = n @-> node_ndup in
+      let src = getf n ndup_fd in
       let tgt = 
         match getf n ndup_dupfd with
         | -1 -> None
         | fd -> Some fd
       in
-      RDup (ty,getf n ndup_fd,tgt) in
+      RDup (ty,src,tgt) in
     let mk_here ty =
       let n = n @-> node_nhere in
       RHeredoc (ty,getf n nhere_fd,to_arg (getf n nhere_doc @-> node_narg)) in

@@ -143,8 +143,15 @@ let open_ttyfd () =
      ttyfd := 
        (try 
           (* FIXME 2018-10-24 tty path configurable *)
-          Some (Unix.openfile "/dev/tty" [Unix.O_RDWR] 0o666)
-        with Unix.Unix_error(_,_,_) -> begin
+          let fd = Unix.openfile "/dev/tty" [Unix.O_RDWR] 0o666 in
+          let newfd = Dash.freshfd_ge10 (ExtUnix.int_of_file_descr fd) in
+          if newfd < 0
+          then failwith "couldn't load /dev/tty"
+          else begin
+              Unix.close fd;
+              Some (ExtUnix.file_descr_of_int newfd)
+            end
+        with _ -> begin
             try if Unix.isatty Unix.stdin
                 then Some Unix.stdin
                 else if Unix.isatty Unix.stdout

@@ -488,8 +488,8 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid =
          s1
          (with_redirs 
             (close_fd_and_then fd_next stmt) 
-            [ERDup ToFD true (* close orig *) STDIN (Just fd_prev )
-            ;ERDup ToFD true (* close orig *) STDOUT (Just fd_write )])
+            [ERDup ToFD true (* close orig *) STDIN (Just fd_prev)
+            ;ERDup ToFD true (* close orig *) STDOUT (Just fd_write)])
          bg
          pgid
          true
