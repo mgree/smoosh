@@ -21,13 +21,9 @@
 
 ### Bugs
 
-- tp404
+- background commands
 
-  getting an error that i can't reproduce.
-
-  i suspect the problem is that fd 9 (which should, by default, point
-  to nothing) is actually getting used at some point by the test
-  harness and inherited by the subshell.
+If job control is disabled (see set, -m), the standard input for an asynchronous list, before any explicit redirections are performed, shall be considered to be assigned to a file that has the same properties as /dev/null. This shall not happen if job control is enabled. In all cases, explicit redirection of standard input shall override this activity.
 
 - escape codes
   is all of the \ handling correct?
