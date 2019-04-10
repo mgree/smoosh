@@ -137,20 +137,30 @@ let set_initialpgrp () =
              initialpgrp := -1
            end
 
+let renumber fd =
+  let newfd = Dash.freshfd_ge10 (ExtUnix.int_of_file_descr fd) in
+  if newfd >= 0
+  then begin
+      Unix.close fd;
+      newfd
+    end
+  else failwith "out of file descriptors"
+          
+let xopenfile file flags mode =
+  let fd = Unix.openfile file flags mode in
+  try Right (renumber fd)
+  with Failure msg -> Left msg
+          
 let open_ttyfd () =
   match !ttyfd with
   | None ->
      ttyfd := 
        (try 
           (* FIXME 2018-10-24 tty path configurable *)
-          let fd = Unix.openfile "/dev/tty" [Unix.O_RDWR] 0o666 in
-          let newfd = Dash.freshfd_ge10 (ExtUnix.int_of_file_descr fd) in
-          if newfd < 0
-          then failwith "couldn't load /dev/tty"
-          else begin
-              Unix.close fd;
-              Some (ExtUnix.file_descr_of_int newfd)
-            end
+          let mfd = xopenfile "/dev/tty" [Unix.O_RDWR] 0o666 in
+          match mfd with
+          | Left err -> failwith err
+          | Right fd -> Some (ExtUnix.file_descr_of_int fd)
         with _ -> begin
             try if Unix.isatty Unix.stdin
                 then Some Unix.stdin
@@ -380,7 +390,8 @@ let fromto_flags = [Unix.O_RDWR; Unix.O_CREAT]
 let append_flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_APPEND]
 
 let real_open (file:string) (flags:open_flags) : (string,int) either =
-  try Right (ExtUnix.int_of_file_descr (Unix.openfile file flags 0o666))
+  (* TODO 2019-04-10 use umask? *)
+  try xopenfile file flags 0o666
   with 
   | Unix.Unix_error(Unix.EEXIST,_,_) -> Left ("cannot create " ^ file ^ ": file exists")
   | Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
@@ -480,12 +491,14 @@ let real_close (fd:int) : unit =
 
 let real_pipe () : int * int =
   let (fd_read,fd_write) = Unix.pipe () in
-  (ExtUnix.int_of_file_descr fd_read, ExtUnix.int_of_file_descr fd_write)
+  (renumber fd_read, renumber fd_write)
 
 let real_openhere (s : string) : (string,int) either =
   let buff = Bytes.of_string s in
-  try 
-    let (fd_read, fd_write) = Unix.pipe () in
+  try
+    let (fd_read_orig, fd_write_orig) = Unix.pipe () in
+    let fd_read = ExtUnix.file_descr_of_int (renumber fd_read_orig) in
+    let fd_write = ExtUnix.file_descr_of_int (renumber fd_write_orig) in
     if Bytes.length buff <= 4096 (* from dash *)
     then 
       (* just write it, the pipe can hold it *)
