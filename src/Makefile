@@ -1,6 +1,6 @@
 OCAMLOPTS=-g -w -a+3+8+10+14+21+24+29+31+46+47+48 -package dash,lem_num,extunix -linkpkg
 
-SRCFILES=config.ml smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem \
+SRCFILES=version.lem smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem \
 	 shim.ml os.lem os_symbolic.lem system.ml os_system.lem smoosh.lem arith.lem \
 	 pattern.lem path.lem fields.lem test.lem command.lem semantics.lem
 MLFILES=$(SRCFILES:.lem=.ml)
@@ -32,6 +32,9 @@ runtest : $(MLFILES) $(TESTFILES) runtest.ml
 smoosh.byte : $(MLFILES) shell.ml
 	ocamlfind ocamlc $(OCAMLOPTS) -o $@ $^
 
+version.lem : mk_version.sh
+	./mk_version.sh >version.lem
+
 signal_platform.lem : mk_signal_platform.sh
 	./mk_signal_platform.sh >signal_platform.lem
 
@@ -55,3 +58,4 @@ clean :
 
 veryclean : clean
 	-rm -f signal_platform.lem
+	-rm -f version.lem

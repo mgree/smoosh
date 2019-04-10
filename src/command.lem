@@ -2141,9 +2141,6 @@ let builtin_fg os0 argv _env = send_sigcont os0 argv true (* call tc_setfg *)
 
 let builtin_bg os0 argv _env = send_sigcont os0 argv false (* call tc_setfg *)
      
-val version_number : string
-declare ocaml target_rep function version_number = `Config.version`
-
 let rec help_trace log tr =
   match log with
   | [] -> tr
@@ -2159,6 +2156,7 @@ let builtin_help os0 argv _env =
   match argv with
   | [] -> 
      let usage =
+       smoosh_info ^
        "usage:\n" ^
        "    help builtins    list implemented builtins\n" ^
        "    help version     show smoosh version number\n" ^
@@ -2174,7 +2172,7 @@ let builtin_help os0 argv _env =
         let os2 = write_stdout "implemented builtins:\n" os1 in
         Right (show_list builtin_names os2, Done)
      | "version" -> 
-        let os2 = write_stdout ("smoosh shell v" ^ version_number ^ "\n") os1 in
+        let os2 = write_stdout smoosh_info os1 in
         Right (exit_with 0 os2, Done)
      | "steps" ->
         let steps = List.reverseMap string_of_evaluation_step (extract_trace os1) in

@@ -30,3 +30,5 @@ runtest
 fields.ml
 test.ml
 *.byte
+version.lem
+version.ml

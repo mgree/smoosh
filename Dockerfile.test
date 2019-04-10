@@ -7,4 +7,5 @@ CMD make -C libdash/test test && \
     make -C src/ test && \
     make -C tests/ test && \
     echo ======================================================================== \
+    && src/smoosh --version \
     && echo ALL TESTS PASSED >&2

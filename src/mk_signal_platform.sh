@@ -42,5 +42,4 @@ cat <<EOF
 val platform_int_of_ocaml_signal : int -> nat
 let platform_int_of_ocaml_signal ocaml_signal =
   platform_int_of_signal (signal_of_ocaml_signal ocaml_signal)
-
 EOF

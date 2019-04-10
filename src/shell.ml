@@ -1,4 +1,3 @@
-open Config
 open Smoosh
 open Os_system
 open Semantics
@@ -56,11 +55,12 @@ let flag_descriptions =
 let usage_msg =
   let prog = Filename.basename Sys.executable_name in
   let flags = " [-abCefhimnpuvx] [-o option]... [+abCefhimnpuvx] [+o option]... " in
-  "smoosh shell v" ^ Config.version ^ "\n" ^
+  Version.smoosh_info ^
   prog ^ "   " ^ flags ^ "[command_file [argument...]] \n" ^
   prog ^ " -c" ^ flags ^ "[command_string [command_name [argument...]]]\n" ^
-  prog ^ " -s" ^ flags ^ "[argument...]\n\n" ^
-  "flags:\n\t-[flag] enables, +[flag] disables\n" ^
+  prog ^ " -s" ^ flags ^ "[argument...]\n" ^
+  prog ^ " --version\n\n" ^
+  "flags:\n\t-[flag] enables, +[flag] disables\n\n" ^
   concat "" (List.map (fun (flag, descr) -> Printf.sprintf "\t%s\t%s\n" flag descr) flag_descriptions)
 
 let show_usage () =
@@ -68,7 +68,6 @@ let show_usage () =
   exit 2
   
 let bad_arg msg =
-  (* TODO 2018-11-01 show usage *)
   Printf.eprintf "bad argument: %s\n" msg;
   show_usage ()
   
@@ -101,6 +100,11 @@ let rec parse_arg_loop args =
      match explode arg with
      | ['-'; '-'] -> params := args'
      | ['-'; '-'; 'h'; 'e'; 'l'; 'p'] -> show_usage ()
+     | ['-'; '-'; 'v'; 'e'; 'r'; 's'; 'i'; 'o'; 'n'] -> 
+        begin 
+          Printf.printf "%s%!" Version.smoosh_info;
+          exit 0
+        end
      | ['-'; 'o'] -> parse_longopt add_opt
      | ['+'; 'o'] -> parse_longopt del_opt
      (* special case for when no options after---treat as normal args *)
