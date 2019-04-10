@@ -7,9 +7,9 @@ MLFILES=$(SRCFILES:.lem=.ml)
 LEMFILES=$(filter %.lem,$(SRCFILES))
 TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_evaluation.ml
 
-.PHONY : all all.byte install test loc rebuild clean veryclean
+.PHONY : all all.byte install test loc bump rebuild clean veryclean
 
-all : shtepper smoosh runtest
+all : bump shtepper smoosh runtest
 
 all.byte : smoosh.byte
 
@@ -47,15 +47,17 @@ loc :  $(SRCFILES)
 %.ml : %.lem
 	lem -ocaml $<
 
-rebuild : 
+bump :
+	-rm version.lem
+
+rebuild : bump
 	-rm shtepper smoosh runtest smoosh.byte
 	$(MAKE) all
 
-clean :
+clean : bump
 	-rm -f $(LEMFILES:.lem=.ml)
 	-rm shtepper smoosh runtest smoosh.byte 
 	-rm *.{cmi,cmo,cmx,o} *~
 
 veryclean : clean
 	-rm -f signal_platform.lem
-	-rm -f version.lem

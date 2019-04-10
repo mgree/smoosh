@@ -142,7 +142,7 @@ and parse_test_expr_equality toks =
        | Right (n1,n2) ->
           match op with
           | "-eq"  -> Right (TestEq_num n1 n2, toks')
-          | "-ne" -> Right (TestNot (TestEq_num n1 n2), toks')
+          | "-ne"  -> Right (TestNot (TestEq_num n1 n2), toks')
           | "-gt"  -> Right (TestGt_num n1 n2, toks')
           | "-ge"  -> Right (TestNot (TestGt_num n2 n1), toks')
           | "-lt"  -> Right (TestGt_num n2 n1, toks')

@@ -2,9 +2,7 @@
 
 set -e
 
-timestamp=$(date "+%Y-%m-%d_%H:%M")
-hash=$(git log --pretty=format:'%h' -n 1)
-build="${hash}_${timestamp}"
+build=$(date "+%Y-%m-%d_%H:%M")
 
 cat <<EOF
 open import Pervasives_extra
