@@ -543,6 +543,8 @@ let real_handle_signal signal action =
     in
     Sys.set_signal signal handler
 
-let real_signal_pid signal pid as_pg =
+let rec real_signal_pid signal pid as_pg =
   try Unix.kill (if as_pg then -pid else pid) signal; true
-  with Unix.Unix_error(_) -> false
+  with
+    Unix.Unix_error(EINTR,_,_) -> real_signal_pid signal pid as_pg
+  | Unix.Unix_error(_) -> false

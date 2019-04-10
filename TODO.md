@@ -21,6 +21,11 @@
 
 ### Bugs
 
+- 351 again?!
+
+- 429
+  sigprocmask wrong?
+
 - background commands
 
 If job control is disabled (see set, -m), the standard input for an asynchronous list, before any explicit redirections are performed, shall be considered to be assigned to a file that has the same properties as /dev/null. This shall not happen if job control is enabled. In all cases, explicit redirection of standard input shall override this activity.
