@@ -1132,7 +1132,7 @@ and step_eval s0 checked stmt =
             then Right (XSWhile "exit code was 0, running the loop body", 
                         s1, WhileRunning c body body)
             else Right (XSWhile "exit code was non-zero, taking the false branch", 
-                        exit_loop s1, Done))
+                        exit_with 0 (exit_loop s1), Done))
       | Right (step, s1, cur') -> Right (XSNested (XSWhile "") step, s1, WhileCond c cur' body)
       end
   | WhileRunning c body cur ->
