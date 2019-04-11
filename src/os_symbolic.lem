@@ -578,8 +578,13 @@ instance (OS symbolic)
     let fds'' = Map.insert fd_write (FIFO fifo_num) fds' in
     (<| os0 with symbolic = <| sym1 with sh_fds = fds'' |> |>, fd_read, fd_write)
 
-  let open_file_for_redir _os _ty _file = 
-    (_os, Left "symbolic file redirects are unimplemented")
+  let open_file_for_redir os0 _ty file = 
+    (* TODO 2019-04-11 actually look at fs *)
+    let fd = symbolic_fresh_fd os0.symbolic.sh_fds in
+    let (os1,_,sfile) = concretize os0 file in
+    let sh_fds' = Map.insert fd (Path sfile) os1.symbolic.sh_fds in
+    let os2 = <| os1 with symbolic = <| os1.symbolic with sh_fds = sh_fds' |> |> in
+    (os2, Right fd)
 
   let open_heredoc os0 s =
     let (sym1, fifo_num) = mkfifo os0.symbolic in
