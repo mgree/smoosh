@@ -954,13 +954,27 @@ and step_eval s0 checked stmt =
      end
 
   (* BACKGROUND ***************************************************************)
-  | Background stmt' ((_, Nothing, []) as redir_state) ->
+  | Background stmt' ((ers, Nothing, []) as redir_state) ->
+     let redir_state' =
+       if not (is_monitoring s0) && not (any expanded_redir_has_stdin_redir ers)
+       then
+         (* If job control is disabled (see set, -m), the standard input
+            for an asynchronous list, before any explicit redirections
+            are performed, shall be considered to be assigned to a file
+            that has the same properties as /dev/null. This shall not
+            happen if job control is enabled. In all cases, explicit
+            redirection of standard input shall override this
+            activity. *)
+         (* TODO 2019-04-11 make /dev/null path configurable *)
+         (ERFile From 0 [symbolic_string_of_string "/dev/null"]::ers, Nothing, [])
+       else redir_state
+     in
      (* defer to Redir to load redirs *)
      let (s1,pid) = 
-       fork_and_subshell s0 (Redir stmt' redir_state) 
+       fork_and_subshell s0 (Redir stmt' redir_state') 
          true (* bg *) Nothing (* no pgid *) true (* job control *)
      in
-     let s2 = add_job s1 pid (Background stmt' redir_state) in
+     let s2 = add_job s1 pid (Background stmt' redir_state (* don't show our munging *)) in
      let s3 = set_last_pid pid s2 in
      check_traps
        (Right (XSBackground ("started background process with pid " ^ 

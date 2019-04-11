@@ -1326,6 +1326,17 @@ let rec try_avoid_fork stmt =
   | _ -> stmt
   end
 
+val expanded_redir_has_stdin_redir : expanded_redir -> bool
+let expanded_redir_has_stdin_redir er =
+  match er with
+  | ERFile From 0 _ -> true
+  | ERFile FromTo 0 _ -> true
+  | ERDup ToFD _ _ (Just 1) -> true
+  | ERDup FromFD _ 1 (Just _) -> true
+  | ERHeredoc _ 1 _ -> true
+  | _ -> false
+  end
+      
 val is_terminating_control : stmt -> bool
 let is_terminating_control c =
   match c with
