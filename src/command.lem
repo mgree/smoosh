@@ -777,7 +777,7 @@ let rec builtin_trap s0 argv _env =
      | Right _n -> 
        (* unset n and all other conditions *) 
         match trap_parse_signals (arg::signals) with
-        | Left err -> Left (s0, err)
+        | Left err -> Right (fail_with ("trap: " ^ err) s0, Done, true)
         | Right conds ->
            let s1 = foldr (fun cond os -> trap_handle_signal os cond Nothing) s0 conds in
            Right (s1, Done, true)
@@ -786,7 +786,7 @@ let rec builtin_trap s0 argv _env =
         match (try_concrete arg, trap_parse_signals signals) with
         | (Nothing, _) -> 
            Left (s0, "couldn't set symbolic trap: " ^ string_of_symbolic_string arg)
-        | (_, Left err) -> Left (s0, err)
+        | (_, Left err) -> Right (fail_with ("trap: " ^ err) s0, Done, true)
         | (Just "-", Right conds) ->
            (* unset conditions *)
            let s1 = foldr (fun cond os -> trap_handle_signal os cond Nothing) s0 conds in
