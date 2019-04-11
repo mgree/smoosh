@@ -21,14 +21,63 @@
 
 ### Bugs
 
+#### Platform-specific/Docker/TETware (working on OS X, failing in tester)
+
 - 351 again?!
 
 - 429
   sigprocmask wrong?
+  
+- 450
+  awk seems to have the wrong behavior :(
+  
+#### Dash
+
+- 441
+
+problem with parsing 'nullcommand'
+
+#### POSIX spec/suite
+
+typo bug in POSIX spec:
+  However, the double-quote character ( ' )' shall not be treated specially within a here-document
+
+bug in POSIX test suite:
+  numerical trap arguments
+
+##### Confirmed
+
+- bug in `sh_05.sh`
+  
+In `sh_05.sh` lines 5806-5815, we find the snippet:
+
+```
+    function func_sh5_326 {
+        if [ $1 -eq 1 ] && [ $2 -eq 2 ] && [ $2 -eq 2 ] && 
+           [ $3 -eq 3 ] && [ $4 -eq 4 ] && [ $5 -eq 5 ] &&
+           [ $6 -eq 6 ] && [ $7 -eq 7 ] && [ $8 -eq 8 ] && [ $9 -eq 9 ]
+        then
+                return 0
+        else
+                return 1
+        fi
+    }
+```
+
+But that's not the right syntax. It should instead be:
+
+```
+    func_sh5_326() {
+        ...
+    }
+```
+
+Confirmed by Brian Selves of OpenGroup on 2019-01-07; will be fixed in
+the next version.
+
+#### Other
 
 - background commands
-
-If job control is disabled (see set, -m), the standard input for an asynchronous list, before any explicit redirections are performed, shall be considered to be assigned to a file that has the same properties as /dev/null. This shall not happen if job control is enabled. In all cases, explicit redirection of standard input shall override this activity.
 
 - escape codes
   is all of the \ handling correct?
@@ -210,14 +259,26 @@ Should we write a custom parser? Use Ralf Treinen's?
 
 ### Bugs in real shells
 
-Bash
+* Bash
   - Bug related to variable assignments before built in utilities
     - "If the command name is a special built-in utility, variable assignments shall affect the current execution environment. Unless the set -a option is on (see set), it is unspecified:"
     - "x=5 :" should set x=5 in the current shell env, but it does not in Bash (version 4.4.12(1)-release)
     
     not REALLY a bug---there's an obscure flag to turn on the POSIX behavior
 
-Dash
+"If parameter is '*' or '@', the result of the expansion is unspecified."
+weird choice in bash:
+```
+  set -- 'a b' 'c' 'd'
+  echo ${#*}
+```
+yields
+```
+  3
+```
+    is also not _really_ a bug
+
+- Dash
   - Found (and fixed) arithmetic bug
   - Are `EXP_VARTILDE` and `EXP_VARTILDE2` necessary? 
     it seems to me that the parser is properly separating things out...
@@ -225,36 +286,9 @@ Dash
 
   - seems like timescmd is implemented incorrectly, printing out wrong numbers
 
-BOTH
+- Dash, Bash
   - printf %5% seems perfectly valid, but both reject it as ill formatted
   - kill -l doesn't fit the output format
-
-POSIX test suite
-  
-  - bug in `sh_05.sh`
-  
-In `sh_05.sh` lines 5806-5815, we find the snippet:
-
-```
-    function func_sh5_326 {
-        if [ $1 -eq 1 ] && [ $2 -eq 2 ] && [ $2 -eq 2 ] && 
-           [ $3 -eq 3 ] && [ $4 -eq 4 ] && [ $5 -eq 5 ] &&
-           [ $6 -eq 6 ] && [ $7 -eq 7 ] && [ $8 -eq 8 ] && [ $9 -eq 9 ]
-        then
-                return 0
-        else
-                return 1
-        fi
-    }
-```
-
-But that's not the right syntax. It should instead be:
-
-```
-    func_sh5_326() {
-        ...
-    }
-```
-
-Confirmed by Brian Selves of OpenGroup on 2019-01-07; will be fixed in
-the next version.
+ 
+- Yash
+  - set +m doesn't cause redirect of STDIN to /dev/null on asynchronous commands

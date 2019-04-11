@@ -1,0 +1,9 @@
+cat >scr <<EOF
+set +m
+exec <in
+cat &
+wait
+EOF
+
+echo illegible >in
+$TEST_SHELL scr
