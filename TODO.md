@@ -16,34 +16,27 @@
   + cf. https://github.com/modernish/modernish to check for quirks, bugs, etc.
     * modernish --test!
 
-- VM for POSIX testing
+- VM for POSIX testing (Docker issues?!)
   run on dash, bash
+- use travis ci to automate POSIX testing, collect results nightly
 
 ### Bugs
 
-#### Platform-specific/Docker/TETware (working on OS X, failing in tester)
+#### Platform-specific/Docker/TETware (working on OS X or manual runs, failing in full tester)
 
-- 351 again?!
+- 351 461
+  intermittent failure?
 
 - 429
   sigprocmask wrong?
   
 - 450
   awk seems to have the wrong behavior :(
-  
+    
 #### Dash
 
 - 441
-
-problem with parsing 'nullcommand'
-
-#### POSIX spec/suite
-
-typo bug in POSIX spec:
-  However, the double-quote character ( ' )' shall not be treated specially within a here-document
-
-bug in POSIX test suite:
-  numerical trap arguments
+  problem with parsing 'nullcommand'
 
 ##### Confirmed
 
