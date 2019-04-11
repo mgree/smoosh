@@ -241,8 +241,8 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("set -- a b c ; shift 2 ; echo $# [$*]", os_empty, "1 [c]\n")
   ; ("set -- a b c ; shift 3 ; echo $# [$*]", os_empty, "0 []\n")
   ; ("set -- a b c ; shift 0 ; echo $# [$*]", os_empty, "3 [a b c]\n")
-  ; ("set -- a b c ; shift 4 || echo failed", os_empty, "failed\n")
-  ; ("set -- a b c ; shift 4 ; echo $# [$*]", os_empty, "3 [a b c]\n")
+  ; ("set -- a b c ; shift 4 ; echo failed", os_empty, "")
+  ; ("set -- a b c ; shift 4 ; echo failed", os_empty, "")
 
     (* redirects and pipes *)
   ; ("( echo ${x?oops} ) 2>&1", os_empty, "x: oops\n")

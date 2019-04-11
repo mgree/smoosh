@@ -22,7 +22,7 @@ val run_command : forall 'a. OS 'a =>
 val is_special_builtin : string -> bool
 let is_special_builtin s =
   elem s ["break";":";"continue";".";"eval";"exec";"exit";"export";"readonly";
-          "return";"set";"shift";"times";"trap";"unset"]
+          "return";"set";"shift";"source";"times";"trap";"unset"]
 
 val is_builtin : string -> bool
 let is_builtin s =
@@ -294,6 +294,9 @@ let pid_of_symbolic_string s0 ss =
 (**********************************************************************)
 (* SPECIAL BUILTINS ***************************************************)
 (**********************************************************************)
+(* NB special builtins should NEVER use Right combined with a non-zero
+   EC to signal an error; in order to comply with early exit rules in
+   the table in 2.8.1 *)
 
 let builtin_colon s0 _argv _env = Right (exit_with 0 s0, Done, true)
              
@@ -304,13 +307,13 @@ let builtin_break s0 argv _env =
   let bounded n =
     if n <= s0.sh.loop_nest
     then (s0, n)
-    else if s0.sh.loop_nest = 0
-    then (write_stderr "break: only meaningful in a `for', `while', or `until' loop\n" s0,
-          0)
     else (write_stderr ("break: loop count of " ^ stringFromNat n ^ " is out of range, truncating to " ^
                           stringFromNat s0.sh.loop_nest ^ "\n") s0,
           s0.sh.loop_nest)
   in
+  if s0.sh.loop_nest = 0
+  then Left (s0, "break: only meaningful in a `for', `while', or `until' loop")
+  else
   match argv with
   | [] -> 
      (* default to just breaking the immediate loop *)
@@ -379,7 +382,7 @@ let builtin_shift s0 argv _env =
   | Right n -> 
      let params = get_function_params s0 in
      if n > length params
-     then Left (exit_with 1 s0, "can't shift that many")
+     then Left (s0, "can't shift that many")
      else
        let s1 = set_function_params s0.sh.loop_nest (drop n params) s0 in
        Right (exit_with 0 s1, Done, true)
@@ -470,11 +473,7 @@ let rec update_varlist s0 cmd update args =
         update_varlist (update s0 var) cmd update args'
      | Just value ->
         match set_param var value s0 with
-        | Left msg ->
-           (* var is readonly: noninteractive shells must exit per 2.8.1 *)
-           if is_interactive s0
-           then Left (s0, msg)
-           else Right (fail_with (cmd ^ ": " ^ msg) s0, Exit, true) 
+        | Left msg -> Left (s0, msg)
         | Right s1 -> update_varlist (update s1 var) cmd update args'
         end
      end
@@ -559,9 +558,7 @@ let builtin_source argv0 s0 argv _env =
              diagnostic message to standard error, but this condition
              shall not be considered a syntax error. *)
           let msg = path ^ ": not found" in
-          if is_interactive s0
-          then Left (s0, msg)
-          else Right (fail_with (argv0 ^ ": " ^ msg) s0, Exit, true)
+          Left (s0, msg)
      end
   end
 
@@ -701,7 +698,11 @@ OR
   | _ ->
      match set_getopts ([],[]) argv with
      | Nothing ->
-        Left (s0, "illegal option")
+        (* While an erroneous condition, we don't want to actually
+           exit when set is given a bad option. The standard doesn't
+           say that it's an error, it does say we'll set the
+           ec. Weird. *)
+        Right (fail_with "set: illegal option" s0, Done, true)
      | Just ((on,off),params,set_param) ->
         let s1 = foldr (fun opt os -> set_sh_opt os opt) s0 on in
         let s2 = foldr (fun opt os -> unset_sh_opt os opt) s1 off in

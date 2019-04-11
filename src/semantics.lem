@@ -817,21 +817,24 @@ and step_eval s0 checked stmt =
          foldr set s0_logged (Map_extra.toList env)
        else s0_logged
      in
-     let exit_on_error = not checked && Set.member Sh_errexit s1.sh.opts in
+     let catching_errors = not checked && Set.member Sh_errexit s1.sh.opts in
+     let exit_on_error = 
+       catching_errors ||
+       (prog_special && not (is_interactive s1)) (* per table in 2.8.1 *)
+     in
      match do_redirs s1 ers with
      | (s2, Left msg) ->
         check_traps
           (Right (XSSimple ("error in redirection: " ^ msg), 
                   fail_with msg s2, 
-                  (* TODO 2018-09-05 implement table 2.8.1: non-interactive shells may exit *)
-                  if exit_on_error || prog_special then Exit else Done))
+                  if exit_on_error then Exit else Done))
      | (s2, Right saved_fds) ->
        (* run command *)
        match run_command s2 opts checked prog args env with
        | Right (s3, stmt', restore) -> 
           Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
                  s3, 
-                 if exit_on_error && s3.sh.exit_code <> 0
+                 if catching_errors && s3.sh.exit_code <> 0
                  then Exit
                  else if restore 
                  then pushredir stmt' saved_fds 
