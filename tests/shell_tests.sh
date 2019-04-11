@@ -67,6 +67,9 @@ mkdir -p ${TEST_LOGDIR}/shell
 count=0
 passed=0
 
+# clear out other application FDs
+exec 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&-
+
 for test_case in shell/*.test
 do
     # load up expected values
