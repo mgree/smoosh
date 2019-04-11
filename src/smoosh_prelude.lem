@@ -739,7 +739,7 @@ and stmt =
   | Semi of stmt * stmt
   | If of stmt * stmt * stmt
   | While of stmt * stmt
-  | WhileCond of stmt (* original cond *) * stmt (* current cond *) * stmt (* original body *)
+  | WhileCond of stmt (* original cond *) * stmt (* current cond *) * stmt (* original body *) * maybe nat (* possibly saved ec *)
   | WhileRunning of stmt (* original cond *) * stmt (* original body *) * stmt (* current body *)
   | For of string * words * stmt
   | ForExpArgs of string * expansion_state * stmt
@@ -1533,7 +1533,7 @@ and string_of_stmt c =
   | If c1 c2 c3 ->
      string_of_if c1 c2 c3
   | While c1 c2 -> string_of_while c1 c2
-  | WhileCond c cur body -> 
+  | WhileCond c cur body _saved_ec -> 
      "if " ^ string_of_stmt cur ^ 
      "; then " ^ string_of_stmt body ^ "; " ^ string_of_while c body ^ "; fi"
   | WhileRunning c body cur -> 

@@ -449,7 +449,8 @@ let rec json_of_stmt = function
      Assoc [tag "If"; ("c", json_of_stmt c1); ("t", json_of_stmt c2); ("e", json_of_stmt c3)]
   | While (c1, c2) -> 
      Assoc [tag "While"; ("cond", json_of_stmt c1); ("body", json_of_stmt c2)]
-  | WhileCond (c1, c2, c3) -> 
+  | WhileCond (c1, c2, c3, _saved_ec) -> 
+      (* TODO 2019-04-11 expose saved ec? *)
       Assoc [tag "WhileCond"; ("cond", json_of_stmt c1); ("cur", json_of_stmt c2); ("body", json_of_stmt c2)]
   | WhileRunning (c1, c2, c3) -> 
       Assoc [tag "WhileRunning"; ("cond", json_of_stmt c1); ("body", json_of_stmt c2); ("cur", json_of_stmt c3)]

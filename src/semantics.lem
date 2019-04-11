@@ -1105,8 +1105,8 @@ and step_eval s0 checked stmt =
   | While c body -> 
      Right (XSWhile "start to evaluate the condtion", 
             enter_loop s0, 
-            WhileCond c c body)
-  | WhileCond c cur body ->
+            WhileCond c c body Nothing)
+  | WhileCond c cur body saved_ec ->
       match step_eval s0 true cur with
       | Left e -> Left e
       | Right (step, s1, Exit)       -> Right (XSNested (XSWhile "exiting") step, 
@@ -1121,7 +1121,7 @@ and step_eval s0 checked stmt =
                                                exit_loop s1, Break (n-1))
       | Right (step, s1, Continue 1) -> Right (XSNested 
                                                  (XSWhile "continuing loop") step, 
-                                               s1, WhileCond c c body)
+                                               s1, WhileCond c c body saved_ec)
       | Right (step, s1, Continue n) -> Right (XSNested 
                                                  (XSWhile "continuing to outer loop") 
                                                  step, 
@@ -1131,9 +1131,16 @@ and step_eval s0 checked stmt =
            (if s1.sh.exit_code = 0
             then Right (XSWhile "exit code was 0, running the loop body", 
                         s1, WhileRunning c body body)
-            else Right (XSWhile "exit code was non-zero, taking the false branch", 
-                        exit_with 0 (exit_loop s1), Done))
-      | Right (step, s1, cur') -> Right (XSNested (XSWhile "") step, s1, WhileCond c cur' body)
+            else
+              let ec =
+                match saved_ec with
+                | Nothing -> 0
+                | Just ec -> ec
+                end
+              in
+              Right (XSWhile "exit code was non-zero, taking the false branch", 
+                        exit_with ec (exit_loop s1), Done))
+      | Right (step, s1, cur') -> Right (XSNested (XSWhile "") step, s1, WhileCond c cur' body saved_ec)
       end
   | WhileRunning c body cur ->
       match step_eval s0 checked cur with
@@ -1142,9 +1149,9 @@ and step_eval s0 checked stmt =
       | Right (step, s1, Return)     -> Right (XSNested (XSWhile "returning") step, s1, Return) 
       | Right (step, s1, Break 1)    -> Right (XSNested (XSWhile "breaking loop") step, exit_loop s1, Done)
       | Right (step, s1, Break n)    -> Right (XSNested (XSWhile "breaking to outer loop") step, exit_loop s1, Break (n-1))
-      | Right (step, s1, Continue 1) -> Right (XSNested (XSWhile "continuing loop") step, s1, WhileCond c c body)
+      | Right (step, s1, Continue 1) -> Right (XSNested (XSWhile "continuing loop") step, s1, WhileCond c c body (Just s1.sh.exit_code))
       | Right (step, s1, Continue n) -> Right (XSNested (XSWhile "continuing to outer loop") step, exit_loop s1, Continue (n-1))
-      | Right (step, s1, Done) -> check_traps (Right (XSNested (XSWhile "finished iteration of while loop; retesting condition") step, s1, WhileCond c c body))
+      | Right (step, s1, Done) -> check_traps (Right (XSNested (XSWhile "finished iteration of while loop; retesting condition") step, s1, WhileCond c c body (Just s1.sh.exit_code)))
       | Right (step, s1, cur') -> Right (XSNested (XSWhile "") step, s1, WhileRunning c body cur')
       end
 
