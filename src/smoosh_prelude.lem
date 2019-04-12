@@ -670,16 +670,8 @@ type dup_type = ToFD | FromFD
 type heredoc_type = Here (* quoted heredoc name, for when the heredoc shouldn't do any expansion *) | XHere (* unquoted, do expansion *)
 
 (**********************************************************************)
-(* AST ****************************************************************)
+(* Other modes ********************************************************)
 (**********************************************************************)
-
-type pid = nat
-
-type stackmark
-declare ocaml target_rep type stackmark = `Ctypes.structure` `Dash.stackmark`
-
-type dash_string
-declare ocaml target_rep type dash_string = `Ctypes.ptr` char
 
 type bg_mode = FG | BG
 
@@ -698,6 +690,27 @@ let is_interactive_mode interactivity_mode =
   | Interactive -> true
   | Noninteractive -> false
   end
+
+type shell_level = Toplevel | Subsidiary
+
+val is_toplevel : shell_level -> bool
+let is_toplevel toplevel_mode =
+  match toplevel_mode with
+  | Toplevel -> true
+  | Subsidiary -> false
+  end
+
+(**********************************************************************)
+(* AST ****************************************************************)
+(**********************************************************************)
+
+type pid = nat
+
+type stackmark
+declare ocaml target_rep type stackmark = `Ctypes.structure` `Dash.stackmark`
+
+type dash_string
+declare ocaml target_rep type dash_string = `Ctypes.ptr` char
         
 type format =
     Normal
@@ -769,7 +782,7 @@ and stmt =
   | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (list words * stmt) (* remaining cases *)
   | Defun of string * stmt
   | Call of nat (* outer loop_nest, to be restored *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
-  | EvalLoop of nat (* linno *) * parse_context * parse_source * interactivity_mode * bool (* top level? *)
+  | EvalLoop of nat (* linno *) * parse_context * parse_source * interactivity_mode * shell_level
   | Break of nat
   | Continue of nat
   | Return

@@ -356,7 +356,7 @@ let parse_string cmd =
   let stackmark = Dash.init_stack () in
   Semi
     (EvalLoop (1, (sstr, Some stackmark), src,
-               Noninteractive, false (* not top level, will call parse_done *)),
+               Noninteractive, Subsidiary (* not top level, will call parse_done *)),
      Exit)
 
 let dash_setvar x v = 
@@ -487,7 +487,7 @@ let rec json_of_stmt = function
      Assoc ([tag "EvalLoop";
              ("linno", Int linno);
              ("interactive", Bool (is_interactive_mode i));
-             ("top_level", Bool top_level)] @
+             ("top_level", Bool (is_toplevel top_level))] @
              json_field_of_src src)
   | Break n -> Assoc [tag "Break"; ("n", Int n)]
   | Continue n -> Assoc [tag "Continue"; ("n", Int n)]

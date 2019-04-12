@@ -80,7 +80,7 @@ let rec internal_check_traps step s0 c =
         let sstr = parse_init src in
         let c_handler =                    
           EvalLoop 1 (sstr, Just (stack_init ())) src 
-            Noninteractive false (* not top level *)
+            Noninteractive Subsidiary
         in
         (XSNested (XSTrap signal "trapped") step, 
          s2, 
@@ -1329,30 +1329,30 @@ and step_eval s0 checked stmt =
 
   (* EVALLOOP *****************************************************************)
 
-  | EvalLoop linno ((sstr,stackmark) as ctx) src interactive top_level ->
+  | EvalLoop linno ((sstr,stackmark) as ctx) src interactive shell_level ->
      let s1 = show_changed_jobs s0 in
      let (s2, parsed) = parse_next s1 interactive stackmark in
      check_traps
        (match parsed with
         | ParseDone -> 
-           let _ = if top_level then () else parse_done sstr in
+           let _ = if is_toplevel shell_level then () else parse_done sstr in
            let (s3, c) = 
              if is_interactive_mode interactive && 
-                  top_level && Set.member Sh_ignoreeof s2.sh.opts
+                  is_toplevel shell_level && Set.member Sh_ignoreeof s2.sh.opts
              then (write_stderr "Use \"exit\" to leave the shell.\n" s2, 
-                   EvalLoop linno ctx src interactive top_level)
+                   EvalLoop linno ctx src interactive shell_level)
              else (s2, Done)
            in
            Right (XSEval linno src "done", s3, c)
         | ParseError -> 
-           let _ = if top_level then () else parse_done sstr (* TODO ??? *) in
+           let _ = if is_toplevel shell_level then () else parse_done sstr (* TODO ??? *) in
            Right (XSEval linno src "parse error", exit_with 1 s2, Done)
         | ParseNull ->
            Right (XSEval linno src "empty line", s2, 
-                  EvalLoop (linno+1) ctx src interactive top_level)
+                  EvalLoop (linno+1) ctx src interactive shell_level)
         | ParseStmt c ->
            Right (XSEval linno src "", s2,
-                  Semi c (EvalLoop (linno+1) ctx src interactive top_level))
+                  Semi c (EvalLoop (linno+1) ctx src interactive shell_level))
         end)
 
   (* EXEC *********************************************************************)

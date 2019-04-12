@@ -108,7 +108,7 @@ let main () =
   parse_args ();
   let sstr = Shim.parse_init !parse_source in
   let (trace,_final_os_state) = 
-    run_trace_evaluation !initial_os_state (EvalLoop (1, (sstr, None), !parse_source, Noninteractive, true))
+    run_trace_evaluation !initial_os_state (EvalLoop (1, (sstr, None), !parse_source, Noninteractive, Toplevel))
   in
   show_trace trace
 ;;
