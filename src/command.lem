@@ -7,7 +7,7 @@ import Debug
 val run_command : forall 'a. OS 'a => 
                   os_state 'a -> 
                   command_opts ->
-                  bool (* exit status checked elsewhere? *) ->
+                  checking_mode (* exit status checked elsewhere? *) ->
                   symbolic_string (* prog *) -> 
                   fields (* argv *) ->
                   env ->
@@ -1324,7 +1324,7 @@ let builtin_wait s0 argv env =
   match argv with
   | [] ->
      let (s1,jobs) = active_jobs s0 in
-     let waits = List.map (fun job -> Wait job.pid false Nothing) jobs in
+     let waits = List.map (fun job -> Wait job.pid Unchecked Nothing) jobs in
      (* the skip on the end makes sure we return 0 *)
      Right (s1, sequence (waits ++ [skip]))
   | pid::pids' ->
@@ -1338,9 +1338,9 @@ let builtin_wait s0 argv env =
          *)
         let next = 
           if null pids'
-          then Wait pid false Nothing
+          then Wait pid Unchecked Nothing
           else Semi 
-                 (Wait pid false Nothing) 
+                 (Wait pid Unchecked Nothing) 
                  (simple_command "wait" pids' env)
         in
         Right (s0, next)
@@ -1465,7 +1465,7 @@ let builtin_read s0 argv env =
      | (s1, ReadBlocked pid) -> 
         Right (s1, 
                Semi 
-                 (Wait pid false (Just default_block))
+                 (Wait pid Unchecked (Just default_block))
                  (simple_command "read" argv env))
      | (s1, ReadSuccess line hit_eof) ->
         let trimmed = trimr_one_newline line in
@@ -2135,7 +2135,7 @@ let send_sigcont os0 argv setfg =
   | Right pid -> 
      let (os1, _tc_ok) = if setfg then tc_setfg os0 pid else (os0, true) in
      let (os2, _signal_ok) = signal_pid os1 SIGCONT pid true in
-     Right (os2, if setfg then Wait pid false Nothing else Done)
+     Right (os2, if setfg then Wait pid Unchecked Nothing else Done)
   end
 
 let builtin_fg os0 argv _env = send_sigcont os0 argv true (* call tc_setfg *)

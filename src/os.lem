@@ -25,7 +25,7 @@ type step_result 'a =
 
 type step_fun 'a = 
   os_state 'a -> 
-  bool (* exit status checked elsewhere? *) ->
+  checking_mode ->
   stmt -> 
   step_result 'a
 

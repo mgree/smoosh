@@ -266,7 +266,7 @@ let symbolic_step_pid step_eval os0 pid =
      (os1, Nothing)
   | Just (Shell Proc_Running stmt sh' fds') ->
      let os1 = <| os0 with sh = sh'; symbolic = <| os0.symbolic with sh_fds = fds' |> |> in
-     match step_eval os1 false (* exit status not checked *) stmt with
+     match step_eval os1 Unchecked stmt with
      | Left (_step, os2) -> 
         (<| os2 with sh = os0.sh; 
                      symbolic = <| os2.symbolic with 

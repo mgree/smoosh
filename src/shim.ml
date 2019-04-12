@@ -499,7 +499,7 @@ let rec json_of_stmt = function
             ("env", json_of_env env);
             ("binsh", Bool (try_binsh binsh))]
   | Wait (n, checked, bound) -> 
-     Assoc ([tag "Wait"; ("pid", Int n); ("checked", Bool checked)] @
+     Assoc ([tag "Wait"; ("pid", Int n); ("checked", Bool (checked_exit checked))] @
               match bound with
               | None -> []
               | Some steps -> [("steps", Int steps)])

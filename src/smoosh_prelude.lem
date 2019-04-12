@@ -718,6 +718,15 @@ let try_binsh binsh_mode =
   | NoBinSh -> false
   end
 
+type checking_mode = Checked | Unchecked
+
+val checked_exit : checking_mode -> bool
+let checked_exit checking_mode =
+  match checking_mode with
+  | Checked -> true
+  | Unchecked -> false
+  end
+
 (**********************************************************************)
 (* AST ****************************************************************)
 (**********************************************************************)
@@ -801,7 +810,7 @@ and stmt =
   | Exit
   | Exec of symbolic_string * list symbolic_string * env * binsh_mode
   | Wait of pid 
-          * bool (* checked exit status? true means ignore Sh_errexit*) 
+          * checking_mode
           * maybe nat (* Nothing = block; Just n = n steps *)
   | Trapped of signal * nat (* ec to restore *) * stmt (* current handler *) * stmt (* continuation *)
   | Pushredir of stmt * saved_fds

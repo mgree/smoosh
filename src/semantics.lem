@@ -817,7 +817,7 @@ and step_eval s0 checked stmt =
          foldr set s0_logged (Map_extra.toList env)
        else s0_logged
      in
-     let catching_errors = not checked && Set.member Sh_errexit s1.sh.opts in
+     let catching_errors = not (checked_exit checked) && Set.member Sh_errexit s1.sh.opts in
      let exit_on_error = 
        catching_errors ||
        (prog_special && not (is_interactive s1)) (* per table in 2.8.1 *)
@@ -1029,7 +1029,7 @@ and step_eval s0 checked stmt =
 
   (* AND **********************************************************************)
   | And l r ->
-      match step_eval s0 true l with
+      match step_eval s0 Checked l with
       | Left e -> Left e
       | Right (step, s1, Exit)       -> Right (step, s1, Exit)
       | Right (step, s1, Return)     -> Right (step, s1, Return)
@@ -1045,7 +1045,7 @@ and step_eval s0 checked stmt =
 
   (* OR ***********************************************************************)
   | Or l r ->
-      match step_eval s0 true l with
+      match step_eval s0 Checked l with
       | Left e -> Left e
       | Right (step, s1, Exit)       -> Right (step, s1, Exit)
       | Right (step, s1, Return)     -> Right (step, s1, Return)
@@ -1061,7 +1061,7 @@ and step_eval s0 checked stmt =
 
   (* NOT **********************************************************************)
   | Not stmt' ->
-      match step_eval s0 true stmt' with
+      match step_eval s0 Checked stmt' with
       | Left e -> Left e
       | Right (step, s1, Exit)       -> Right (step, s1, Exit)
       | Right (step, s1, Return)     -> Right (step, s1, Return)
@@ -1090,7 +1090,7 @@ and step_eval s0 checked stmt =
 
   (* IF ***********************************************************************)
   | If c t e ->
-      match step_eval s0 true c with
+      match step_eval s0 Checked c with
       | Left e -> Left e
       | Right (step, s1, Exit)       -> Right (step, s1, Exit)
       | Right (step, s1, Return)     -> Right (step, s1, Return)
@@ -1110,7 +1110,7 @@ and step_eval s0 checked stmt =
             enter_loop s0, 
             WhileCond c c body Nothing)
   | WhileCond c cur body saved_ec ->
-      match step_eval s0 true cur with
+      match step_eval s0 Checked cur with
       | Left e -> Left e
       | Right (step, s1, Exit)       -> Right (XSNested (XSWhile "exiting") step, 
                                                s1, Exit)
@@ -1373,8 +1373,8 @@ and step_eval s0 checked stmt =
                s0,
                Done))
    
-  | Wait pid wait_checked bound -> 
-     let exit_on_error = not wait_checked && Set.member Sh_errexit s0.sh.opts in
+  | Wait pid checking bound -> 
+     let exit_on_error = not (checked_exit checking) && Set.member Sh_errexit s0.sh.opts in
      let s_pid = stringFromNat pid in
      match waitpid step_eval s0 pid with
      | (s1, Nothing) -> 
@@ -1393,7 +1393,7 @@ and step_eval s0 checked stmt =
         Right (XSNested (XSWait ("process with pid " ^ s_pid ^ " stepped")) 
                         step,
                s1,
-               Wait pid wait_checked bound')
+               Wait pid checking bound')
      | (s1, Just (Right code)) ->
         let s2 = delete_job_with_pid s1 pid in
         check_traps
@@ -1416,7 +1416,7 @@ and step_eval s0 checked stmt =
        Right (XSTrap signal "finished",
               s1,
               c)
-     else match step_eval s0 false c_handler with
+     else match step_eval s0 Unchecked c_handler with
           | Left (step, s1) -> 
              Right (XSNested (XSTrap signal "errored out") step,
                     exit_with old_ec s1,
@@ -1465,7 +1465,7 @@ and full_evaluation os0 stmt0 =
     match stmt0 with
     | Done -> os1
     | _ -> 
-       match step_eval os1 false stmt0 with
+       match step_eval os1 Unchecked stmt0 with
        | Right (step, os2, stmt1) -> full_evaluation (log_step step os2) stmt1
        | Left (step, os2) ->
           let os3 = write_stderr (string_of_evaluation_step step ^ "\n") os2 in
@@ -1529,7 +1529,7 @@ let rec run_trace_evaluation os0 stmt0 =
        | (s1, Just c_handler) -> run_trace_evaluation s1 c_handler
        end
     | _ ->
-        match step_eval os1 false stmt0 with
+        match step_eval os1 Unchecked stmt0 with
         | Right (step, os2, stmt1) -> 
            let entry = (step, os2.sh, os2.symbolic, stmt1) in
            let (trace,os3) = run_trace_evaluation os2 stmt1 in
