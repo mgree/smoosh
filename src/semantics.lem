@@ -69,7 +69,7 @@ let rec internal_check_traps step s0 c =
      | Nothing -> internal_check_traps step s1 c
      | Just ss_handler ->
         let (s2,_,s_handler) = concretize s1 ss_handler in
-        let src = ParseString s_handler in
+        let src = ParseString ParseTrap s_handler in
         let sstr = parse_init src in
         let c_handler =                    
           EvalLoop 1 (sstr, Just (stack_init ())) src 
@@ -1344,8 +1344,31 @@ and step_eval s0 checked stmt =
                   EvalLoop (linno+1) ctx src interactive shell_level)
         | ParseStmt c ->
            Right (XSEval linno src "", s2,
-                  Semi c (EvalLoop (linno+1) ctx src interactive shell_level))
+                  EvalLoopCmd (linno+1) ctx src interactive shell_level c)
         end)
+  | EvalLoopCmd linno ctx src interactive shell_level c ->
+     match step_eval s0 checked c with
+      | Left e -> Left e
+      | Right (step, s1, Exit) -> Right (step, s1, Exit)
+      | Right (step, s1, c') ->
+         if is_terminating_control c' (* Exit already ruled out *)
+         then
+           (* we got some kind of terminating control other than Exit *)
+           check_traps
+             (Right (XSNested (XSEval linno src "returning to loop") step,
+                     s1, 
+                     if not (is_toplevel shell_level) && parse_source_propagates_control src
+                     then
+                       (* when break/return/continue occur in an eval, allow it! *)
+                       c'
+                     else 
+                       (* when they occur at the toplevel or in dot, ignore them *)
+                       EvalLoop linno ctx src interactive shell_level))
+         else 
+           (* keep on running *)
+           Right (XSNested (XSEval linno src "") step, s1, 
+                  EvalLoopCmd linno ctx src interactive shell_level c')
+      end
 
   (* EXEC *********************************************************************)
   | Exec cmd args env binsh ->

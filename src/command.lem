@@ -309,9 +309,6 @@ let builtin_break s0 argv _env =
     then (s0, n)
     else (s0, s0.sh.loop_nest)
   in
-  if s0.sh.loop_nest = 0
-  then Left (s0, "break: only meaningful in a `for', `while', or `until' loop")
-  else
   match argv with
   | [] -> 
      (* default to just breaking the immediate loop *)
@@ -515,7 +512,7 @@ let builtin_eval s0 argv _env =
   if null argv
   then Right (exit_with 0 s0, Done, true)
   else 
-    let src = ParseString (string_of_fields argv) in
+    let src = ParseString ParseEval (string_of_fields argv) in
     let sstr = parse_init src in
     Right (s0, 
            EvalLoop 1 (sstr, Just (stack_init ())) src 

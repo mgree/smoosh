@@ -322,7 +322,7 @@ and to_args (n : node union ptr) : words list =
 let parse_init src =
   match src with
   | ParseSTDIN -> Dash.setinputtostdin (); None
-  | ParseString cmd ->
+  | ParseString (_, cmd) ->
      let ss = Dash.alloc_stack_string cmd in
      Dash.setinputstring ss;
      Some ss
@@ -351,7 +351,7 @@ let parse_next i m_smark : parse_result =
   res
 
 let parse_string cmd =
-  let src = ParseString cmd in
+  let src = ParseString (ParseEval, cmd) in
   let sstr = parse_init src in
   let stackmark = Dash.init_stack () in
   Semi
@@ -488,6 +488,13 @@ let rec json_of_stmt = function
              ("linno", Int linno);
              ("interactive", Bool (is_interactive_mode i));
              ("top_level", Bool (is_toplevel top_level))] @
+             json_field_of_src src)
+  | EvalLoopCmd (linno, _ctx, src, i, top_level, c) ->
+     Assoc ([tag "EvalLoopCmd";
+             ("linno", Int linno);
+             ("interactive", Bool (is_interactive_mode i));
+             ("top_level", Bool (is_toplevel top_level));
+             ("c", json_of_stmt c)] @
              json_field_of_src src)
   | Break n -> Assoc [tag "Break"; ("n", Int n)]
   | Continue n -> Assoc [tag "Continue"; ("n", Int n)]
@@ -733,7 +740,7 @@ and json_of_evaluation_step = function
 
 and json_field_of_src = function
   | ParseSTDIN -> [("src", String "<STDIN>")]
-  | ParseString cmd -> [("cmd", String cmd)]
+  | ParseString (_mode, cmd) -> [("cmd", String cmd)]
   | ParseFile (file, _push) ->
      (* we trim it to basename because we don't want to leak filenames in the web server *)
      [("src", String (Filename.basename file))]

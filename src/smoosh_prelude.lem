@@ -755,6 +755,19 @@ let checked_exit checking_mode =
 (* AST ****************************************************************)
 (**********************************************************************)
 
+type parse_string_mode =
+    ParseEval
+  | ParseTrap
+
+type parse_source =
+  | ParseSTDIN
+  | ParseString of parse_string_mode * string
+  | ParseFile of string * bool (* push file onto stack of input sources? *)
+
+(**********************************************************************)
+(* AST ****************************************************************)
+(**********************************************************************)
+
 type pid = nat
 
 type stackmark
@@ -828,6 +841,7 @@ and stmt =
   | Defun of string * stmt
   | Call of nat (* outer loop_nest, to be restored *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
   | EvalLoop of nat (* linno *) * parse_context * parse_source * interactivity_mode * shell_level
+  | EvalLoopCmd of nat (* linno *) * parse_context * parse_source * interactivity_mode * shell_level * stmt
   | Break of nat
   | Continue of nat
   | Return
@@ -937,11 +951,6 @@ and evaluation_step =
   | XSProc of pid * stmt
   | XSNested of evaluation_step * evaluation_step
   | XSExpand of evaluation_step * expansion_step
-
-and parse_source =
-  | ParseSTDIN
-  | ParseString of string
-  | ParseFile of string * bool (* push file onto stack of input sources? *)
 
 and parse_result =
   | ParseDone
@@ -1452,6 +1461,15 @@ let expand_redir er f =
   | XRHeredoc ty src _ -> ERHeredoc ty src f
   end
 
+val parse_source_propagates_control : parse_source -> bool
+let parse_source_propagates_control src =
+  match src with
+  | ParseSTDIN -> true
+  | ParseString ParseEval _ -> true
+  | ParseString ParseTrap _ -> false
+  | ParseFile _ _ -> false
+  end
+
 val is_active_job : job_info -> bool
 let is_active_job job = 
   match job.status with
@@ -1641,8 +1659,17 @@ and string_of_stmt c =
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
   | Call _loopnest _argv _f _body c -> string_of_stmt c (* TODO leaving stuff out *)
   | EvalLoop _linno _ctx (ParseFile src _push) _i _tl -> "source " ^ src
-  | EvalLoop _linno _ctx (ParseString cmd) _i _tl -> "eval '" ^ cmd ^ "'"
+  | EvalLoop _linno _ctx (ParseString ParseEval cmd) _i _tl -> "eval '" ^ cmd ^ "'"
+  | EvalLoop _linno _ctx (ParseString ParseTrap cmd) _i _tl -> "eval '" ^ cmd ^ "' # from trap"
   | EvalLoop _linno _ctx ParseSTDIN _i _tl -> ": EvalLoop"
+  | EvalLoopCmd _linno _ctx (ParseFile src _push) _i _tl c -> 
+     string_of_stmt c ^ " # in source " ^ src
+  | EvalLoopCmd _linno _ctx (ParseString ParseEval cmd) _i _tl c -> 
+     string_of_stmt c ^ " # in eval '" ^ cmd ^ "'"
+  | EvalLoopCmd _linno _ctx (ParseString ParseTrap cmd) _i _tl c -> 
+     string_of_stmt c ^ " # in eval '" ^ cmd ^ "' from trap"
+  | EvalLoopCmd _linno _ctx ParseSTDIN _i _tl c -> 
+     string_of_stmt c
   | Break n -> "break " ^ show n
   | Continue n -> "continue " ^ show n
   | Return -> "return"
@@ -1888,7 +1915,7 @@ and string_of_evaluation_step step =
 and string_of_parse_source src =
   match src with
   | ParseSTDIN -> "<STDIN>"
-  | ParseString cmd -> "'" ^ cmd ^ "'"
+  | ParseString _ cmd -> "'" ^ cmd ^ "'"
   | ParseFile file _push -> file
   end
 

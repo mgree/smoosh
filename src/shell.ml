@@ -140,7 +140,7 @@ let prepare_command () : string list (* positional args *) =
      | cmd::args -> parse_source := ParseFile (cmd, false (* don't pushfile *)); cmd::args
      end
   | SFlag -> parse_source := ParseSTDIN; Sys.argv.(0)::!params
-  | CFlag cmd -> parse_source := ParseString cmd; cmd::!params
+  | CFlag cmd -> parse_source := ParseString (ParseEval, cmd); cmd::!params
 
 let setup_handlers () =
   System.real_eval := 

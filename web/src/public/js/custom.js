@@ -358,7 +358,7 @@ function renderStmt(info, elt, stmt) {
                   'While', 'WhileCond', 'WhileRunning',
                   'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
                   'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
-                  'Defun', 'Call', 'EvalLoop',
+                  'Defun', 'Call', 'EvalLoop', 'EvalLoopCmd',
                   'Break', 'Continue', 'Return', 
                   'Exec', 'Wait', 'Trapped', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
@@ -719,6 +719,30 @@ function renderStmt(info, elt, stmt) {
       //   | ParseFile file -> [("src", String file)]
 
       var cmd = $('<span></span>').addClass('evalloop').appendTo(elt);
+      var comment = $('<span></span>').addClass('comment').appendTo(elt);
+      comment.append('in eval loop');
+      if ('src' in stmt) {
+          comment.append(' from ' + stmt['src']);
+      }
+      
+      break;
+
+    case 'EvalLoopCmd':
+      // | EvalLoopCmd (linno, src, i, top_level, c) ->
+      //    Assoc ([tag "EvalLoop";
+      //            ("linno", Int linno);
+      //            ("interactive", Bool i);
+      //            ("top_level", Bool top_level)
+      //            ("c", json_of_stmt c)] @
+      //            json_field_of_src src)
+      //
+      // and json_field_of_src = function
+      //   | ParseString cmd -> [("cmd", String cmd)]
+      //   | ParseFile file -> [("src", String file)]
+
+      var cmd = $('<span></span>').addClass('evalloop').appendTo(elt);
+      renderStmt(info, cmd, stmt['c']);
+
       var comment = $('<span></span>').addClass('comment').appendTo(elt);
       comment.append('in eval loop');
       if ('src' in stmt) {
