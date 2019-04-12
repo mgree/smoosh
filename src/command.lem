@@ -307,9 +307,7 @@ let builtin_break s0 argv _env =
   let bounded n =
     if n <= s0.sh.loop_nest
     then (s0, n)
-    else (write_stderr ("break: loop count of " ^ stringFromNat n ^ " is out of range, truncating to " ^
-                          stringFromNat s0.sh.loop_nest ^ "\n") s0,
-          s0.sh.loop_nest)
+    else (s0, s0.sh.loop_nest)
   in
   if s0.sh.loop_nest = 0
   then Left (s0, "break: only meaningful in a `for', `while', or `until' loop")
@@ -1283,7 +1281,7 @@ let builtin_alias s0 argv _env =
 
 let rec remove_aliases s0 names =
   match names with
-  | [] -> Right (exit_with 0 s0, Done)
+  | [] -> Right (s0, Done)
   | sname::names' ->
      match try_concrete sname with
      | Nothing -> 
@@ -1294,7 +1292,7 @@ let rec remove_aliases s0 names =
         let s1 = 
           if Map.member name s0.sh.aliases
           then free_alias s0 name
-          else write_stderr ("unalias: " ^ name ^ " not found\n") s0
+          else fail_with ("unalias: " ^ name ^ " not found\n") s0
         in
         remove_aliases s1 names'
      end
@@ -1305,8 +1303,8 @@ let builtin_unalias s0 argv _env =
   | [[C #'-'; C #'a']] ->
      (* remove all aliases *)
      let all_aliases = Set_extra.toList (Map.domain s0.sh.aliases) in
-     remove_aliases s0 (map symbolic_string_of_string all_aliases)
-  | _ -> remove_aliases s0 argv
+     remove_aliases (exit_with 0 s0) (map symbolic_string_of_string all_aliases)
+  | _ -> remove_aliases (exit_with 0 s0) argv
   end
 
 (* TODO 2018-10-01
