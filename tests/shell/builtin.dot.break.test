@@ -1,0 +1,6 @@
+echo break >scr
+for x in a b c
+do
+  echo $x
+  . ./scr
+done
