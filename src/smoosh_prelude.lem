@@ -689,6 +689,15 @@ let is_bg bg_mode =
   | BG -> true
   | FG -> false
   end
+
+type interactivity_mode = Interactive | Noninteractive
+
+val is_interactive_mode : interactivity_mode -> bool
+let is_interactive_mode interactivity_mode =
+  match interactivity_mode with
+  | Interactive -> true
+  | Noninteractive -> false
+  end
         
 type format =
     Normal
@@ -760,7 +769,7 @@ and stmt =
   | CaseCheckMatch of symbolic_string * expansion_state (* current pattern *) * stmt (* current command(s) *) * list (list words * stmt) (* remaining cases *)
   | Defun of string * stmt
   | Call of nat (* outer loop_nest, to be restored *) * fields (* outer $1, $2, $3, etc *) * string (* function name *) * stmt (* orig body *) * stmt (* current body *)
-  | EvalLoop of nat (* linno *) * parse_context * parse_source * bool (* interactive? *) * bool (* top level? *)
+  | EvalLoop of nat (* linno *) * parse_context * parse_source * interactivity_mode * bool (* top level? *)
   | Break of nat
   | Continue of nat
   | Return

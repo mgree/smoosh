@@ -269,6 +269,12 @@ let rec concretize_fields os0 f =
 val is_interactive : forall 'a. os_state 'a -> bool
 let is_interactive os = Set.member Sh_interactive os.sh.opts
 
+val interactivity_mode_of : forall 'a. os_state 'a -> interactivity_mode
+let interactivity_mode_of os = 
+  if is_interactive os
+  then Interactive
+  else Noninteractive
+
 val is_monitoring : forall 'a. os_state 'a -> bool
 let is_monitoring os = Set.member Sh_monitor os.sh.opts
 

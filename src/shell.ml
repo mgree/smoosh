@@ -170,7 +170,7 @@ let initialize_env s0 : system os_state =
 
 let cmdloop s0 sstr =
   let s1 = real_eval s0 (EvalLoop (1, (sstr, None), !parse_source, 
-                                   is_interactive s0, true (* top level *))) in
+                                   interactivity_mode_of s0, true (* top level *))) in
   ignore (real_eval s1 Exit)
 
 (* TODO lots of special casing at http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sh.html *)

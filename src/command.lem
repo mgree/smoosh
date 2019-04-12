@@ -521,7 +521,7 @@ let builtin_eval s0 argv _env =
     let sstr = parse_init src in
     Right (s0, 
            EvalLoop 1 (sstr, Just (stack_init ())) src 
-             false (* not interactive *) false (* not top level *), 
+             Noninteractive false (* not top level *), 
            true)
 
 let builtin_source argv0 s0 argv _env = 
@@ -550,7 +550,7 @@ let builtin_source argv0 s0 argv _env =
           let sstr = parse_init src in
           Right (s0, 
                  EvalLoop 1 (sstr, Nothing) src 
-                   false (* not interactive *) false (* not top level *), 
+                   Noninteractive false (* not top level *), 
                  true)
         else
           (* If no readable file is found, a non-interactive shell

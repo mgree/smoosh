@@ -80,7 +80,7 @@ let rec internal_check_traps step s0 c =
         let sstr = parse_init src in
         let c_handler =                    
           EvalLoop 1 (sstr, Just (stack_init ())) src 
-            false (* not interactive *) false (* not top level *)
+            Noninteractive false (* not top level *)
         in
         (XSNested (XSTrap signal "trapped") step, 
          s2, 
@@ -1337,7 +1337,8 @@ and step_eval s0 checked stmt =
         | ParseDone -> 
            let _ = if top_level then () else parse_done sstr in
            let (s3, c) = 
-             if interactive && top_level && Set.member Sh_ignoreeof s2.sh.opts
+             if is_interactive_mode interactive && 
+                  top_level && Set.member Sh_ignoreeof s2.sh.opts
              then (write_stderr "Use \"exit\" to leave the shell.\n" s2, 
                    EvalLoop linno ctx src interactive top_level)
              else (s2, Done)

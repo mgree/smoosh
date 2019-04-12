@@ -13,10 +13,10 @@ declare ocaml target_rep function stack_pop = `Dash.pop_stack`
 val parse_done : maybe dash_string -> unit
 declare ocaml target_rep function parse_done = `Shim.parse_done`
 
-val parse_next_internal : bool (* interactive? *) -> maybe stackmark -> parse_result
+val parse_next_internal : interactivity_mode -> maybe stackmark -> parse_result
 declare ocaml target_rep function parse_next_internal = `Shim.parse_next`
 
-val parse_next : forall 'a. OS 'a => os_state 'a -> bool -> maybe stackmark -> os_state 'a * parse_result
+val parse_next : forall 'a. OS 'a => os_state 'a -> interactivity_mode -> maybe stackmark -> os_state 'a * parse_result
 let parse_next s0 interactive stackmark =
   match parse_next_internal interactive stackmark with
   | ParseDone   -> (s0,ParseDone)

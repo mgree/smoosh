@@ -339,7 +339,7 @@ let parse_done m_ss =
 let parse_next i m_smark : parse_result =
   let stackmark = Dash.init_stack () in
   let res =
-    match Dash.parse_next ~interactive:i () with
+    match Dash.parse_next ~interactive:(is_interactive_mode i) () with
     | Done -> ParseDone
     | Error -> ParseError 
     | Null -> ParseNull
@@ -356,7 +356,7 @@ let parse_string cmd =
   let stackmark = Dash.init_stack () in
   Semi
     (EvalLoop (1, (sstr, Some stackmark), src,
-               false, false (* not top level, will call parse_done *)),
+               Noninteractive, false (* not top level, will call parse_done *)),
      Exit)
 
 let dash_setvar x v = 
@@ -486,7 +486,7 @@ let rec json_of_stmt = function
   | EvalLoop (linno, _ctx, src, i, top_level) ->
      Assoc ([tag "EvalLoop";
              ("linno", Int linno);
-             ("interactive", Bool i);
+             ("interactive", Bool (is_interactive_mode i));
              ("top_level", Bool top_level)] @
              json_field_of_src src)
   | Break n -> Assoc [tag "Break"; ("n", Int n)]
