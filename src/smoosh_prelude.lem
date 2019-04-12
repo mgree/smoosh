@@ -670,8 +670,17 @@ type dup_type = ToFD | FromFD
 type heredoc_type = Here (* quoted heredoc name, for when the heredoc shouldn't do any expansion *) | XHere (* unquoted, do expansion *)
 
 (**********************************************************************)
-(* Other modes ********************************************************)
+(* Other modes, options, and flags ************************************)
 (**********************************************************************)
+(* NB we write custom tester functions with complete pattern matches
+   rather than using equality tests so that we can freely add cases
+   without having to worry about introducing logic bugs *)
+
+type command_opts =
+  <| ran_cmd_subst : bool;
+     should_fork : bool;
+     allow_functions : bool
+  |>
 
 type bg_mode = FG | BG
 
@@ -698,6 +707,15 @@ let is_toplevel toplevel_mode =
   match toplevel_mode with
   | Toplevel -> true
   | Subsidiary -> false
+  end
+
+type binsh_mode = TryBinSh | NoBinSh
+
+val try_binsh : binsh_mode -> bool
+let try_binsh binsh_mode =
+  match binsh_mode with
+  | TryBinSh -> true
+  | NoBinSh -> false
   end
 
 (**********************************************************************)
@@ -748,12 +766,6 @@ and entry =
   | ESym of sym (* embedded symbolic entries *)
 
 and words = list entry
-
-and command_opts =
-  <| ran_cmd_subst : bool;
-     should_fork : bool;
-     allow_functions : bool
-  |>
           
 and stmt =
     Command of list (string * words) * words * list redir * command_opts
@@ -787,7 +799,7 @@ and stmt =
   | Continue of nat
   | Return
   | Exit
-  | Exec of symbolic_string * list symbolic_string * env * bool (* try /bin/sh? *)
+  | Exec of symbolic_string * list symbolic_string * env * binsh_mode
   | Wait of pid 
           * bool (* checked exit status? true means ignore Sh_errexit*) 
           * maybe nat (* Nothing = block; Just n = n steps *)

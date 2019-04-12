@@ -374,7 +374,7 @@ instance (OS symbolic)
   
   let getpwnam os u = Map.lookup u os.symbolic.passwd
 
-  let execve os prog argv env binsh =
+  let execve os _prog _argv _env _binsh =
     (os, Left "symbolic execve unimplemented")
 
   let fork_and_subshell os stmt _bg _pgid _jc =

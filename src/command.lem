@@ -574,7 +574,7 @@ let builtin_exec s0 argv env =
         | (s1, Nothing) -> Right (s1, Done, true)
         | (s1, Just executable) -> 
            Right (s1, 
-                  Exec (symbolic_string_of_string executable) args env false, 
+                  Exec (symbolic_string_of_string executable) args env NoBinSh, 
                   false (* but it doesn't matter, we'll never return *))
         end
      end
@@ -2287,7 +2287,7 @@ let run_command s0 opts checked prog_name argv env =
                    Right (s1, Done, true)
                 | (s1, Just executable) ->
                    let cmd = symbolic_string_of_string executable in
-                   let exec = Exec cmd argv env true (* try /bin/sh *) in
+                   let exec = Exec cmd argv env TryBinSh in
                    if opts.should_fork 
                    then
                      let (s2,pid) =

@@ -224,7 +224,7 @@ instance (OS unit)
     let (os1,_,prog) = concretize os0 sprog in
     let (os2,_,argv) = concretize_many os1 sargv in
     let (os3,env) = environ os2 senv in
-    match real_execve prog argv env binsh with
+    match real_execve prog argv env (try_binsh binsh) with
     | Just err -> (os3, Left err)
     | Nothing -> (os3, Right Done)
     end

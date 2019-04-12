@@ -80,7 +80,7 @@ class ( OS 'a )
     symbolic_string -> (* cmd *)
     list symbolic_string -> (* argv *)
     env -> 
-    bool -> (* try /bin/sh? *)
+    binsh_mode ->
     os_state 'a * either string stmt
   val fork_and_subshell : 
     os_state 'a -> 
