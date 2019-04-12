@@ -13,13 +13,6 @@ import Debug
 
 (* TECHNICAL DEBT 2019-03-04 just have an opts record *)
 
-type splitting_mode =
-    Split
-  | NoSplit
-
-let splitting_mode b =
-  if b then Split else NoSplit
-
 type string_mode =
     UserString
   | GeneratedString
@@ -126,7 +119,7 @@ let expand_param s0 split q str f =
      only one or the other these functions package up the possible
      bits of logic *)
   let (s1, value) =
-    if str = "*" && (q = Quoted || split = NoSplit)
+    if str = "*" && (q = Quoted || not (should_split split))
     then 
       let (s1, sep) = 
         match lookup_string_param s0 "IFS" with
@@ -518,27 +511,27 @@ and expand_words s0 split q tm sm (f,w) =
 
 and step_expansion (os0,st) =
   match st with
-  | ExpStart split glob w0 -> 
-     match expand_words os0 (splitting_mode split) Unquoted YesTilde UserString ([],w0) with
-     | Right (step, os1, tm, f1, w1) -> (step, os1, ExpExpand split glob tm f1 w1)
+  | ExpStart opts w0 -> 
+     match expand_words os0 opts.splitting Unquoted YesTilde UserString ([],w0) with
+     | Right (step, os1, tm, f1, w1) -> (step, os1, ExpExpand opts tm f1 w1)
      | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
-  | ExpExpand split glob _tm0 f0 [] ->
-     if split
-     then (ESSplit "starting field splitting", os0, ExpSplit glob f0)
-     else (ESSplit "skipping field splitting", os0, ExpPath glob (skip_field_splitting f0))
-  | ExpExpand split glob tm0 f0 w0 -> 
-     match expand_words os0 (splitting_mode split) Unquoted tm0 UserString (f0,w0) with
-     | Right (step, os1, tm1, f1, w1) -> (step, os1, ExpExpand split glob tm1 f1 w1)
+  | ExpExpand opts _tm0 f0 [] ->
+     if should_split opts.splitting
+     then (ESSplit "starting field splitting", os0, ExpSplit opts f0)
+     else (ESSplit "skipping field splitting", os0, ExpPath opts (skip_field_splitting f0))
+  | ExpExpand opts tm0 f0 w0 -> 
+     match expand_words os0 opts.splitting Unquoted tm0 UserString (f0,w0) with
+     | Right (step, os1, tm1, f1, w1) -> (step, os1, ExpExpand opts tm1 f1 w1)
      | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
-  | ExpSplit glob f0 -> (ESSplit "", os0, ExpPath glob (field_splitting os0 f0))
-  | ExpPath glob ifs0 -> 
-     if Set.member Sh_noglob os0.sh.opts || not glob
+  | ExpSplit opts f0 -> (ESSplit "", os0, ExpPath opts (field_splitting os0 f0))
+  | ExpPath opts ifs0 -> 
+     if Set.member Sh_noglob os0.sh.opts || opts.globbing = false
      then (ESPath "skipping pathname expansion (set -f/assignment/etc.)", os0, 
-           ExpQuote (unescape_intermediate_fields ifs0))
-     else (ESPath "", os0, ExpQuote (pathname_expansion os0 ifs0))
-  | ExpQuote ifs0 -> (ESQuote "", os0, ExpDone (quote_removal ifs0))
+           ExpQuote opts (unescape_intermediate_fields ifs0))
+     else (ESPath "", os0, ExpQuote opts (pathname_expansion os0 ifs0))
+  | ExpQuote _opts ifs0 -> (ESQuote "", os0, ExpDone (quote_removal ifs0))
   (* the following cases should never occur in calls from trace_expansion: *)
   | ExpError _ -> (ESStep "done in error state", os0, st)
   | ExpDone _ -> (ESStep "done in success state", os0, st)
@@ -555,7 +548,7 @@ and step_redir os0 er =
   match st1 with
    | ExpError err -> REError err
    | ExpDone f -> REDone os1 (expand_redir er f)
-   | ExpPath glob ifs ->
+   | ExpPath opts ifs ->
       (* "Pathname expansion shall not be performed on the word [that
          is the target of redirection] by a non-interactive shell; an
          interactive shell may perform it, but shall do so only when
@@ -569,16 +562,16 @@ and step_redir os0 er =
          take care of a lot of this. 
        *)
       let (msg,es') = 
-        if is_interactive os1 && not (is_heredoc er) && glob
+        if is_interactive os1 && not (is_heredoc er) && opts.globbing
         then 
           let expanded = pathname_expansion os1 ifs in
           if length expanded = 1
           then ("performed pathname expansion in interactive shell",
-                ExpQuote expanded)
+                ExpQuote opts expanded)
           else ("skipped pathname expansion in interactive shell [produced " ^ 
                 (stringFromNat (length expanded)) ^ " words]",
-                ExpQuote (unescape_intermediate_fields ifs))
-        else ("skipped pathname expansion", ExpQuote (unescape_intermediate_fields ifs))
+                ExpQuote opts (unescape_intermediate_fields ifs))
+        else ("skipped pathname expansion", ExpQuote opts (unescape_intermediate_fields ifs))
       in
       REStep (ESPath msg) os1 (set_expanding_redir_state es' er)
    | _ -> REStep step os1 (set_expanding_redir_state st1 er)
@@ -588,14 +581,13 @@ and step_redir_state os0 redir_state =
   match redir_state with
   | (_ers, Nothing, []) -> (os0, "done expanding redirs", Just (redir_state, Nothing))
   | (ers, Nothing, r::redirs) ->
-     let split = false in
-     let glob = is_interactive os0 in
+     let opts = <| splitting = NoSplit; globbing = is_interactive os0 |> in
      let (msg, ers, exp_state) =
        match r with
-       | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart split glob  w)))
+       | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart opts w)))
        | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty LeaveOrig src tgt], Nothing)
        | RHeredoc XHere src w -> 
-          ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart split glob w)))
+          ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart opts w)))
        | RHeredoc Here src w -> 
           ("not expanding quoted heredoc", 
            ers ++ [ERHeredoc Here src [symbolic_string_of_string (string_of_words w)]], 
@@ -665,7 +657,7 @@ and step_eval s0 checked stmt =
      Right (XSSimple "begin expansion",
             s0,
             CommandExpAssign
-              (map (fun (x, w) -> (x, ExpStart false (* don't split *) false (* don't glob *) w)) assigns)
+              (map (fun (x, w) -> (x, ExpStart <| splitting = NoSplit; globbing = false |> w)) assigns)
               ws
               redirs
               opts)
@@ -724,7 +716,7 @@ and step_eval s0 checked stmt =
      | SADone fields ->
         Right (XSSimple "assignments fully expanded",
                s0,
-               CommandExpArgs fields (ExpStart true (* split *) true (* glob *) ws) redirs opts)
+               CommandExpArgs fields (ExpStart <| splitting = Split; globbing = true |> ws) redirs opts)
     end
   | CommandExpArgs assigns exp_state redirs opts ->
       let (step, s1, st1) = step_expansion (s0, exp_state) in
@@ -1159,7 +1151,7 @@ and step_eval s0 checked stmt =
       end
 
   (* FOR **********************************************************************)
-  | For var ws body -> Right (XSFor "begin arg expansion", s0, ForExpArgs var (ExpStart true (* split *) true (* glob *) ws) body)
+  | For var ws body -> Right (XSFor "begin arg expansion", s0, ForExpArgs var (ExpStart <| splitting = Split; globbing = true |> ws) body)
   | ForExpArgs var exp_state body ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
@@ -1217,12 +1209,12 @@ and step_eval s0 checked stmt =
       end
 
   (* CASE *********************************************************************)
-  | Case ws cases -> Right (XSCase "begin arg expansion", s0, CaseExpArg (ExpStart false (* don't split *) false (* don't glob *) ws) cases)
+  | Case ws cases -> Right (XSCase "begin arg expansion", s0, CaseExpArg (ExpStart <| splitting = NoSplit; globbing = false |> ws) cases)
   | CaseExpArg exp_state cases ->
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError err -> expansion_error true (* may exit *) os1 (XSCase "arg expansion") step err
-        | ExpExpand _split _glob _tm ew [] ->
+        | ExpExpand _opts _tm ew [] ->
         (* "...matched by the string resulting from the tilde
            expansion, parameter expansion, command substitution,
            arithmetic expansion, and quote removal of the given word." *)
@@ -1244,13 +1236,13 @@ and step_eval s0 checked stmt =
         | (pat::pats', cmd)::cases' ->
            Right (XSCase "checking pattern match",
                   s0,
-                  CaseCheckMatch f (ExpStart false (* don't split *) false (* don't glob *) pat) cmd ((pats',cmd)::cases'))
+                  CaseCheckMatch f (ExpStart <| splitting = NoSplit; globbing = false |> pat) cmd ((pats',cmd)::cases'))
       end
   | CaseCheckMatch f pat cmd cases ->
       let (step, os1, st1) = step_expansion (s0, pat) in
       match st1 with
         | ExpError err -> expansion_error true (* may exit *)os1 (XSCase "error in argument expansion") step err
-        | ExpExpand _split _glob _tm ew [] ->
+        | ExpExpand _opts _tm ew [] ->
            (* "each pattern that labels a compound-list shall be
               subjected to tilde expansion, parameter expansion,
               command substitution, and arithmetic expansion" ...
@@ -1506,7 +1498,7 @@ let rec symbolic_run_full_expansion os0 st0 =
 
 val symbolic_full_expansion 
     : os_state symbolic -> words -> os_state symbolic * fields
-let symbolic_full_expansion s0 w0 = symbolic_run_full_expansion s0 (ExpStart true (* split *) true (* glob *) w0)
+let symbolic_full_expansion s0 w0 = symbolic_run_full_expansion s0 (ExpStart <| splitting = Split; globbing = true |> w0)
 
 val symbolic_full_evaluation : os_state symbolic -> stmt -> os_state symbolic
 let symbolic_full_evaluation s0 c = full_evaluation s0 c
