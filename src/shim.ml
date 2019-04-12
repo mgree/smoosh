@@ -45,7 +45,8 @@ let rec of_node (n : node union ptr) : stmt =
   (* NPIPE *)
   | 1 ->
      let n = n @-> node_npipe in
-     Pipe (getf n npipe_backgnd <> 0,
+     let bg_mode = if getf n npipe_backgnd <> 0 then BG else FG in
+     Pipe (bg_mode,
            List.map of_node (nodelist (getf n npipe_cmdlist)))
   (* NREDIR *)
   | 2  -> let (c,redirs) = of_nredir n in Redir (c,redirs)
@@ -427,8 +428,8 @@ let rec json_of_stmt = function
              ("assigns", List (List.map json_of_expanded_assign assigns));
              ("args", json_of_fields args)]
             @ fields_of_redir_state redir_state)
-  | Pipe (bg, cs) -> 
-     Assoc [tag "Pipe"; ("bg", Bool bg); ("cs", List (List.map json_of_stmt cs))]
+  | Pipe (mode, cs) -> 
+     Assoc [tag "Pipe"; ("bg", Bool (is_bg mode)); ("cs", List (List.map json_of_stmt cs))]
   | Redir (c, redir_state) ->
      Assoc ([tag "Redir";
              ("c", json_of_stmt c)]

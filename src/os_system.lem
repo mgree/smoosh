@@ -245,7 +245,7 @@ instance (OS unit)
         (List.mapMaybe ocaml_signal_of_signal handlers) (* ignore these signals! *)
         (<| os with sh = subsh |>) (* update the traps *)
         (try_avoid_fork stmt)
-        bg
+        (is_bg bg)
         pgid
         os.sh.outermost
         (jc && is_monitoring os)

@@ -680,7 +680,16 @@ declare ocaml target_rep type stackmark = `Ctypes.structure` `Dash.stackmark`
 
 type dash_string
 declare ocaml target_rep type dash_string = `Ctypes.ptr` char
-                                        
+
+type bg_mode = FG | BG
+
+val is_bg : bg_mode -> bool
+let is_bg bg_mode =
+  match bg_mode with
+  | BG -> true
+  | FG -> false
+  end
+        
 type format =
     Normal
   | Default of words
@@ -729,7 +738,7 @@ and stmt =
   | CommandExpAssign of list (string * expansion_state) * words * list redir * command_opts
   | CommandExpArgs of list (string * fields) * expansion_state * list redir * command_opts
   | CommandExpRedirs of list (string * fields) * fields * redir_state * command_opts
-  | Pipe of bool (* bg? *) * list stmt
+  | Pipe of bg_mode * list stmt
   | Redir of stmt * redir_state
   | Background of stmt * redir_state
   | Subshell of stmt * redir_state
@@ -1513,9 +1522,9 @@ and string_of_stmt c =
   | CommandExpRedirs assigns cmds redir_state _opts ->
      string_of_simple string_of_fields string_of_fields string_of_redir_state
        assigns cmds redir_state
-  | Pipe bg cmds ->
+  | Pipe mode cmds ->
      let p = concat " | " (List.map string_of_stmt cmds) in
-     if bg then background p else p
+     if is_bg mode then background p else p
   | Redir cmd redir_state -> 
      spaced (string_of_stmt cmd) (string_of_redir_state redir_state)
   | Background cmd redir_state -> 

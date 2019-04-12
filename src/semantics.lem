@@ -381,7 +381,7 @@ let rec expand_control s0 split q tm k =
        in
        let (s2, pid) = 
          fork_and_subshell s1 cmd 
-           false (* not in bg *) Nothing (* no pgid *) false (* no job control *) 
+           FG Nothing (* no pgid *) false (* no job control *) 
        in
        Right (ESCommand "initializing subshell", 
               s2,
@@ -907,12 +907,12 @@ and step_eval s0 checked stmt =
       end
 
   (* PIPE *********************************************************************)
-  | Pipe bg stmts ->
-     let (s1, last_pid) = run_pipe s0 stmts bg in
+  | Pipe bg_mode stmts ->
+     let (s1, last_pid) = run_pipe s0 stmts bg_mode in
      let (s2, c) =
-       if bg
+       if is_bg bg_mode
        then
-         let s1' = add_job s1 last_pid (Pipe bg stmts) in
+         let s1' = add_job s1 last_pid (Pipe bg_mode stmts) in
          (set_last_pid last_pid s1', Done)
        else 
          (* If the pipeline is not in the background (see Asynchronous
@@ -975,7 +975,7 @@ and step_eval s0 checked stmt =
      (* defer to Redir to load redirs *)
      let (s1,pid) = 
        fork_and_subshell s0 (Redir stmt' redir_state') 
-         true (* bg *) Nothing (* no pgid *) true (* job control *)
+         BG Nothing (* no pgid *) true (* job control *)
      in
      let s2 = add_job s1 pid (Background stmt' redir_state (* don't show our munging *)) in
      let s3 = set_last_pid pid s2 in
@@ -1005,7 +1005,7 @@ and step_eval s0 checked stmt =
   | Subshell stmt' ((_, Nothing, []) as redir_state) ->
      let (s1,pid) = 
        fork_and_subshell s0 (Redir stmt' redir_state)
-         false (* !bg *) Nothing (* no pgid *) true (* job control *)
+         FG Nothing (* no pgid *) true (* job control *)
      in
      check_traps
        (Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 

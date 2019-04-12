@@ -85,7 +85,7 @@ class ( OS 'a )
   val fork_and_subshell : 
     os_state 'a -> 
     stmt -> 
-    bool (* bg? [for tty] *) -> 
+    bg_mode -> 
     maybe pid (* pgrp id *) ->
     bool (* do job control? *) ->
     os_state 'a * pid
@@ -462,7 +462,7 @@ val run_pipe_loop : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt -> 
                  fd ->
-                 bool -> (* bg? [for tty] *)
+                 bg_mode -> (* bg? [for tty] *)
                  maybe pid -> (* pipeline pgrp *)
                  os_state 'a * pid
 let rec run_pipe_loop s0 stmts fd_prev bg pgid =
@@ -508,7 +508,7 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid =
 val run_pipe : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt ->
-                 bool -> (* bg? [for tty] *)
+                 bg_mode -> (* bg? [for tty] *)
                  os_state 'a * pid
 let run_pipe s0 stmts bg =
   match stmts with
