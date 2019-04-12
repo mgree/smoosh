@@ -142,7 +142,7 @@ class ( OS 'a )
   val open_heredoc : os_state 'a -> string -> either string (os_state 'a * fd)
   val close_and_save_fd : os_state 'a -> fd -> os_state 'a * either string saved_fds
   val renumber_fd : os_state 'a -> 
-                    bool (* close orig? *) -> 
+                    orig_fd_action -> 
                     fd (* orig *) -> 
                     fd (* wanted number *) -> 
                     os_state 'a * either string saved_fds
@@ -413,7 +413,7 @@ let redirect os0 er =
   | ERFile ty wanted_fd [sfile] -> 
      match open_file_for_redir os0 ty sfile with
      | (os1, Left err) -> (os1, Left err)
-     | (os1, Right new_fd) -> renumber_fd os1 true (* close *) new_fd wanted_fd
+     | (os1, Right new_fd) -> renumber_fd os1 CloseOrig new_fd wanted_fd
      end
   | ERFile _ _ fs -> (os0, Left ("expected single file field, got: " ^ string_of_fields fs))
   | ERDup _ty _close_orig orig_fd Nothing ->
@@ -430,7 +430,7 @@ let redirect os0 er =
      let (os1,_concretized,s) = concretize_fields os0 fs in
      match open_heredoc os1 s with
      | Left err -> (os1, Left err)
-     | Right (os2, new_fd) -> renumber_fd os2 true new_fd wanted_fd
+     | Right (os2, new_fd) -> renumber_fd os2 CloseOrig new_fd wanted_fd
      end
   end
 
@@ -480,7 +480,7 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid =
          s0 
          (with_redirs 
             (try_avoid_fork stmt)
-            [ERDup ToFD true (* close orig *) STDIN (Just fd_prev)])
+            [ERDup ToFD CloseOrig STDIN (Just fd_prev)])
          bg
          pgid
          true
@@ -494,8 +494,8 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid =
          s1
          (with_redirs 
             (close_fd_and_then fd_next stmt) 
-            [ERDup ToFD true (* close orig *) STDIN (Just fd_prev)
-            ;ERDup ToFD true (* close orig *) STDOUT (Just fd_write)])
+            [ERDup ToFD CloseOrig STDIN (Just fd_prev)
+            ;ERDup ToFD CloseOrig STDOUT (Just fd_write)])
          bg
          pgid
          true
@@ -528,7 +528,7 @@ let run_pipe s0 stmts bg =
          s1
          (with_redirs 
             (close_fd_and_then fd_next stmt)
-            [ERDup ToFD true (* close orig *) STDOUT (Just fd_write)]) 
+            [ERDup ToFD CloseOrig STDOUT (Just fd_write)]) 
          bg
          Nothing
          true

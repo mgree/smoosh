@@ -552,12 +552,12 @@ and json_of_expanded_redir = function
   | ERFile (ty, fd, f) -> 
      Assoc [tag "File"; 
             ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_fields f)]
-  | ERDup (ty, close_orig, src, Some tgt) -> 
+  | ERDup (ty, orig_action, src, Some tgt) -> 
      Assoc [tag "Dup";
-            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt); ("close", Bool close_orig)]
-  | ERDup (ty, close_orig, src, None) -> 
+            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt); ("close", Bool (should_close_orig orig_action))]
+  | ERDup (ty, orig_action, src, None) -> 
      Assoc [tag "Dup";
-            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", String "-"); ("close", Bool close_orig)]
+            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", String "-"); ("close", Bool (should_close_orig orig_action))]
   | ERHeredoc (ty, src, f) -> 
      Assoc [tag "Heredoc";
             ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_fields f)]

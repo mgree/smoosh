@@ -669,6 +669,15 @@ type redir_type = To | Clobber | From | FromTo | Append
 type dup_type = ToFD | FromFD
 type heredoc_type = Here (* quoted heredoc name, for when the heredoc shouldn't do any expansion *) | XHere (* unquoted, do expansion *)
 
+type orig_fd_action = CloseOrig | LeaveOrig
+
+val should_close_orig : orig_fd_action -> bool
+let should_close_orig orig_fd_action =
+  match orig_fd_action with
+  | CloseOrig -> true
+  | LeaveOrig -> false
+  end
+
 (**********************************************************************)
 (* Other modes, options, and flags ************************************)
 (**********************************************************************)
@@ -828,7 +837,7 @@ and expanding_redir =
 
 and expanded_redir = 
    | ERFile of redir_type * nat * fields
-   | ERDup of dup_type * bool (* close_orig? *) * nat * maybe nat
+   | ERDup of dup_type * orig_fd_action * nat * maybe nat
    | ERHeredoc of heredoc_type * nat * fields
 
 and redir_state = list expanded_redir * maybe expanding_redir * list redir

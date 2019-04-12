@@ -396,7 +396,7 @@ instance (OS unit)
     (os, real_close_and_save_fd fd)
 
   let renumber_fd os close new_fd wanted_fd = 
-    (os, real_renumber_fd close new_fd wanted_fd)
+    (os, real_renumber_fd (should_close_orig close) new_fd wanted_fd)
 
   let restore_fd os orig_fd info =
     let to_close = 

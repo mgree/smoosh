@@ -620,9 +620,9 @@ instance (OS symbolic)
        (os1, Left "TODO 2018-08-24 symbolic path FDs unimplemented")
     end
 
-  let renumber_fd os0 close new_fd wanted_fd = 
+  let renumber_fd os0 orig_action new_fd wanted_fd = 
     if new_fd = wanted_fd
-    then (os0, Right (if close then [(wanted_fd, Close)] else []))
+    then (os0, Right (if should_close_orig orig_action then [(wanted_fd, Close)] else []))
     else
       match Map.lookup new_fd os0.symbolic.sh_fds with
       | Nothing -> 
@@ -642,7 +642,7 @@ instance (OS symbolic)
              []
           end in
         let fds0 = Map.insert wanted_fd new_tgt os0.symbolic.sh_fds in
-        let fds1 = if close then Map.delete new_fd fds0 else fds0 in
+        let fds1 = if should_close_orig orig_action then Map.delete new_fd fds0 else fds0 in
         (<| os0 with symbolic = <| os0.symbolic with sh_fds = fds1 |> |>,
          Right saved)
       end

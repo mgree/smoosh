@@ -375,7 +375,7 @@ let rec expand_control s0 split q tm k =
        let cmd = 
          pushredir 
            (* set up redirects [skipping expansion] *)
-           (with_redirs c [ERDup ToFD true (* close orig *) STDOUT (Just fd_write)])
+           (with_redirs c [ERDup ToFD CloseOrig STDOUT (Just fd_write)])
            (* make sure to close the pipe when we're done *)
            [(fd_write, Close)]
        in
@@ -593,7 +593,7 @@ and step_redir_state os0 redir_state =
      let (msg, ers, exp_state) =
        match r with
        | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart split glob  w)))
-       | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty false (* don't close orig *) src tgt], Nothing)
+       | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty LeaveOrig src tgt], Nothing)
        | RHeredoc XHere src w -> 
           ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart split glob w)))
        | RHeredoc Here src w -> 
