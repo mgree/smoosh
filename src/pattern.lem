@@ -138,9 +138,13 @@ let rec parse_bracket_entries (pat:list char)
   match pat with
   | [] -> Left "expected bracket entries, found end-of-pattern"
   | #']'::pat' -> Right (pat', [])
+  | #'-'::#']'::pat' -> Right (pat', [BC (Char #'-')])
   | _ -> 
      match parse_bracket_char pat with
      | Left err -> Left err
+     | Right (#'-'::#']'::pat', bc) ->
+        (* '-' as final char is a literal *)
+        Right (pat', [BC (Char #'-'); BC bc])
      | Right (#'-'::pat', bc) -> 
         match parse_bracket_char pat' with
         | Left _ -> 
@@ -182,6 +186,8 @@ let rec parse_bracket_entries (pat:list char)
    we'll treat them as a range, like dash
  *)
 
+let bracket_initial_literal (c:char) = c = #']' || c = #'-'
+
 let rec parse_bracket (pat:list char) : either string (list char * pattern_char) =
   match pat with
   | [] -> Left "unterminated bracket, found end-of-pattern"
@@ -196,8 +202,8 @@ let rec parse_bracket (pat:list char) : either string (list char * pattern_char)
      | #']'::[] -> Left "empty bracket, treating as literal characters"
      | c::pat''' ->
        let (realPat,frontEs) = 
-         if c = #']'
-         then (pat''', [BC (Char #']')])
+         if bracket_initial_literal c
+         then (pat''', [BC (Char c)])
          else (pat'', [])
        in
        match parse_bracket_entries realPat with
