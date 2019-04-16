@@ -1,0 +1,10 @@
+touch file-
+touch filea
+
+echo file[-123]
+echo file[123-]
+echo file[[.-.]]
+echo file[[=-=]]
+echo file[!-123]
+echo file[[:alpha:]]
+echo file[a-z]
