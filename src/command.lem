@@ -27,7 +27,7 @@ let is_special_builtin s =
 val is_builtin : string -> bool
 let is_builtin s =
   elem s ["["; "alias"; "bg"; "cd"; "command"; "echo"; "false"; "fc"; "fg"; 
-          "getopts"; "hash"; "help"; "jobs"; "kill"; "local"; "newgrp"; "printf"; 
+          "getopts"; "hash"; "help"; "jobs"; "kill"; "local"; (*"newgrp";*) "printf"; 
           "pwd"; "read"; "test"; "true"; "type"; "ulimit"; "umask"; "unalias"; 
           "wait"]
 
@@ -55,7 +55,7 @@ let builtin_names =
   ; "jobs"
   ; "kill"
 (*  ; "local" *) (* unimpl *)
-  ; "newgrp"
+(*  ; "newgrp" *) (* use command *)
   ; "printf"
   ; "pwd"
   ; "read"
@@ -2222,7 +2222,7 @@ let builtins =
     ; ("jobs", builtin_jobs)
     ; ("kill", builtin_kill)
     ; ("local", builtin_local)
-    ; ("newgrp", builtin_newgrp)
+(*    ; ("newgrp", builtin_newgrp) *)
     ; ("printf", builtin_printf)
     ; ("pwd", builtin_pwd)
     ; ("read", builtin_read)
