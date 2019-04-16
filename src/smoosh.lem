@@ -25,7 +25,7 @@ let parse_next s0 interactive stackmark =
   | ParseStmt c ->
      let s1 = 
        if Set.member Sh_verbose s0.sh.opts
-       then write_stderr (string_of_stmt c ^ "\n") s0
+       then safe_write_stderr (string_of_stmt c ^ "\n") s0
        else s0
      in
      (s1, ParseStmt c)

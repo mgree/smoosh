@@ -1283,8 +1283,8 @@ let rec remove_aliases s0 names =
   | sname::names' ->
      match try_concrete sname with
      | Nothing -> 
-        let s1 = write_stderr ("unalias: can't remove symbolic alias '" ^ 
-                              string_of_symbolic_string sname ^ "'") s0 in
+        let s1 = safe_write_stderr ("unalias: can't remove symbolic alias '" ^ 
+                                    string_of_symbolic_string sname ^ "'") s0 in
         remove_aliases s1 names'
      | Just name ->
         let s1 = 
@@ -1409,7 +1409,7 @@ let builtin_jobs s0 argv _env =
   (* TODO 2018-10-03 implement jobs -l (needs more robust information on pipes in sh.jobs) *)
   let s1 = 
     if mode = JobsLong
-    then write_stderr "jobs: -l flag is unimplemented\n" s0
+    then safe_write_stderr "jobs: -l flag is unimplemented\n" s0
     else s0
   in
   let (s2, jobs) = active_jobs s1 in
@@ -1486,7 +1486,7 @@ let builtin_test s0 argv _env =
      | Left msg -> 
         (* we do the error message manually so we can exit with 2 
            (run_command returning Left will usually exit with 1) *)
-        let s1 = write_stderr ("test: parse error: " ^ msg ^ "\n") s0 in
+        let s1 = safe_write_stderr ("test: parse error: " ^ msg ^ "\n") s0 in
         let s2 = exit_with 2 s1 in
         Right (s2, Done) 
      | Right expr -> 
@@ -2052,7 +2052,7 @@ let rec getopts_loop os0 opts optvar ind args =
              if index opts 0 = Just #':'
              then internal_set_param OPTARG ss_opt os2
              else
-               let os3 = write_stderr ("illegal option -- '" ^ s_opt ^ "'\n") os2 in
+               let os3 = safe_write_stderr ("illegal option -- '" ^ s_opt ^ "'\n") os2 in
                getopts_maybe_reset_optoff opt_rest (unset_param OPTARG os3)
            in
            Right (exit_with 0 (internal_set_param optvar QMARK os3), Done)
@@ -2079,7 +2079,7 @@ let rec getopts_loop os0 opts optvar ind args =
                       (internal_set_param optvar (symbolic_string_of_string ":") os3)
                   else
                     let msg = "option requires an argument -- '" ^ s_opt ^ "'\n" in
-                    internal_set_param OPTARG QMARK (write_stderr msg os3)
+                    internal_set_param OPTARG QMARK (safe_write_stderr msg os3)
                | ([],arg::_) -> 
                   getopts_incr_OPTIND (internal_set_param OPTARG arg os3)
                | (_,_) -> internal_set_param OPTARG opt_rest os3
@@ -2249,7 +2249,7 @@ let run_command s0 opts checked prog_name argv env =
            listed in the following table, the results are unspecified. *)
         if is_unspecified_utility prog
         then
-          let s1 = write_stderr (prog ^ ": unspecified, doing nothing") s0 in
+          let s1 = safe_write_stderr (prog ^ ": unspecified, doing nothing") s0 in
           Right (s1, Done, true)
         else 
           (* 1c. If the command name matches the name of a function

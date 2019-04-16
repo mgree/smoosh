@@ -678,7 +678,7 @@ and step_eval s0 checked stmt =
      match exp_state1 with
      | ExpDone f -> 
         match set_param x (symbolic_string_of_fields f) s1 with
-        | Left err -> Left (XSSimple err, write_stderr (err ^ "\n") s1)
+        | Left err -> Left (XSSimple err, safe_write_stderr (err ^ "\n") s1)
         | Right s2 ->
            let s3 = trace (x ^ "=" ^ string_of_fields f) s2 in
            Right (XSSimple ("assign " ^ x),
@@ -1395,7 +1395,7 @@ and step_eval s0 checked stmt =
      | (s1, Nothing) -> 
         check_traps
           (Right (XSWait ("couldn't step process with pid " ^ s_pid), 
-                  write_stderr ("wait: pid " ^ s_pid ^ " is not a child of this shell") s1, 
+                  safe_write_stderr ("wait: pid " ^ s_pid ^ " is not a child of this shell") s1, 
                   Done))
      | (s1, Just (Left step)) ->
         (* we took a step, so record it *)

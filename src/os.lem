@@ -730,6 +730,13 @@ let safe_write_stdout writer msg os =
   then fail_with_code 2 ("smoosh: " ^ writer ^ ": I/O error") os'
   else os'
 
+val safe_write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
+let safe_write_stderr msg os = 
+  let (os', ok) = try_write_fd STDERR msg os in
+  if not ok
+  then exit_with 2 os' (* no need to even try printing a message :( *)
+  else os'
+
 val set_last_pid : forall 'a. pid -> os_state 'a -> os_state 'a
 let set_last_pid pid os = 
   internal_set_param "!" (symbolic_string_of_string (string_of_pid pid)) os
