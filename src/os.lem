@@ -280,19 +280,19 @@ let is_monitoring os = Set.member Sh_monitor os.sh.opts
 
 (* Reading and writing FDs ********************************************)
 
-val try_write_fd : forall 'a. OS 'a => fd -> string -> os_state 'a -> os_state 'a
+val try_write_fd : forall 'a. OS 'a => fd -> string -> os_state 'a -> os_state 'a * bool
 let try_write_fd fd s os =
   (* TODO 2018-03-02 is this the right behavior when an fd points to a bad fifo, e.g., STDERR is closed? *)
   match write_fd os fd s with
-  | Just os' -> os'
-  | Nothing -> os
+  | Just os' -> (os', true)
+  | Nothing -> (os, false)
   end
    
 val write_stdout : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
-let write_stdout = try_write_fd STDOUT
+let write_stdout msg os = fst (try_write_fd STDOUT msg os)
 
 val write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
-let write_stderr = try_write_fd STDERR
+let write_stderr msg os = fst (try_write_fd STDERR msg os)
                  
 (* FS and path manipulation *******************************************)
 
@@ -722,6 +722,13 @@ let fail_with_code ec msg os = exit_with ec (write_stderr (msg ^ "\n") os)
 
 val fail_with : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let fail_with = fail_with_code 1
+
+val safe_write_stdout : forall 'a. OS 'a => string -> string -> os_state 'a -> os_state 'a
+let safe_write_stdout writer msg os = 
+  let (os', ok) = try_write_fd STDOUT msg os in
+  if not ok
+  then fail_with_code 2 ("smoosh: " ^ writer ^ ": I/O error") os'
+  else os'
 
 val set_last_pid : forall 'a. pid -> os_state 'a -> os_state 'a
 let set_last_pid pid os = 

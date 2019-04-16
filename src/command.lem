@@ -449,7 +449,7 @@ let rec show_varlist s0 cmd vs =
          end ^
        "\n"
      in
-     let s1 = write_stdout msg s0 in
+     let s1 = safe_write_stdout "cmd" msg s0 in
      show_varlist s1 cmd vs'
   end
 
@@ -504,7 +504,8 @@ let builtin_readonly s0 argv _env =
 
 let builtin_times s0 _argv _env = 
   let (utime, stime, cutime, cstime) = times s0 in
-  Right (write_stdout (utime ^ " " ^ stime ^ "\n" ^ cutime ^ " " ^ cstime ^ "\n") s0, 
+  Right (safe_write_stdout "times" 
+           (utime ^ " " ^ stime ^ "\n" ^ cutime ^ " " ^ cstime ^ "\n") s0, 
          Done,
          true)
 
@@ -670,14 +671,14 @@ OR
   match argv with
   | [] ->
      (* dump env *)
-     Right (write_stdout (printable_shell_env s0) s0, Done, true)
+     Right (safe_write_stdout "set" (printable_shell_env s0) s0, Done, true)
   | [[C #'-'; C #'o']] -> 
      (* print in human readable format; following dash *)
      set_showopts s0 
        (fun (opt,is_set) os ->
          let msg = pad_right (string_of_sh_opt opt) string_of_sh_opt_max_len ^
                    "\t" ^ if is_set then "on" else "off" in
-         write_stdout (msg ^ "\n") os)
+         safe_write_stdout "set" (msg ^ "\n") os)
   | [[C #'+'; C #'o']] -> 
      (* print in shell readable format *)
      set_showopts s0 
@@ -688,7 +689,7 @@ OR
             let switch = if is_set then #'-' else #'+' in
             let flag = toString [switch;c] in
             let msg = "set " ^ flag in
-            write_stdout (msg ^ "\n") os
+            safe_write_stdout "set" (msg ^ "\n") os
          end)
   | _ ->
      match set_getopts ([],[]) argv with
@@ -762,7 +763,7 @@ let rec builtin_trap s0 argv _env =
      let show (trap,cmd) os =
        let quoted_cmd = "'" ^ string_of_symbolic_string cmd ^ "'" in
        let msg = "trap -- " ^ quoted_cmd ^ " " ^ string_of_signal trap in
-       write_stdout (msg ^ "\n") os
+       safe_write_stdout "trap" (msg ^ "\n") os
      in
      let s1 = foldr show s0 (Map_extra.toList s0.sh.traps) in
      Right (s1, Done, true)
@@ -851,11 +852,11 @@ let builtin_pwd s0 argv _env =
   let (opts,_argv') = getopts [#'L';#'P'] argv in
   let mode = path_mode opts in
   let (s1,pwd) = resolve_path_mode s0 mode in
-  Right (exit_with 0 (write_stdout (pwd ^ "\n") s1), Done)
+  Right (exit_with 0 (safe_write_stdout "pwd" (pwd ^ "\n") s1), Done)
 
 let rec write_many_stdout f s0 =
   let (s1,_,s) = concretize_fields s0 f in
-  write_stdout s s1
+  safe_write_stdout "echo" s s1
 
 let builtin_echo s0 argv _env =
   (* TODO 2018-11-07 backslash escapes *)
@@ -864,7 +865,7 @@ let builtin_echo s0 argv _env =
     | _ -> ("\n", argv)
     end in
   let s1 = write_many_stdout ss s0 in
-  let s2 = write_stdout terminator s1 in
+  let s2 = safe_write_stdout "echo" terminator s1 in
   Right (exit_with 0 s2, Done)
 
 let do_cd s0 mode dir =   
@@ -934,7 +935,7 @@ let do_cd s0 mode dir =
         let s3 = internal_set_param "OLDPWD" (symbolic_string_of_string old) s2 in
         let s4 = 
           if need_print
-          then write_stdout (pwd ^ "\n") s3
+          then safe_write_stdout "cd" (pwd ^ "\n") s3
           else s3
         in
         Right (exit_with 0 s4, Done)
@@ -969,7 +970,7 @@ let builtin_cd s0 argv _env =
         match do_cd s0 mode path with
         | Left (s1,msg) -> Left (s1,msg)
         | Right (s1, _stmt (* should be Done *)) -> 
-           Right (write_stdout (path ^ "\n") s1, Done)
+           Right (safe_write_stdout "cd" (path ^ "\n") s1, Done)
         end
      end
   | path::_ -> (* just ignore extra args *) 
@@ -989,7 +990,7 @@ let builtin_cd s0 argv _env =
    the new location for the utility, if any. *)
 let builtin_hash s0 argv _env = 
   match argv with
-  | [] -> Right (write_stdout "No commands hashed.\n" s0, Done)
+  | [] -> Right (safe_write_stdout "hash" "No commands hashed.\n" s0, Done)
   | [C #'-'; C #'r']::_ -> Right (s0, Done)
   | _ -> Right (s0, Done)
   end
@@ -1057,7 +1058,7 @@ let rec builtin_type s0 argv _env =
   | [] -> Right (s0, Done)
   | cmd::argv' ->
      let msg = human_readable_command_type s0 (get_path s0) cmd in
-     builtin_type (write_stdout msg s0) argv' _env
+     builtin_type (safe_write_stdout "type" msg s0) argv' _env
   end
 
 type command_path = CPAmbient | CPDefault
@@ -1089,7 +1090,7 @@ let rec show_commands render s0 path argv =
   | [] -> Right (s0, Done)
   | name::argv' -> 
      let msg = render s0 path name in
-     let s1 = write_stdout msg s0 in
+     let s1 = safe_write_stdout "command" msg s0 in
      let s2 = 
        match try_concrete name with
        | Nothing -> s1
@@ -1203,7 +1204,7 @@ let builtin_umask s0 argv _env =
             mode creation mask.  *)
          string_of_perms (invert_perms umask)
        else octal_string_of_perms umask in
-     Right (exit_with 0 (write_stdout (umask_str ^ "\n") s0), Done)
+     Right (exit_with 0 (safe_write_stdout "umask" (umask_str ^ "\n") s0), Done)
   | smask::_ ->
      match try_concrete smask with
      | Nothing -> Left (s0, "can't set symbolic mask")
@@ -1243,7 +1244,7 @@ let builtin_newgrp s0 argv env =
   end
 
 let show_alias os (name,mapping) = 
-  write_stdout (name ^ "=" ^ mapping ^ "\n") os
+  safe_write_stdout "alias" (name ^ "=" ^ mapping ^ "\n") os
 
 let rec add_aliases s0 args =
   match args with
@@ -1373,7 +1374,7 @@ let show_job mode (cur_id, prev_id) job s0 =
       pad_right (string_of_job_status job.status) 25 ^ (* width taken from bash *)
       string_of_stmt job.cmd
   in
-  write_stdout (msg ^ "\n") s0
+  safe_write_stdout "jobs" (msg ^ "\n") s0
 
 val show_jobs : forall 'a. OS 'a => jobs_mode -> nat * nat -> list job_info -> os_state 'a -> os_state 'a
 let show_jobs mode cur_prev jobs s0 =
@@ -1796,7 +1797,7 @@ let printf_format s0 fmt0 args0 =
     | Just width -> printf_padding spec.justify #' ' s width
     end
   in 
-  (write_stdout padded s1, fmt2, args1)
+  (safe_write_stdout "printf" padded s1, fmt2, args1)
 
 (* invariant: called with an exit code of 0, to be changed later *)
 let rec printf_loop s0 orig_fmt orig_args fmt args =
@@ -1825,13 +1826,13 @@ let rec printf_loop s0 orig_fmt orig_args fmt args =
      end
   | #'\\'::fmt' ->
      let (escaped, fmt'') = sprintf_esc fmt' in
-     let s1 = write_stdout escaped s0 in
+     let s1 = safe_write_stdout "printf" escaped s0 in
      printf_loop s1 orig_fmt orig_args fmt'' args
   | #'%'::fmt' -> 
      let (s1, fmt'', args') = printf_format s0 fmt' args in
      printf_loop s1 orig_fmt orig_args fmt'' args'
   | c::fmt' ->
-     let s1 = write_stdout (toString [c]) s0 in
+     let s1 = safe_write_stdout "printf" (toString [c]) s0 in
      printf_loop s1 orig_fmt orig_args fmt' args
   end
 
@@ -1906,7 +1907,7 @@ let builtin_kill s0 argv _env =
             all_signals 
         in
         let names = List.map string_of_signal sorted_signals in
-        let s1 = write_stdout (concat "\n" names ^ "\n") s0 in
+        let s1 = safe_write_stdout "kill" (concat "\n" names ^ "\n") s0 in
         Right (exit_with 0 s1, Done)
      | [ss_num] -> 
         let s_num = string_of_symbolic_string ss_num in 
@@ -1920,7 +1921,7 @@ let builtin_kill s0 argv _env =
               let ec_text = if was_retval then " (from " ^ s_num ^ ")" else "" in
               Left (s0, stringFromNat signum ^ ec_text ^ " is not a valid signal number")
            | Just signal -> 
-              let s1 = write_stdout (string_of_signal signal ^ "\n") s0 in
+              let s1 = safe_write_stdout "kill" (string_of_signal signal ^ "\n") s0 in
               Right (exit_with 0 s1, Done)
            end
         end
@@ -2148,7 +2149,7 @@ let rec help_trace log tr =
   end
 
 let builtin_help os0 argv _env =
-  let show_list ls os = exit_with 0 (write_stdout (String.concat "\n" ls ^ "\n") os) in
+  let show_list ls os = exit_with 0 (safe_write_stdout "help" (String.concat "\n" ls ^ "\n") os) in
   match argv with
   | [] -> 
      let usage =
@@ -2165,10 +2166,10 @@ let builtin_help os0 argv _env =
      let (os1,_,s_arg) = concretize os0 ss_arg in
      match s_arg with
      | "builtins" -> 
-        let os2 = write_stdout "implemented builtins:\n" os1 in
+        let os2 = safe_write_stdout "help" "implemented builtins:\n" os1 in
         Right (show_list builtin_names os2, Done)
      | "version" -> 
-        let os2 = write_stdout smoosh_info os1 in
+        let os2 = safe_write_stdout "help" smoosh_info os1 in
         Right (exit_with 0 os2, Done)
      | "steps" ->
         let steps = List.reverseMap string_of_evaluation_step (extract_trace os1) in
@@ -2182,7 +2183,7 @@ let builtin_help os0 argv _env =
           let steps = List.reverse (extract_unspec os1) in
           Right (show_list steps os1, Done)
         else 
-          Right (exit_with 0 (write_stdout "no unspecified/undefined behavior\n" os1), Done)
+          Right (safe_write_stdout "help" "no unspecified/undefined behavior\n" (exit_with 0 os1), Done)
      | _ -> Left (os0, "unknown argument: " ^ s_arg)
      end
   | _ ->
