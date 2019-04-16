@@ -191,9 +191,19 @@ let rec parse_bracket (pat:list char) : either string (list char * pattern_char)
        then (false, pat')
        else (true,  pat)
      in
-     match parse_bracket_entries pat'' with
-     | Left err -> Left err
-     | Right (pat''', es) -> Right (pat''', Bracket matching es)
+     match pat'' with
+     | [] -> Left "unterminated bracket, found end-of-pattern"
+     | #']'::[] -> Left "empty bracket, treating as literal characters"
+     | c::pat''' ->
+       let (realPat,frontEs) = 
+         if c = #']'
+         then (pat''', [BC (Char #']')])
+         else (pat'', [])
+       in
+       match parse_bracket_entries realPat with
+       | Left err -> Left err
+       | Right (restPat, es) -> Right (restPat, Bracket matching (frontEs ++ es))
+       end
      end
   end
 
