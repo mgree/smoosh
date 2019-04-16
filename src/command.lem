@@ -1360,21 +1360,41 @@ let cur_prev_jobs jobs =
   | cur::prev::_ -> (cur.id, prev.id)
   end
 
-let show_job mode (cur_id, prev_id) job s0 = 
+let show_job_number (cur_id, prev_id) job =
+  "[" ^ stringFromNat job.id ^ "] " ^ 
+    (if job.id = cur_id 
+     then "+" 
+     else if job.id = prev_id
+     then "-"
+     else " ") ^ " "
+
+let show_job_status job =
+  pad_right (string_of_job_status job.status) 25 (* width taken from bash *)
+
+let rec show_job_pipeline curjob job pipeline first =
+  match pipeline with
+  | [] -> ""
+  | (pid,stmt)::pipeline' ->
+     (if first then show_job_number curjob job else "      ") ^
+     pad_right (stringFromNat pid) 6 ^
+     (if first then show_job_status job else toString (replicate 23 #' ') ^ "| ") ^
+     string_of_stmt stmt ^ "\n" ^
+     show_job_pipeline curjob job pipeline' false
+  end
+
+let show_job mode curjob job s0 = 
   let msg = 
-    if mode = JobsTerse
-    then stringFromNat job.pid
-    else 
-      "[" ^ stringFromNat job.id ^ "] " ^ 
-      (if job.id = cur_id 
-       then "+" 
-       else if job.id = prev_id
-       then "-"
-       else " ") ^ " " ^
-      pad_right (string_of_job_status job.status) 25 ^ (* width taken from bash *)
-      string_of_stmt job.cmd
+    match mode with
+    | JobsTerse -> stringFromNat job.pid ^ "\n"
+    | JobsNormal ->
+       show_job_number curjob job ^ 
+       show_job_status job ^
+       string_of_stmt job.cmd ^ "\n"
+    | JobsLong -> 
+       show_job_pipeline curjob job job.pipeline true
+    end
   in
-  safe_write_stdout "jobs" (msg ^ "\n") s0
+  safe_write_stdout "jobs" msg s0
 
 val show_jobs : forall 'a. OS 'a => jobs_mode -> nat * nat -> list job_info -> os_state 'a -> os_state 'a
 let show_jobs mode cur_prev jobs s0 =
@@ -1406,19 +1426,13 @@ let rec show_job_specs mode cur_prev specs s0 =
 let builtin_jobs s0 argv _env =
   let (opts,argv') = getopts [#'l';#'p'] argv in
   let mode = jobs_mode opts in
-  (* TODO 2018-10-03 implement jobs -l (needs more robust information on pipes in sh.jobs) *)
-  let s1 = 
-    if mode = JobsLong
-    then safe_write_stderr "jobs: -l flag is unimplemented\n" s0
-    else s0
-  in
-  let (s2, jobs) = active_jobs s1 in
+  let (s1, jobs) = active_jobs s0 in
   let cur_prev = cur_prev_jobs jobs in
   match argv' with
   | [] -> 
-     let s3 = show_jobs mode cur_prev jobs s2 in
-     Right (exit_with 0 s3, Done)
-  | _ -> show_job_specs mode cur_prev argv' s2
+     let s2 = show_jobs mode cur_prev jobs s1 in
+     Right (exit_with 0 s2, Done)
+  | _ -> show_job_specs mode cur_prev argv' s1
   end
 
 let rec read_set_empty_vars s0 vars =

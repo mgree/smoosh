@@ -995,23 +995,15 @@ and job_status =
   | JobTerminated of signal
   | JobDone of nat
 
-(* PICK UP HERE
-
-   - track pipelines/tree structure of job processes
-   - change run_pipe/run_pipe_loop
-   - support jobs -l
-   - waitpid interface needs to change
-     actual waits are for jobs and "known processes"
-       which really means child processes, which are all you can wait for anyway
-     correct logic is: when given a pid, look it up in the jobs table and wait for that _job_
- *)
+and pipeline_info = list (pid * stmt)
 
 and job_info = <| 
     id: nat; (* tricky invariant... shouldn't be any dups *)
+    pipeline: pipeline_info;
     pid: pid;
     cmd: stmt;
-    status: job_status;
-    pgrp: pid |>
+    status: job_status
+  |>
 
 and shell_state = <|
     rootpid: pid;

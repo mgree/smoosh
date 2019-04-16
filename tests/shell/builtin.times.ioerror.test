@@ -1,0 +1,7 @@
+exec 3>&1
+(
+        trap "" PIPE
+        sleep 1
+        command times
+        echo ?=$? >&3
+) | true

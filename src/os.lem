@@ -75,6 +75,7 @@ class ( OS 'a )
 
   (* SYSTEM CALLS *)
   val getpwnam : os_state 'a -> string -> maybe string
+
   val execve : 
     os_state 'a -> 
     symbolic_string -> (* cmd *)
@@ -90,16 +91,21 @@ class ( OS 'a )
     bool (* do job control? *) ->
     os_state 'a * pid
   val exit : os_state 'a -> os_state 'a
+
+  (* don't call this directly; call wait_for_pid *)
   val waitpid : 
     step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
     os_state 'a -> pid -> 
     os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
   val waitchild : os_state 'a -> os_state 'a * maybe (pid * job_status)
+
   val handle_signal : os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
   val signal_pid : os_state 'a -> signal -> pid -> bool (* as pg? *) -> os_state 'a * bool
   val pending_signal : os_state 'a -> os_state 'a * maybe signal
+
   val tc_setfg : os_state 'a -> pid -> os_state 'a * bool
   val set_job_control : os_state 'a -> bool -> os_state 'a
+
   val times : os_state 'a -> 
               (string (* utime *)            * string (* stime *) * 
                string (* utime + children *) * string (* stime + children *))
@@ -114,9 +120,9 @@ class ( OS 'a )
   val readdir : os_state 'a -> path -> set (path * file unit)
   val file_exists : os_state 'a -> path -> bool
 
-  (* type of the file *)
+  (* stat calls *)
   val file_type : os_state 'a -> path -> maybe file_type
-  (* type of the file, following links *)
+  (* lstat (follow links) *)
   val file_type_follow : os_state 'a -> path -> maybe file_type
   val file_size : os_state 'a -> path -> maybe nat
   val file_perms : os_state 'a -> path -> maybe perms
@@ -350,9 +356,9 @@ let active_jobs os0 =
 val add_job 
     : forall 'a. OS 'a =>
         os_state 'a ->
-        pid -> stmt (* cmd *) ->
+        list (pid * stmt) -> pid -> stmt (* cmd *) ->
         os_state 'a
-let add_job os0 pid cmd =
+let add_job os0 pipeline pid cmd =
   let highest_job_num = 
     match os0.sh.jobs with
     | [] -> 0
@@ -363,10 +369,17 @@ let add_job os0 pid cmd =
        pid = pid;
        cmd = cmd;
        status = JobRunning;
-       pgrp = pid (* TODO 2018-10-02 need real pgrp numbers *) |> 
+       pipeline = pipeline;
+    |>
+  in
+  let is_fg_pipe =
+    match cmd with
+    | Pipe FG _ -> true
+    | _ -> false
+    end
   in
   let os1 =
-    if is_monitoring os0
+    if is_monitoring os0 && not is_fg_pipe
     then 
       let msg = "[" ^ stringFromNat new_job.id ^ "] " ^ string_of_pid pid ^ "\n" in
       write_stdout msg os0 
@@ -386,6 +399,12 @@ let delete_job_with_pid os0 pid =
   <| os0 with sh = 
       <| os0.sh with jobs = filter (fun j -> j.pid <> pid) os0.sh.jobs |> |>
 
+val find_job_with_pid
+    : forall 'a. OS 'a => os_state 'a -> pid -> maybe job_info
+let find_job_with_pid os0 pid =
+  List.find (fun j -> j.pid = pid || any (fun (pid',_) -> pid' = pid) j.pipeline) 
+    os0.sh.jobs
+
 let rec update_jobs_loop os0 changes =
   match waitchild os0 with
   | (os1, Nothing) -> (os1, changes)
@@ -403,6 +422,40 @@ let rec update_jobs_loop os0 changes =
 
 val update_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info (* changed *)
 let update_jobs os0 = update_jobs_loop os0 []
+
+(* We need to:
+   (a) make sure everything in the job is done, and
+   (b) return the exit code of the pid we care about *)
+val wait_for_job : forall 'a. OS 'a =>     
+    step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
+    os_state 'a -> job_info -> pipeline_info -> pid -> maybe nat (* collected exit code *) ->
+    os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
+let rec wait_for_job step_eval os0 job pipeline tgt_pid mec =
+  match pipeline with
+  | [] ->
+     match mec with
+     | Nothing -> waitpid step_eval os0 tgt_pid
+     | Just ec -> (os0, Just (Right ec))
+     end
+  | (pid,_)::pipeline' -> 
+     match waitpid step_eval os0 pid with
+     | (os1, Nothing) -> (os1, Nothing)
+     | (os1, Just (Left step)) -> (os1, Just (Left step))
+     | (os1, Just (Right ec)) ->
+        wait_for_job step_eval os1
+          job pipeline' tgt_pid (if pid = tgt_pid then Just ec else mec)
+     end
+  end
+
+val wait_for_pid : forall 'a. OS 'a =>     
+    step_fun 'a -> (* for opportunistic scheduling in symbolic mode *)
+    os_state 'a -> pid -> 
+    os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
+let wait_for_pid step_eval os0 pid =
+  match find_job_with_pid os0 pid with
+  | Nothing -> waitpid step_eval os0 pid
+  | Just job -> wait_for_job step_eval os0 job job.pipeline pid Nothing
+  end
 
 (* Redirects **********************************************************)
 
@@ -464,33 +517,45 @@ let do_redirs os0 ers =
 
 (* Pipes **************************************************************)
 
+val fork_pipe_subshell : forall 'a. OS 'a =>
+                 os_state 'a ->
+                 stmt -> (* actual stmt *)
+                 bg_mode -> (* bg? [for tty] *)
+                 maybe pid -> (* pipeline pgrp *)
+                 pipeline_info ->
+                 os_state 'a * pipeline_info * pid
+let fork_pipe_subshell s0 stmt bg pgid  pipeline =
+  let (s1, pid) = fork_and_subshell s0 stmt bg pgid true in
+  (s1, pipeline, pid)
+
 val run_pipe_loop : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt -> 
                  fd ->
                  bg_mode -> (* bg? [for tty] *)
                  maybe pid -> (* pipeline pgrp *)
-                 os_state 'a * pid
-let rec run_pipe_loop s0 stmts fd_prev bg pgid =
+                 pipeline_info ->
+                 os_state 'a * pipeline_info * pid
+let rec run_pipe_loop s0 stmts fd_prev bg pgid pipeline =
   match stmts with
-  | [] -> fork_and_subshell s0 Done bg pgid true (* just run a trivial statement *)
+  | [] -> fork_pipe_subshell s0 Done bg pgid pipeline (* just run a trivial statement *)
   | [stmt] -> (* last one *)
-     let (s1, last_pid) = 
-       fork_and_subshell 
+     let (s1, pipeline', last_pid) = 
+       fork_pipe_subshell 
          s0 
          (with_redirs 
             (try_avoid_fork stmt)
             [ERDup ToFD CloseOrig STDIN (Just fd_prev)])
          bg
          pgid
-         true
+         pipeline
      in
      let s2 = close_fd s1 fd_prev in
-     (s2, last_pid)
+     (s2, reverse ((last_pid,stmt)::pipeline'), last_pid)
   | stmt::stmts' ->
      let (s1, fd_next, fd_write) = pipe s0 in
-     let (s2, _pid) =
-       fork_and_subshell 
+     let (s2, pipeline', pid) =
+       fork_pipe_subshell 
          s1
          (with_redirs 
             (close_fd_and_then fd_next stmt) 
@@ -498,44 +563,38 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid =
             ;ERDup ToFD CloseOrig STDOUT (Just fd_write)])
          bg
          pgid
-         true
+         pipeline
      in
      let s3 = close_fd s2 fd_prev in
      let s4 = close_fd s3 fd_write in
-     run_pipe_loop s4 stmts' fd_next bg pgid
+     run_pipe_loop s4 stmts' fd_next bg pgid ((pid,stmt)::pipeline')
   end
 
-(* TODO 2018-10-02 job control
-   in order to supports jobs -l, need detailed pid and command info 
-   if we just return a list of pids, that'll more or less cover us
-   we'll probably have to change the representation of jobs, too:
-     dash keeps a more detailed jobs spec, cf. jobs.h:66
- *)
 val run_pipe : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt ->
                  bg_mode -> (* bg? [for tty] *)
-                 os_state 'a * pid
+                 os_state 'a * pipeline_info * pid
 let run_pipe s0 stmts bg =
   match stmts with
-  | [] -> fork_and_subshell s0 Done bg Nothing true     (* just run a trivial statement *)
-  | [stmt] -> fork_and_subshell s0 stmt bg Nothing true (* trivial pipe *)
-  | stmt::stmts' ->                                     (* real pipe! *)
+  | [] -> fork_pipe_subshell s0 Done bg Nothing []     (* just run a trivial statement *)
+  | [stmt] -> fork_pipe_subshell s0 stmt bg Nothing [] (* trivial pipe *)
+  | stmt::stmts' ->                                    (* real pipe! *)
      (* set up first process *)
      let (s1, fd_next, fd_write) = pipe s0 in
-     let (s2, pid) =
-       fork_and_subshell
+     let (s2, pipeline, pid) =
+       fork_pipe_subshell
          s1
          (with_redirs 
             (close_fd_and_then fd_next stmt)
             [ERDup ToFD CloseOrig STDOUT (Just fd_write)]) 
          bg
          Nothing
-         true
+         []
      in
      let s3 = close_fd s2 fd_write in
      (* hand off to the loop *)
-     run_pipe_loop s3 stmts' fd_next bg (Just pid)
+     run_pipe_loop s3 stmts' fd_next bg (Just pid) ((pid,stmt)::pipeline)
   end
 
 (* Traps **************************************************************)

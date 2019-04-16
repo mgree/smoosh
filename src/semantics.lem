@@ -416,7 +416,7 @@ let rec expand_control s0 split q tm k =
                   [K (LBacktickWait corig pid s_trimmed)])
         end
     | LBacktickWait corig pid s ->
-        match waitpid step_eval s0 pid with
+        match wait_for_pid step_eval s0 pid with
         | (s1, Nothing) ->
            Right (ESCommand "command process vanished, leaving exit code unset",
                   s1,
@@ -900,19 +900,17 @@ and step_eval s0 checked stmt =
 
   (* PIPE *********************************************************************)
   | Pipe bg_mode stmts ->
-     let (s1, last_pid) = run_pipe s0 stmts bg_mode in
+     let (s1, pipeline, last_pid) = run_pipe s0 stmts bg_mode in
      let (s2, c) =
+       let s2 = add_job s1 pipeline last_pid (Pipe bg_mode stmts) in
        if is_bg bg_mode
-       then
-         let s1' = add_job s1 last_pid (Pipe bg_mode stmts) in
-         (set_last_pid last_pid s1', Done)
+       then (set_last_pid last_pid s2, Done)
        else 
          (* If the pipeline is not in the background (see Asynchronous
             Lists), the shell shall wait for the last command
             specified in the pipeline to complete, and may also wait
             for all commands to complete. *)
-         (* We don't bother waiting for everyone... unlike dash and bash. *)
-         (s1, Wait last_pid checked Nothing) 
+         (s2, Wait last_pid checked Nothing) 
      in
      check_traps (Right (XSPipe "started pipe",
                          s2,
@@ -969,7 +967,8 @@ and step_eval s0 checked stmt =
        fork_and_subshell s0 (Redir stmt' redir_state') 
          BG Nothing (* no pgid *) true (* job control *)
      in
-     let s2 = add_job s1 pid (Background stmt' redir_state (* don't show our munging *)) in
+     let s2 = add_job s1 [] (* no pipeline *)
+                pid (Background stmt' redir_state (* don't show our munging *)) in
      let s3 = set_last_pid pid s2 in
      check_traps
        (Right (XSBackground ("started background process with pid " ^ 
@@ -1391,7 +1390,7 @@ and step_eval s0 checked stmt =
   | Wait pid checking bound -> 
      let exit_on_error = not (checked_exit checking) && Set.member Sh_errexit s0.sh.opts in
      let s_pid = stringFromNat pid in
-     match waitpid step_eval s0 pid with
+     match wait_for_pid step_eval s0 pid with
      | (s1, Nothing) -> 
         check_traps
           (Right (XSWait ("couldn't step process with pid " ^ s_pid), 
