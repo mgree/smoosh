@@ -1,0 +1,4 @@
+myvar='a b c'
+set | grep myvar >scr
+. ./scr
+printf '%s\n' $myvar
