@@ -1,0 +1,4 @@
+trap 'echo bye' EXIT
+(trap)
+(trap 'echo so long' EXIT; trap)
+(trap)

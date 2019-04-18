@@ -1,0 +1,3 @@
+trap 'echo bye' EXIT
+(echo hi)
+echo $(echo hi)
