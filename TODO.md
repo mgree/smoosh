@@ -98,7 +98,6 @@ the next version.
   or is there something deeper going on here?
 
 - job control and PIDs
-  + real_waitpid needs to know more job info about what it's waiting for
   + INTON/INTOFF to get correct command editing behavior:
   
     If sh receives a SIGINT signal in command mode (whether generated
@@ -126,6 +125,7 @@ echo "\\\\\\"
 ```
 
 - $$ not installed for symbolic shell
+  but PPID is
   trickiness: $$ is unchanged in subshells, which can signal the top-level
               need to carefully hold on to such signals
   plan #1:
@@ -138,7 +138,8 @@ echo "\\\\\\"
 
   + treat $$ and $! specially
     bonus: simpler logic on special parameters (never in env)
-    
+
+- SIGPIPE in symbolic mode when reading from closed FDs
 
 - IFS=" \n\t" should work
   not obviously in the spec?

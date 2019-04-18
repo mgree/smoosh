@@ -454,7 +454,14 @@ val wait_for_pid : forall 'a. OS 'a =>
 let wait_for_pid step_eval os0 pid =
   match find_job_with_pid os0 pid with
   | Nothing -> waitpid step_eval os0 pid
-  | Just job -> wait_for_job step_eval os0 job job.pipeline pid Nothing
+  | Just job -> 
+     (* we reverse the pipeline so that we wait for the final job in
+        the pipeline _first_.
+
+        this gives us a better schedule in symbolic mode
+
+        it shouldn't matter at all in system mode *)
+     wait_for_job step_eval os0 job (reverse job.pipeline) pid Nothing
   end
 
 (* Redirects **********************************************************)
