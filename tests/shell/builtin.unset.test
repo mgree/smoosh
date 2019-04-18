@@ -1,0 +1,8 @@
+readonly x=foo
+y=bar
+unset y
+echo ${y-unset}
+echo ${x-error}
+unset y
+echo ${y-unset}
+unset x

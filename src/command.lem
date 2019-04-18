@@ -390,11 +390,15 @@ let unset_var sx s0 =
   match try_concrete sx with
   | Nothing -> Left ("couldn't unset symbolic variable " ^ string_of_symbolic_string sx)
   | Just x ->
-     Right <| s0 with sh = <| s0.sh with 
-                                env = Map.delete x s0.sh.env;
-                                readonly = Set.delete x s0.sh.readonly;
-                                export = Set.delete x s0.sh.export
-                           |> |>
+     if Set.member x s0.sh.readonly
+     then Left (x ^ " is read-only")
+     else if is_special_param x
+     then Left (x ^ " is a special parameter and cannot be unset")
+     else Right <| s0 with sh = <| s0.sh with 
+                                     env = Map.delete x s0.sh.env;
+                                     readonly = Set.delete x s0.sh.readonly;
+                                     export = Set.delete x s0.sh.export
+                                |> |>
   end
 
 val unset_fun : 
