@@ -812,7 +812,9 @@ and step_eval s0 checked stmt =
      let catching_errors = not (checked_exit checked) && Set.member Sh_errexit s1.sh.opts in
      let exit_on_error = 
        catching_errors ||
-       (prog_special && not (is_interactive s1)) (* per table in 2.8.1 *)
+       (prog_special && 
+        not opts.force_simple_command && 
+        not (is_interactive s1)) (* per table in 2.8.1 *)
      in
      match do_redirs s1 ers with
      | (s2, Left msg) ->

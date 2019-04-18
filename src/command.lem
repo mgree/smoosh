@@ -1115,7 +1115,7 @@ let builtin_command s0 argv env =
               (assigns_of_env env) (* convert env *)
               argv' (* copy over command args *)
               ([],Nothing,[])
-              <| default_cmd_opts with allow_functions = false |>)
+              <| default_cmd_opts with force_simple_command = true |>)
   | (CMVerbose human_readable, _) ->
      show_commands
        (if human_readable then human_readable_command_type else concise_command_type)
@@ -2273,8 +2273,8 @@ let run_command s0 opts checked prog_name argv env =
              form of a function, it shall not be recognized at this
              point. It shall be invoked in conjunction with the path
              search in step 1e. *)
-          match (opts.allow_functions, lookup_function prog s0) with
-          | (true, Just body) ->
+          match (opts.force_simple_command, lookup_function prog s0) with
+          | (false, Just body) ->
              Right (set_function_params 0 argv s0,
                     Call s0.sh.loop_nest (get_function_params s0) prog body body,
                     true)

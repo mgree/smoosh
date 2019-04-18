@@ -688,7 +688,7 @@ let should_close_orig orig_fd_action =
 type command_opts =
   <| ran_cmd_subst : bool;
      should_fork : bool;
-     allow_functions : bool
+     force_simple_command : bool
   |>
 
 type splitting_mode =
@@ -1355,7 +1355,7 @@ end
 let default_cmd_opts =
   <| ran_cmd_subst = false;
      should_fork = true;
-     allow_functions = true
+     force_simple_command = false;
   |>     
 
 val simple_command : string -> fields -> env -> stmt

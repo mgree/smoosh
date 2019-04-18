@@ -1,0 +1,3 @@
+command readonly x=foo
+command readonly x=bar
+echo ?=$?
