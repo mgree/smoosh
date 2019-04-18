@@ -151,13 +151,15 @@ let initialize_env s0 : system os_state =
   (* will bork if we have privileges *)
   let environ = System.real_environment () in
   let fixed_environ =
-    if !override_prompts
-    then 
-      [("PS1", "$ "); ("PS2", "> "); ("PS4", "+ ")] @
-      List.remove_assoc "PS1" 
-        (List.remove_assoc "PS2" 
-           (List.remove_assoc "PS4" environ))
-    else environ
+    [("IFS", " \t\n")] @ 
+      List.remove_assoc "IFS"
+        (if !override_prompts
+         then 
+           [("PS1", "$ "); ("PS2", "> "); ("PS4", "+ ")] @
+           List.remove_assoc "PS1" 
+             (List.remove_assoc "PS2" 
+                (List.remove_assoc "PS4" environ))
+         else environ)
   in
   let s1 = List.fold_right (fun (x,v) os -> real_set_param x v os) fixed_environ s0 in
   (* set up shell options, will set up $- *)
