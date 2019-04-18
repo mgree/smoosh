@@ -239,7 +239,7 @@ let rec expand_control s0 split q tm k =
           *)
            | Nothing -> ("defaulting to dash behavior for unset HOME (unspec per 2.6.1)", 
                          ExpS "~")
-           | Just dir -> ("", ExpS dir)
+           | Just dir -> ("", DQuo (symbolic_string_of_string dir))
            end in
            Right (ESTilde msg, s0, YesTilde, [dir], [])
         else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [ExpS "~"], [])

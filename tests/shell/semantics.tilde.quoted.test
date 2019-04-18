@@ -1,0 +1,5 @@
+HOME="weird    times"
+printf '%s\n' ~
+touch a1 a2 a3
+HOME='a*'
+printf '%s\n' ~
