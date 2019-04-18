@@ -1015,6 +1015,8 @@ and shell_state = <|
          cmd         (handle)
     *)
     traps: map signal symbolic_string;
+    (* for bare trap commands in subshells *)
+    supershell_traps: maybe (map signal symbolic_string);
     (* tricky invariant with job ids! *)
     jobs: list job_info;
     (* exit state info *)
@@ -1960,6 +1962,7 @@ let default_shell_state = <|
       outermost = true;
       opts = Set.empty;
       traps = Map.empty;
+      supershell_traps = Nothing;
       jobs = [];
       exit_code = 0;
       positional_params = [symbolic_string_of_string "smoosh"]; (* $0, $1, $2, $3 ... *)

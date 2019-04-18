@@ -402,7 +402,7 @@ instance (OS symbolic)
 
   let waitchild os0 = (os0, Nothing)
 
-  let handle_signal = update_trap
+  let handle_signal os _signal _action = os
 
   let signal_pid os0 signal pid as_pg = symbolic_signal_pid os0 signal pid as_pg
 

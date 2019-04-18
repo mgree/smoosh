@@ -372,6 +372,10 @@ let rec expand_control s0 split q tm k =
            (* make sure to close the pipe when we're done *)
            [(fd_write, Close)]
        in
+       (* PICK UP HERE
+
+          if it's lexically a call to 'trap', we need to do some special casing!
+        *)
        let (s2, pid) = 
          fork_and_subshell s1 cmd 
            FG Nothing (* no pgid *) false (* no job control *) 

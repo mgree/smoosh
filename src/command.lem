@@ -753,11 +753,16 @@ let trap_handle_signal s0 cond handler =
            s0
     else s0
   in
-  handle_signal s1 cond handler
+  let s2 = update_trap s1 cond handler in
+  handle_signal s2 cond handler
 
 let rec builtin_trap s0 argv _env =
-  (* The value of "$?" after the trap action completes shall be the
-     value it had before trap was invoked. *)
+  (* if we're running a nontrivial command, forget about any supershell traps *)
+  let s1 =
+    if null argv
+    then s0
+    else clear_supershell_traps s0
+  in
   match argv with
   | [] -> 
      let show (trap,cmd) os =
@@ -765,32 +770,38 @@ let rec builtin_trap s0 argv _env =
        let msg = "trap -- " ^ quoted_cmd ^ " " ^ string_of_signal trap in
        safe_write_stdout "trap" (msg ^ "\n") os
      in
-     let s1 = foldr show s0 (Map_extra.toList s0.sh.traps) in
-     Right (s1, Done, true)
-  | [C #'-'; C #'-']::argv' -> builtin_trap s0 argv' _env
+     let traps =
+       match s1.sh.supershell_traps with
+       | Nothing -> s1.sh.traps
+       | Just super_traps -> super_traps
+       end
+     in
+     let s2 = foldr show s1 (Map_extra.toList traps) in
+     Right (s2, Done, true)
+  | [C #'-'; C #'-']::argv' -> builtin_trap s1 argv' _env
   | arg::signals ->
      match readNat (char_list_of_symbolic_string arg) with
      | Right _n -> 
        (* unset n and all other conditions *) 
         match trap_parse_signals (arg::signals) with
-        | Left err -> Right (fail_with ("trap: " ^ err) s0, Done, true)
+        | Left err -> Right (fail_with ("trap: " ^ err) s1, Done, true)
         | Right conds ->
-           let s1 = foldr (fun cond os -> trap_handle_signal os cond Nothing) s0 conds in
-           Right (s1, Done, true)
+           let s2 = foldr (fun cond os -> trap_handle_signal os cond Nothing) s1 conds in
+           Right (exit_with 0 s2, Done, true)
         end
      | Left _ -> 
         match (try_concrete arg, trap_parse_signals signals) with
         | (Nothing, _) -> 
-           Left (s0, "couldn't set symbolic trap: " ^ string_of_symbolic_string arg)
-        | (_, Left err) -> Right (fail_with ("trap: " ^ err) s0, Done, true)
+           Left (s1, "couldn't set symbolic trap: " ^ string_of_symbolic_string arg)
+        | (_, Left err) -> Right (fail_with ("trap: " ^ err) s1, Done, true)
         | (Just "-", Right conds) ->
            (* unset conditions *)
-           let s1 = foldr (fun cond os -> trap_handle_signal os cond Nothing) s0 conds in
-           Right (s1, Done, true)
+           let s2 = foldr (fun cond os -> trap_handle_signal os cond Nothing) s1 conds in
+           Right (exit_with 0 s2, Done, true)
         | (Just _, Right conds) ->
            (* set conditions (if arg is "", we'll ignore it appropriately) *)
-           let s1 = foldr (fun cond os -> trap_handle_signal os cond (Just arg)) s0 conds in
-           Right (s1, Done, true)
+           let s2 = foldr (fun cond os -> trap_handle_signal os cond (Just arg)) s1 conds in
+           Right (exit_with 0 s2, Done, true)
         end
      end
   end

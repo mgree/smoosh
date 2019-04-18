@@ -327,7 +327,6 @@ instance (OS unit)
     end
 
   let handle_signal os0 signal action =
-    let s1 = update_trap os0 signal action in
     let actual_action =
       match action with
       | Nothing -> Nothing
@@ -341,7 +340,7 @@ instance (OS unit)
          real_handle_signal ocaml_signal actual_action 
       end 
     in
-    s1
+    os0
 
   let signal_pid os0 signal pid as_pg =
     match ocaml_signal_of_signal signal with

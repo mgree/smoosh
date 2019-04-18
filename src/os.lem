@@ -621,10 +621,15 @@ let clear_traps_for_subshell sh =
   let (ignored,handled) = 
     partition (fun (_signal,cmd) -> string_of_symbolic_string cmd = "") traps 
   in
-   (* clear handled traps (but keep ignored ones) *)
-  (<| sh with traps = Map.fromList ignored |>,
+   (* clear handled traps (but keep ignored ones); record supershell trap info *)
+  (<| sh with traps = Map.fromList ignored;
+              supershell_traps = Just sh.traps |>,
    (* indicate which handled traps are now cleared *)
    map fst handled)
+
+val clear_supershell_traps : forall 'a. os_state 'a -> os_state 'a
+let clear_supershell_traps os =
+  <| os with sh = <| os.sh with supershell_traps = Nothing |> |>
 
 val exit_trap : forall 'a. os_state 'a -> os_state 'a * maybe stmt
 let exit_trap s0 =
