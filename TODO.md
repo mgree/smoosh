@@ -176,10 +176,11 @@ echo "\\\\\\"
 - JS/webpage
   + nicer way to edit the environment and home directories
   + way to configure fs
+    interactions w/dash parser and host fs
   + use syntax highlighting in editor window
   + favicon
   + cleaner handling of environment, etc.
-    add positional variables to display  
+    add positional variables to display
   + presets
   + way to explore FS
   + more shell info

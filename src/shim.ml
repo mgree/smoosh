@@ -326,7 +326,7 @@ let parse_init src =
      let ss = Dash.alloc_stack_string cmd in
      Dash.setinputstring ss;
      Some ss
-  | ParseFile (file, push) -> Dash.setinputfile ~push:push file; None
+  | ParseFile (file, push) -> Dash.setinputfile ~push:(should_push_file push) file; None
 
 let parse_done m_ss =
   Dash.popfile ();

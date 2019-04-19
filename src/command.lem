@@ -546,7 +546,7 @@ let builtin_source argv0 s0 argv _env =
                end in
         if file_exists s0 path
         then
-          let src = ParseFile path true (* push onto input stack *) in
+          let src = ParseFile path PushFile in
           let sstr = parse_init src in
           Right (s0, 
                  EvalLoop 1 (sstr, Nothing) src 

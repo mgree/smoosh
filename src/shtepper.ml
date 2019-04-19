@@ -67,7 +67,7 @@ let parse_args () =
      "-user-file",Arg.String load_dirs,"file containing username/directory pairings for tilde expansion (one username=dir per line)"
     ]
     (function | "-" -> parse_source := ParseSTDIN 
-              | f -> parse_source := ParseFile (f, false))
+              | f -> parse_source := ParseFile (f, NoPushFile))
     "Final argument should be either a filename or - (for STDIN); only the last such argument is used"
 
 (**********************************************************************)

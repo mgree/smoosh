@@ -759,10 +759,21 @@ type parse_string_mode =
     ParseEval
   | ParseTrap
 
+type parse_file_mode =
+    PushFile
+  | NoPushFile
+
+val should_push_file : parse_file_mode -> bool
+let should_push_file pfm =
+  match pfm with
+  | PushFile -> true
+  | NoPushFile -> false
+  end
+
 type parse_source =
   | ParseSTDIN
   | ParseString of parse_string_mode * string
-  | ParseFile of string * bool (* push file onto stack of input sources? *)
+  | ParseFile of string * parse_file_mode
 
 (**********************************************************************)
 (* AST ****************************************************************)
