@@ -521,7 +521,10 @@ let rec eval_arith bits s0 e =
           | Right n -> Right (s0, n)
           | Left e -> Left e
           end
-      | Nothing -> Right (s0, fromNat 0) (* bash follows the spec and allows this, defaulting to 0, dash does not *) (* TODO handle symbolic lookup results *)
+      | Nothing -> 
+         if Set.member Sh_nounset s0.sh.opts
+         then Left (s ^ ": parameter unset")
+         else Right (s0, fromNat 0) (* bash follows the spec and allows this, defaulting to 0, dash does not *) (* TODO handle symbolic lookup results *)
       end
   | (BinOp op e1 e2) ->
       match eval_arith bits s0 e1 with
