@@ -208,11 +208,11 @@ let rec getopts opts fields =
   | Nothing -> ([],fields)
   | Just (Nothing, fields') ->
      (* stop! we hit -- or some such *)
-     (opts, fields')
+     ([], fields')
   | Just (Just opt,fields') -> 
-     let (opts,fields'') = getopts opts fields' in
+     let (found_opts,fields'') = getopts opts fields' in
      (* store in reverse order so we can process the list without needing an accumulator *)
-     (opts ++ [opt],fields'')
+     (found_opts ++ [opt],fields'')
   end
 
 (**********************************************************************)

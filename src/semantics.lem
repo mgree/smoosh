@@ -682,7 +682,12 @@ and step_eval s0 checked stmt =
      match exp_state1 with
      | ExpDone f -> 
         match set_param x (symbolic_string_of_fields f) s1 with
-        | Left err -> Left (XSSimple err, safe_write_stderr (err ^ "\n") s1)
+        | Left err -> 
+           let s2 = safe_write_stderr (err ^ "\n") s1 in
+           if (not (checked_exit checked) && Set.member Sh_errexit s1.sh.opts) || 
+               not (is_interactive s1) 
+           then Left (XSSimple "assignment error", s2)
+           else Right (XSSimple "assignment error", s2, Done)
         | Right s2 ->
            let s3 = trace (x ^ "=" ^ string_of_fields f) s2 in
            Right (XSSimple ("assign " ^ x),
@@ -1487,9 +1492,7 @@ and full_evaluation os0 stmt0 =
     | _ -> 
        match step_eval os1 Unchecked stmt0 with
        | Right (step, os2, stmt1) -> full_evaluation (log_step step os2) stmt1
-       | Left (step, os2) ->
-          let os3 = write_stderr (string_of_evaluation_step step ^ "\n") os2 in
-          log_step step (exit_with 1 os3)
+       | Left (step, os2) -> log_step step (exit_with 1 os2)
        end
     end
 
