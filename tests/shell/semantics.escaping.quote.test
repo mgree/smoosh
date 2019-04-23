@@ -6,7 +6,8 @@ do
         cat >script <<EOF
         x=\`printf '%s' \\$c\`; printf '%s\\n' "\$x"
 EOF
-        echo "$c" >&2
+        echo "$c"
         $TEST_SHELL script >out
         [ $? -eq 0 ] && [ "$c" = "$(cat out)" ]
 done
+echo done
