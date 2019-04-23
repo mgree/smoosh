@@ -532,33 +532,32 @@ let builtin_source argv0 s0 argv _env =
      | Nothing -> 
         Left (s0, "couldn't handle symbolic argument " ^ string_of_symbolic_string sfile)
      | Just file ->
-        let path = 
-          if elem #'/' (toCharList file)
-          then file
+        let mpath = 
+          if elem #'/' (toCharList file) && file_exists s0 file
+          then Just file
           else match lookup_concrete_param s0 "PATH" with
-               | Nothing -> file
+               | Nothing -> Nothing
                | Just pathvar -> 
                   let paths = split_string_on true (* escapable *) #':' pathvar in
-                  match resolve_path_with (file_exists s0) paths file with
-                  | Nothing -> file
-                  | Just path -> path
+                  match resolve_path_with (is_readable s0) paths file with
+                  | Nothing -> Nothing
+                  | Just path -> Just path
                   end
                end in
-        if file_exists s0 path
-        then
-          let src = ParseFile path PushFile in
-          let sstr = parse_init src in
-          Right (s0, 
-                 EvalLoop 1 (sstr, Nothing) src 
-                   Noninteractive Subsidiary, 
-                 true)
-        else
+        match mpath with
+        | Nothing ->
           (* If no readable file is found, a non-interactive shell
              shall abort; an interactive shell shall write a
              diagnostic message to standard error, but this condition
              shall not be considered a syntax error. *)
-          let msg = path ^ ": not found" in
-          Left (s0, msg)
+          Left (s0, file ^ ": not found")
+        | Just path ->
+          let src = ParseFile path PushFile in
+          let sstr = parse_init src in
+          Right (s0, 
+                 EvalLoop 1 (sstr, Nothing) src Noninteractive Subsidiary, 
+                 true)
+        end
      end
   end
 

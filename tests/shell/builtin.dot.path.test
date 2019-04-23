@@ -1,0 +1,19 @@
+set -e
+
+# manual cleanup to avoid prompt
+mkdir p1 p2
+trap 'rm -rf p1 p2' EXIT
+
+cat >scr1 <<EOF
+PATH="$(pwd)/p1:$(pwd)/p2:$PATH"
+. scr2
+EOF
+
+echo 'echo nope' >p1/scr2
+echo 'echo yep'  >p2/scr2
+
+chmod -f 333 p1/scr2
+chmod -f 444 p2/scr2
+
+$TEST_SHELL scr1
+
