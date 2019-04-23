@@ -68,6 +68,13 @@ But that's not the right syntax. It should instead be:
 Confirmed by Brian Selves of OpenGroup on 2019-01-07; will be fixed in
 the next version.
 
+- bugs in sh_12.ex
+
+> You are correct that the test code assumes the shell will wait for
+> both commands in the pipeline, but the standard doesn't require the
+> shell to do that.  We will change the test code to ensure the echo
+> has completed before the output is checked.
+
 #### Other
 
 - background commands
