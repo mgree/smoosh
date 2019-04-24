@@ -1491,6 +1491,14 @@ let expand_redir er f =
   | XRHeredoc ty src _ -> ERHeredoc ty src f
   end
 
+val parse_source_for_dot : parse_source -> bool
+let parse_source_for_dot src =
+  match src with
+  | ParseFile _ _ -> true
+  | ParseString _ _ -> false
+  | ParseSTDIN -> false
+  end
+
 val parse_source_propagates_control : parse_source -> bool
 let parse_source_propagates_control src =
   match src with

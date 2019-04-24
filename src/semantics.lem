@@ -1332,23 +1332,31 @@ and step_eval s0 checked stmt =
   (* EVALLOOP *****************************************************************)
 
   | EvalLoop linno ((sstr,stackmark) as ctx) src interactive shell_level ->
+     (* INVARIANT: you must call parse_done sstr if you're leaving the eval loop *)
      let s1 = show_changed_jobs s0 in
      let (s2, parsed) = parse_next s1 interactive stackmark in
      check_traps
        (match parsed with
         | ParseDone -> 
-           let _ = if is_toplevel shell_level then () else parse_done sstr in
            let (s3, c) = 
              if is_interactive_mode interactive && 
                   is_toplevel shell_level && Set.member Sh_ignoreeof s2.sh.opts
              then (write_stderr "Use \"exit\" to leave the shell.\n" s2, 
                    EvalLoop linno ctx src interactive shell_level)
-             else (s2, Done)
+             else 
+               let _ = parse_cleanup sstr shell_level in
+               (s2, Done)
            in
            Right (XSEval linno src "done", s3, c)
         | ParseError -> 
-           let _ = if is_toplevel shell_level then () else parse_done sstr (* TODO ??? *) in
-           Right (XSEval linno src "parse error", exit_with 1 s2, Done)
+           let s3 = exit_with 1 s2 in
+           let c' =
+             if is_interactive_mode interactive && is_toplevel shell_level 
+             then EvalLoop linno ctx src interactive shell_level
+             else let _ = parse_cleanup sstr shell_level in
+                  Exit
+           in 
+           Right (XSEval linno src "parse error", s3, c')
         | ParseNull ->
            Right (XSEval linno src "empty line", s2, 
                   EvalLoop (linno+1) ctx src interactive shell_level)
@@ -1356,12 +1364,31 @@ and step_eval s0 checked stmt =
            Right (XSEval linno src "", s2,
                   EvalLoopCmd (linno+1) ctx src interactive shell_level c)
         end)
-  | EvalLoopCmd linno ctx src interactive shell_level c ->
+  | EvalLoopCmd linno ((sstr,_stackmark) as ctx) src interactive shell_level c ->
+     (* INVARIANT: you must call parse_cleanup sstr shell_level if you're leaving the eval loop *)
      match step_eval s0 checked c with
       | Left e -> Left e
-      | Right (step, s1, Exit) -> Right (step, s1, Exit)
+      | Right (step, s1, Exit) -> 
+         let _ = parse_cleanup sstr shell_level in
+         Right (step, s1, Exit)
+      | Right (step, s1, Done) -> 
+         Right (step, s1, EvalLoop linno ctx src interactive shell_level)
+      | Right (step, s1, Return) ->
+         let (step', c') =
+           if is_toplevel shell_level
+           then (XSNested (XSEval linno src "return at top level") step,
+                 EvalLoop linno ctx src interactive shell_level)
+           else 
+             let _ = parse_cleanup sstr shell_level in
+             if parse_source_for_dot src
+             then (XSNested (XSEval linno src "return from dot") step,
+                   Done)
+             else (XSNested (XSEval linno src "return in eval loop") step,
+                   Return)
+         in
+         Right (step', s1, c')
       | Right (step, s1, c') ->
-         if is_terminating_control c' (* Exit already ruled out *)
+         if is_terminating_control c' (* Exit, Done, Return already ruled out *)
          then
            (* we got some kind of terminating control other than Exit *)
            check_traps
@@ -1369,7 +1396,8 @@ and step_eval s0 checked stmt =
                      s1, 
                      if not (is_toplevel shell_level) && parse_source_propagates_control src
                      then
-                       (* when break/return/continue occur in an eval, allow it! *)
+                       (* when break/continue occur in an eval, allow it! *)
+                       let _ = parse_cleanup sstr shell_level in
                        c'
                      else 
                        (* when they occur at the toplevel or in dot, ignore them *)

@@ -1,0 +1,6 @@
+echo starting
+eval echo hi
+echo nice
+eval "x=bye"
+echo $x
+
