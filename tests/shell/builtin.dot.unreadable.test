@@ -1,0 +1,10 @@
+set -e
+
+echo echo yes >weird
+. ./weird
+
+echo echo no >weird
+chmod a-r weird
+! $TEST_SHELL -c '. ./weird'
+rm -f weird
+echo done

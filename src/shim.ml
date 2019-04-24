@@ -319,6 +319,11 @@ and to_args (n : node union ptr) : words list =
  *
  *)
 
+let bad_file file msg =
+  let prog = Filename.basename Sys.executable_name in
+  Printf.eprintf "%s: file '%s' %s\n%!" prog file msg;
+  exit 3
+
 let parse_init src =
   match src with
   | ParseSTDIN -> Dash.setinputtostdin (); None
@@ -326,7 +331,14 @@ let parse_init src =
      let ss = Dash.alloc_stack_string cmd in
      Dash.setinputstring ss;
      Some ss
-  | ParseFile (file, push) -> Dash.setinputfile ~push:(should_push_file push) file; None
+  | ParseFile (file, push) -> 
+     if not (Sys.file_exists file)
+     then bad_file file "not found"
+     else try 
+         Unix.access file [Unix.F_OK; Unix.R_OK];
+         Dash.setinputfile ~push:(should_push_file push) file; 
+         None
+       with Unix.Unix_error(_,_,_) -> bad_file file "unreadable"
 
 let parse_done m_ss =
   Dash.popfile ();
