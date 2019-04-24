@@ -1354,7 +1354,7 @@ and step_eval s0 checked stmt =
              if is_interactive_mode interactive && is_toplevel shell_level 
              then EvalLoop linno ctx src interactive shell_level
              else let _ = parse_cleanup sstr shell_level in
-                  Exit
+                  Done
            in 
            Right (XSEval linno src "parse error", s3, c')
         | ParseNull ->
