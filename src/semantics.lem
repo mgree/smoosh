@@ -366,11 +366,8 @@ let rec expand_control s0 split q tm k =
        (* create a pipe *)
        let (s1, fd_read, fd_write) = pipe s0 in
        let cmd = 
-         pushredir 
            (* set up redirects [skipping expansion] *)
            (with_redirs c [ERDup ToFD CloseOrig STDOUT (Just fd_write)])
-           (* make sure to close the pipe when we're done *)
-           [(fd_write, Close)]
        in
        let (s2, pid) = 
          fork_and_subshell s1 cmd 

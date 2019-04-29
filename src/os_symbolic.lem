@@ -290,6 +290,9 @@ let symbolic_step_pid step_eval os0 pid =
             Just (Left (XSNested (XSSimple "trapped on EXIT") (XSProc pid handler))))
         | Nothing ->        
           (* terminated! grab the code, update everything *)
+          (* TODO 2019-04-29 should also close any open FDs 
+             this behavior is important for pipes, but it means we need to track more writer info
+           *)
            let ec = os3.sh.exit_code in
            (<| os3 with 
                   sh = os0.sh; 

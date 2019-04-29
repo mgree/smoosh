@@ -5,9 +5,9 @@ echo $pid1 >pid1
 
 $TEST_SHELL -c 'echo $PPID' >pid2
 
-[ $(cat pid1) = $(cat pid2) ]
+[ $(cat pid1) = $(cat pid2) ] || exit 2
 echo pid1=pid2
 
 (echo $PPID) >ppid
-[ $PPID = $(cat ppid) ]
+[ $PPID = $(cat ppid) ] || exit 3
 echo ppid=subshell

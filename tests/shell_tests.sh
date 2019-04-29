@@ -105,7 +105,7 @@ do
     # check exit code
     if [ "${expected_ec}" -ne "${got_ec}" ]
     then
-        debug "${case_name}: expected ${expected_ec} and got ${got_ec}"
+        debug "${case_name}: expected exit code ${expected_ec} and got ${got_ec}"
         : $((failures += 1))
     else
         rmlog ${saved_ec}
