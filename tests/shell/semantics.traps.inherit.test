@@ -1,0 +1,19 @@
+( 
+	trap "echo got SIGINT" INT
+
+        # default trap will mean we actually get a QUIT, overriding the default on asyncs
+	trap - QUIT
+
+	mypid=$($TEST_SHELL -c 'echo $PPID')
+
+        # this can be overridden
+	kill -s INT "$mypid" || exit 4
+
+        # will kill this shell, 
+	echo "sending SIGQUIT"
+	kill -s QUIT "$mypid" || exit 2
+	exit 0
+) &
+wait $!
+echo $?
+

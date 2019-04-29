@@ -1438,6 +1438,8 @@ let rec try_avoid_fork stmt =
      CommandExpRedirs assigns args exp_redirs <| opts with should_fork = false |>
   | Redir stmt' redir_state ->
      Redir (try_avoid_fork stmt') redir_state
+  | Pushredir stmt' saved_fds ->
+     Pushredir (try_avoid_fork stmt') saved_fds
   | _ -> stmt
   end
 

@@ -1,0 +1,13 @@
+set -e
+
+pid1=$($TEST_SHELL -c 'echo $PPID')
+echo $pid1 >pid1
+
+$TEST_SHELL -c 'echo $PPID' >pid2
+
+[ $(cat pid1) = $(cat pid2) ]
+echo pid1=pid2
+
+(echo $PPID) >ppid
+[ $PPID = $(cat ppid) ]
+echo ppid=subshell

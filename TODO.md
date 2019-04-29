@@ -29,14 +29,28 @@
 
 - 429
   sigprocmask wrong?
-  
-- 450
-  awk seems to have the wrong behavior :(
-    
+     
 #### Dash
 
 - 441
   problem with parsing 'nullcommand'
+  need to send patch
+
+#### POSIX test suite and spec
+
+- I think there's a typo/rendering error in Section 2.7.4. In the
+  sentence that begins "However, the double-quote character...", the
+  actual double-quote is mangled (or at least isn't displaying properly
+  in my browser).
+
+- 448, 450
+  awk seems to have the wrong behavior :(
+  but it doesn't seem to be mandated
+  
+- I think I've found another subtle issue in sh_12.ex: test #718 uses
+  the command `kill -TERM $$`... but `-[signame]` is an XSI extension,
+  so not every shell will support it. It should be safe to use `kill
+  -s TERM $$` on any platform.
 
 ##### Confirmed
 
