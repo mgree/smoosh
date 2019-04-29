@@ -373,8 +373,9 @@ let rec expand_control s0 split q tm k =
          fork_and_subshell s1 cmd 
            FG Nothing (* no pgid *) false (* no job control *) 
        in
+       let s3 = close_fd s2 fd_write in
        Right (ESCommand "initializing subshell", 
-              s2,
+              s3,
               NoTilde,
               [], 
               [K (LBacktick c pid fd_read)])

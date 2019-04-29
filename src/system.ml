@@ -400,7 +400,13 @@ let real_close (fd:int) : unit =
   try Unix.close (ExtUnix.file_descr_of_int fd)
   with Unix.Unix_error(_,_,_) -> ()
 
-(* uninterruptable write, per dash *)
+(* uninterruptable read and write, per dash *)
+let rec xread (fd:Unix.file_descr) (buff : Bytes.t) ofs : int =
+  try Unix.read fd buff ofs (Bytes.length buff - ofs) 
+  with Unix.Unix_error(Unix.EPIPE,_,_) -> 0
+     | Unix.Unix_error(Unix.EBADF,_,_) -> 0
+     | Unix.Unix_error(Unix.EINTR,_,_) -> xread fd buff ofs
+
 let rec xwrite (fd:Unix.file_descr) (buff : Bytes.t) : bool =
   let len = Bytes.length buff in
   try 
@@ -415,12 +421,7 @@ let real_write_fd (fd:int) (s:string) : bool =
 
 let real_read_all_fd (fd:int) : string option =
   let rec drain buff ofs =
-    let read = 
-      try Unix.read (ExtUnix.file_descr_of_int fd) buff ofs (Bytes.length buff - ofs) 
-      with Unix.Unix_error(Unix.EPIPE,_,_) -> 0
-         | Unix.Unix_error(Unix.EBADF,_,_) -> 0
-         | Unix.Unix_error(Unix.EINTR,_,_) -> 0
-    in
+    let read = xread (ExtUnix.file_descr_of_int fd) buff ofs in
     if read = 0
     then Some (Bytes.sub_string buff 0 ofs)
     else if read > 0
