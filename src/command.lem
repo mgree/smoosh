@@ -1975,7 +1975,12 @@ let builtin_kill s0 argv _env =
      end
   | (C #'-'::ss_signal)::argv' -> 
      let (s1,_concretized,s_signal) = concretize s0 ss_signal in
-     let (s2, m_signal) = kill_signal_of_num s1 s_signal in
+     let (s2, m_signal) =
+       match kill_signal_of_num s1 s_signal with
+       | (s2, Nothing) -> (s2, signal_of_string s_signal)
+       | (s2, Just signal) -> (s2, Just signal)
+       end
+     in
      match m_signal with
      | Nothing -> Left (s2, "no such signal " ^ s_signal)
      | Just signal -> signal_pids (exit_with 0 s2) signal (strip_double_dash argv')
