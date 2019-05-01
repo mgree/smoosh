@@ -202,7 +202,6 @@ let rec pathname_expansion s0 f =
        else insert_field_separators matches 
      in
      expansions ++ pathname_expansion s0 rst
-  | QField s::rst -> QField (unescape_pattern s)::pathname_expansion s0 rst
   | f::rst -> f::(pathname_expansion s0 rst)
   end
 
@@ -218,8 +217,8 @@ val quote_removal : intermediate_fields -> fields
 let rec remove_quotes f =
   match f with
   | [] -> []
-  | (QField(s)::rst) -> Field(s)::(remove_quotes rst)
-  | (f::rst) -> f::(remove_quotes rst)
+  | QField s :: rst -> Field s::remove_quotes rst
+  | f :: rst -> f::remove_quotes rst
   end
 
 let rec to_fields f =

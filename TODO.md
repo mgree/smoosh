@@ -24,7 +24,7 @@
 
 #### Platform-specific/Docker/TETware (working on OS X or manual runs, failing in full tester)
 
-- 351 461
+- 351 
   intermittent failure?
 
 - 429
@@ -42,15 +42,6 @@
   sentence that begins "However, the double-quote character...", the
   actual double-quote is mangled (or at least isn't displaying properly
   in my browser).
-
-- 448, 450
-  awk seems to have the wrong behavior :(
-  but it doesn't seem to be mandated
-  
-- I think I've found another subtle issue in sh_12.ex: test #718 uses
-  the command `kill -TERM $$`... but `-[signame]` is an XSI extension,
-  so not every shell will support it. It should be safe to use `kill
-  -s TERM $$` on any platform.
 
 ##### Confirmed
 
@@ -88,6 +79,13 @@ the next version.
 > both commands in the pipeline, but the standard doesn't require the
 > shell to do that.  We will change the test code to ensure the echo
 > has completed before the output is checked.
+
+- I think I've found another subtle issue in sh_12.ex: test #718 uses
+  the command `kill -TERM $$`... but `-[signame]` is an XSI extension,
+  so not every shell will support it. It should be safe to use `kill
+  -s TERM $$` on any platform.
+
+> You  are right that sh_12.ex test #718 should use kill -s TERM $$
 
 #### Other
 

@@ -1875,7 +1875,7 @@ let builtin_printf s0 argv _env =
   match argv with
   | [] -> 
      Right (fail_with_code 2 "printf: usage printf format [arg...]\n" s0, Done)
-  | sfmt::args ->
+  | sfmt::args ->              
      match try_concrete sfmt with
      | Nothing -> Right (fail_with_code 3 "printf: symbolic format string" s0, Done)
      | Just fmt -> 

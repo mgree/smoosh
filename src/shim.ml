@@ -261,12 +261,12 @@ and parse_string acc quoted = function
   | '\129'::'\\'::'\129'::c::s when quoted ->
      let c' = ['\\'; c] in
      parse_string (List.rev c' @ acc) quoted s
-  | '\129'::c::s -> 
-     let c' = 
+  | '\129'::c::s  -> 
+     let c' =
        match c with
-       | '*' -> ['\\'; c]
-       | '?' -> ['\\'; c]
-       | '[' -> ['\\'; c]
+       | '*' when not quoted -> ['\\'; c]
+       | '?' when not quoted -> ['\\'; c]
+       | '[' when not quoted -> ['\\'; c]
        | _   -> [c]
      in
      parse_string (List.rev c' @ acc) quoted s
