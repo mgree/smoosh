@@ -1,0 +1,4 @@
+set -e
+subshfds=$($TEST_UTIL/fds 0 20)
+$TEST_UTIL/fds 0 20
+echo $subshfds

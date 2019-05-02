@@ -137,12 +137,14 @@ let set_initialpgrp () =
              initialpgrp := -1
            end
 
-let renumber fd =
+let renumber ?cloexec:(ce=true) fd =
   let newfd = Dash.freshfd_ge10 (ExtUnix.int_of_file_descr fd) in
   if newfd >= 0
   then begin
       Unix.close fd;
-      newfd
+      if not ce
+      then Unix.clear_close_on_exec (ExtUnix.file_descr_of_int newfd);
+      newfd      
     end
   else failwith "out of file descriptors"
           
@@ -492,7 +494,7 @@ let real_close (fd:int) : unit =
 
 let real_pipe () : int * int =
   let (fd_read,fd_write) = Unix.pipe () in
-  (renumber fd_read, renumber fd_write)
+  (renumber ~cloexec:false fd_read, renumber ~cloexec:false fd_write)
 
 let real_openhere (s : string) : (string,int) either =
   let buff = Bytes.of_string s in
