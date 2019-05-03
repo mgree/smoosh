@@ -121,6 +121,7 @@ src/runtest
 tests/default.env
 tests/log
 tests/util/fds
+tests/util/argv
 
 ################################################################################
 # web
