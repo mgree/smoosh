@@ -779,14 +779,16 @@ function renderStmt(info, elt, stmt) {
       // | Exec (cmd, args, env) -> 
       //    Assoc [tag "Exec";
       //           ("cmd", json_of_symbolic_string cmd);
+      //           ("cmd_argv0", json_of_symbolic_string cmd_argv0);
       //           ("args", json_of_fields args);
-      //           ("env", json_of_env env)]
+      //           ("env", json_of_env env)
+      //           ("binsh", Bool (try_binsh binsh))]
 
       $('<i></i>').addClass('icon sign out alternate').appendTo(info);      
 
       var cmd = $('<span></span>').addClass('command builtin control').appendTo(elt);
 
-      renderSymbolicString(info, cmd, stmt['cmd']);
+      renderSymbolicString(info, cmd, stmt['cmd_argv0']);
 
       const argsExp = $('<span></span>').addClass('simple-args').appendTo(elt);
       renderFields(info, argsExp, stmt['args']);

@@ -511,9 +511,10 @@ let rec json_of_stmt = function
   | Break n -> Assoc [tag "Break"; ("n", Int n)]
   | Continue n -> Assoc [tag "Continue"; ("n", Int n)]
   | Return -> Assoc [tag "Return"]
-  | Exec (cmd, args, env, binsh) -> 
+  | Exec (cmd, cmd_argv0, args, env, binsh) -> 
      Assoc [tag "Exec";
             ("cmd", json_of_symbolic_string cmd);
+            ("cmd_argv0", json_of_symbolic_string cmd_argv0);
             ("args", json_of_fields args);
             ("env", json_of_env env);
             ("binsh", Bool (try_binsh binsh))]

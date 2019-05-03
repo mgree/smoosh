@@ -857,7 +857,7 @@ and stmt =
   | Continue of nat
   | Return
   | Exit
-  | Exec of symbolic_string * list symbolic_string * env * binsh_mode
+  | Exec of symbolic_string (* cmd path *) * symbolic_string (* cmd name *) * list symbolic_string * env * binsh_mode
   | Wait of pid 
           * checking_mode
           * maybe nat (* Nothing = block; Just n = n steps *)
@@ -1699,7 +1699,7 @@ and string_of_stmt c =
   | Continue n -> "continue " ^ show n
   | Return -> "return"
   | Exit -> "exit"
-  | Exec cmd args _env _binsh -> spaced "exec" (string_of_fields (cmd::args))
+  | Exec _cmd cmd_argv0 args _env _binsh -> spaced "exec" (string_of_fields (cmd_argv0::args))
   | Wait n _checked _steps -> "wait " ^ string_of_pid n
   | Trapped signal _ec c_handler c_cont -> 
      ": trap on " ^ string_of_signal signal ^ " ; " ^ string_of_stmt c_handler ^ " ; " ^

@@ -19,7 +19,7 @@ let environ os0 (env : env) : os_state system * list string =
 val real_getpwnam : string -> maybe string
 declare ocaml target_rep function real_getpwnam = `System.real_getpwnam`
 
-val real_execve : string -> list string -> list string -> bool -> maybe string (* nothing on success, or error msg *)
+val real_execve : string -> string -> list string -> list string -> bool -> maybe string (* nothing on success, or error msg *)
 declare ocaml target_rep function real_execve = `System.real_execve`
 
 val real_fork_and_eval : list int -> os_state system -> stmt -> bool -> maybe pid -> bool -> bool -> bool -> pid
@@ -220,13 +220,14 @@ instance (OS unit)
 
   let getpwnam _os nam = real_getpwnam nam
                        
-  let execve os0 sprog sargv senv binsh =
+  let execve os0 sprog sargv0 sargv senv binsh =
     let (os1,_,prog) = concretize os0 sprog in
-    let (os2,_,argv) = concretize_many os1 sargv in
-    let (os3,env) = environ os2 senv in
-    match real_execve prog argv env (try_binsh binsh) with
-    | Just err -> (os3, Left err)
-    | Nothing -> (os3, Right Done)
+    let (os2,_,argv0) = concretize os1 sargv0 in
+    let (os3,_,argv) = concretize_many os2 sargv in
+    let (os4,env) = environ os3 senv in
+    match real_execve prog argv0 argv env (try_binsh binsh) with
+    | Just err -> (os4, Left err)
+    | Nothing -> (os4, Right Done)
     end
 
   let fork_and_subshell os stmt bg pgid jc =

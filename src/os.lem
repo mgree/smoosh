@@ -79,7 +79,8 @@ class ( OS 'a )
   val execve : 
     os_state 'a -> 
     symbolic_string -> (* cmd *)
-    list symbolic_string -> (* argv *)
+    symbolic_string -> (* argv[0] *)
+    list symbolic_string -> (* argv w/o cmd *)
     env -> 
     binsh_mode ->
     os_state 'a * either string stmt

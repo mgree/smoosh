@@ -96,12 +96,12 @@ let real_getpwnam (nam : string) : string option =
   try Some ((Unix.getpwnam nam).pw_dir)
   with Not_found -> None
 
-let rec real_execve (cmd : string) (argv : string list) (environ : string list) (binsh : bool) 
+let rec real_execve (cmd : string) (argv0 : string) (argv : string list) (environ : string list) (binsh : bool) 
         : 'a =
   let env = Array.of_list environ in
-  try Unix.execve cmd (Array.of_list (cmd::argv)) env
+  try Unix.execve cmd (Array.of_list (argv0::argv)) env
   with 
-    | Unix.Unix_error(Unix.EINTR,_,_) -> real_execve cmd argv environ binsh
+    | Unix.Unix_error(Unix.EINTR,_,_) -> real_execve cmd argv0 argv environ binsh
     | Unix.Unix_error(Unix.ENOENT,_,_) ->
        begin
          Printf.eprintf "exec: %s: not found\n%!" cmd;
@@ -445,13 +445,12 @@ let real_read_all_fd (fd:int) : string option =
 let real_read_char_fd (fd:int) : (string,char option) either =
   let buff = Bytes.make 1 (Char.chr 0) in
   try 
-    match Unix.read (ExtUnix.file_descr_of_int fd) buff 0 1 with
+    match xread (ExtUnix.file_descr_of_int fd) buff 0 with
     | 0 -> Right None
     | 1 -> Right (Some (Bytes.get buff 0))
     | _ -> Left ("couldn't read " ^ string_of_int fd)
   with Unix.Unix_error(Unix.EPIPE,_,_) -> Left "broken pipe"
      | Unix.Unix_error(Unix.EBADF,_,_) -> Left "no such fd"
-     | Unix.Unix_error(Unix.EINTR,_,_) -> Left "interrupted"
 
 let real_read_line_fd backslash_escapes (fd:int) 
     : (string, string * bool (* eof? *)) either =
