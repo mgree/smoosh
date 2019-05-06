@@ -570,6 +570,8 @@ and step_redir os0 er =
           else ("skipped pathname expansion in interactive shell [produced " ^ 
                 (stringFromNat (length expanded)) ^ " words]",
                 ExpQuote opts (unescape_intermediate_fields ifs))
+        else if is_heredoc er
+        then ("stopping expansion for heredoc", ExpQuote opts (unescape_heredoc ifs))
         else ("skipped pathname expansion", ExpQuote opts (unescape_intermediate_fields ifs))
       in
       REStep (ESPath msg) os1 (set_expanding_redir_state es' er)

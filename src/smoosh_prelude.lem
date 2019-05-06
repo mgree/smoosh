@@ -1261,7 +1261,7 @@ let pattern_escs = toCharList "*?["
 
 val unescape_pattern : symbolic_string -> symbolic_string
 let unescape_pattern = unescape_chars pattern_escs
-                 
+
 val unescape_tmp_field : tmp_field -> tmp_field
 let unescape_tmp_field tf =
   match tf with
@@ -1274,6 +1274,18 @@ let unescape_tmp_field tf =
 val unescape_intermediate_fields : intermediate_fields -> intermediate_fields
 let unescape_intermediate_fields = List.map unescape_tmp_field
 
+val unescape_heredoc_field : tmp_field -> tmp_field
+let unescape_heredoc_field tf =
+  match tf with
+  | WFS -> WFS
+  | FS -> FS
+  | Field ss -> Field (unescape_chars [#'\\'] ss)
+  | QField ss -> QField (unescape_chars [#'\\'] ss)
+  end
+
+val unescape_heredoc : intermediate_fields -> intermediate_fields
+let unescape_heredoc = List.map unescape_heredoc_field
+                                 
 val symbolic_string_of_expanded_words 
     : bool (* keep quotes? *) -> expanded_words -> symbolic_string
 let rec symbolic_string_of_expanded_words keep_quotes w =
