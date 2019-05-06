@@ -756,15 +756,13 @@ let rec trap_parse_signals argv =
    end
 
 let trap_handle_signal s0 cond handler =
-  let s1 = 
-    if elem cond undefined_traps
-    then log_undefined
-           "Setting a trap for SIGKILL or SIGSTOP produces undefined results." 
-           s0
-    else s0
-  in
-  let s2 = update_trap s1 cond handler in
-  handle_signal s2 cond handler
+  if elem cond undefined_traps
+  then log_undefined
+         "Setting a trap for SIGKILL or SIGSTOP produces undefined results." 
+         s0
+  else
+    let s1 = update_trap s0 cond handler in
+    handle_signal s1 cond handler
 
 let rec builtin_trap s0 argv _env =
   (* if we're running a nontrivial command, forget about any supershell traps *)
