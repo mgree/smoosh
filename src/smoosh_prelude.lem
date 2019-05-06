@@ -1236,15 +1236,24 @@ let rec try_concrete_fields_list fs =
      end
   end
 
-let escape_quote_symbolic_char sc =
+val pattern_escs : list char
+let pattern_escs = toCharList "*?["
+
+val heredoc_escs : list char
+let heredoc_escs = toCharList "\\$'*?["
+                 
+let escape_sc chars sc =
   match sc with
-  | C #'\"' -> [C #'\\'; C #'\"']
+  | C c -> if elem c chars then [C #'\\'; C c] else [C c]
   | _ -> [sc]
   end
-
+      
 val escape_quotes : symbolic_string -> symbolic_string
-let escape_quotes ss = concatMap escape_quote_symbolic_char ss
+let escape_quotes ss = concatMap (escape_sc [#'\"'])  ss
 
+val escape_patterns : symbolic_string -> symbolic_string
+let escape_patterns ss = concatMap (escape_sc pattern_escs) ss
+                       
 val unescape_chars : list char -> symbolic_string -> symbolic_string
 let rec unescape_chars escs ss =
   match ss with
@@ -1255,9 +1264,6 @@ let rec unescape_chars escs ss =
      else C #'\\'::C c::unescape_chars escs ss'
   | sc::ss' -> sc::unescape_chars escs ss'
   end
-
-val pattern_escs : list char
-let pattern_escs = toCharList "*?["
 
 val unescape_pattern : symbolic_string -> symbolic_string
 let unescape_pattern = unescape_chars pattern_escs
@@ -1279,8 +1285,8 @@ let unescape_heredoc_field tf =
   match tf with
   | WFS -> WFS
   | FS -> FS
-  | Field ss -> Field (unescape_chars [#'\\'] ss)
-  | QField ss -> QField (unescape_chars [#'\\'] ss)
+  | Field ss -> Field (unescape_chars heredoc_escs ss)
+  | QField ss -> QField (unescape_chars heredoc_escs ss)
   end
 
 val unescape_heredoc : intermediate_fields -> intermediate_fields
