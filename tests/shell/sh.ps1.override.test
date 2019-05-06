@@ -1,0 +1,9 @@
+$TEST_SHELL -i <<EOF
+echo hi
+echo bye
+EOF
+
+PS1='PS1$ ' $TEST_SHELL -i <<EOF
+echo hi
+echo bye
+EOF

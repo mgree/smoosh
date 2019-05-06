@@ -151,6 +151,16 @@ let setup_handlers () =
   System.real_eval := 
     (fun os stmt -> real_eval_for_exit_code os stmt)
 
+let command_subst_re = Str.regexp ".*\\(\\$(.+)\\|`\\).*"
+
+let maybe_override var override environ =
+  match List.assoc_opt var environ with
+  | None -> (var, override)::environ
+  | Some(s) ->
+     if Str.string_match command_subst_re s 0
+     then (var, override)::(List.remove_assoc var environ)
+     else environ
+                     
 (* initialize's Dash env (for correct PS2, etc.); yields initial env *)
 let initialize_env s0 : system os_state =
   (* will bork if we have privileges *)
@@ -159,11 +169,10 @@ let initialize_env s0 : system os_state =
     [("IFS", " \t\n")] @ 
       List.remove_assoc "IFS"
         (if !override_prompts
-         then 
-           [("PS1", "$ "); ("PS2", "> "); ("PS4", "+ ")] @
-           List.remove_assoc "PS1" 
-             (List.remove_assoc "PS2" 
-                (List.remove_assoc "PS4" environ))
+         then
+           maybe_override "PS1" "$ "
+             (maybe_override "PS2" "> "
+                (maybe_override "PS4" "+ " environ))
          else environ)
   in
   let s1 = List.fold_right (fun (x,v) os -> real_set_param x v os) fixed_environ s0 in
