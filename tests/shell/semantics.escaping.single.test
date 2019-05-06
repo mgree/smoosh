@@ -1,0 +1,7 @@
+# cf tp399
+cat <<weirdo
+line one
+line two
+"line".\${PATH}.\'three\'\\x\
+line four
+weirdo

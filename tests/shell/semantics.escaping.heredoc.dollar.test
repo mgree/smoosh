@@ -1,0 +1,6 @@
+cat <<EOF
+echo \\\$var
+EOF
+cat <<'EOF'
+echo \\\$var
+EOF

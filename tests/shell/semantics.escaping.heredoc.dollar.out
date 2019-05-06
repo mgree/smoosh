@@ -1,0 +1,2 @@
+echo \$var
+echo \\\$var
