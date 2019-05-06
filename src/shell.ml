@@ -134,18 +134,26 @@ let parse_args () =
   in
   parse_arg_loop args
 
+let try_set_interactive () =
+  if not !explicitly_unset_i && Unix.isatty Unix.stdin && Unix.isatty Unix.stderr
+  then add_opt Sh_interactive
+  
 (* sets Dash input src, returns positional params *)
 let prepare_command () : string list (* positional args *) =
   match !input_mode with
   | NoFlag -> 
      begin match !params with
      | [] -> 
-        if not !explicitly_unset_i && Unix.isatty Unix.stdin then add_opt Sh_interactive; 
+        try_set_interactive (); 
         parse_source := ParseSTDIN; [Sys.argv.(0)] 
      | cmd::args -> parse_source := ParseFile (cmd, NoPushFile); cmd::args 
      end
-  | SFlag -> parse_source := ParseSTDIN; Sys.argv.(0)::!params
-  | CFlag cmd -> parse_source := ParseString (ParseEval, cmd); cmd::!params
+  | SFlag ->
+     (* awkward reading of the /bin/sh spec... but cf tp709! *)
+     try_set_interactive ();
+     parse_source := ParseSTDIN; Sys.argv.(0)::!params
+  | CFlag cmd ->
+     parse_source := ParseString (ParseEval, cmd); cmd::!params
 
 let setup_handlers () =
   System.real_eval := 
