@@ -1240,7 +1240,7 @@ val pattern_escs : list char
 let pattern_escs = toCharList "*?["
 
 val heredoc_escs : list char
-let heredoc_escs = toCharList "\\'*?["
+let heredoc_escs = toCharList "\\*?["
                  
 let escape_sc chars sc =
   match sc with
