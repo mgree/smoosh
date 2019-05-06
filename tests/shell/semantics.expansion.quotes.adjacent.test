@@ -1,0 +1,12 @@
+mkdir a
+touch a/b
+touch a/c
+echo a/*
+echo "a"/*
+echo 'a'/*
+mkdir "foo*["
+touch "foo*["/weird
+touch "foo*["/wild
+touch "foo*["/crazy
+echo "foo*["/*
+echo "foo*["/[wz]*

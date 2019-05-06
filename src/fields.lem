@@ -131,6 +131,9 @@ let rec combine_fields f =
   | (WFS::FS::rst) -> combine_fields (FS::rst)
   | (FS::WFS::rst) -> combine_fields (FS::rst)
   | (Field(s1)::Field(s2)::rst) -> combine_fields (Field(s1 ++ s2)::rst)
+  | (QField(s1)::QField(s2)::rst) -> combine_fields (QField(s1 ++ s2)::rst)
+  | (QField(s1)::Field(s2)::rst) -> combine_fields (Field((escape_patterns s1) ++ s2)::rst)
+  | (Field(s1)::QField(s2)::rst) -> combine_fields (Field(s1 ++ (escape_patterns s2))::rst)
   | (WFS::rst) -> FS::(combine_fields rst)
   | (f::rst) -> f::(combine_fields rst)
   end
