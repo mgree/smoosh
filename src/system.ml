@@ -255,7 +255,7 @@ let real_fork_and_eval
          then
            ignore (xtcsetpgrp (pgrp pid))
        end
-     else if bg
+     else if bg && not jc
      then 
        begin
          Sys.set_signal Sys.sigint Signal_ignore;
