@@ -389,36 +389,68 @@ let add_job os0 pipeline pid cmd =
   <| os1 with sh = <| os1.sh with jobs = new_job::os1.sh.jobs |> |>
 
 val delete_job 
-    : forall 'a. OS 'a => os_state 'a -> nat (* job id *) -> os_state 'a
+    : forall 'a. os_state 'a -> nat (* job id *) -> os_state 'a
 let delete_job os0 id =
   <| os0 with sh = 
       <| os0.sh with jobs = filter (fun j -> j.id <> id || is_active_job j) os0.sh.jobs |> |>
 
 val delete_job_with_pid
-    : forall 'a. OS 'a => os_state 'a -> pid -> os_state 'a
+    : forall 'a. os_state 'a -> pid -> os_state 'a
 let delete_job_with_pid os0 pid =
   <| os0 with sh = 
       <| os0.sh with jobs = filter (fun j -> j.pid <> pid) os0.sh.jobs |> |>
 
 val find_job_with_pid
-    : forall 'a. OS 'a => os_state 'a -> pid -> maybe job_info
+    : forall 'a. os_state 'a -> pid -> maybe job_info
 let find_job_with_pid os0 pid =
   List.find (fun j -> j.pid = pid || any (fun (pid',_) -> pid' = pid) j.pipeline) 
     os0.sh.jobs
 
+val ec_of_job_status : job_status -> maybe nat
+let ec_of_job_status status =
+  let ec_of_signal signal = Just (128 + Signal_platform.platform_int_of_signal signal) in
+  match status with
+  | JobRunning -> Nothing
+  | JobStopped TSTP -> ec_of_signal SIGTSTP
+  | JobStopped STOP -> ec_of_signal SIGSTOP
+  | JobStopped TTIN -> ec_of_signal SIGTTIN
+  | JobStopped TTOU -> ec_of_signal SIGTTOU
+  | JobTerminated signal -> ec_of_signal signal
+  | JobDone code -> Just code
+  end
+
+val update_job_with_pid : forall 'a. OS 'a => os_state 'a -> nat -> job_status -> os_state 'a * maybe job_info
+let update_job_with_pid os0 pid new_status =
+  match List.find (fun j -> j.pid = pid) os0.sh.jobs with
+  | Nothing -> (* no such job... weird, keep going *)
+     (os0, Nothing)
+  | Just job -> (* update the job status! *)
+     let job' = <| job with status = new_status |> in
+     let cur_jobs = map (fun j -> if j.id = job'.id then job' else j) os0.sh.jobs in
+     if Set.member Sh_notify os0.sh.opts && not (is_active_job job')
+     then 
+       let cur_prev = cur_prev_jobs cur_jobs in
+       let msg = 
+         show_job_number cur_prev job' ^ " " ^ 
+         string_of_job_status new_status ^ " " ^
+         string_of_stmt job'.cmd ^ "\n"
+       in
+       (write_stderr msg os0, Nothing)
+     else (<| os0 with sh = <| os0.sh with jobs = cur_jobs |> |>, Just job')
+  end
+
 let rec update_jobs_loop os0 changes =
   match waitchild os0 with
   | (os1, Nothing) -> (os1, changes)
-  | (os1, Just (pid, cur_status)) ->
-     match List.find (fun j -> j.pid = pid) os1.sh.jobs with
-     | Nothing -> (* no such job... weird, keep going *)
-        update_jobs_loop os1 changes
-     | Just job -> (* update the job status! *)
-       let job' = <| job with status = cur_status |> in
-       let cur_jobs = map (fun j -> if j.id = job'.id then job' else j) os1.sh.jobs in
-       let os1 = <| os1 with sh = <| os1.sh with jobs = cur_jobs |> |> in
-       update_jobs_loop os1 (job'::changes)
-     end
+  | (os1, Just (pid, status)) ->
+     let (os2, job') = update_job_with_pid os1 pid status in
+     let changes' = 
+       match job' with
+       | Nothing -> changes
+       | Just job' -> job'::changes
+       end
+     in
+     update_jobs_loop os2 changes'
   end
 
 val update_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info (* changed *)

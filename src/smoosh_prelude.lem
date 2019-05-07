@@ -1547,6 +1547,23 @@ let string_of_job_status status =
   | JobDone code -> "Done (" ^ stringFromNat code ^ ")"
   end
 
+val cur_prev_jobs : list job_info -> nat * nat
+let cur_prev_jobs jobs = 
+  match jobs with
+  | [] -> (0,0) (* doesn't matter *)
+  | [job] -> (job.id, job.id)
+  | cur::prev::_ -> (cur.id, prev.id)
+  end
+
+val show_job_number : nat * nat -> job_info -> string
+let show_job_number (cur_id, prev_id) job =
+  "[" ^ stringFromNat job.id ^ "] " ^ 
+    (if job.id = cur_id 
+     then "+" 
+     else if job.id = prev_id
+     then "-"
+     else " ") ^ " "
+      
 val ran_command_substitution : expansion_step -> bool
 let rec ran_command_substitution estep =
   match estep with

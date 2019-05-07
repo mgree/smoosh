@@ -973,7 +973,7 @@ and step_eval s0 checked stmt =
      (* defer to Redir to load redirs *)
      let (s1,pid) = 
        fork_and_subshell s0 (Redir stmt' redir_state') 
-         BG Nothing (* no pgid *) true (* job control *)
+         BG Nothing (* no pgid *) true (* job control possible? *)
      in
      let s2 = add_job s1 [] (* no pipeline *)
                 pid (Background stmt' redir_state (* don't show our munging *)) in
@@ -1004,7 +1004,7 @@ and step_eval s0 checked stmt =
   | Subshell stmt' ((_, Nothing, []) as redir_state) ->
      let (s1,pid) = 
        fork_and_subshell s0 (Redir stmt' redir_state)
-         FG Nothing (* no pgid *) true (* job control *)
+         FG Nothing (* no pgid *) true (* job control possible? *)
      in
      check_traps
        (Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
@@ -1430,7 +1430,7 @@ and step_eval s0 checked stmt =
      | (s1, Nothing) -> 
         check_traps
           (Right (XSWait ("couldn't step process with pid " ^ s_pid), 
-                  safe_write_stderr ("wait: pid " ^ s_pid ^ " is not a child of this shell") s1, 
+                  safe_write_stderr ("wait: pid " ^ s_pid ^ " is not a child of this shell\n") s1, 
                   Done))
      | (s1, Just (Left step)) ->
         (* we took a step, so record it *)
@@ -1447,7 +1447,7 @@ and step_eval s0 checked stmt =
      | (s1, Just (Right code)) ->
         let s2 = delete_job_with_pid s1 pid in
         check_traps
-          (Right (XSWait ("process with pid " ^ s_pid ^ " completed"),
+          (Right (XSWait ("process with pid " ^ s_pid ^ " completed with code " ^ stringFromNat code),
                   exit_with code s2,
                   if exit_on_error && code <> 0
                   then Exit

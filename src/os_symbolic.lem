@@ -401,7 +401,7 @@ instance (OS symbolic)
 
   let exit os0 = <| os0 with symbolic = <| os0.symbolic with exited = true |> |>
 
-  let waitpid = symbolic_step_pid
+  let waitpid step_eval os0 pid  = symbolic_step_pid step_eval os0 pid
 
   let waitchild os0 = (os0, Nothing)
 

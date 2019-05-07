@@ -25,7 +25,7 @@ declare ocaml target_rep function real_execve = `System.real_execve`
 val real_fork_and_eval : list int -> os_state system -> stmt -> bool -> maybe pid -> bool -> bool -> bool -> pid
 declare ocaml target_rep function real_fork_and_eval = `System.real_fork_and_eval`
 
-val real_waitpid : pid (* rootpid *) -> pid (* pid *) -> bool (* jc? *) -> nat (* ec *)
+val real_waitpid : pid (* rootpid *) -> pid (* pid *) -> bool (* jc? *) -> maybe nat (* ec (nothing on ECHILD) *)
 declare ocaml target_rep function real_waitpid = `System.real_waitpid`
 
 type ocaml_job_status = 
@@ -57,6 +57,12 @@ let job_status_of_ocaml_status ocaml_status =
 
 val real_wait_child : bool (* jc? *) -> maybe (pid * ocaml_job_status)
 declare ocaml target_rep function real_wait_child = `System.real_wait_child`
+
+let system_wait_child os =
+  match real_wait_child (is_monitoring os) with
+  | Nothing -> (os, Nothing)
+  | Just (pid, ocaml_status) -> (os, Just (pid, job_status_of_ocaml_status ocaml_status))
+  end
 
 val real_handle_signal : int -> maybe string -> unit
 declare ocaml target_rep function real_handle_signal = `System.real_handle_signal`
@@ -317,15 +323,25 @@ instance (OS unit)
     in
     real_exit os.sh.exit_code
 
-  let waitpid _step_eval os pid =
-    let code = real_waitpid os.sh.rootpid pid (is_monitoring os) in
-    (os, Just (Right code))
-
-  let waitchild os =
-    match real_wait_child (is_monitoring os) with
-    | Nothing -> (os, Nothing)
-    | Just (pid, ocaml_status) -> (os, Just (pid, job_status_of_ocaml_status ocaml_status))
+  let waitpid _step_eval os0 pid =
+    let mcode = real_waitpid os0.sh.rootpid pid (is_monitoring os0) in
+    match mcode with
+    | Nothing -> 
+       (* got ECHILD... so let's consult our job table *)
+       match find_job_with_pid os0 pid with
+       | Nothing -> (os0, Nothing)
+       | Just job -> 
+          match ec_of_job_status job.status with
+          | Nothing -> (os0, Nothing)
+          | Just code -> 
+             let os1 = delete_job os0 job.id in
+             (os1, Just (Right code))
+          end
+       end
+    | Just code -> (os0, Just (Right code))
     end
+
+  let waitchild = system_wait_child
 
   let handle_signal os0 signal action =
     let actual_action =

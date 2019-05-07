@@ -259,7 +259,7 @@ let real_fork_and_eval
      then 
        begin
          Sys.set_signal Sys.sigint Signal_ignore;
-         Sys.set_signal Sys.sigquit Signal_ignore;
+         Sys.set_signal Sys.sigquit Signal_ignore
        end;
      if outermost && interactive
      then
@@ -284,17 +284,17 @@ let real_fork_and_eval
        xsetpgid pid (pgrp pid);
      pid
 
-let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int =
+let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int option =
   let ec signal =
-    128 + Signal_platform.platform_int_of_ocaml_signal signal
+    Some (128 + Signal_platform.platform_int_of_ocaml_signal signal)
   in
   let code =
     try match Unix.waitpid [] pid with
-        | (_,Unix.WEXITED code) -> code
+        | (_,Unix.WEXITED code) -> Some code
         | (_,Unix.WSIGNALED signal) -> ec signal (* bash, dash behavior *)
         | (_,Unix.WSTOPPED signal) -> ec signal (* bash, dash behavior *)
     with Unix.Unix_error(Unix.EINTR,_,_) -> real_waitpid rootpid pid jc
-       | Unix.Unix_error(Unix.ECHILD,_,_) -> gotsigchld := true; 0
+       | Unix.Unix_error(Unix.ECHILD,_,_) -> gotsigchld := true; None
   in
   (* FIXME 2018-10-24 we may need to interrupt ourselves when code=130 
      see jobs.c:1032
@@ -309,7 +309,7 @@ let real_wait_child (jc : bool) : (int * Unix.process_status) option =
     match Unix.waitpid flags (-1) with
     | (0, _) -> None (* running/no update *)
     | (pid, status) -> Some (pid, status)
-  with Unix.Unix_error(Unix.ECHILD,_,_) -> None
+  with Unix.Unix_error(Unix.ECHILD,_,_) -> gotsigchld := false; None
 
 let show_time time =
   let mins = time /. 60.0 in

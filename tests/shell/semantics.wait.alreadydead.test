@@ -1,0 +1,8 @@
+sleep 10 &
+pid=$!
+sleep 1
+kill $pid
+echo kill ec: $?
+sleep 1
+wait $pid
+echo wait ec: $?

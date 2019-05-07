@@ -1372,21 +1372,6 @@ let rec jobs_mode opts =
   | _::opts' -> jobs_mode opts'
   end
 
-let cur_prev_jobs jobs = 
-  match jobs with
-  | [] -> (0,0) (* doesn't matter *)
-  | [job] -> (job.id, job.id)
-  | cur::prev::_ -> (cur.id, prev.id)
-  end
-
-let show_job_number (cur_id, prev_id) job =
-  "[" ^ stringFromNat job.id ^ "] " ^ 
-    (if job.id = cur_id 
-     then "+" 
-     else if job.id = prev_id
-     then "-"
-     else " ") ^ " "
-
 let show_job_status job =
   pad_right (string_of_job_status job.status) 25 (* width taken from bash *)
 
@@ -1423,12 +1408,11 @@ let show_jobs mode cur_prev jobs s0 =
 val show_changed_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a
 let show_changed_jobs s0 =
   let (s1,changed) = update_jobs s0 in
-  let s2 = 
-    if Set.member Sh_monitor s1.sh.opts
-    then show_jobs JobsNormal (cur_prev_jobs s1.sh.jobs) changed s1
-    else s1
-  in
-  List.foldl (fun os j -> delete_job os j.id) s2 changed
+  if Set.member Sh_monitor s1.sh.opts
+  then
+    let s2 = show_jobs JobsNormal (cur_prev_jobs s1.sh.jobs) changed s1 in
+    List.foldl (fun os j -> delete_job os j.id) s2 changed
+  else s1
 
 let rec show_job_specs mode cur_prev specs s0 =
   match specs with
