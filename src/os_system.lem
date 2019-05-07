@@ -326,18 +326,7 @@ instance (OS unit)
   let waitpid _step_eval os0 pid =
     let mcode = real_waitpid os0.sh.rootpid pid (is_monitoring os0) in
     match mcode with
-    | Nothing -> 
-       (* got ECHILD... so let's consult our job table *)
-       match find_job_with_pid os0 pid with
-       | Nothing -> (os0, Nothing)
-       | Just job -> 
-          match ec_of_job_status job.status with
-          | Nothing -> (os0, Nothing)
-          | Just code -> 
-             let os1 = delete_job os0 job.id in
-             (os1, Just (Right code))
-          end
-       end
+    | Nothing -> (os0, Nothing)
     | Just code -> (os0, Just (Right code))
     end
 

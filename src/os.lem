@@ -456,6 +456,23 @@ let rec update_jobs_loop os0 changes =
 val update_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info (* changed *)
 let update_jobs os0 = update_jobs_loop os0 []
 
+let waitpid_or_lookup step_eval os0 pid =
+  match waitpid step_eval os0 pid with
+  | (os1, Nothing) ->
+     (* got ECHILD... so let's consult our job table *)
+     match find_job_with_pid os1 pid with
+     | Nothing -> (os1, Nothing)
+     | Just job -> 
+        match ec_of_job_status job.status with
+        | Nothing -> (os1, Nothing)
+        | Just code -> 
+           let os2 = delete_job os1 job.id in
+           (os2, Just (Right code))
+        end
+     end
+  | (os1, Just res) -> (os1, Just res)
+  end
+
 (* We need to:
    (a) make sure everything in the job is done, and
    (b) return the exit code of the pid we care about *)
@@ -467,11 +484,11 @@ let rec wait_for_job step_eval os0 job pipeline tgt_pid mec =
   match pipeline with
   | [] ->
      match mec with
-     | Nothing -> waitpid step_eval os0 tgt_pid
+     | Nothing -> waitpid_or_lookup step_eval os0 tgt_pid
      | Just ec -> (os0, Just (Right ec))
      end
   | (pid,_)::pipeline' -> 
-     match waitpid step_eval os0 pid with
+     match waitpid_or_lookup step_eval os0 pid with
      | (os1, Nothing) -> (os1, Nothing)
      | (os1, Just (Left step)) -> (os1, Just (Left step))
      | (os1, Just (Right ec)) ->
@@ -486,7 +503,7 @@ val wait_for_pid : forall 'a. OS 'a =>
     os_state 'a * maybe (either evaluation_step (* step taken *) nat (* exit code *))  
 let wait_for_pid step_eval os0 pid =
   match find_job_with_pid os0 pid with
-  | Nothing -> waitpid step_eval os0 pid
+  | Nothing -> waitpid_or_lookup step_eval os0 pid
   | Just job -> 
      (* we reverse the pipeline so that we wait for the final job in
         the pipeline _first_.
