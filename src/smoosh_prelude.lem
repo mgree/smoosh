@@ -1468,6 +1468,18 @@ let is_terminating_control c =
   | _ -> false
   end
 
+val combine_redirs : redir_state -> redir_state -> redir_state
+let combine_redirs (ers1, er1, rs1) (ers2, er2, rs2) =
+  let er =
+    match (er1, er2) with
+    | (Nothing, Nothing) -> Nothing
+    | (Just er, Nothing) -> Just er
+    | (Nothing, Just er) -> Just er
+    | (Just  _, Just  _) -> Assert_extra.failwith "couldn't combine two in-flight redirects"
+    end
+  in
+  (ers1 ++ ers2, er, rs1 ++ rs2)
+
 val get_expanding_redir_state : expanding_redir -> expansion_state
 let get_expanding_redir_state er =
   match er with

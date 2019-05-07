@@ -51,7 +51,11 @@ let rec of_node (n : node union ptr) : stmt =
   (* NREDIR *)
   | 2  -> let (c,redirs) = of_nredir n in Redir (c,redirs)
   (* NBACKGND *)
-  | 3  -> let (c,redirs) = of_nredir n in Background (c,redirs)
+  | 3  -> let (c,redirs) = of_nredir n in
+          begin match c with
+          | Subshell (c, redirs') -> Background (c, combine_redirs redirs redirs')
+          | _ -> Background (c,redirs)
+          end
   (* NSUBSHELL *)
   | 4  -> let (c,redirs) = of_nredir n in Subshell (c,redirs)
   (* NAND *)

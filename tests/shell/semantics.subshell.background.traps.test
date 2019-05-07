@@ -1,0 +1,12 @@
+(trap - INT; echo INT sleeping...; sleep 10; echo INT awake) & pid=$!
+sleep 1
+kill $pid
+wait $pid
+ec=$?
+[ "$ec" -ge 128 ] || exit 1
+(trap - QUIT; echo QUIT sleeping...; sleep 10; echo QUIT awake) & pid=$!
+sleep 1
+kill -QUIT $pid
+wait $pid
+ec=$?
+[ "$ec" -ge 128 ] || exit 2

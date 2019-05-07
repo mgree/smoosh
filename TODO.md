@@ -87,6 +87,13 @@ the next version.
 
 > You  are right that sh_12.ex test #718 should use kill -s TERM $$
 
+- I'm back with another subtle issue: tp722 seems to execute undefined
+  behavior by setting a trap for SIGKILL. (There's also a typo in its
+  header, writing signal 0 instead of 9 for SIGKILL).
+
+> You are right :)  We will change the test so it doesn't try to
+> catch signal 9 / SIGKILL (and fix the typo).
+
 #### Other
 
 - background commands
