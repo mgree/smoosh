@@ -1,0 +1,19 @@
+sleep 10 & pid=$!
+sleep 1
+jobs >job_info
+grep "sleep 10" job_info >/dev/null || exit 1
+grep "[1]" job_info >/dev/null || exit 2
+kill $pid
+
+rm job_info
+unset j pid
+
+sleep 10 & pid=$!
+sleep 1
+jobs -l >job_info
+grep "sleep 10" job_info >/dev/null || exit 3
+grep "[1]" job_info >/dev/null || exit 4
+grep $pid job_info >/dev/null || exit 5
+kill $pid
+
+rm job_info
