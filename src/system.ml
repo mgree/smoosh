@@ -241,7 +241,7 @@ let real_fork_and_eval
   match Unix.fork () with
   | 0 -> 
      List.iter 
-       (fun signal -> if signal <> 0 then Sys.set_signal signal Signal_ignore) 
+       (fun signal -> if signal <> 0 then Sys.set_signal signal Signal_default) 
        handlers;
      (* more or less following dash's forkchild in jobs.c:847-907 *)
      if outermost && jc

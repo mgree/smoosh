@@ -249,7 +249,7 @@ instance (OS unit)
        cannot be used within the subshell to set new traps.  *) 
     let pid = 
       real_fork_and_eval 
-        (List.mapMaybe ocaml_signal_of_signal handlers) (* ignore these signals! *)
+        (List.mapMaybe ocaml_signal_of_signal handlers) (* set these signals to default! *)
         (<| os with sh = subsh |>) (* update the traps *)
         (try_avoid_fork stmt)
         (is_bg bg)

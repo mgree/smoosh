@@ -1,0 +1,10 @@
+trap "echo hi" TERM
+sleep 10 &
+pid=$!
+sleep 1
+kill $pid
+[ "$?" -eq 0 ] || exit 1
+sleep 1
+wait $pid
+[ "$?" -ge 128 ] || exit 2
+
