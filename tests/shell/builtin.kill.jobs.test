@@ -2,6 +2,7 @@ sleep 10 & pid1=$!
 sleep 20 & pid2=$!
 start=$(date "+%s")
 sleep 1
+kill %1 %2 && exit 3
 kill $pid1 $pid2
 wait
 stop=$(date "+%s")
