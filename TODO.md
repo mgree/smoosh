@@ -39,9 +39,6 @@
     actually put a proc entry in for the top-level shell
     much more faithful, messes with visualizaton as it exists now
 
-  + treat $$ and $! specially
-    bonus: simpler logic on special parameters (never in env)
-
 - SIGPIPE in symbolic mode when reading from closed FDs
 
 - `string_of_fields` pretty printing

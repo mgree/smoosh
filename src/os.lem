@@ -715,6 +715,11 @@ let lookup_string_param os str =
   | (Left _,"-") -> 
      let char_opts = List.mapMaybe char_of_sh_opt (Set_extra.toList os.sh.opts) in
      Just (symbolic_string_of_string (toString char_opts))
+  | (Left _, "!") ->
+     match os.sh.last_pid with
+     | Nothing -> Nothing
+     | Just pid -> Just (symbolic_string_of_string (stringFromNat pid))
+     end
   | (Left _,"#") -> 
      let num_params = length os.sh.positional_params in
      Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1))))
@@ -872,8 +877,8 @@ let safe_write_stderr msg os =
   else os'
 
 val set_last_pid : forall 'a. pid -> os_state 'a -> os_state 'a
-let set_last_pid pid os = 
-  internal_set_param "!" (symbolic_string_of_string (string_of_pid pid)) os
+let set_last_pid pid os =
+  <| os with sh = <| os.sh with last_pid = Just pid |> |>
 
 val set_sh_opt : forall 'a. OS 'a => os_state 'a -> sh_opt -> os_state 'a
 let set_sh_opt os0 opt =

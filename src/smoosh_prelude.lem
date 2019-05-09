@@ -1075,6 +1075,8 @@ and shell_state = <|
     supershell_traps: maybe (map signal symbolic_string);
     (* tricky invariant with job ids! *)
     jobs: list job_info;
+    (* $! *)
+    last_pid: maybe pid;
     (* exit state info *)
     exit_code : nat;
     (* no explicit stack of params... we use Call stmt as a stack frame *)
@@ -2076,6 +2078,7 @@ let default_shell_state = <|
       supershell_traps = Nothing;
       jobs = [];
       exit_code = 0;
+      last_pid = Nothing;
       positional_params = [symbolic_string_of_string "smoosh"]; (* $0, $1, $2, $3 ... *)
       env = env_default;
       optoff = Nothing;
