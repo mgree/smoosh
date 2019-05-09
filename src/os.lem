@@ -300,6 +300,12 @@ let interactivity_mode_of os =
 val is_monitoring : forall 'a. os_state 'a -> bool
 let is_monitoring os = Set.member Sh_monitor os.sh.opts
 
+(* Exit codes *********************************************************)
+
+val exit_with : forall 'a. nat -> os_state 'a -> os_state 'a
+let exit_with ec os = 
+  <| os with sh = <| os.sh with exit_code = ec |> |>
+
 (* Reading and writing FDs ********************************************)
 
 val try_write_fd : forall 'a. OS 'a => fd -> string -> os_state 'a -> os_state 'a * bool
@@ -315,7 +321,28 @@ let write_stdout msg os = fst (try_write_fd STDOUT msg os)
 
 val write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
 let write_stderr msg os = fst (try_write_fd STDERR msg os)
-                 
+
+val fail_with_code 
+    : forall 'a. OS 'a => nat -> string -> os_state 'a -> os_state 'a
+let fail_with_code ec msg os = exit_with ec (write_stderr (msg ^ "\n") os)
+    
+val fail_with : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
+let fail_with = fail_with_code 1
+
+val safe_write_stdout : forall 'a. OS 'a => string -> string -> os_state 'a -> os_state 'a
+let safe_write_stdout writer msg os = 
+  let (os', ok) = try_write_fd STDOUT msg os in
+  if not ok
+  then fail_with_code 2 ("smoosh: " ^ writer ^ ": I/O error") os'
+  else os'
+
+val safe_write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
+let safe_write_stderr msg os = 
+  let (os', ok) = try_write_fd STDERR msg os in
+  if not ok
+  then exit_with 2 os' (* no need to even try printing a message :( *)
+  else os'
+             
 (* FS and path manipulation *******************************************)
 
 val path_dotdot_rev_cl : list char -> list char
@@ -361,47 +388,43 @@ let canonicalize_path os path =
 
 (* Job control ********************************************************)  
 
-val active_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info
-let active_jobs os0 =
-  let real_jobs = List.filter is_active_job os0.sh.jobs in
-  (* TODO 2018-10-02 check jobs more seriously? *)
-  (* TODO 2018-10-02 announce completed jobs? *)
-  (<| os0 with sh = <| os0.sh with jobs = real_jobs |> |>, 
-   real_jobs)
+type jobs_mode = JobsNormal | JobsTerse | JobsLong
 
-val add_job 
-    : forall 'a. OS 'a =>
-        os_state 'a ->
-        list (pid * stmt) -> pid -> stmt (* cmd *) ->
-        os_state 'a
-let add_job os0 pipeline pid cmd =
-  let highest_job_num = 
-    match os0.sh.jobs with
-    | [] -> 0
-    | _ -> maximum (map (fun job -> job.id) os0.sh.jobs)
-    end in
-  let new_job = 
-    <| id = highest_job_num + 1;
-       pid = pid;
-       cmd = cmd;
-       status = JobRunning;
-       pipeline = pipeline;
-    |>
-  in
-  let is_fg_pipe =
-    match cmd with
-    | Pipe FG _ -> true
-    | _ -> false
+let rec jobs_mode opts =
+  match opts with
+  | [] -> JobsNormal
+  | #'l'::_ -> JobsLong
+  | #'p'::_ -> JobsTerse
+  | _::opts' -> jobs_mode opts'
+  end
+
+let show_job_status job =
+  pad_right (string_of_job_status job.status) 25 (* width taken from bash *)
+
+let rec show_job_pipeline curjob job pipeline first =
+  match pipeline with
+  | [] -> ""
+  | (pid,stmt)::pipeline' ->
+     (if first then show_job_number curjob job else "      ") ^
+     pad_right (stringFromNat pid) 6 ^
+     (if first then show_job_status job else toString (replicate 23 #' ') ^ "| ") ^
+     string_of_stmt stmt ^ "\n" ^
+     show_job_pipeline curjob job pipeline' false
+  end
+
+let show_job mode curjob job s0 = 
+  let msg = 
+    match mode with
+    | JobsTerse -> stringFromNat job.pid ^ "\n"
+    | JobsNormal ->
+       show_job_number curjob job ^ 
+       show_job_status job ^
+       string_of_stmt job.cmd ^ "\n"
+    | JobsLong -> 
+       show_job_pipeline curjob job job.pipeline true
     end
   in
-  let os1 =
-    if is_monitoring os0 && not is_fg_pipe
-    then 
-      let msg = "[" ^ stringFromNat new_job.id ^ "] " ^ string_of_pid pid ^ "\n" in
-      write_stdout msg os0 
-    else os0
-  in
-  <| os1 with sh = <| os1.sh with jobs = new_job::os1.sh.jobs |> |>
+  safe_write_stdout "jobs" msg s0
 
 val delete_job 
     : forall 'a. os_state 'a -> nat (* job id *) -> os_state 'a
@@ -413,13 +436,20 @@ val delete_job_with_pid
     : forall 'a. os_state 'a -> pid -> os_state 'a
 let delete_job_with_pid os0 pid =
   <| os0 with sh = 
-      <| os0.sh with jobs = filter (fun j -> j.pid <> pid) os0.sh.jobs |> |>
+      <| os0.sh with jobs = filter (fun j -> j.pid <> pid || is_active_job j) os0.sh.jobs |> |>
 
 val find_job_with_pid
     : forall 'a. os_state 'a -> pid -> maybe job_info
 let find_job_with_pid os0 pid =
   List.find (fun j -> j.pid = pid || any (fun (pid',_) -> pid' = pid) j.pipeline) 
     os0.sh.jobs
+
+val notify_job_status : forall 'a. OS 'a => os_state 'a -> job_info -> os_state 'a
+let notify_job_status os0 job =
+  if Set.member Sh_notify os0.sh.opts
+  then 
+    show_job JobsNormal (cur_prev_jobs os0.sh.jobs) job os0
+  else os0
 
 val ec_of_job_status : job_status -> maybe nat
 let ec_of_job_status status =
@@ -434,42 +464,101 @@ let ec_of_job_status status =
   | JobDone code -> Just code
   end
 
-val update_job_with_pid : forall 'a. OS 'a => os_state 'a -> nat -> job_status -> os_state 'a * maybe job_info
-let update_job_with_pid os0 pid new_status =
+val job_status_of_ec : nat -> job_status
+let job_status_of_ec ec =
+  match List.find (fun signal -> ec = 128 + Signal_platform.platform_int_of_signal signal) Signal.all_signals with
+  | Just signal -> 
+     match signal with
+     | SIGTSTP -> JobStopped TSTP
+     | SIGTTIN -> JobStopped TTIN
+     | SIGTTOU -> JobStopped TTOU
+     | SIGSTOP -> JobStopped STOP
+     | _       -> JobTerminated signal
+     end
+  | Nothing -> JobDone ec
+  end
+
+val active_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info
+let active_jobs os0 =
+  let real_jobs = List.filter is_active_job os0.sh.jobs in
+  (* TODO 2018-10-02 check jobs more seriously? *)
+  (* TODO 2018-10-02 announce completed jobs? *)
+  (<| os0 with sh = <| os0.sh with jobs = real_jobs |> |>, 
+   real_jobs)
+
+val show_jobs : forall 'a. OS 'a => jobs_mode -> nat * nat -> list job_info -> os_state 'a -> os_state 'a
+let show_jobs mode cur_prev jobs s0 =
+  foldl (fun os job -> show_job mode cur_prev job os) s0 (sort jobs)
+
+(* helper for the interactive shell in -m and -b; used in EvalLoop *)
+val show_changed_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a
+val add_job 
+    : forall 'a. OS 'a =>
+        os_state 'a ->
+        list (pid * stmt) -> pid -> stmt (* cmd *) -> bg_mode -> job_status ->
+        os_state 'a * job_info
+val update_job_with_pid : forall 'a. OS 'a => os_state 'a -> nat -> job_status -> os_state 'a * job_info
+val update_jobs_loop : forall 'a. OS 'a => os_state 'a -> list job_info -> os_state 'a * list job_info
+val update_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info (* changed *)
+
+let rec show_changed_jobs s0 =
+  let (s1,changed) = update_jobs s0 in
+  if Set.member Sh_monitor s1.sh.opts
+  then
+    let s2 = show_jobs JobsNormal (cur_prev_jobs s1.sh.jobs) changed s1 in
+    List.foldl (fun os j -> delete_job os j.id) s2 changed
+  else s1
+
+and add_job os0 pipeline pid cmd bg_mode status =
+  let os1 = show_changed_jobs os0 in
+  let highest_job_num = 
+    match os1.sh.jobs with
+    | [] -> 0
+    | _ -> maximum (map (fun job -> job.id) os1.sh.jobs)
+    end in
+  let new_job = 
+    <| id = highest_job_num + 1;
+       pid = pid;
+       cmd = cmd;
+       status = status;
+       pipeline = pipeline;
+    |>
+  in
+  let os2 =
+    if is_monitoring os1 && is_bg bg_mode && is_active_job new_job
+    then 
+      let msg = "[" ^ stringFromNat new_job.id ^ "] " ^ string_of_pid pid ^ "\n" in
+      write_stdout msg os1 
+    else os1
+  in
+  (<| os2 with sh = <| os1.sh with jobs = new_job::os1.sh.jobs |> |>, new_job)
+
+and update_job_with_pid os0 pid new_status =
   match List.find (fun j -> j.pid = pid) os0.sh.jobs with
-  | Nothing -> (* no such job... weird, keep going *)
-     (os0, Nothing)
+  | Nothing -> (* no such job... weird! add it *)
+     let (os1, job) = add_job os0 [(pid,skip)] pid skip BG new_status in
+     (os1, job)
   | Just job -> (* update the job status! *)
      let job' = <| job with status = new_status |> in
      let cur_jobs = map (fun j -> if j.id = job'.id then job' else j) os0.sh.jobs in
-     if Set.member Sh_notify os0.sh.opts && not (is_active_job job')
-     then 
-       let cur_prev = cur_prev_jobs cur_jobs in
-       let msg = 
-         show_job_number cur_prev job' ^ " " ^ 
-         string_of_job_status new_status ^ " " ^
-         string_of_stmt job'.cmd ^ "\n"
-       in
-       (write_stderr msg os0, Nothing)
-     else (<| os0 with sh = <| os0.sh with jobs = cur_jobs |> |>, Just job')
+     let os1 = <| os0 with sh = <| os0.sh with jobs = cur_jobs |> |> in
+     let os2 = 
+       if Set.member Sh_notify os1.sh.opts
+       then show_job JobsNormal (cur_prev_jobs os1.sh.jobs) job' (write_stderr "\n" os1)
+       else os1 
+     in
+     (os2, job')
   end
 
-let rec update_jobs_loop os0 changes =
+and update_jobs_loop os0 changes =
   match waitchild os0 with
   | (os1, Nothing) -> (os1, changes)
   | (os1, Just (pid, status)) ->
      let (os2, job') = update_job_with_pid os1 pid status in
-     let changes' = 
-       match job' with
-       | Nothing -> changes
-       | Just job' -> job'::changes
-       end
-     in
-     update_jobs_loop os2 changes'
+     update_jobs_loop os2 (job'::changes)
   end
 
-val update_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info (* changed *)
-let update_jobs os0 = update_jobs_loop os0 []
+and update_jobs os0 = update_jobs_loop os0 []
 
 let waitpid_or_lookup step_eval os0 pid =
   match waitpid step_eval os0 pid with
@@ -485,7 +574,20 @@ let waitpid_or_lookup step_eval os0 pid =
            (os2, Just (Right code))
         end
      end
-  | (os1, Just res) -> (os1, Just res)
+  | (os1, Just (Left step)) -> (os1, Just (Left step))
+  | (os1, Just (Right code)) -> 
+     let status = job_status_of_ec code in
+     let (os2, job) = update_job_with_pid os1 pid status in
+     let os3 =
+       match status with
+       | JobStopped _ -> 
+          if Set.member Sh_monitor os2.sh.opts 
+          then show_job JobsNormal (cur_prev_jobs os1.sh.jobs) job (write_stderr "\n" os2)
+          else os2
+       | _ -> os2
+       end
+     in
+     (os3, Just (Right code))
   end
 
 (* We need to:
@@ -867,32 +969,7 @@ val exit_loop : forall 'a. os_state 'a -> os_state 'a
 let exit_loop os = 
   <| os with sh = <| os.sh with loop_nest = os.sh.loop_nest - 1 |> |>
                                   
-(* Special variables ($?, $!, $-) **************************************)
-
-val exit_with : forall 'a. nat -> os_state 'a -> os_state 'a
-let exit_with ec os = 
-  <| os with sh = <| os.sh with exit_code = ec |> |>
-
-val fail_with_code 
-    : forall 'a. OS 'a => nat -> string -> os_state 'a -> os_state 'a
-let fail_with_code ec msg os = exit_with ec (write_stderr (msg ^ "\n") os)
-
-val fail_with : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
-let fail_with = fail_with_code 1
-
-val safe_write_stdout : forall 'a. OS 'a => string -> string -> os_state 'a -> os_state 'a
-let safe_write_stdout writer msg os = 
-  let (os', ok) = try_write_fd STDOUT msg os in
-  if not ok
-  then fail_with_code 2 ("smoosh: " ^ writer ^ ": I/O error") os'
-  else os'
-
-val safe_write_stderr : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
-let safe_write_stderr msg os = 
-  let (os', ok) = try_write_fd STDERR msg os in
-  if not ok
-  then exit_with 2 os' (* no need to even try printing a message :( *)
-  else os'
+(* Special variables ($!, $-) ****************************************)
 
 val set_last_pid : forall 'a. pid -> os_state 'a -> os_state 'a
 let set_last_pid pid os =
@@ -910,10 +987,11 @@ let set_sh_opt os0 opt =
     then
       (* If the -m option is in effect, SIGTTIN, SIGTTOU, and SIGTSTP
          signals shall be ignored. *)
-      let os2_1 = handle_signal os1   SIGTTOU (Just []) in
-      let os2_2 = handle_signal os2_1 SIGTTIN (Just []) in
-      let os2_3 = handle_signal os2_2 SIGTSTP (Just []) in
-      set_job_control os2_3 true
+      let os2 = set_job_control os1 true in
+      let os3 = handle_signal os2 SIGTTOU (Just []) in
+      let os4 = handle_signal os3 SIGTTIN (Just []) in
+      let os5 = handle_signal os4 SIGTSTP (Just []) in
+      os5
     else os1
   in
   <| os2 with sh = <| os2.sh with opts = Set.insert opt os2.sh.opts |> |>
@@ -923,10 +1001,11 @@ let unset_sh_opt os0 opt =
   let os1 =
     if opt = Sh_monitor
     then
-      let os1_1 = handle_signal os0   SIGTTOU Nothing in
-      let os1_2 = handle_signal os1_1 SIGTTIN Nothing in
-      let os1_3 = handle_signal os1_2 SIGTSTP Nothing in
-      set_job_control os1_3 false
+      let os1 = set_job_control os0 false in
+      let os2 = handle_signal os1 SIGTTOU Nothing in
+      let os3 = handle_signal os2 SIGTTIN Nothing in
+      let os4 = handle_signal os3 SIGTSTP Nothing in
+      os4
     else os0
   in
   <| os1 with sh = <| os1.sh with opts = Set.delete opt os1.sh.opts |> |>

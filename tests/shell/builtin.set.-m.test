@@ -1,0 +1,2 @@
+set -m
+echo hi

@@ -17,15 +17,28 @@ msg() {
     printf "${TEST_SCRIPT}: $@\n"
 }
 
+debugging() {
+    [ "${TEST_DEBUG-set}" != "set" ]
+}
+
+same_files() {
+    if debugging
+    then
+	diff -u $1 $2
+    else
+	diff -q $1 $2 >/dev/null
+    fi
+}
+
 rmlog() {
-    if [ "${TEST_DEBUG+set}" != "set" ]
+    if ! debugging
     then
         rm "$@"
     fi
 }
 
 debug() {
-    if [ "${TEST_DEBUG+set}" != "set" ]
+    if debugging
     then
         msg "$@"
     fi
@@ -112,7 +125,7 @@ do
     fi
     
     # check stdout
-    if [ -f "${expected_out}" ] && ! diff -q ${expected_out} ${got_out} >/dev/null
+    if [ -f "${expected_out}" ] && ! same_files ${expected_out} ${got_out}
     then
         debug "${case_name}: expected STDOUT ${expected_out} differs from logged STDOUT ${got_out}"
         : $((failures += 1))
@@ -125,7 +138,7 @@ do
     fi
 
     # check stderr
-    if [ -f "${expected_err}" ] && ! diff -q ${expected_err} ${got_err} >/dev/null
+    if [ -f "${expected_err}" ] && ! same_files ${expected_err} ${got_err}
     then
         debug "${case_name}: expected STDERR ${expected_err} differs from logged STDERR ${got_err}"
         : $((failures += 1))

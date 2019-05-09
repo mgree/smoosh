@@ -910,7 +910,7 @@ and step_eval s0 checked stmt =
   | Pipe bg_mode stmts ->
      let (s1, pipeline, last_pid) = run_pipe s0 stmts bg_mode in
      let (s2, c) =
-       let s2 = add_job s1 pipeline last_pid (Pipe bg_mode stmts) in
+       let (s2, _job) = add_job s1 pipeline last_pid (Pipe bg_mode stmts) bg_mode JobRunning in
        if is_bg bg_mode
        then (set_last_pid last_pid s2, Done)
        else 
@@ -975,8 +975,8 @@ and step_eval s0 checked stmt =
        fork_and_subshell s0 (Redir stmt' redir_state') 
          BG Nothing (* no pgid *) true (* job control possible? *)
      in
-     let s2 = add_job s1 [(pid, Background stmt' redir_state)] (* unit pipeline *)
-                pid (Background stmt' redir_state (* don't show our munging *)) in
+     let (s2, _job) = add_job s1 [(pid, Background stmt' redir_state)] (* unit pipeline *)
+                        pid (Background stmt' redir_state (* don't show our munging *)) BG JobRunning in
      let s3 = set_last_pid pid s2 in
      check_traps
        (Right (XSBackground ("started background process with pid " ^ 

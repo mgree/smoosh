@@ -191,9 +191,9 @@ let xtcsetpgrp pgid : bool =
   | None -> false
   | Some fd ->
      try ExtUnix.tcsetpgrp fd pgid; true
-     with Unix.Unix_error(_e,_,_) ->
+     with Unix.Unix_error(e,_,_) ->
        (* disabling warning because we're overdoing this *)
-       (* Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e) *)
+       Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e);
        false
 
 let xsetpgid pid pgrp =
@@ -204,23 +204,41 @@ let xsetpgid pid pgrp =
           
 let real_enable_jobcontrol rootpid =
   open_ttyfd ();
-  set_initialpgrp ();
-  if !initialpgrp <> -1
-  then 
-    begin
-      Sys.set_signal Sys.sigttou Sys.Signal_ignore;
-      Sys.set_signal Sys.sigttin Sys.Signal_ignore;
-      Sys.set_signal Sys.sigtstp Sys.Signal_ignore;
-      xsetpgid 0 rootpid;
-      ignore (xtcsetpgrp rootpid)
-    end
+  let give_up msg = 
+    initialpgrp := -1;
+    close_ttyfd ();
+    (* Printf.eprintf "set -m: %s; job control off\n%!" msg *) 
+    ()
+  in
+  match !ttyfd with
+  | Some tty ->
+     let pgrp = real_getpgrp () in
+     let rec foreground () =
+       try let fg_pgrp = ExtUnix.tcgetpgrp tty in
+           if fg_pgrp = pgrp
+           then () (* okay, we're in the foreground *)
+           else if fg_pgrp = -1
+           then failwith "NOFG"
+           else
+             begin 
+               Unix.kill 0 Sys.sigttin; 
+               foreground() 
+             end
+       with Unix.Unix_error(e,_,_) -> give_up ("tcgetprgp: " ^ Unix.error_message e)
+          | Failure("NOFG") -> give_up "couldn't take foreground"
+     in
+     foreground ();
+     Sys.set_signal Sys.sigttou Sys.Signal_ignore;
+     Sys.set_signal Sys.sigttin Sys.Signal_ignore;
+     Sys.set_signal Sys.sigtstp Sys.Signal_ignore;
+     initialpgrp := pgrp;
+     xsetpgid 0 rootpid;
+     ignore (xtcsetpgrp rootpid)
+  | None -> give_up "can't access tty"
 
 let real_disable_jobcontrol () =
   ignore (xtcsetpgrp !initialpgrp);
   xsetpgid 0 !initialpgrp;
-  Sys.set_signal Sys.sigttou Sys.Signal_default;
-  Sys.set_signal Sys.sigttin Sys.Signal_default;
-  Sys.set_signal Sys.sigtstp Sys.Signal_default;   
   close_ttyfd ()
 
 let real_exit (code : int) = 
@@ -246,14 +264,12 @@ let real_fork_and_eval
      (* more or less following dash's forkchild in jobs.c:847-907 *)
      if outermost && jc
      then begin
-         Sys.set_signal Sys.sigtstp Signal_ignore;
-         Sys.set_signal Sys.sigttou Signal_ignore;
-         Sys.set_signal Sys.sigttin Signal_ignore;
          let pid = Unix.getpid () in
          xsetpgid 0 (pgrp pid);
          if not bg 
-         then
-           ignore (xtcsetpgrp (pgrp pid))
+         then ignore (xtcsetpgrp (pgrp pid));
+         Sys.set_signal Sys.sigtstp Signal_default;
+         Sys.set_signal Sys.sigttou Signal_default
        end
      else if bg && not jc
      then 
@@ -280,16 +296,18 @@ let real_fork_and_eval
   | pid -> 
      sigunblockall (); 
      if jc
-     then 
-       xsetpgid pid (pgrp pid);
+     then begin
+       xsetpgid pid (pgrp pid)
+       end;
      pid
 
 let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int option =
   let ec signal =
     Some (128 + Signal_platform.platform_int_of_ocaml_signal signal)
   in
+  let flags = if jc then [Unix.WUNTRACED] else [] in
   let code =
-    try match Unix.waitpid [] pid with
+    try match Unix.waitpid flags pid with
         | (_,Unix.WEXITED code) -> Some code
         | (_,Unix.WSIGNALED signal) -> ec signal (* bash, dash behavior *)
         | (_,Unix.WSTOPPED signal) -> ec signal (* bash, dash behavior *)

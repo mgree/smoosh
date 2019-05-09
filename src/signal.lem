@@ -71,6 +71,13 @@ let undefined_traps =
   [ SIGKILL
   ; SIGSTOP]
 
+let stopped_signals =
+  [ SIGTSTP
+  ; SIGSTOP
+  ; SIGTTIN
+  ; SIGTTOU
+  ]
+
 val string_of_signal : signal -> string
 let string_of_signal signal =
   match signal with

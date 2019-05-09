@@ -1368,58 +1368,6 @@ let builtin_wait s0 argv env =
      end
   end
 
-type jobs_mode = JobsNormal | JobsTerse | JobsLong
-
-let rec jobs_mode opts =
-  match opts with
-  | [] -> JobsNormal
-  | #'l'::_ -> JobsLong
-  | #'p'::_ -> JobsTerse
-  | _::opts' -> jobs_mode opts'
-  end
-
-let show_job_status job =
-  pad_right (string_of_job_status job.status) 25 (* width taken from bash *)
-
-let rec show_job_pipeline curjob job pipeline first =
-  match pipeline with
-  | [] -> ""
-  | (pid,stmt)::pipeline' ->
-     (if first then show_job_number curjob job else "      ") ^
-     pad_right (stringFromNat pid) 6 ^
-     (if first then show_job_status job else toString (replicate 23 #' ') ^ "| ") ^
-     string_of_stmt stmt ^ "\n" ^
-     show_job_pipeline curjob job pipeline' false
-  end
-
-let show_job mode curjob job s0 = 
-  let msg = 
-    match mode with
-    | JobsTerse -> stringFromNat job.pid ^ "\n"
-    | JobsNormal ->
-       show_job_number curjob job ^ 
-       show_job_status job ^
-       string_of_stmt job.cmd ^ "\n"
-    | JobsLong -> 
-       show_job_pipeline curjob job job.pipeline true
-    end
-  in
-  safe_write_stdout "jobs" msg s0
-
-val show_jobs : forall 'a. OS 'a => jobs_mode -> nat * nat -> list job_info -> os_state 'a -> os_state 'a
-let show_jobs mode cur_prev jobs s0 =
-  foldl (fun os job -> show_job mode cur_prev job os) s0 (sort jobs)
-
-(* helper for the interactive shell in -m and -b; used in EvalLoop *)
-val show_changed_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a
-let show_changed_jobs s0 =
-  let (s1,changed) = update_jobs s0 in
-  if Set.member Sh_monitor s1.sh.opts
-  then
-    let s2 = show_jobs JobsNormal (cur_prev_jobs s1.sh.jobs) changed s1 in
-    List.foldl (fun os j -> delete_job os j.id) s2 changed
-  else s1
-
 let rec show_job_specs mode cur_prev specs s0 =
   match specs with
   | [] -> Right (exit_with 0 s0, Done)
@@ -2157,6 +2105,7 @@ let send_sigcont os0 argv setfg =
   match m_pid with
   | Left err -> Left (os0, err)
   | Right (pid, _) -> 
+     (* PICK UP HERE 2019-05-09 need to make output *)
      let (os1, _tc_ok) = if setfg then tc_setfg os0 pid else (os0, true) in
      let (os2, _signal_ok) = signal_pid os1 SIGCONT pid SignalProcessGroup in
      Right (os2, if setfg then Wait pid Unchecked Nothing else Done)
@@ -2312,7 +2261,9 @@ let run_command s0 opts checked prog_name argv env =
                          Nothing (* no existing process group *)
                          true (* do job control *)
                      in
-                     Right (s2, Wait pid checked Nothing, true)
+                     let stmt = CommandExpRedirs [] (prog_name::argv) ([], Nothing, []) default_cmd_opts in
+                     let (s3, _) = add_job s2 [(pid,stmt)] pid stmt FG JobRunning in
+                     Right (s3, Wait pid checked Nothing, true)
                    else 
                      (* ??? 2019-03-01 
                         do we need to restore the redirs when we're execing anyway? *)
