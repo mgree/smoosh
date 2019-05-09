@@ -86,7 +86,7 @@ let check_traps res =
   | Left _ -> res
   | Right (_,_,Exit) -> res
   | Right (step0,s0,c0) -> 
-     let s1 = log_msg "checked traps" s0 in
+     let s1 = log_trace Trace_traps "checked traps" s0 in
      Right (internal_check_traps step0 s1 c0)
   end
 
@@ -155,7 +155,7 @@ let expand_param s0 split q str f =
   | (Just fs, NDefault w) ->
      match null_fields fs with
      | Nothing -> 
-        let s2 = log_msg "Unsoundly treating symbolic fields as non-empty" s1 in
+        let s2 = log_trace Trace_symbolic "Unsoundly treating symbolic fields as non-empty" s1 in
         (s2, expanded_words_of_fields fs, [])
      | Just true -> wrds w
      | Just false -> ewfs fs
@@ -177,7 +177,7 @@ let expand_param s0 split q str f =
   | (Just fs, NError w) -> 
      match null_fields fs with
      | Nothing -> 
-        let s2 = log_msg "Unsoundly treating symbolic fields as non-empty" s1 in
+        let s2 = log_trace Trace_symbolic "Unsoundly treating symbolic fields as non-empty" s1 in
         (s2, expanded_words_of_fields fs, [])
      | Just true -> ctrl (LError str [] w)
      | Just false -> ewfs fs
@@ -197,7 +197,7 @@ let expand_param s0 split q str f =
   | (Just fs, NAlt w) ->
      match null_fields fs with
      | Nothing -> 
-        let s2 = log_msg "Unsoundly treating symbolic fields as non-empty" s1 in
+        let s2 = log_trace Trace_symbolic "Unsoundly treating symbolic fields as non-empty" s1 in
         (s2, [], w)
      | Just true -> cstr ""
      | Just false -> wrds w
@@ -274,7 +274,7 @@ let rec expand_control s0 split q tm k =
          in
          let s1 =
            if unspec 
-           then log_unspecified 
+           then log_trace Trace_unspec 
                   ("Unspecified parameter format: " ^ string_of_control (Param s f))
                   s0
            else s0
@@ -686,7 +686,7 @@ and step_eval s0 checked stmt =
            then Left (XSSimple "assignment error", s2)
            else Right (XSSimple "assignment error", s2, Done)
         | Right s2 ->
-           let s3 = trace (x ^ "=" ^ string_of_fields f) s2 in
+           let s3 = xtrace (x ^ "=" ^ string_of_fields f) s2 in
            Right (XSSimple ("assign " ^ x),
                   s3, 
                   CommandExpAssign assigns [] redirs opts')
@@ -747,7 +747,7 @@ and step_eval s0 checked stmt =
      if Set.member Sh_noexec s0.sh.opts
      then Right (XSSimple "set -n: skipping command", s0, Done)
      else
-     let s0_traced = trace (string_of_stmt cmd) s0 in
+     let s0_traced = xtrace (string_of_stmt cmd) s0 in
      (* load exported variables, perform assignments *)
      let exported = 
        Map_extra.mapMaybe 
@@ -874,7 +874,7 @@ and step_eval s0 checked stmt =
                             fail_with msg s1, 
                             Done))
      | (s1, Right saved_fds) ->
-        let s2 = trace (string_of_stmt cmd) s1 in
+        let s2 = xtrace (string_of_stmt cmd) s1 in
         let s3 = if opts.ran_cmd_subst then s2 else exit_with 0 s2 in
         check_traps (Right (XSSimple "ran empty command",
                             s3,
@@ -1310,13 +1310,13 @@ and step_eval s0 checked stmt =
       *)
      | Right (step, s1, Break n) ->
         let s2 = set_function_params old_loop_nest old_positional_params s1 in
-        let s3 = log_unspecified "non-lexical break in function call" s2 in
+        let s3 = log_trace Trace_unspec "non-lexical break in function call" s2 in
         Right (XSStack (f ^ ": break [unspecified behavior]") step,
                s3,
                Break n)
      | Right (step, s1, Continue n) ->
         let s2 = set_function_params old_loop_nest old_positional_params s1 in
-        let s3 = log_unspecified "non-lexical continue in function call" s2 in
+        let s3 = log_trace Trace_unspec "non-lexical continue in function call" s2 in
         Right (XSStack (f ^ ": continue [unspecified behavior]") step,
                s3,
                Continue n)

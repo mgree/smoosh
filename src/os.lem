@@ -7,18 +7,24 @@ import Debug
 (**********************************************************************)
 
 type log_entry =
-    LogMessage of string
+    LogTrace of trace_tag * string
   | LogConcretization of symbolic_string
-  | LogUnspecified of string
-  | LogUndefined of string
   | LogStep of evaluation_step
+
+val string_of_log_entry : log_entry -> string
+let string_of_log_entry entry =
+  match entry with
+  | LogTrace tag msg -> "[" ^ string_of_trace_tag tag ^ "] " ^ msg
+  | LogConcretization ss -> "[concretized] " ^ string_of_symbolic_string ss
+  | LogStep step -> "[step] " ^ string_of_evaluation_step step
+  end
 
 type os_state 'a = <| 
    symbolic: 'a; 
    sh: shell_state;
    log: list log_entry;
    fuel: maybe nat;
- |>                   
+ |> 
 
 type step_result 'a =
   either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)
@@ -184,15 +190,15 @@ let string_of_fuel os =
 val entry_unspecified : log_entry -> bool
 let entry_unspecified entry =
   match entry with
-  | LogUnspecified _ -> true
-  | LogUndefined _ -> true
+  | LogTrace Trace_unspec _ -> true
+  | LogTrace Trace_undef _ -> true
   | _ -> false
   end
 
 val entry_undefined : log_entry -> bool
 let entry_undefined entry =
   match entry with
-  | LogUndefined _ -> true
+  | LogTrace Trace_undef _ -> true
   | _ -> false
   end
 
@@ -214,8 +220,8 @@ let extract_unspec os =
   List.mapMaybe 
     (fun entry ->
       match entry with
-      | LogUnspecified msg -> Just ("UNSPECIFIED: " ^ msg)
-      | LogUndefined msg ->   Just ("  UNDEFINED: " ^ msg)
+      | LogTrace Trace_unspec msg -> Just  ("[unspec] " ^ msg)
+      | LogTrace Trace_undef msg ->   Just ("[undef] " ^ msg)
       | _ -> Nothing
       end)
     os.log
@@ -226,17 +232,8 @@ let extract_trace os = List.mapMaybe try_entry_step os.log
 val log : forall 'a. log_entry -> os_state 'a -> os_state 'a
 let log entry os = <| os with log = entry::os.log |>
 
-val log_msg : forall 'a. string -> os_state 'a -> os_state 'a
-let log_msg msg = log (LogMessage msg)
-
 val log_concretization : forall 'a. symbolic_string -> os_state 'a -> os_state 'a
 let log_concretization ss = log (LogConcretization ss)
-
-val log_unspecified : forall 'a. string -> os_state 'a -> os_state 'a
-let log_unspecified msg = log (LogUnspecified msg)
-
-val log_undefined : forall 'a. string -> os_state 'a -> os_state 'a
-let log_undefined msg = log (LogUndefined msg)
 
 val log_step : forall 'a. evaluation_step -> os_state 'a -> os_state 'a
 let log_step step = log (LogStep step)
@@ -755,8 +752,24 @@ let ps4 os =
   | Just prompt -> prompt
   end
 
-val trace : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
-let trace msg os =
+(* for -d[...] and -o trace[...]
+
+   this version is useful inside os instances (os_*.lem), which can't
+   recursively use their own typeclass *)
+val log_trace_with : forall 'a. (string -> os_state 'a -> os_state 'a) -> trace_tag -> string -> os_state 'a -> os_state 'a
+let log_trace_with write tag msg os0 =
+  let entry = LogTrace tag msg in
+  let os1 = log entry os0 in
+  if Set.member (Sh_trace tag) os1.sh.opts
+  then write (ps4 os0 ^ string_of_log_entry entry ^ "\n") os1
+  else os1
+
+val log_trace : forall 'a. OS 'a => trace_tag -> string -> os_state 'a -> os_state 'a
+let log_trace = log_trace_with write_stderr
+
+(* for xtrace *)
+val xtrace : forall 'a. OS 'a => string -> os_state 'a -> os_state 'a
+let xtrace msg os =
   if Set.member Sh_xtrace os.sh.opts && msg <> ""
   then write_stderr (ps4 os ^ msg ^ "\n") os
   else os

@@ -32,23 +32,25 @@ let parse_source : parse_source ref = ref ParseSTDIN
 let implode = Dash.implode
 let explode = Dash.explode
 
-let flag_descriptions =
+let flag_descriptions prog =
   [ "-c", "set input command"
   ; "-s", "set input source to STDIN"
   ; "-i", "interactive shell"  
   ; "-a", "export by default [allexport]"
   ; "-b", "notify mode [-o notify]"
   ; "-C", "do not clobber files with > [-o noclobber]"
+  ; "-d", "turn on tracing/debug flag (-d [...] is the same as -o trace[...])\n" ^
+          "\t\tflags: " ^ String.concat " " (List.map string_of_trace_tag all_trace_tags)
   ; "-e", "exit on error [-o errexit]"
   ; "-f", "turn off pathname expansion [-o noglob]"
   ; "-h", "hash commands during function definition"
   ; "-m", "monitor mode [-o monitor]"
   ; "-n", "do not execute commands [noexec]"
-  ; "-p", "do not override PS1 and PS2 (not in the POSIX spec)"
+  ; "-p", "leave PS1 and PS2 alone when they have command substitutions (not in the POSIX spec)"
   ; "-u", "error on unset parameters [nounset]"   
   ; "-v", "print input to stderr [verbose]"
   ; "-x", "trace commands"
-  ; "-o", "enable long format option"
+  ; "-o", "enable long format option (run `" ^ prog ^ " -c 'set -o'` to see a list)" 
   ; "+o", "disable long format option"
   ]
             
@@ -61,7 +63,7 @@ let usage_msg =
   prog ^ " -s" ^ flags ^ "[argument...]\n" ^
   prog ^ " --version\n\n" ^
   "flags:\n\t-[flag] enables, +[flag] disables\n\n" ^
-  concat "" (List.map (fun (flag, descr) -> Printf.sprintf "\t%s\t%s\n" flag descr) flag_descriptions)
+  concat "" (List.map (fun (flag, descr) -> Printf.sprintf "\t%s\t%s\n" flag descr) (flag_descriptions prog))
 
 let show_usage () =
   prerr_string usage_msg;
@@ -102,6 +104,19 @@ let rec parse_arg_loop args =
           end;
           parse_shortopts handler opts'
      in
+     let rec parse_debug opts =
+       let (stag, args'') = match (opts, args') with
+         | ([], []) -> bad_arg "Need a trace tag after -d"
+         | ([], arg::args'') -> (arg, args'')
+         | (opts, _) -> (implode opts, args')
+       in
+       begin 
+         match trace_tag_of_string stag with
+         | None -> bad_arg (Printf.sprintf "unknown tag '%s'" stag)
+         | Some tag -> add_opt (Sh_trace tag)
+       end;
+       parse_arg_loop args''
+     in
      match explode arg with
      | ['-'; '-'] -> params := args'
      | ['-'; '-'; 'h'; 'e'; 'l'; 'p'] -> show_usage ()
@@ -122,6 +137,7 @@ let rec parse_arg_loop args =
           | cmd::args'' -> input_mode := CFlag cmd; parse_arg_loop args''
         end
      | ['-'; 's'] -> input_mode := SFlag; parse_arg_loop args'
+     | '-'::'d'::opts -> parse_debug opts
      | '-'::opts  -> parse_shortopts add_opt opts
      | '+'::opts  -> parse_shortopts del_opt opts
      | _          -> params := args

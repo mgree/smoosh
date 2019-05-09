@@ -524,6 +524,39 @@ let rec perms_symbolic_of_string s =
 (**********************************************************************)
 (* SHELL OPTIONS ******************************************************)
 (**********************************************************************)
+
+type trace_tag =
+    Trace_symbolic
+  | Trace_traps
+  | Trace_undef
+  | Trace_unspec
+
+val string_of_trace_tag : trace_tag -> string
+let string_of_trace_tag tag =
+  match tag with
+  | Trace_symbolic -> "symbolic"
+  | Trace_traps    -> "traps"
+  | Trace_undef    -> "undef"
+  | Trace_unspec   -> "unspec"
+  end
+
+val trace_tag_of_string : string -> maybe trace_tag
+let trace_tag_of_string s =
+  match s with
+  | "symbolic" -> Just Trace_symbolic
+  | "traps"    -> Just Trace_traps
+  | "undef"    -> Just Trace_undef
+  | "unspec"   -> Just Trace_unspec 
+  | _          -> Nothing
+  end
+
+val all_trace_tags : list trace_tag
+let all_trace_tags = sortBy (fun t1 t2 -> string_of_trace_tag t1 <= string_of_trace_tag t2)
+  [ Trace_symbolic
+  ; Trace_traps
+  ; Trace_undef
+  ; Trace_unspec
+  ]
   
 type sh_opt = 
     Sh_allexport   
@@ -541,37 +574,7 @@ type sh_opt =
   | Sh_verbose
   | Sh_vi
   | Sh_xtrace      
-
-let all_sh_opts = 
-  [ Sh_allexport
-  ; Sh_errexit
-  ; Sh_ignoreeof
-  ; Sh_earlyhash
-  ; Sh_interactive
-  ; Sh_monitor 
-  ; Sh_noclobber
-  ; Sh_noglob
-  ; Sh_noexec
-  ; Sh_errexit
-  ; Sh_nolog
-  ; Sh_notify
-  ; Sh_nounset
-  ; Sh_verbose
-  ; Sh_vi
-  ; Sh_xtrace ]
-
-let unimplemented_sh_opts = 
-  [ (* will not support these *)
-    Sh_earlyhash
-  ; Sh_vi
-
-    (* TODO 2018-10-02 job control *)
-  ; Sh_notify
-
-    (* TODO 2018-09-10 implement remaining set flags *)
-    (* need history *)
-  ; Sh_nolog
-  ]
+  | Sh_trace of trace_tag
 
 let string_of_sh_opt o =
   match o with
@@ -590,25 +593,27 @@ let string_of_sh_opt o =
   | Sh_verbose     -> "verbose"
   | Sh_vi          -> "vi"
   | Sh_xtrace      -> "xtrace"
+  | Sh_trace tag   -> "trace" ^ string_of_trace_tag tag
   end
 
 let char_of_sh_opt o =
   match o with
-  | Sh_allexport -> Just #'a'
-  | Sh_errexit -> Just #'e'
-  | Sh_ignoreeof -> Nothing
-  | Sh_earlyhash -> Just #'h'
+  | Sh_allexport   -> Just #'a'
+  | Sh_errexit     -> Just #'e'
+  | Sh_ignoreeof   -> Nothing
+  | Sh_earlyhash   -> Just #'h'
   | Sh_interactive -> Just #'i'
-  | Sh_monitor  -> Just #'m'
-  | Sh_noclobber -> Just #'C'
-  | Sh_noglob -> Just #'f'
-  | Sh_noexec -> Just #'n'
-  | Sh_nolog -> Nothing
-  | Sh_notify  -> Just #'b'
-  | Sh_nounset -> Just #'u'
-  | Sh_verbose -> Just #'v'
-  | Sh_vi -> Nothing
-  | Sh_xtrace -> Just #'x'
+  | Sh_monitor     -> Just #'m'
+  | Sh_noclobber   -> Just #'C'
+  | Sh_noglob      -> Just #'f'
+  | Sh_noexec      -> Just #'n'
+  | Sh_nolog       -> Nothing
+  | Sh_notify      -> Just #'b'
+  | Sh_nounset     -> Just #'u'
+  | Sh_verbose     -> Just #'v'
+  | Sh_vi          -> Nothing
+  | Sh_xtrace      -> Just #'x'
+  | Sh_trace _    -> Nothing
   end
 
 let sh_opt_of_shortopt so = 
@@ -642,9 +647,49 @@ let sh_opt_of_longopt lo =
   | "verbose" -> Just Sh_verbose
   | "vi" -> Just Sh_vi
   | "xtrace" -> Just Sh_xtrace
-  | _ -> Nothing
+  | _ -> 
+     let cs = toCharList lo in
+     match cs with
+     | #'t':: #'r':: #'a':: #'c'::#'e'::tag_cs ->
+        match trace_tag_of_string (toString tag_cs) with
+        | Nothing -> Nothing
+        | Just tag -> Just (Sh_trace tag)
+        end
+     | _ -> Nothing
+     end
   end
-  
+
+val all_sh_opts : list sh_opt
+let all_sh_opts = sortBy (fun o1 o2 -> string_of_sh_opt o1 <= string_of_sh_opt o2)
+  ([ Sh_allexport
+   ; Sh_errexit
+   ; Sh_ignoreeof
+   ; Sh_earlyhash
+   ; Sh_interactive
+   ; Sh_monitor 
+   ; Sh_noclobber
+   ; Sh_noglob
+   ; Sh_noexec
+   ; Sh_errexit
+   ; Sh_nolog
+   ; Sh_notify
+   ; Sh_nounset
+   ; Sh_verbose
+   ; Sh_vi
+   ; Sh_xtrace] ++ 
+     map Sh_trace all_trace_tags)
+
+val unimplemented_sh_opts : list sh_opt
+let unimplemented_sh_opts = 
+  [ (* will not support these *)
+    Sh_earlyhash
+  ; Sh_vi
+
+    (* TODO 2018-09-10 implement remaining set flags *)
+    (* need history *)
+  ; Sh_nolog
+  ]
+
 (**********************************************************************)
 (* Patterns ***********************************************************)
 (**********************************************************************)
@@ -1972,7 +2017,7 @@ and string_of_evaluation_step step =
   | XSStep s -> spaced "Step" s
   | XSExec s -> spaced "Exec" s
   | XSEval linno src s -> 
-     "EvalLoop " ^ stringFromNat linno ^ " " ^ string_of_parse_source src ^ " " ^ s
+     "EvalLoop " ^ stringFromNat linno ^ " " ^ string_of_parse_source src ^ (if s = "" then "" else " " ^ s)
   | XSWait s -> spaced "Wait" s
   | XSTrap signal s -> "Trap " ^ spaced (string_of_signal signal) s
   | XSProc _pid c -> "Proc " ^ string_of_stmt c

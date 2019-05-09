@@ -658,7 +658,7 @@ let rec set_getopts opts fields =
 
 let set_showopts s0 show = 
   let opt_vals = map (fun opt -> (opt, Set.member opt s0.sh.opts)) all_sh_opts in
-  Right (foldr show s0 opt_vals, Done, true)
+  Right (foldl show s0 opt_vals, Done, true)
 
 val string_of_sh_opt_max_len : nat
 let string_of_sh_opt_max_len = 
@@ -671,7 +671,7 @@ let builtin_set s0 argv _env =
 OR
      set -o
 OR
-     set -o *)
+     set +o *)
   match argv with
   | [] ->
      (* dump env *)
@@ -685,14 +685,14 @@ OR
   | [[C #'-'; C #'o']] -> 
      (* print in human readable format; following dash *)
      set_showopts s0 
-       (fun (opt,is_set) os ->
+       (fun os (opt,is_set) ->
          let msg = pad_right (string_of_sh_opt opt) string_of_sh_opt_max_len ^
                    "\t" ^ if is_set then "on" else "off" in
          safe_write_stdout "set" (msg ^ "\n") os)
   | [[C #'+'; C #'o']] -> 
      (* print in shell readable format *)
      set_showopts s0 
-       (fun (opt,is_set) os ->
+       (fun os (opt,is_set) ->
          match char_of_sh_opt opt with
          | Nothing -> os
          | Just c ->
@@ -757,7 +757,7 @@ let rec trap_parse_signals argv =
 
 let trap_handle_signal s0 cond handler =
   if elem cond undefined_traps
-  then log_undefined
+  then log_trace Trace_undef
          "Setting a trap for SIGKILL or SIGSTOP produces undefined results." 
          s0
   else
@@ -1896,7 +1896,7 @@ let kill_signal_of_num s0 s_signal =
      | Nothing -> (s0, Nothing)
      | Just s  ->
         let s1 = 
-          log_undefined
+          log_trace Trace_undef
             "The effects of specifying any signal_number other than those listed below are undefined. [0, 1, 2, 3, 6, 9, 14, 15]" s0 
         in
         (s1, Just s)
@@ -2035,13 +2035,13 @@ let rec getopts_loop os0 opts optvar ind args =
           | C c::opt_rest -> (getopts_incr_optoff os0, Just c, opt_rest)
           | _ ->           
              let os1 = 
-               log_msg ("couldn't parse symbolic option '" ^ string_of_symbolic_string arg_opts ^ "'") os0 
+               log_trace Trace_symbolic ("couldn't parse symbolic option '" ^ string_of_symbolic_string arg_opts ^ "'") os0 
              in
              (os1, Nothing, [])
           end
        | _ ->
           let os1 = 
-            log_msg ("couldn't parse symbolic option '" ^ string_of_symbolic_string arg_opts ^ "'") os0 
+            log_trace Trace_symbolic ("couldn't parse symbolic option '" ^ string_of_symbolic_string arg_opts ^ "'") os0 
           in
           (os1, Nothing, [])
        end in
@@ -2054,7 +2054,7 @@ let rec getopts_loop os0 opts optvar ind args =
         let os2 =
           if is_alphanumeric c
           then os1
-          else log_unspecified "The use of other option characters that are not alphanumeric produces unspecified results." os1
+          else log_trace Trace_unspec "The use of other option characters that are not alphanumeric produces unspecified results." os1
         in
         let s_opt = toString [c] in
         let ss_opt = symbolic_string_of_string s_opt in
@@ -2160,16 +2160,6 @@ let builtin_fg os0 argv _env = send_sigcont os0 argv true (* call tc_setfg *)
 
 let builtin_bg os0 argv _env = send_sigcont os0 argv false (* call tc_setfg *)
      
-let rec help_trace log tr =
-  match log with
-  | [] -> tr
-  | LogStep step::log'          -> help_trace log' ((string_of_evaluation_step step)::tr)
-  | LogMessage msg::log'        -> help_trace log' (msg::tr)
-  | LogUnspecified msg::log'    -> help_trace log' (("UNSPECIFIED: " ^ msg)::tr)
-  | LogUndefined msg::log'      -> help_trace log' (("  UNDEFINED: " ^ msg)::tr)
-  | LogConcretization msg::log' -> help_trace log' (("CONCRETIZED: " ^ string_of_symbolic_string msg)::tr)
-  end
-
 let builtin_help os0 argv _env =
   let show_list ls os = exit_with 0 (safe_write_stdout "help" (String.concat "\n" ls ^ "\n") os) in
   match argv with
@@ -2197,7 +2187,7 @@ let builtin_help os0 argv _env =
         let steps = List.reverseMap string_of_evaluation_step (extract_trace os1) in
         Right (show_list steps os1, Done)
      | "trace" ->
-        let trace = help_trace os1.log [] in
+        let trace = List.reverseMap string_of_log_entry os1.log in
         Right (show_list trace os1, Done)
      | "spec" ->
         if in_unspecified_state os1

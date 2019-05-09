@@ -257,6 +257,8 @@ let symbolic_write_stderr s os =
   | Just os' -> os'
   end
 
+let symbolic_log_trace = log_trace_with symbolic_write_stderr
+
 let symbolic_step_pid step_eval os0 pid =
   match index os0.symbolic.procs pid with
   | Nothing -> (os0, Nothing)
@@ -324,7 +326,7 @@ let symbolic_signal_pid os0 signal pid _as_pg =
         | SigBeh_Terminate actions ->
            let os1 =
              if actions
-             then log_unspecified "Implementation-defined abnormal termination actions, such as creation of a core file, may also occur." os0
+             then symbolic_log_trace Trace_unspec "Implementation-defined abnormal termination actions, such as creation of a core file, may also occur." os0
              else os0
            in
            let ec = 128 + platform_int_of_signal signal in
@@ -335,7 +337,7 @@ let symbolic_signal_pid os0 signal pid _as_pg =
            (os2, true)
         | SigBeh_Ignore ->
            let os1 = 
-             log_msg (string_of_signal signal ^ " ignored by process with pid " ^ stringFromNat pid) os0 
+             symbolic_log_trace Trace_traps (string_of_signal signal ^ " ignored by process with pid " ^ stringFromNat pid) os0 
            in
            (os1, true)
         | SigBeh_Stop ->
@@ -347,7 +349,7 @@ let symbolic_signal_pid os0 signal pid _as_pg =
         end
      | Just handler ->
         let os1 =
-          log_msg (string_of_signal signal ^ " trapped by process with pid " ^ stringFromNat pid) os0 
+          symbolic_log_trace Trace_traps (string_of_signal signal ^ " trapped by process with pid " ^ stringFromNat pid) os0 
         in
         let procs' = 
           update os1.symbolic.procs pid 
@@ -385,6 +387,9 @@ instance (OS symbolic)
        should record that in symbolic state for fancier symbolic signal handling
      *)
     let proc_num = length os.symbolic.procs in
+    (* prepare_subshell/clear_traps_for_subshell already emptied traps
+       nothing else to do with the handlers 
+     *)
     let (subsh,_handlers) = prepare_subshell os.sh in
     let proc = Shell Proc_Running (try_avoid_fork stmt) subsh os.symbolic.sh_fds in
     (* When a subshell is entered, traps that are not being ignored
