@@ -42,12 +42,21 @@ type step_fun 'a =
 val default_block : nat
 let default_block = 10 (* wait 10 steps by default *)
 
+type read_eof = ReadEOF | ReadContinue
+
+val read_eof : read_eof -> bool
+let read_eof eof =
+  match eof with
+  | ReadEOF -> true
+  | ReadContinue -> false
+  end
+                        
 type read_result 'a =
     ReadError of string (* bad FD, etc. *)
   | ReadBlocked of nat (* pid of blocking process; 
                           only ever used in symbolic mode...
                           system mode just actually blocks! *)
-  | ReadSuccess of 'a * bool (* EOF? *)
+  | ReadSuccess of 'a * read_eof
       
 (* TODO 2018-08-14 file contents? will allow for use of, e.g., /etc/passwd *)
 type file 'a = File | Dir of 'a
@@ -74,6 +83,15 @@ declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
 (* OS CLASS ***********************************************************)
 (**********************************************************************)
 
+type signal_mode = SignalProcess | SignalProcessGroup
+
+val signal_processgroup : signal_mode -> bool
+let signal_processgroup signal_mode =
+  match signal_mode with
+  | SignalProcess -> false
+  | SignalProcessGroup -> true
+  end
+                                 
 class ( OS 'a )
   (* PARSER INTERACTIONS *)
   val set_ps1 : os_state 'a -> symbolic_string -> os_state 'a
@@ -107,7 +125,7 @@ class ( OS 'a )
   val waitchild : os_state 'a -> os_state 'a * maybe (pid * job_status)
 
   val handle_signal : os_state 'a -> signal -> maybe symbolic_string -> os_state 'a
-  val signal_pid : os_state 'a -> signal -> pid -> bool (* as pg? *) -> os_state 'a * bool
+  val signal_pid : os_state 'a -> signal -> pid -> signal_mode -> os_state 'a * bool
   val pending_signal : os_state 'a -> os_state 'a * maybe signal
 
   val tc_setfg : os_state 'a -> pid -> os_state 'a * bool

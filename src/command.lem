@@ -280,13 +280,19 @@ let pid_of_symbolic_string s0 ss =
      match toCharList s with
      | #'%'::_ ->
         match job_of_symbolic_string s0 ss with
-        | Right job -> Right job.pid
+        | Right job -> Right (job.pid, SignalProcessGroup) (* per dash *)
         | Left msg -> Left msg
         end
      | cs -> 
-        match readNat cs with
+        let (cs', signal_mode) =
+          match cs with
+          | #'-'::cs' -> (cs', SignalProcessGroup)
+          | _ -> (cs, SignalProcess)
+          end
+        in
+        match readNat cs' with
         | Left _ -> Left ("Illegal number: " ^ s)
-        | Right pid -> Right pid
+        | Right pid -> Right (pid, signal_mode)
         end
      end
   end
@@ -1345,7 +1351,7 @@ let builtin_wait s0 argv env =
   | pid::pids' ->
      match pid_of_symbolic_string s0 pid with
      | Left msg -> Left (s0, msg)
-     | Right pid ->
+     | Right (pid, _) ->
         (* some indirect recursion... 
            waitpid in os.lem needs step_eval, which we don't have access to 
 
@@ -1485,7 +1491,7 @@ let builtin_read s0 argv env =
         let w = [ExpS trimmed] in
         let ifs = field_splitting s1 w in
         let f = finalize_fields (combine_fields ifs) in
-        let ec = if hit_eof then 1 else 0 in
+        let ec = if read_eof hit_eof then 1 else 0 in
         read_assign_vars (exit_with ec s1) vars f
      end
   end
@@ -1873,8 +1879,8 @@ let rec signal_pids s0 signal spids =
   | ss_pid::spids' ->
      match pid_of_symbolic_string s0 ss_pid with
      | Left msg -> Left (s0, msg)
-     | Right pid ->
-        let (s1, ok) = signal_pid s0 signal pid false in
+     | Right (pid, signal_mode) ->
+        let (s1, ok) = signal_pid s0 signal pid signal_mode in
         let s2 = if not ok then exit_with 1 s1 else s1 in
         signal_pids s2 signal spids'
      end
@@ -2143,16 +2149,16 @@ let send_sigcont os0 argv setfg =
     | [] -> 
        match os0.sh.jobs with
        | [] -> Left "No current job"
-       | job::_ -> Right job.pid
+       | job::_ -> Right (job.pid, SignalProcessGroup)
        end
     | ss_spec::_ -> pid_of_symbolic_string os0 ss_spec
     end
   in
   match m_pid with
   | Left err -> Left (os0, err)
-  | Right pid -> 
+  | Right (pid, _) -> 
      let (os1, _tc_ok) = if setfg then tc_setfg os0 pid else (os0, true) in
-     let (os2, _signal_ok) = signal_pid os1 SIGCONT pid true in
+     let (os2, _signal_ok) = signal_pid os1 SIGCONT pid SignalProcessGroup in
      Right (os2, if setfg then Wait pid Unchecked Nothing else Done)
   end
 

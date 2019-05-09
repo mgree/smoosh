@@ -303,7 +303,8 @@ instance (OS unit)
   let read_line_fd os backslash_escapes fd =
     match real_read_line_fd backslash_escapes fd with
     | Left err -> (os, ReadError err)
-    | Right (s, hit_eof) -> (os, ReadSuccess s hit_eof)
+    | Right (s, hit_eof) ->
+       (os, ReadSuccess s (if hit_eof then ReadEOF else ReadContinue))
     end
 
   let close_fd os fd =
@@ -352,7 +353,7 @@ instance (OS unit)
     match ocaml_signal_of_signal signal with
     | Nothing -> (os0, false)
     | Just ocaml_signal ->
-       let success = real_signal_pid ocaml_signal pid as_pg in
+       let success = real_signal_pid ocaml_signal pid (signal_processgroup as_pg) in
        (os0, success)
     end
 

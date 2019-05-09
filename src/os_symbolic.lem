@@ -178,16 +178,16 @@ let read_char_fifo symbolic fifo_num =
 
 val string_read_line_cl 
     : list char -> bool (* backslash escapes *) -> list char ->
-      list char * list char * bool
+      list char * list char * read_eof
 let rec string_read_line_cl cs backslash_escapes line =
   (* dash miscbltin.c:162 ignores nullchar? *)
   match (cs, backslash_escapes) with
   (* terminator *)
-  | ([], _) -> (line, [], true)
-  | (#'\n'::cs', _) -> (line, cs', false)
+  | ([], _) -> (line, [], ReadEOF)
+  | (#'\n'::cs', _) -> (line, cs', ReadContinue)
 
   (* backslash *)
-  | ([#'\\'], true) -> (#'\\'::line, [], true)
+  | ([#'\\'], true) -> (#'\\'::line, [], ReadEOF)
   | (#'\\'::#'\n'::cs, true) -> string_read_line_cl cs backslash_escapes     line
   | (#'\\'::c    ::cs, true) -> string_read_line_cl cs backslash_escapes (c::line)
 
@@ -196,7 +196,7 @@ let rec string_read_line_cl cs backslash_escapes line =
   end
 
 val string_read_line
-    : string -> bool (* backslash escapes *) -> string * string * bool
+    : string -> bool (* backslash escapes *) -> string * string * read_eof
 let string_read_line s backslash_escapes =
   let (line_cs, rest, hit_eof) = 
     string_read_line_cl (toCharList s) backslash_escapes []  
@@ -555,7 +555,7 @@ instance (OS symbolic)
                    fifos = update os.symbolic.fifos fifo_num cts' |> |>, 
              ReadSuccess line hit_eof)
           in
-          if not hit_eof
+          if not (read_eof hit_eof)
           then 
             (* we actually parsed a line---no need to block, we have what we need 
                so we'll update the FIFO to holds cts' and return the string
