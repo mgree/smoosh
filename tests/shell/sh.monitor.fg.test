@@ -1,0 +1,19 @@
+set -m
+
+start=$(date "+%s")
+sleep 3 & pid=$!
+kill -TSTP $pid
+jobs -l
+stop=$(date "+%s")
+elapsed=$((stop - start))
+echo $stop - $start = $elapsed
+[ $((elapsed)) -lt 2 ] || exit 1
+
+jobs -l
+fg >output
+
+stop2=$(date "+%s")
+elapsed=$((stop2 - start))
+echo $stop2 - $start = $elapsed
+[ $((elapsed)) -ge 3 ] || exit 2
+grep "sleep 3" output || exit 3

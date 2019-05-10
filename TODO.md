@@ -200,6 +200,7 @@ yields
  
 - Yash
   - set +m doesn't cause redirect of STDIN to /dev/null on asynchronous commands
+  - fg has incorrect output
 
 ### Bugs per the spec
      

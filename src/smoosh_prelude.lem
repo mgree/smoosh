@@ -59,6 +59,18 @@ let sortBy lte xs = foldr (insertBy lte) [] xs
 val sort : forall 'a. Ord 'a => list 'a -> list 'a
 let sort = sortBy (<=)
 
+val collect_either : forall 'a 'b. list (either 'a 'b) -> (list 'a * list 'b)
+let rec collect_either l =
+  match l with
+  | [] -> ([], [])
+  | Left a::l' -> 
+     let (lefts, rights) = collect_either l' in
+     (a::lefts, rights)
+  | Right b::l' -> 
+     let (lefts, rights) = collect_either l' in
+     (lefts, b::rights)
+  end
+
 val isInfixOf : forall 'a. Eq 'a => list 'a -> list 'a -> bool
 let isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
 
@@ -752,6 +764,13 @@ type expansion_opts =
   |>
 
 type bg_mode = FG | BG
+
+val is_fg : bg_mode -> bool
+let is_fg bg_mode =
+  match bg_mode with
+  | BG -> false
+  | FG -> true
+  end
 
 val is_bg : bg_mode -> bool
 let is_bg bg_mode =
@@ -1602,8 +1621,8 @@ let cur_prev_jobs jobs =
   | cur::prev::_ -> (cur.id, prev.id)
   end
 
-val show_job_number : nat * nat -> job_info -> string
-let show_job_number (cur_id, prev_id) job =
+val string_of_job_number : nat * nat -> job_info -> string
+let string_of_job_number (cur_id, prev_id) job =
   "[" ^ stringFromNat job.id ^ "] " ^ 
     (if job.id = cur_id 
      then "+" 

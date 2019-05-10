@@ -1,5 +1,7 @@
 #!/bin/sh
 
+: ${LINE_LENGTH:=70}
+
 : ${TEST_TIME:=$(date "+%Y-%m-%d_%H:%M")}
 TEST_SCRIPT=${0##*/}
 
@@ -53,8 +55,22 @@ failed() {
     msg "$1 failed"
 }
 
+tick() {
+    if [ $((count % 70)) -eq 0 ] && [ ${count} -ne 0 ]
+    then
+	printf '\n'
+    fi
+
+    printf '.'
+}
+
 passed() {
-    debug "$1 passed"
+    if debugging
+    then
+	msg "$1 passed"
+    else
+	tick
+    fi
 }
 
 if [ -n "${TEST_ENV}" ]
@@ -158,6 +174,11 @@ do
     fi
     : $((count += 1))
 done
+
+if ! debugging
+then
+    printf '\n' # clear the progress dots line
+fi
 
 printf "${TEST_SCRIPT}: %d/%d tests passed\n" ${passed} ${count}
 

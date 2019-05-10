@@ -1330,7 +1330,7 @@ and step_eval s0 checked stmt =
 
   | EvalLoop linno ((sstr,stackmark) as ctx) src interactive shell_level ->
      (* INVARIANT: you must call parse_done sstr if you're leaving the eval loop *)
-     let s1 = show_changed_jobs s0 in
+     let s1 = show_changed_jobs DeleteJobs Sh_monitor s0 in
      let (s2, parsed) = parse_next s1 interactive stackmark in
      check_traps
        (match parsed with

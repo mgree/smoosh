@@ -7,7 +7,7 @@ kill $pid1 $pid2
 wait
 stop=$(date "+%s")
 elapsed=$((stop - start))
-echo $start - $stop = $elapsed
+echo $stop - $start = $elapsed
 [ $((elapsed)) -lt 2 ] || exit 1
 
 echo setting -m
@@ -23,5 +23,5 @@ kill %1 %2
 wait
 stop=$(date "+%s")
 elapsed=$((stop - start))
-echo $start - $stop = $elapsed
+echo $stop - $start = $elapsed
 [ $((elapsed)) -lt 2 ] || exit 2

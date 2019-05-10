@@ -388,7 +388,7 @@ let canonicalize_path os path =
 
 (* Job control ********************************************************)  
 
-type jobs_mode = JobsNormal | JobsTerse | JobsLong
+type jobs_mode = JobsNormal | JobsTerse | JobsLong | JobsFGCommand | JobsBGCommand
 
 let rec jobs_mode opts =
   match opts with
@@ -398,33 +398,53 @@ let rec jobs_mode opts =
   | _::opts' -> jobs_mode opts'
   end
 
-let show_job_status job =
+let padded_string_of_job_status job =
   pad_right (string_of_job_status job.status) 25 (* width taken from bash *)
 
-let rec show_job_pipeline curjob job pipeline first =
+let rec string_of_job_pipeline curjob job pipeline first =
   match pipeline with
   | [] -> ""
   | (pid,stmt)::pipeline' ->
-     (if first then show_job_number curjob job else "      ") ^
+     (if first then string_of_job_number curjob job else "      ") ^
      pad_right (stringFromNat pid) 6 ^
-     (if first then show_job_status job else toString (replicate 23 #' ') ^ "| ") ^
+     (if first then padded_string_of_job_status job else toString (replicate 23 #' ') ^ "| ") ^
      string_of_stmt stmt ^ "\n" ^
-     show_job_pipeline curjob job pipeline' false
+     string_of_job_pipeline curjob job pipeline' false
   end
 
-let show_job mode curjob job s0 = 
-  let msg = 
-    match mode with
-    | JobsTerse -> stringFromNat job.pid ^ "\n"
-    | JobsNormal ->
-       show_job_number curjob job ^ 
-       show_job_status job ^
-       string_of_stmt job.cmd ^ "\n"
-    | JobsLong -> 
-       show_job_pipeline curjob job job.pipeline true
-    end
-  in
-  safe_write_stdout "jobs" msg s0
+let string_of_job mode curjob job = 
+  match mode with
+  | JobsTerse -> stringFromNat job.pid ^ "\n"
+  | JobsFGCommand ->
+     string_of_stmt job.cmd ^ "\n"
+  | JobsBGCommand ->
+     "[" ^ stringFromNat job.id ^ "] " ^
+     string_of_stmt job.cmd ^ "\n"
+  | JobsNormal ->
+     string_of_job_number curjob job ^ 
+     padded_string_of_job_status job ^
+     string_of_stmt job.cmd ^ "\n"
+  | JobsLong -> 
+     string_of_job_pipeline curjob job job.pipeline true
+  end
+
+val show_job : forall 'a. OS 'a => jobs_mode -> pid * pid -> job_info -> os_state 'a -> os_state 'a
+let show_job mode curjob job os0 =
+  safe_write_stdout "jobs" (string_of_job mode curjob job) os0
+
+val show_job_when : forall 'a. OS 'a => sh_opt -> jobs_mode -> pid * pid -> job_info -> os_state 'a -> os_state 'a
+let show_job_when opt mode curjob job os0 =
+  if Set.member opt os0.sh.opts
+  then 
+    let os1 = 
+      if opt = Sh_notify 
+      then 
+        (* asyncronous, so make sure we add a newline *)
+        write_stderr "\n" os0
+      else os0
+    in
+    write_stderr (string_of_job mode curjob job) os1
+  else os0
 
 val delete_job 
     : forall 'a. os_state 'a -> nat (* job id *) -> os_state 'a
@@ -443,13 +463,6 @@ val find_job_with_pid
 let find_job_with_pid os0 pid =
   List.find (fun j -> j.pid = pid || any (fun (pid',_) -> pid' = pid) j.pipeline) 
     os0.sh.jobs
-
-val notify_job_status : forall 'a. OS 'a => os_state 'a -> job_info -> os_state 'a
-let notify_job_status os0 job =
-  if Set.member Sh_notify os0.sh.opts
-  then 
-    show_job JobsNormal (cur_prev_jobs os0.sh.jobs) job os0
-  else os0
 
 val ec_of_job_status : job_status -> maybe nat
 let ec_of_job_status status =
@@ -486,12 +499,31 @@ let active_jobs os0 =
   (<| os0 with sh = <| os0.sh with jobs = real_jobs |> |>, 
    real_jobs)
 
-val show_jobs : forall 'a. OS 'a => jobs_mode -> nat * nat -> list job_info -> os_state 'a -> os_state 'a
-let show_jobs mode cur_prev jobs s0 =
-  foldl (fun os job -> show_job mode cur_prev job os) s0 (sort jobs)
+(* TODO 2019-05-10 will use stdout when no option given, stderr otherwise *)
+val show_jobs : forall 'a. OS 'a => maybe sh_opt -> jobs_mode -> nat * nat -> list job_info -> os_state 'a -> os_state 'a
+let show_jobs mopt mode cur_prev jobs s0 =
+  let show =
+    match mopt with
+    | Nothing -> show_job
+    | Just opt -> show_job_when opt
+    end
+  in
+  foldl (fun os job -> show mode cur_prev job os) s0 (sort jobs)
 
-(* helper for the interactive shell in -m and -b; used in EvalLoop *)
-val show_changed_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a
+type jobs_update_mode = DeleteJobs | NoDeleteJobs
+
+let delete_jobs jum =
+  match jum with
+  | DeleteJobs -> true
+  | NoDeleteJobs -> false
+  end
+
+(* helper for the interactive shell in -m and -b; used in EvalLoop
+
+   this is all a recursive loop because add_job needs to
+   show_changed_jobs and show_changed_jobs needs to update_jobs and
+   update_jobs needs to add_job *)
+val show_changed_jobs : forall 'a. OS 'a => jobs_update_mode -> sh_opt -> os_state 'a -> os_state 'a
 val add_job 
     : forall 'a. OS 'a =>
         os_state 'a ->
@@ -501,16 +533,15 @@ val update_job_with_pid : forall 'a. OS 'a => os_state 'a -> nat -> job_status -
 val update_jobs_loop : forall 'a. OS 'a => os_state 'a -> list job_info -> os_state 'a * list job_info
 val update_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info (* changed *)
 
-let rec show_changed_jobs s0 =
+let rec show_changed_jobs jum opt s0 =
   let (s1,changed) = update_jobs s0 in
-  if Set.member Sh_monitor s1.sh.opts
-  then
-    let s2 = show_jobs JobsNormal (cur_prev_jobs s1.sh.jobs) changed s1 in
-    List.foldl (fun os j -> delete_job os j.id) s2 changed
-  else s1
+  let s2 = show_jobs (Just opt) JobsNormal (cur_prev_jobs s1.sh.jobs) changed s1 in
+  if Set.member opt s0.sh.opts && delete_jobs jum 
+  then List.foldl (fun os j -> delete_job os j.id) s2 changed
+  else s2
 
 and add_job os0 pipeline pid cmd bg_mode status =
-  let os1 = show_changed_jobs os0 in
+  let os1 = show_changed_jobs NoDeleteJobs Sh_monitor os0 in
   let highest_job_num = 
     match os1.sh.jobs with
     | [] -> 0
@@ -535,18 +566,16 @@ and add_job os0 pipeline pid cmd bg_mode status =
 
 and update_job_with_pid os0 pid new_status =
   match List.find (fun j -> j.pid = pid) os0.sh.jobs with
-  | Nothing -> (* no such job... weird! add it *)
+  | Nothing -> 
+     (* no such job... weird! get a fake job, which we'll immediately trash if we can *)
      let (os1, job) = add_job os0 [(pid,skip)] pid skip BG new_status in
-     (os1, job)
+     let os2 = delete_job os1 job.id in
+     (os2, job)
   | Just job -> (* update the job status! *)
      let job' = <| job with status = new_status |> in
      let cur_jobs = map (fun j -> if j.id = job'.id then job' else j) os0.sh.jobs in
      let os1 = <| os0 with sh = <| os0.sh with jobs = cur_jobs |> |> in
-     let os2 = 
-       if Set.member Sh_notify os1.sh.opts
-       then show_job JobsNormal (cur_prev_jobs os1.sh.jobs) job' (write_stderr "\n" os1)
-       else os1 
-     in
+     let os2 = show_job_when Sh_notify JobsNormal (cur_prev_jobs os1.sh.jobs) job' os1 in
      (os2, job')
   end
 

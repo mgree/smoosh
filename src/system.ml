@@ -208,6 +208,7 @@ let real_enable_jobcontrol rootpid =
     initialpgrp := -1;
     close_ttyfd ();
     (* Printf.eprintf "set -m: %s; job control off\n%!" msg *) 
+    (* TODO 2019-05-10 let people know that set -m didn't work *)
     ()
   in
   match !ttyfd with
