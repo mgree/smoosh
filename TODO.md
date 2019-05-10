@@ -20,6 +20,8 @@
   need to be careful update current job statuses on ECHLD
   should trigger Sh_notify on SIGCHLD
 
+- unspec rundown
+
 - non-special shell variables
   LINENO
   ENV (interactive only)
