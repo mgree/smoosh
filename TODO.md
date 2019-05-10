@@ -17,8 +17,8 @@
   + HISTFILE
 
 - job control
-  + Sh_notify
-  need to update current job statuses on ECHLD
+  need to be careful update current job statuses on ECHLD
+  should trigger Sh_notify on SIGCHLD
 
 - non-special shell variables
   LINENO
