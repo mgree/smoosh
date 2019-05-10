@@ -39,10 +39,10 @@ signal_platform.lem : mk_signal_platform.sh
 	./mk_signal_platform.sh >signal_platform.lem
 
 loc :  $(SRCFILES)
-	@echo "Source LOC: "
-	wc -l $(SRCFILES) shtepper.ml shell.ml
+	@echo "Source LOC:"
+	@wc -l $(SRCFILES) shtepper.ml shell.ml
 	@echo "Test LOC: "
-	wc -l $(TESTFILES) runtest.ml
+	@wc -l $(TESTFILES) runtest.ml
 
 %.ml : %.lem
 	lem -ocaml $<
