@@ -177,29 +177,29 @@ let read_char_fifo symbolic fifo_num =
   end
 
 val string_read_line_cl 
-    : list char -> bool (* backslash escapes *) -> list char ->
+    : list char -> escape_mode -> list char ->
       list char * list char * read_eof
-let rec string_read_line_cl cs backslash_escapes line =
+let rec string_read_line_cl cs escapes line =
   (* dash miscbltin.c:162 ignores nullchar? *)
-  match (cs, backslash_escapes) with
+  match (cs, escapes) with
   (* terminator *)
   | ([], _) -> (line, [], ReadEOF)
   | (#'\n'::cs', _) -> (line, cs', ReadContinue)
 
   (* backslash *)
-  | ([#'\\'], true) -> (#'\\'::line, [], ReadEOF)
-  | (#'\\'::#'\n'::cs, true) -> string_read_line_cl cs backslash_escapes     line
-  | (#'\\'::c    ::cs, true) -> string_read_line_cl cs backslash_escapes (c::line)
+  | ([#'\\'], BackslashEscapes) -> (#'\\'::line, [], ReadEOF)
+  | (#'\\'::#'\n'::cs, BackslashEscapes) -> string_read_line_cl cs escapes     line
+  | (#'\\'::c    ::cs, BackslashEscapes) -> string_read_line_cl cs escapes (c::line)
 
   (* ordinary char *)
-  | (c::cs, _) -> string_read_line_cl cs backslash_escapes (c::line)
+  | (c::cs, _) -> string_read_line_cl cs escapes (c::line)
   end
 
 val string_read_line
-    : string -> bool (* backslash escapes *) -> string * string * read_eof
-let string_read_line s backslash_escapes =
+    : string -> escape_mode -> string * string * read_eof
+let string_read_line s escapes =
   let (line_cs, rest, hit_eof) = 
-    string_read_line_cl (toCharList s) backslash_escapes []  
+    string_read_line_cl (toCharList s) escapes []  
   in
   (toString (reverse line_cs), toString rest, hit_eof)
 
@@ -374,15 +374,15 @@ instance (OS symbolic)
   (* we don't want to actually send these to libdash, which will actually display
      them on STDOUT when we're in interactive mode
    *)
-  let set_ps1 os _new_ps1 = os
-  let set_ps2 os _new_ps2 = os
+  let os_set_ps1 os _new_ps1 = os
+  let os_set_ps2 os _new_ps2 = os
   
-  let getpwnam os u = Map.lookup u os.symbolic.passwd
+  let os_getpwnam os u = Map.lookup u os.symbolic.passwd
 
-  let execve os _prog _prog_argv0 _argv _env _binsh =
+  let os_execve os _prog _prog_argv0 _argv _env _binsh =
     (os, Left "symbolic execve unimplemented")
 
-  let fork_and_subshell os stmt _bg _pgid _jc =
+  let os_fork_and_subshell os stmt _bg _pgid _jc =
     (* TODO 2018-10-24 if bg is false, this command will be controlling the terminal
        should record that in symbolic state for fancier symbolic signal handling
      *)
@@ -404,34 +404,34 @@ instance (OS symbolic)
     (<| os with symbolic = <| os.symbolic with procs = os.symbolic.procs ++ [proc] |> |>, 
      proc_num)
 
-  let exit os0 = <| os0 with symbolic = <| os0.symbolic with exited = true |> |>
+  let os_exit os0 = <| os0 with symbolic = <| os0.symbolic with exited = true |> |>
 
-  let waitpid step_eval os0 pid  = symbolic_step_pid step_eval os0 pid
+  let os_waitpid step_eval os0 pid  = symbolic_step_pid step_eval os0 pid
 
-  let waitchild os0 = (os0, Nothing)
+  let os_waitchild os0 = (os0, Nothing)
 
-  let handle_signal os _signal _action = os
+  let os_handle_signal os _signal _action = os
 
-  let signal_pid os0 signal pid as_pg = symbolic_signal_pid os0 signal pid as_pg
+  let os_signal_pid os0 signal pid as_pg = symbolic_signal_pid os0 signal pid as_pg
 
-  let pending_signal os0 =
+  let os_pending_signal os0 =
     (* TODO 2018-12-14 track and manage pending signals *)
     (os0, Nothing)
 
-  let tc_setfg os0 _pid = 
+  let os_tc_setfg os0 _pid = 
     (* TODO 2018-10-30 track console control info *)
     (os0, false)
 
-  let set_job_control os0 _on = os0
+  let os_set_job_control os0 _on = os0
 
-  let times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
+  let os_times _os0 = ("0m0s", "0m0s", "0m0s", "0m0s")
 
-  let get_umask os0 = os0.symbolic.umask
+  let os_get_umask os0 = os0.symbolic.umask
 
-  let set_umask os0 mask = 
+  let os_set_umask os0 mask = 
     <| os0 with symbolic = <| os0.symbolic with umask = mask |> |>
 
-  let readdir os path =
+  let os_readdir os path =
     (* TODO 2018-08-21 will be buggy on non-absolute paths *)
     match symbolic_fs_resolve_dir os.symbolic.fs_root path with
     | Nothing -> Set.empty
@@ -447,22 +447,22 @@ instance (OS symbolic)
          (toSetBy compare_by_first fs.contents)
     end
 
-  let physical_cwd os = os.sh.cwd
+  let os_physical_cwd os = os.sh.cwd
 
-  let chdir os path =
+  let os_chdir os path =
     match symbolic_fs_resolve_dir os.symbolic.fs_root path with
     | Nothing -> (os,Just ("no such directory: " ^ path))
     | Just _ -> (<| os with sh = <| os.sh with cwd = path |> |>, Nothing)
     end
 
   (* TODO 2018-09-04 symbolic fs needs file contents/types *)
-  let file_exists os path =
+  let os_file_exists os path =
     match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> false
     | Just _ -> true
     end
 
-  let file_size os path =
+  let os_file_size os path =
     match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> Nothing
     | Just (Dir _) -> Just 512 (* simulating result of stat call *)
@@ -470,18 +470,18 @@ instance (OS symbolic)
     end
 
   (* TODO 2018-10-05 symbolic fs needs perms *)
-  let file_perms os path =
+  let os_file_perms os path =
     match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> Nothing
     | Just (Dir _) -> Just (invert_perms default_umask)
     | Just File -> Just (invert_perms default_umask)
     end
 
-  let file_type os path = symbolic_file_type os path
+  let os_file_type os path = symbolic_file_type os path
 
-  let file_type_follow os path = symbolic_file_type_follow os path
+  let os_file_type_follow os path = symbolic_file_type_follow os path
 
-  let is_tty os fd =
+  let os_is_tty os fd =
     match symbolic_resolve_fd os.symbolic fd with
     | Just fifo_num ->
        (* if it points to our original TTY and we're interactive, yup! *)
@@ -491,27 +491,27 @@ instance (OS symbolic)
     end
 
    (* TODO 2018-10-04 real permissions? *)
-  let is_readable os path =
+  let os_is_readable os path =
     match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> false
     | Just _ -> true
     end
 
-  let is_writeable os path =
+  let os_is_writeable os path =
     match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> false
     | Just _ -> true
     end
 
-  let is_executable os path =
+  let os_is_executable os path =
     match symbolic_fs_resolve_path os.symbolic.fs_root path with
     | Nothing -> false
     | Just _ -> true
     end
 
-  let write_fd = symbolic_write_fd
+  let os_write_fd = symbolic_write_fd
 
-  let read_all_fd step_eval os0 fd =
+  let os_read_all_fd step_eval os0 fd =
     match symbolic_resolve_fd os0.symbolic fd with
     | Just fifo_num -> 
        let commit_read os =
@@ -535,7 +535,7 @@ instance (OS symbolic)
     | Nothing -> (os0, Right Nothing)
   end
 
-  let read_line_fd os backslash_escapes fd =
+  let os_read_line_fd os fd escapes =
     match symbolic_resolve_fd os.symbolic fd with
     | Just fifo_num -> 
        (* look up the FIFO contents *)
@@ -543,7 +543,7 @@ instance (OS symbolic)
        | Nothing -> (os, ReadError "broken pipe ")
        | Just cts ->
           (* try to parse a line *)
-          let (line,cts',hit_eof) = string_read_line cts backslash_escapes in
+          let (line,cts',hit_eof) = string_read_line cts escapes in
           (* we'll return this value if the read is good. but it depends!
              
              if we really parsed a line (no EOF), we're good. otherwise we may
@@ -573,10 +573,10 @@ instance (OS symbolic)
     | Nothing -> (os, ReadError ("bad file descriptor " ^ stringFromNat fd))
     end
 
-  let close_fd os fd = 
+  let os_close_fd os fd = 
     <| os with symbolic = <| os.symbolic with sh_fds = Map.delete fd os.symbolic.sh_fds |> |>
 
-  let pipe os0 =
+  let os_pipe os0 =
     let (sym1, fifo_num) = mkfifo os0.symbolic in
     (* get an FD number for reading *)
     let fd_read = symbolic_fresh_fd sym1.sh_fds in
@@ -586,7 +586,7 @@ instance (OS symbolic)
     let fds'' = Map.insert fd_write (FIFO fifo_num) fds' in
     (<| os0 with symbolic = <| sym1 with sh_fds = fds'' |> |>, fd_read, fd_write)
 
-  let open_file_for_redir os0 _ty file = 
+  let os_open_file_for_redir os0 _ty file = 
     (* TODO 2019-04-11 actually look at fs *)
     let fd = symbolic_fresh_fd os0.symbolic.sh_fds in
     let (os1,_,sfile) = concretize os0 file in
@@ -594,7 +594,7 @@ instance (OS symbolic)
     let os2 = <| os1 with symbolic = <| os1.symbolic with sh_fds = sh_fds' |> |> in
     (os2, Right fd)
 
-  let open_heredoc os0 s =
+  let os_open_heredoc os0 s =
     let (sym1, fifo_num) = mkfifo os0.symbolic in
     let fd = symbolic_fresh_fd sym1.sh_fds in
     (* update the FD map with a read FD *)
@@ -613,7 +613,7 @@ instance (OS symbolic)
      fd >= 10 for renumbering, since the shell is only guaranteed to have
      fds 0-9.
    *)
-  let close_and_save_fd os0 fd = 
+  let os_close_and_save_fd os0 fd = 
     (* precomupte potential next os *)
     let sym1 = <| os0.symbolic with sh_fds = Map.delete fd os0.symbolic.sh_fds |> in
     let os1 = <| os0 with symbolic = sym1 |> in
@@ -628,7 +628,7 @@ instance (OS symbolic)
        (os1, Left "TODO 2018-08-24 symbolic path FDs unimplemented")
     end
 
-  let renumber_fd os0 orig_action new_fd wanted_fd = 
+  let os_renumber_fd os0 orig_action new_fd wanted_fd = 
     if new_fd = wanted_fd
     then (os0, Right (if should_close_orig orig_action then [(wanted_fd, Close)] else []))
     else
@@ -655,7 +655,7 @@ instance (OS symbolic)
          Right saved)
       end
 
-  let restore_fd os0 fd info =
+  let os_restore_fd os0 fd info =
     match info with
     | Saved fifo_num -> 
        let fds = Map.insert fd (FIFO fifo_num) os0.symbolic.sh_fds in

@@ -1368,6 +1368,14 @@ let builtin_wait s0 argv env =
      end
   end
 
+let rec jobs_mode opts =
+  match opts with
+  | [] -> JobsNormal
+  | #'l'::_ -> JobsLong
+  | #'p'::_ -> JobsTerse
+  | _::opts' -> jobs_mode opts'
+  end
+
 let rec show_job_specs mode cur_prev specs s0 =
   match specs with
   | [] -> Right (exit_with 0 s0, Done)
@@ -1421,13 +1429,13 @@ let rec read_assign_vars s0 vars fs =
 
 let builtin_read s0 argv env = 
   let (opts,argv') = getopts [#'r'] argv in
-  let backslash_escapes = not (elem #'r' opts) in
+  let escapes = if elem #'r' opts then NoEscapes else BackslashEscapes in
   match try_concrete_fields_list argv' with
   | Nothing ->
      Left (s0, "couldn't handle symbolic variable names: " ^ string_of_fields argv)
   | Just [] -> Left (s0, "no variables specified")
   | Just vars ->
-     match read_line_fd s0 backslash_escapes STDIN with
+     match read_line_fd s0 STDIN escapes with
      | (s1, ReadError msg) -> Left (s1, msg)
      | (s1, ReadBlocked pid) -> 
         Right (s1, 

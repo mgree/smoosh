@@ -539,6 +539,7 @@ let rec perms_symbolic_of_string s =
 
 type trace_tag =
     Trace_symbolic
+  | Trace_syscall
   | Trace_traps
   | Trace_undef
   | Trace_unspec
@@ -547,6 +548,7 @@ val string_of_trace_tag : trace_tag -> string
 let string_of_trace_tag tag =
   match tag with
   | Trace_symbolic -> "symbolic"
+  | Trace_syscall  -> "syscall"
   | Trace_traps    -> "traps"
   | Trace_undef    -> "undef"
   | Trace_unspec   -> "unspec"
@@ -556,6 +558,7 @@ val trace_tag_of_string : string -> maybe trace_tag
 let trace_tag_of_string s =
   match s with
   | "symbolic" -> Just Trace_symbolic
+  | "syscall"  -> Just Trace_syscall
   | "traps"    -> Just Trace_traps
   | "undef"    -> Just Trace_undef
   | "unspec"   -> Just Trace_unspec 
@@ -565,6 +568,7 @@ let trace_tag_of_string s =
 val all_trace_tags : list trace_tag
 let all_trace_tags = sortBy (fun t1 t2 -> string_of_trace_tag t1 <= string_of_trace_tag t2)
   [ Trace_symbolic
+  ; Trace_syscall
   ; Trace_traps
   ; Trace_undef
   ; Trace_unspec
@@ -1629,6 +1633,11 @@ let string_of_job_number (cur_id, prev_id) job =
      else if job.id = prev_id
      then "-"
      else " ") ^ " "
+
+type jobs_mode = JobsNormal | JobsTerse | JobsLong | JobsFGCommand | JobsBGCommand
+
+let padded_string_of_job_status job =
+  pad_right (string_of_job_status job.status) 25 (* width taken from bash *)
       
 val ran_command_substitution : expansion_step -> bool
 let rec ran_command_substitution estep =
@@ -2055,6 +2064,33 @@ and string_of_parse_source src =
   | ParseSTDIN -> "<STDIN>"
   | ParseString _ cmd -> "'" ^ cmd ^ "'"
   | ParseFile file _push -> file
+  end
+
+let rec string_of_job_pipeline curjob job pipeline first =
+  match pipeline with
+  | [] -> ""
+  | (pid,stmt)::pipeline' ->
+     (if first then string_of_job_number curjob job else "      ") ^
+     pad_right (stringFromNat pid) 6 ^
+     (if first then padded_string_of_job_status job else toString (replicate 23 #' ') ^ "| ") ^
+     string_of_stmt stmt ^ "\n" ^
+     string_of_job_pipeline curjob job pipeline' false
+  end
+
+let string_of_job mode curjob job = 
+  match mode with
+  | JobsTerse -> stringFromNat job.pid ^ "\n"
+  | JobsFGCommand ->
+     string_of_stmt job.cmd ^ "\n"
+  | JobsBGCommand ->
+     "[" ^ stringFromNat job.id ^ "] " ^
+     string_of_stmt job.cmd ^ "\n"
+  | JobsNormal ->
+     string_of_job_number curjob job ^ 
+     padded_string_of_job_status job ^
+     string_of_stmt job.cmd ^ "\n"
+  | JobsLong -> 
+     string_of_job_pipeline curjob job job.pipeline true
   end
 
 val nat_of_symbolic_string : symbolic_string -> either string nat

@@ -471,7 +471,7 @@ let real_read_char_fd (fd:int) : (string,char option) either =
   with Unix.Unix_error(Unix.EPIPE,_,_) -> Left "broken pipe"
      | Unix.Unix_error(Unix.EBADF,_,_) -> Left "no such fd"
 
-let real_read_line_fd backslash_escapes (fd:int) 
+let real_read_line_fd (fd:int) backslash_escapes
     : (string, string * bool (* eof? *)) either =
   let rec loop cs =
     match real_read_char_fd fd with

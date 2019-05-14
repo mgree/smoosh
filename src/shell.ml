@@ -67,7 +67,7 @@ let usage_msg =
 
 let show_usage () =
   prerr_string usage_msg;
-  exit 2
+  Pervasives.exit 2
   
 let bad_arg msg =
   Printf.eprintf "bad argument: %s\n" msg;
@@ -76,7 +76,7 @@ let bad_arg msg =
 let bad_file file msg =
   let prog = Filename.basename Sys.executable_name in
   Printf.eprintf "%s: file '%s' %s\n%!" file msg;
-  exit 3
+  Pervasives.exit 3
   
 let rec parse_arg_loop args =
   match args with
@@ -123,7 +123,7 @@ let rec parse_arg_loop args =
      | ['-'; '-'; 'v'; 'e'; 'r'; 's'; 'i'; 'o'; 'n'] -> 
         begin 
           Printf.printf "%s%!" Version.smoosh_info;
-          exit 0
+          Pervasives.exit 0
         end
      | ['-'; 'o'] -> parse_longopt add_opt
      | ['+'; 'o'] -> parse_longopt del_opt

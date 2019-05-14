@@ -136,7 +136,7 @@ declare ocaml target_rep function real_write_fd = `System.real_write_fd`
 val real_read_all_fd : fd -> maybe string
 declare ocaml target_rep function real_read_all_fd = `System.real_read_all_fd`
 
-val real_read_line_fd : bool -> fd -> either string (string * bool)
+val real_read_line_fd : fd -> bool -> either string (string * bool)
 declare ocaml target_rep function real_read_line_fd = `System.real_read_line_fd`
 
 val real_pipe : unit -> fd * fd
@@ -216,17 +216,17 @@ val dash_setvar : string -> symbolic_string -> unit
 declare ocaml target_rep function dash_setvar = `Shim.dash_setvar`
 
 instance (OS unit)
-  let set_ps1 os new_ps1 = 
+  let os_set_ps1 os new_ps1 = 
     let _ = dash_setvar "PS1" new_ps1 in
     os
 
-  let set_ps2 os new_ps2 = 
+  let os_set_ps2 os new_ps2 = 
     let _ = dash_setvar "PS2" new_ps2 in
     os
 
-  let getpwnam _os nam = real_getpwnam nam
+  let os_getpwnam _os nam = real_getpwnam nam
                        
-  let execve os0 sprog sargv0 sargv senv binsh =
+  let os_execve os0 sprog sargv0 sargv senv binsh =
     let (os1,_,prog) = concretize os0 sprog in
     let (os2,_,argv0) = concretize os1 sargv0 in
     let (os3,_,argv) = concretize_many os2 sargv in
@@ -236,7 +236,7 @@ instance (OS unit)
     | Nothing -> (os4, Right Done)
     end
 
-  let fork_and_subshell os stmt bg pgid jc =
+  let os_fork_and_subshell os stmt bg pgid jc =
     let (subsh,handlers) = prepare_subshell os.sh in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
@@ -260,62 +260,62 @@ instance (OS unit)
     in
     (os, pid)
 
-  let physical_cwd _os = real_physical_cwd ()
+  let os_physical_cwd _os = real_physical_cwd ()
 
-  let chdir os path =
+  let os_chdir os path =
     match real_chdir path with
     | Nothing -> (<| os with sh = <| os.sh with cwd = path |> |>, Nothing)
     | Just err -> (os, Just err)
     end
       
-  let file_exists _os path = real_file_exists path
+  let os_file_exists _os path = real_file_exists path
 
-  let file_size _os path = real_file_size path
+  let os_file_size _os path = real_file_size path
 
-  let file_perms _os path = 
+  let os_file_perms _os path = 
     match real_file_perms path with
     | Nothing -> Nothing
     | Just num_perms -> Just (perms_of_nat num_perms)
     end
 
-  let file_type _os path = real_file_type path
+  let os_file_type _os path = real_file_type path
 
-  let file_type_follow _os path = real_file_type_follow path
+  let os_file_type_follow _os path = real_file_type_follow path
 
-  let is_tty _os fd = real_is_tty fd
+  let os_is_tty _os fd = real_is_tty fd
 
-  let is_readable _os path = real_is_readable path
-  let is_writeable _os path = real_is_writeable path
-  let is_executable _os path = real_is_executable path
+  let os_is_readable _os path = real_is_readable path
+  let os_is_writeable _os path = real_is_writeable path
+  let os_is_executable _os path = real_is_executable path
 
-  let readdir _os path = 
+  let os_readdir _os path = 
     let contents = real_readdir path in
     let convert (f,is_dir) = (f,if is_dir then Dir () else File) in
     Set.fromList (map convert contents)
 
-  let write_fd os fd s =
+  let os_write_fd os fd s =
     if real_write_fd fd s
     then Just os
     else Nothing
 
-  let read_all_fd _step_eval os fd = (os, Right (real_read_all_fd fd))
+  let os_read_all_fd _step_eval os fd = (os, Right (real_read_all_fd fd))
 
-  let read_line_fd os backslash_escapes fd =
-    match real_read_line_fd backslash_escapes fd with
+  let os_read_line_fd os fd escapes =
+    match real_read_line_fd fd (allow_escapes escapes) with
     | Left err -> (os, ReadError err)
     | Right (s, hit_eof) ->
        (os, ReadSuccess s (if hit_eof then ReadEOF else ReadContinue))
     end
 
-  let close_fd os fd =
+  let os_close_fd os fd =
     let () = real_close fd in
     os
 
-  let pipe os =
+  let os_pipe os =
     let (fd_read, fd_write) = real_pipe () in
     (os, fd_read, fd_write)
 
-  let exit os =
+  let os_exit os =
     (* turn off SIGINT handling if it's the interactive 'continue repl' handler *)
     let _ =
       if is_interactive os && not (Map.member SIGINT os.sh.traps)
@@ -324,16 +324,16 @@ instance (OS unit)
     in
     real_exit os.sh.exit_code
 
-  let waitpid _step_eval os0 pid =
+  let os_waitpid _step_eval os0 pid =
     let mcode = real_waitpid os0.sh.rootpid pid (is_monitoring os0) in
     match mcode with
     | Nothing -> (os0, Nothing)
     | Just code -> (os0, Just (Right code))
     end
 
-  let waitchild = system_wait_child
+  let os_waitchild = system_wait_child
 
-  let handle_signal os0 signal action =
+  let os_handle_signal os0 signal action =
     let actual_action =
       match action with
       | Nothing -> Nothing
@@ -349,7 +349,7 @@ instance (OS unit)
     in
     os0
 
-  let signal_pid os0 signal pid as_pg =
+  let os_signal_pid os0 signal pid as_pg =
     match ocaml_signal_of_signal signal with
     | Nothing -> (os0, false)
     | Just ocaml_signal ->
@@ -357,15 +357,15 @@ instance (OS unit)
        (os0, success)
     end
 
-  let pending_signal os0 = 
+  let os_pending_signal os0 = 
     (os0, real_pending_signal ())
 
-  let tc_setfg os0 pid =
+  let os_tc_setfg os0 pid =
     if is_monitoring os0
     then (os0, real_tcsetpgrp pid)
     else (os0, false)
 
-  let set_job_control os0 on =
+  let os_set_job_control os0 on =
     let _ = 
       if on
       then real_enable_jobcontrol os0.sh.rootpid
@@ -373,17 +373,17 @@ instance (OS unit)
     in
     os0
 
-  let times _os = real_times ()
+  let os_times _os = real_times ()
 
-  let get_umask _os = 
+  let os_get_umask _os = 
     let umask = real_get_umask () in
     perms_of_nat umask
 
-  let set_umask os mask = 
+  let os_set_umask os mask = 
     let _ = real_set_umask (nat_of_perms mask) in
     os
 
-  let open_file_for_redir os0 ty sfile =
+  let os_open_file_for_redir os0 ty sfile =
     let flags = flags_of_redir_type os0 ty in
     let (os1,_,file) = concretize os0 sfile in
     (os1,
@@ -392,19 +392,19 @@ instance (OS unit)
      | Right new_fd -> Right new_fd
      end)
    
-  let open_heredoc os s =
+  let os_open_heredoc os s =
     match real_openhere s with
     | Left err -> Left err
     | Right fd -> Right (os, fd)
     end
 
-  let close_and_save_fd os fd = 
+  let os_close_and_save_fd os fd = 
     (os, real_close_and_save_fd fd)
 
-  let renumber_fd os close new_fd wanted_fd = 
+  let os_renumber_fd os close new_fd wanted_fd = 
     (os, real_renumber_fd (should_close_orig close) new_fd wanted_fd)
 
-  let restore_fd os orig_fd info =
+  let os_restore_fd os orig_fd info =
     let to_close = 
       match info with
       | Saved saved -> 
