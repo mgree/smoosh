@@ -41,7 +41,8 @@
         drops local flag? not the case in bash, dash or yash :(
   + semantics
     [ ] consider locals in exported lists (`CommandReady`)
-    [ ] fix redundant logic calling set_param on exported variables (`CommandReady`)
+    [ ] fix redundant logic calling `set_param` on exported variables (`CommandReady`)
+        move all of this logic to `run_command`?
     [ ] pop locals on function return (`Call`)
   + command
     [ ] `run_command` takes `env` as an argument without exports
@@ -170,6 +171,8 @@
   + pretty printer for JSON output
 
 ### Long-term
+
+- OSS fuzz; fuzz a variety of shells
 
 - generate symbolic results of unknown executables
 
