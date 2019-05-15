@@ -349,7 +349,9 @@ function stmtCase(info, elt, fArgs, stmt) {
 function renderStmt(info, elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got ' + stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
-  console.assert(['Command', 'CommandExpAssign', 'CommandExpArgs', 'CommandExpRedirs',
+  console.assert(['Command', 
+                  'CommandExpArgs', 'CommandExpRedirs', 'CommandExpAssign', 
+                  'CommandReady',
                   'Pipe', 
                   'Redir', 'RedirExpRedirs', 
                   'Background', 'BackgroundExpRedirs', 
@@ -367,7 +369,7 @@ function renderStmt(info, elt, stmt) {
   
   switch (stmt['tag']) {
     case 'Command':
-      // | Command (assigns, args, rs) -> 
+      // | Command (assigns, args, rs, _opts) -> 
       //    Assoc [tag "Command"; 
       //           ("assigns", List (List.map json_of_assign assigns));
       //           ("args", json_of_words args);
@@ -377,38 +379,45 @@ function renderStmt(info, elt, stmt) {
 
       break;
 
-    case 'CommandExpAssign':
-      // | CommandExpAssign (assigns, args, rs) -> 
-      //    Assoc [tag "CommandExpAssign"; 
-      //           ("assigns", List (List.map json_of_inprogress_assign assigns));
-      //           ("args", json_of_words args);
-      //           ("rs", json_of_redirs rs)]
-
-      stmtSimple(info, elt, stmt, renderExpansionState, renderWords);
-
-      break;
-
     case 'CommandExpArgs':
-      // | CommandExpArgs (assigns, args, rs) ->
+      // | CommandExpArgs (assigns, args, rs, _opts) ->
       //    Assoc [tag "CommandExpArgs"; 
-      //           ("assigns", List (List.map json_of_expanded_assign assigns));
+      //           ("assigns", List (List.map json_of_assign assigns));
       //           ("args", json_of_expansion_state args);
       //           ("rs", json_of_redirs rs)]
 
-      stmtSimple(info, elt, stmt, renderFields, renderExpansionState);
+      stmtSimple(info, elt, stmt, renderWords, renderExpansionState);
 
       break;
 
     case 'CommandExpRedirs':
-      // | CommandExpRedirs (assigns, args, ers, mes, rs) ->
+      // | CommandExpRedirs (assigns, args, redir_state, _opts) ->
       //    Assoc ([tag "CommandExpRedirs"; 
-      //            ("assigns", List (List.map json_of_expanded_assign assigns));
-      //            ("args", json_of_fields args);
-      //            ("ers", json_of_expanded_redirs ers)] @
-      //            (match mes with
-      //             | None -> [] 
-      //             | Some es -> [("exp_redir", json_of_expanding_redir es)]) @
-      //            [("rs", json_of_redirs rs)])
+      //            ("assigns", List (List.map json_of_assign assigns));
+      //            ("args", json_of_fields args)]
+      //           @ fields_of_redir_state redir_state)
+
+      stmtSimple(info, elt, stmt, renderWords, renderFields);
+
+      break;
+
+    case 'CommandExpAssign':
+      // | CommandExpAssign (assigns, args, saved_fds, _opts) -> 
+      //    Assoc [tag "CommandExpAssign"; 
+      //           ("assigns", List (List.map json_of_inprogress_assign assigns));
+      //           ("args", json_of_fields args);
+      //           ("saved_fds", json_of_saved_fds saved_fds)]
+
+      stmtSimple(info, elt, stmt, renderExpansionState, renderFields);
+
+      break;
+
+    case 'CommandReady':
+      // | CommandReady (assigns, cmd, args, saved_fds, _opts) -> 
+      //    Assoc [tag "CommandReady"; 
+      //           ("assigns", List (List.map json_of_expanded_assign assigns));
+      //           ("args", json_of_fields (cmd::args));
+      //           ("saved_fds", json_of_saved_fds saved_fds)]
 
       stmtSimple(info, elt, stmt, renderFields, renderFields);
 

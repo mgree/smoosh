@@ -894,9 +894,10 @@ and words = list entry
           
 and stmt =
     Command of list (string * words) * words * list redir * command_opts
-  | CommandExpAssign of list (string * expansion_state) * words * list redir * command_opts
-  | CommandExpArgs of list (string * fields) * expansion_state * list redir * command_opts
-  | CommandExpRedirs of list (string * fields) * fields * redir_state * command_opts
+  | CommandExpArgs of list (string * words) * expansion_state * list redir * command_opts
+  | CommandExpRedirs of list (string * words) * fields * redir_state * command_opts
+  | CommandExpAssign of list (string * expansion_state) * fields * saved_fds * command_opts
+  | CommandReady of list (string * fields) * symbolic_string * fields * saved_fds * command_opts
   | Pipe of bg_mode * list stmt
   | Redir of stmt * redir_state
   | Background of stmt * redir_state
@@ -1462,10 +1463,10 @@ let default_cmd_opts =
 
 val simple_command : string -> fields -> env -> stmt
 let simple_command cmd args env =
-  CommandExpRedirs
+  CommandReady
     (assigns_of_env env)
-    ((symbolic_string_of_string cmd)::args)
-    ([], Nothing, [])
+    (symbolic_string_of_string cmd) args
+    []
     <| default_cmd_opts with ran_cmd_subst = true |> (* ensure ec is set *)
 
 val skip : stmt
@@ -1505,12 +1506,14 @@ let rec try_avoid_fork stmt =
   match stmt with
   | Command assigns args redirs opts ->
      Command assigns args redirs <| opts with should_fork = false |>
-  | CommandExpAssign exp_assigns args redirs opts ->
-     CommandExpAssign exp_assigns args redirs <| opts with should_fork = false |>
   | CommandExpArgs assigns exp_args redirs opts ->
      CommandExpArgs assigns exp_args redirs <| opts with should_fork = false |>
   | CommandExpRedirs assigns args exp_redirs opts ->
      CommandExpRedirs assigns args exp_redirs <| opts with should_fork = false |>
+  | CommandExpAssign exp_assigns args saved_fds opts ->
+     CommandExpAssign exp_assigns args saved_fds <| opts with should_fork = false |>
+  | CommandReady assigns cmd args saved_fds opts ->
+     CommandReady assigns cmd args saved_fds <| opts with should_fork = false |>
   | Redir stmt' redir_state ->
      Redir (try_avoid_fork stmt') redir_state
   | _ -> stmt
@@ -1745,15 +1748,18 @@ and string_of_stmt c =
   | Command assigns cmds redirs _opts ->
      string_of_simple string_of_words string_of_words string_of_redirs
        assigns cmds redirs
-  | CommandExpAssign assigns cmds redirs _opts -> 
-     string_of_simple string_of_expansion_state string_of_words string_of_redirs
-       assigns cmds redirs
   | CommandExpArgs assigns cmds redirs _opts -> 
-     string_of_simple string_of_fields string_of_expansion_state string_of_redirs
+     string_of_simple string_of_words string_of_expansion_state string_of_redirs
        assigns cmds redirs
   | CommandExpRedirs assigns cmds redir_state _opts ->
-     string_of_simple string_of_fields string_of_fields string_of_redir_state
+     string_of_simple string_of_words string_of_fields string_of_redir_state
        assigns cmds redir_state
+  | CommandExpAssign assigns cmds saved_fds _opts -> 
+     string_of_simple string_of_expansion_state string_of_fields (fun _ -> "")
+       assigns cmds saved_fds
+  | CommandReady assigns cmd args saved_fds _opts -> 
+     string_of_simple string_of_fields string_of_fields (fun _ -> "")
+       assigns (cmd::args) saved_fds
   | Pipe mode cmds ->
      let p = concat " | " (List.map string_of_stmt cmds) in
      if is_bg mode then background p else p

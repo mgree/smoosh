@@ -655,22 +655,97 @@ and step_eval s0 checked stmt =
   match stmt with
   (* COMMAND ******************************************************************)
   | Command assigns ws redirs opts ->
-     Right (XSSimple "begin expansion",
+     Right (XSSimple "expand command args",
             s0,
-            CommandExpAssign
-              (map (fun (x, w) -> (x, ExpStart <| splitting = NoSplit; globbing = false |> w)) assigns)
-              ws
+            CommandExpArgs 
+              assigns 
+              (ExpStart <| splitting = Split; globbing = true |> ws)
               redirs
               opts)
-  (* COMMAND: SPECIAL CASE: plain assignment, no command **********************)
+
+  | CommandExpArgs assigns exp_state redirs opts ->
+      let (step, s1, st1) = step_expansion (s0, exp_state) in
+      match st1 with
+        | ExpError err -> expansion_error true (* may exit *) s1 (XSSimple "arg expansion") step err
+        | ExpDone f ->
+           let msg = 
+             show (length f) ^ " " ^ if length f = 1 then "argument" else "arguments" ^ 
+             " fully expanded (including command)"
+           in
+           Right (XSExpand (XSSimple msg) step, 
+                  s1, 
+                  CommandExpRedirs assigns f ([], Nothing, redirs) opts)
+        | _ ->
+           Right (XSExpand (XSSimple "argument expansion step") step,
+                  s1,
+                  CommandExpArgs assigns st1 redirs opts)
+      end
+
+   (* done expanding redirs *)
+   | CommandExpRedirs assigns args (ers, Nothing, []) opts ->
+     let (s1, prog_special) = 
+       match args with
+       | s_prog::_ ->
+          let (s1, _, prog_name) = concretize s0 s_prog in
+          (s1, is_special_builtin prog_name)
+       | _ -> (s0, false)
+       end
+     in
+     let catching_errors = not (checked_exit checked) && Set.member Sh_errexit s1.sh.opts in
+     let exit_on_error = 
+       catching_errors ||
+       (prog_special && 
+        not opts.force_simple_command && 
+        not (is_interactive s1)) (* per table in 2.8.1 *)
+     in
+     match do_redirs s1 ers with
+     | (s2, Left msg) ->
+        check_traps
+          (Right (XSSimple ("error in redirection: " ^ msg), 
+                  fail_with msg s2,
+                  if exit_on_error then Exit else Done))
+     | (s2, Right saved_fds) ->
+        let exp_assigns = 
+          map (fun (x, w) -> 
+              (x, ExpStart <| splitting = NoSplit; globbing = false |> w)) 
+            assigns
+        in
+        Right (XSSimple "redirected; expanding assignments",
+               s2,
+               CommandExpAssign exp_assigns args saved_fds opts)
+     end
+
+   (* expand redirs *)
+   | CommandExpRedirs assigns args redir_state opts ->
+      match step_redir_state s0 redir_state with
+      | (s1, msg, Nothing) ->
+         let (s2, may_exit) =
+           match args with
+           | ss_prog::_ ->
+              let (s2, _, prog) = concretize s1 ss_prog in
+              (s2, is_special_builtin prog)
+           | _ -> (s1, false)
+           end
+         in
+         expansion_error may_exit s2 (XSSimple "error in redirect expansion") (ESStep "") 
+           [symbolic_string_of_string msg]
+      | (s1, msg, Just (redir_state', mstep)) ->
+         let (ran_cmd_subst', step) =
+           match mstep with
+           | Just estep -> (opts.ran_cmd_subst || ran_command_substitution estep,
+                            XSExpand (XSSimple msg) estep)
+           | Nothing -> (opts.ran_cmd_subst, XSSimple msg)
+         end in
+         let opts' = <| opts with ran_cmd_subst = ran_cmd_subst' |> in
+         Right (step, s1,
+                CommandExpRedirs assigns args redir_state' opts')
+      end
+
+  (* COMMAND: SPECIAL CASE: plain assignment, no command **************)
   (* in this case, we WANT the visibility between each assignment, so
      don't bother with the step_assigns rigamarole below
-
-     "If there is no command name, but the command contained a command
-     substitution, the command shall complete with the exit status of
-     the last command substitution performed. Otherwise, the command
-     shall complete with a zero exit status" *)
-  | CommandExpAssign ((x,exp_state0)::assigns) [] redirs opts ->
+   *)
+  | CommandExpAssign ((x,exp_state0)::assigns) [] saved_fds opts ->
      let (step, s1, exp_state1) = step_expansion (s0, exp_state0) in
      let opts' = <| opts with
          ran_cmd_subst = opts.ran_cmd_subst || ran_command_substitution step
@@ -689,61 +764,54 @@ and step_eval s0 checked stmt =
            let s3 = xtrace (x ^ "=" ^ string_of_fields f) s2 in
            Right (XSSimple ("assign " ^ x),
                   s3, 
-                  CommandExpAssign assigns [] redirs opts')
+                  CommandExpAssign assigns [] saved_fds opts')
         end
-     | ExpError err -> expansion_error true (* may exit *) s1 (XSSimple "assignment expansion") step err
+     | ExpError err -> 
+        expansion_error true (* may exit *) s1 (XSSimple "assignment expansion") step err
      | _ -> 
         Right (XSExpand (XSSimple "") step,
                s1, 
-               CommandExpAssign ((x,exp_state1)::assigns) [] redirs opts')
+               CommandExpAssign ((x,exp_state1)::assigns) [] saved_fds opts')
      end
-  | CommandExpAssign [] [] redirs opts ->
-     (* keep on expanding, since we have to actually expand the redirects no matter what *)
-     Right (XSSimple "assignments complete", s0, CommandExpRedirs [] [] ([], Nothing, redirs) opts)
 
-  (* GENERAL CASE: command with possible assignments, which no longer
-     go in the general environment 
+  (* all local assignments are done, just need to restore fds from redirs 
 
-     we therefore fake ran_cmd_subst as 'true' below, not that it will
-     matter 
-
-     TODO 2019-03-14 bug vs. spec: these assignments should happen later
-     
+     "If there is no command name, but the command contained a command
+     substitution, the command shall complete with the exit status of
+     the last command substitution performed. Otherwise, the command
+     shall complete with a zero exit status"
    *)
-  | CommandExpAssign assigns ws redirs opts ->
+  | CommandExpAssign [] [] saved_fds opts ->
+     let s1 = restore_fds s0 saved_fds in
+     let s2 = 
+       if opts.ran_cmd_subst
+       then s1
+       else exit_with 0 s1
+     in
+     Right (XSSimple "finished assignments, popping redirects",
+            s2,
+            Done)
+
+  (* GENERAL CASE: command with possible assignments ******************)
+  (* assignments no longer go in the general environment *)
+  | CommandExpAssign assigns (cmd::argv as args) saved_fds opts ->
      match step_assign s0 assigns with
      (* Perform an expansion step in an assignment *)
      | SAStep exp_step s1 assigns' ->
         Right (exp_step,
                s1,
-               CommandExpAssign assigns' ws redirs opts)
+               CommandExpAssign assigns' args saved_fds opts)
      | SAError f -> expansion_error true (* may exit *) s0 (XSSimple "assign expansion") (ESStep "") f
      (* Done, move on to expanding arguments *)
-     | SADone fields ->
+     | SADone assigns' ->
         Right (XSSimple "assignments fully expanded",
                s0,
-               CommandExpArgs fields (ExpStart <| splitting = Split; globbing = true |> ws) redirs opts)
+               CommandReady assigns' cmd argv saved_fds opts)
     end
-  | CommandExpArgs assigns exp_state redirs opts ->
-      let (step, s1, st1) = step_expansion (s0, exp_state) in
-      match st1 with
-        | ExpError err -> expansion_error true (* may exit *) s1 (XSSimple "arg expansion") step err
-        | ExpDone f ->
-           let msg = 
-             show (length f) ^ " " ^ if length f = 1 then "argument" else "arguments" ^ 
-             " fully expanded (including command)"
-           in
-           Right (XSExpand (XSSimple msg) step, 
-                  s1, 
-                  CommandExpRedirs assigns f ([], Nothing, redirs) opts)
-        | _ ->
-           Right (XSExpand (XSSimple "argument expansion step") step,
-                  s1,
-                  CommandExpArgs assigns st1 redirs opts)
-      end
-  (* COMMAND: Redirect expansion **********************************************)
+
+  (* COMMAND: ready ***************************************************)
   (* expansion is done, try to run command *)
-  | (CommandExpRedirs assigns (prog::args) (ers, Nothing, []) opts as cmd) ->
+  | (CommandReady assigns prog args saved_fds opts as cmd) ->
      if Set.member Sh_noexec s0.sh.opts
      then Right (XSSimple "set -n: skipping command", s0, Done)
      else
@@ -822,89 +890,23 @@ and step_eval s0 checked stmt =
         not opts.force_simple_command && 
         not (is_interactive s1)) (* per table in 2.8.1 *)
      in
-     match do_redirs s1 ers with
-     | (s2, Left msg) ->
+     match run_command s1 opts checked prog args env with
+     | Right (s2, stmt', restore) -> 
+        Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
+               s2, 
+               if catching_errors && s2.sh.exit_code <> 0
+               then Exit
+               else if restore 
+               then pushredir stmt' saved_fds 
+               else stmt')
+     | Left (s2,msg) -> 
         check_traps
-          (Right (XSSimple ("error in redirection: " ^ msg), 
-                  fail_with msg s2, 
-                  if exit_on_error then Exit else Done))
-     | (s2, Right saved_fds) ->
-       (* run command *)
-       match run_command s2 opts checked prog args env with
-       | Right (s3, stmt', restore) -> 
-          Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
-                 s3, 
-                 if catching_errors && s3.sh.exit_code <> 0
-                 then Exit
-                 else if restore 
-                 then pushredir stmt' saved_fds 
-                 else stmt')
-       | Left (s3,msg) -> 
-          check_traps
-            (Right (XSSimple "couldn't run command", 
-                    fail_with (string_of_symbolic_string prog ^ ": " ^ msg) s3, 
-                    if exit_on_error then Exit else pushredir Done saved_fds))
-       end
+          (Right (XSSimple "couldn't run command", 
+                  fail_with (string_of_symbolic_string prog ^ ": " ^ msg) s2, 
+                  if exit_on_error 
+                  then Exit 
+                  else pushredir Done saved_fds))
      end
-  (* expansion is done, but there's no command *)
-  | (CommandExpRedirs _assigns [] (ers, Nothing, []) opts as cmd) ->
-     (* we've already done whatever assignments above, in the special
-        case.  it remains to set up redirects for side effects/file
-        creation
-
-        e.g., unset x y ; x=5 >${y=3} will set x to 5, y to 3, and
-        create an empty file named 3 *)
-     (* "If there is no command name, any redirections shall be
-        performed in a subshell environment; it is unspecified whether
-        this subshell environment is the same one as that used for a
-        command substitution within the command. (To affect the
-        current execution environment, see the exec special built-in.)
-        If any of the redirections performed in the current shell
-        execution environment fail, the command shall immediately fail
-        with an exit status greater than zero, and the shell shall
-        write an error message indicating the failure. See
-        Consequences of Shell Errors for the consequences of these
-        failures on interactive and non-interactive shells."  *)
-     (* So... we're cheating on this a little. Rather than
-        subshelling, we do the redirs and then record a pushredir. *)
-     match do_redirs s0 ers with
-     | (s1, Left msg) -> 
-        (* dash doesn't set the variables if the redirect failed *)
-        check_traps (Right (XSSimple ("error in redirection"), 
-                            fail_with msg s1, 
-                            Done))
-     | (s1, Right saved_fds) ->
-        let s2 = xtrace (string_of_stmt cmd) s1 in
-        let s3 = if opts.ran_cmd_subst then s2 else exit_with 0 s2 in
-        check_traps (Right (XSSimple "ran empty command",
-                            s3,
-                            pushredir Done saved_fds))
-     end
-   (* expand redirs *)
-   | CommandExpRedirs assigns args redir_state opts ->
-      match step_redir_state s0 redir_state with
-      | (s1, msg, Nothing) ->
-         let (s2, may_exit) =
-           match args with
-           | ss_prog::_ ->
-              let (s2, _, prog) = concretize s1 ss_prog in
-              (s2, is_special_builtin prog)
-           | _ -> (s1, false)
-           end
-         in
-         expansion_error may_exit s2 (XSSimple "error in redirect expansion") (ESStep "") 
-           [symbolic_string_of_string msg]
-      | (s1, msg, Just (redir_state', mstep)) ->
-         let (ran_cmd_subst', step) =
-           match mstep with
-           | Just estep -> (opts.ran_cmd_subst || ran_command_substitution estep,
-                            XSExpand (XSSimple msg) estep)
-           | Nothing -> (opts.ran_cmd_subst, XSSimple msg)
-         end in
-         let opts' = <| opts with ran_cmd_subst = ran_cmd_subst' |> in
-         Right (step, s1,
-                CommandExpRedirs assigns args redir_state' opts')
-      end
 
   (* PIPE *********************************************************************)
   | Pipe bg_mode stmts ->

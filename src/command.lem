@@ -1134,13 +1134,10 @@ let builtin_command s0 argv env =
   let (mode, path) = command_mode opts in
   match (mode,argv') with
   | (CMRun, []) -> Right (s0, Done)
-  | (CMRun, _::_) -> 
-     Right (s0,
-            CommandExpRedirs 
-              (assigns_of_env env) (* convert env *)
-              argv' (* copy over command args *)
-              ([],Nothing,[])
-              <| default_cmd_opts with force_simple_command = true |>)
+  | (CMRun, cmd::args) -> 
+     Right (s0, 
+            CommandReady (assigns_of_env env) cmd args []
+            <| default_cmd_opts with force_simple_command = true |>)
   | (CMVerbose human_readable, _) ->
      show_commands
        (if human_readable then human_readable_command_type else concise_command_type)

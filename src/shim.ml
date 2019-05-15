@@ -429,21 +429,26 @@ let rec json_of_stmt = function
             ("assigns", List (List.map json_of_assign assigns));
             ("args", json_of_words args);
             ("rs", json_of_redirs rs)]
-  | CommandExpAssign (assigns, args, rs, _opts) -> 
-     Assoc [tag "CommandExpAssign"; 
-            ("assigns", List (List.map json_of_inprogress_assign assigns));
-            ("args", json_of_words args);
-            ("rs", json_of_redirs rs)]
   | CommandExpArgs (assigns, args, rs, _opts) ->
      Assoc [tag "CommandExpArgs"; 
-            ("assigns", List (List.map json_of_expanded_assign assigns));
+            ("assigns", List (List.map json_of_assign assigns));
             ("args", json_of_expansion_state args);
             ("rs", json_of_redirs rs)]
   | CommandExpRedirs (assigns, args, redir_state, _opts) ->
      Assoc ([tag "CommandExpRedirs"; 
-             ("assigns", List (List.map json_of_expanded_assign assigns));
+             ("assigns", List (List.map json_of_assign assigns));
              ("args", json_of_fields args)]
             @ fields_of_redir_state redir_state)
+  | CommandExpAssign (assigns, args, saved_fds, _opts) -> 
+     Assoc [tag "CommandExpAssign"; 
+            ("assigns", List (List.map json_of_inprogress_assign assigns));
+            ("args", json_of_fields args);
+            ("saved_fds", json_of_saved_fds saved_fds)]
+  | CommandReady (assigns, cmd, args, saved_fds, _opts) -> 
+     Assoc [tag "CommandReady"; 
+            ("assigns", List (List.map json_of_expanded_assign assigns));
+            ("args", json_of_fields (cmd::args));
+            ("saved_fds", json_of_saved_fds saved_fds)]
   | Pipe (mode, cs) -> 
      Assoc [tag "Pipe"; ("bg", Bool (is_bg mode)); ("cs", List (List.map json_of_stmt cs))]
   | Redir (c, redir_state) ->
