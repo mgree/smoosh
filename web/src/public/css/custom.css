@@ -30,6 +30,11 @@ pre.redir-Heredoc-text {
 
 span.comment {
     background-color: seashell;
+    margin-left: 2em;
+}
+
+span.comment::before {
+    content: "# ";
 }
 
 pre.stream {

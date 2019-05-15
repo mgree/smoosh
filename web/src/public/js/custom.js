@@ -164,9 +164,9 @@ function stmtSimple(info, elt, stmt, fAssign, fArgs) {
       for (const assign of stmt['assigns']) {
         const a = $('<span></span>').addClass('assign').appendTo(assignsExp);
         $('<span></span>').addClass('variable').append(assign['var']).appendTo(a);
-        
+
         a.append('=');
-        
+
         const v = $('<span></span>').addClass('variable').appendTo(a);
         fAssign(info, v, assign['value']);
       }
