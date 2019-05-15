@@ -1,0 +1,10 @@
+set -u
+
+f() {
+    echo $1
+    echo <none
+}
+
+set -- a b c
+f arg1 arg2
+printf '<%s>\n' "$@"
