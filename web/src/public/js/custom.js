@@ -1507,11 +1507,31 @@ function renderExpansionState(info, elt, step) {
   };
 };
 
-function renderEnv(info, elt, env) {
+function renderEnv(info, elt, env, locals) {
   console.assert(typeof env === 'object', 'expected environment object, got ' + env);
 
   let table = $('<table></table>').addClass('ui unstackable compact table').appendTo(elt);
   let header = $(table).append('<tr><th>Variable</th><th>Value</th></tr>');
+
+  for (const local_env of locals) {
+      for (const x in local_env) {
+          if (local_env.hasOwnProperty(x)) {
+              let entry = $('<tr></tr>').addClass('local').appendTo(table);
+              
+              let varname = $('<td></td>').addClass('var').appendTo(entry);
+              varname.append(x);
+              
+              let value = $('<td></td>').addClass('val').appendTo(entry);
+              if (typeof(local_env[x]) == 'string') {
+                  value.addClass(local_env[x]);
+              } else if (typeof(local_env[x]) == 'object') {
+                  renderSymbolicString(info, value, local_env[x]);
+              } else {
+                  console.assert(false, 'expected string or symbolic string, got ' + local_env[x]);
+              }
+          }
+      }
+  }
 
   for (const x in env) {
     if (env.hasOwnProperty(x)) {
@@ -1657,6 +1677,7 @@ function renderExpansionStep(info, step) {
 function renderExpansionTraceEntry(info, elt, step) {
   console.assert(typeof step === 'object', 'expected step object, got ' + step);
   console.assert('term' in step, 'expected term for step object');
+  console.assert('locals' in step, 'expected locals for step object');
   console.assert('env' in step, 'expected environment for step object');
   console.assert('step' in step, 'expected step description for step object');
 
@@ -1666,8 +1687,10 @@ function renderExpansionTraceEntry(info, elt, step) {
   let term = $('<div></div>').addClass('term').appendTo(elt);
   renderExpansionState(info, term, step['term']);
 
+  console.log(step['locals']);
+
   let env = $('<div></div>').addClass('env').appendTo(elt);
-  renderEnv(info, env, step['env']);
+  renderEnv(info, env, step['env'], step['locals']);
 
 };
 
@@ -1876,7 +1899,7 @@ function renderEvaluationTraceEntry(info, elt, step) {
   $('<div></div>').addClass('ui hidden divider').appendTo(elt);
 
   const env = $('<div></div>').addClass('env').appendTo(elt);
-  renderEnv(info, env, step['env']);
+  renderEnv(info, env, step['env'], step['locals']);
 
 };
 
@@ -1948,8 +1971,8 @@ $('#expansionForm').submit(function(e) {
             step['step']['msg'] !== "";
 
       if (hasStep) {
-          console.info('%d: term %o env %o step %o', 
-                       i, step['term'], step['env'], step['step']);
+          console.info('%d: term %o locals %o env %o step %o', 
+                       i, step['term'], step['locals'], step['env'], step['step']);
       }
 
       const info = 

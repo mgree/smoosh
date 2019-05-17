@@ -85,6 +85,7 @@ let json_of_evaluation_trace_entry (step, sh, symbolic, stmt) =
   Assoc [("step", json_of_evaluation_step step)
         (* 2017-12-22 TODO dump more of the shell state, e.g., FS? *)
         ;("env", json_of_env sh.env)
+        ;("locals", json_of_locals sh.locals)
         ;("STDOUT", json_of_fifo symbolic 1)
         ;("STDERR", json_of_fifo symbolic 2)
         ;("term", json_of_stmt stmt)

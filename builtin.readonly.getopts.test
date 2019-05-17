@@ -1,0 +1,20 @@
+go() {
+    getopts a:b opt -a -b
+    echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$?
+    getopts a:b opt -a -b
+    echo opt=$opt OPTIND=$OPTIND OPTARG=$OPTARG ?=$?
+}
+
+
+f() {
+    local opt OPTIND OPTARG;
+
+    go
+}
+
+echo before: ${opt-noopt} $OPTIND ${OPTARG-noarg}
+go
+echo ordinary: ${opt-noopt} $OPTIND ${OPTARG-noarg}
+readonly opt OPTIND OPTARG
+go
+echo with readonly: ${opt-noopt} $OPTIND ${OPTARG-noarg}

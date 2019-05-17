@@ -21,13 +21,13 @@ val run_command : forall 'a. OS 'a =>
 
 val is_special_builtin : string -> bool
 let is_special_builtin s =
-  elem s ["break";":";"continue";".";"eval";"exec";"exit";"export";"readonly";
+  elem s ["break";":";"continue";".";"eval";"exec";"exit";"export";"local";"readonly";
           "return";"set";"shift";"source";"times";"trap";"unset"]
 
 val is_builtin : string -> bool
 let is_builtin s =
   elem s ["["; "alias"; "bg"; "cd"; "command"; "echo"; "false"; "fc"; "fg"; 
-          "getopts"; "hash"; "help"; "jobs"; "kill"; "local"; (*"newgrp";*) "printf"; 
+          "getopts"; "hash"; "help"; "jobs"; "kill";(*"newgrp";*) "printf"; 
           "pwd"; "read"; "test"; "true"; "type"; "ulimit"; "umask"; "unalias"; 
           "wait"]
 
@@ -396,7 +396,7 @@ let unset_var sx s0 =
   match try_concrete sx with
   | Nothing -> Left ("couldn't unset symbolic variable " ^ string_of_symbolic_string sx)
   | Just x ->
-     if Set.member x s0.sh.readonly
+     if is_readonly x s0
      then Left (x ^ " is read-only")
      else if is_special_param x
      then Left (x ^ " is a special parameter and cannot be unset")
@@ -443,7 +443,7 @@ let builtin_unset s0 argv _env =
   let (opts,argv') = getopts [#'f'; #'v'] argv in
   (* unspec whether to unset a function if no flag is given and no such var.
      dash doesn't do it; neither will we. *)
-  (* TODO 2018-10-08 detect whether we COULD unset such a function, log_unspec *)
+  (* TODO 2018-10-08 detect whether we COULD unset such a function, log unspec *)
   let unsetter = unset_mode opts in
   unset_all unsetter argv' s0
 
@@ -488,29 +488,57 @@ let builtin_export s0 argv _env =
   let (opts,argv') = getopts [#'p'] argv in
   if elem #'p' opts || null argv'
   then (* print out current export vars *)
-    let vars = Set_extra.toOrderedList s0.sh.export in
+    let vars = Set_extra.toOrderedList (Map.domain (exported_vars s0)) in
     Right (show_varlist s0 "export" vars, Done, true)
   else (* mark export and possibly set *)
-    update_varlist 
-      s0 
-      "export" 
-      (fun os x ->
-        <| os with sh = <| os.sh with export = Set.insert x os.sh.export |> |>)
-      argv'
+    update_varlist s0 "export" set_exported argv'
 
 let builtin_readonly s0 argv _env = 
   let (opts,argv') = getopts [#'p'] argv in
   if elem #'p' opts || null argv'
   then (* print out current readonly vars *)
-    let vars = Set_extra.toOrderedList s0.sh.readonly in
+    let vars = Set_extra.toOrderedList (Map.domain (readonly_vars s0)) in
     Right (show_varlist s0 "readonly" vars, Done, true)
   else (* mark readonly and possibly set *)
-    update_varlist 
-      s0 
-      "readonly" 
-      (fun os x ->
-        <| os with sh = <| os.sh with readonly = Set.insert x os.sh.readonly |> |>)
-      argv'
+    update_varlist s0 "readonly" set_readonly argv'
+
+let rec add_locals os env args =
+  match args with
+  | [] -> Right env
+  | arg::args' ->
+     let (var,mvalue) = try_split_assign arg in
+     if is_readonly var os
+     then Left (var ^ ": readonly variable")
+     else let binding =
+            match mvalue with
+            | Nothing -> (Nothing, local_opts_default)
+            | Just value -> (Just value, local_opts_default)
+            end
+          in
+          add_locals os (Map.insert var binding env) args'
+  end
+
+let builtin_local s0 argv _env =
+  let s1 = 
+    log_trace Trace_unspec "local is unspecified; treated here as a special-builtin" s0
+  in
+  let (opts,argv') = getopts [#'p'] argv in
+  if elem #'p' opts || null argv'
+  then (* print out current local variables *)
+    let vars = get_locals s1 in
+    Right (show_varlist s1 "local" vars, Done, true)
+  else 
+    match s1.sh.locals with
+    | [] -> Left (s1, "not in a function")
+    | env::locals' ->
+       match add_locals s1 env argv' with
+       | Left err -> Left (s1, err)
+       | Right env' ->
+          Right (<| s1 with sh = <| s1.sh with locals = env'::locals' |> |>,
+                 Done,
+                 true)
+       end
+    end
 
 let builtin_times s0 _argv _env = 
   let (utime, stime, cutime, cstime) = times s0 in
@@ -579,8 +607,11 @@ let builtin_exec s0 argv env =
         match check_execve (Just "exec") s0 cmd with
         | (s1, Nothing) -> Right (s1, Done, true)
         | (s1, Just executable) -> 
+           let exported = exported_vars s1 in
+           (* use env to override exports---impl as Pmap.(union) *)
+           let exec_env = Map.(union) exported env in
            Right (s1, 
-                  Exec (symbolic_string_of_string executable) scmd args env NoBinSh, 
+                  Exec (symbolic_string_of_string executable) scmd args exec_env NoBinSh, 
                   false (* but it doesn't matter, we'll never return *))
         end
      end
@@ -835,6 +866,7 @@ let special_builtins =
     ; ("exec", builtin_exec)
     ; ("exit", builtin_exit)
     ; ("export", builtin_export)
+    ; ("local", builtin_local) (* cheating! *)
     ; ("readonly", builtin_readonly)
     ; ("return", builtin_return)
     ; ("shift", builtin_shift)
@@ -2198,9 +2230,6 @@ let builtin_help os0 argv _env =
 (* history *)
 let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stuff *)
 
-(* LATER 2018-10-01 *)
-let builtin_local = builtin_unimplemented (* unspec, but nice to have? *)
-
 (* POSIX user control *)
 let builtin_ulimit = builtin_unimplemented (* XSI *)
  
@@ -2225,7 +2254,6 @@ let builtins =
     ; ("help", builtin_help)
     ; ("jobs", builtin_jobs)
     ; ("kill", builtin_kill)
-    ; ("local", builtin_local)
 (*    ; ("newgrp", builtin_newgrp) *)
     ; ("printf", builtin_printf)
     ; ("pwd", builtin_pwd)
@@ -2246,7 +2274,10 @@ let run_command s0 opts checked prog_name argv env =
      (* TODO 2018-09-06 if there's a slash, we can skip ahead. but shouldn't hurt. *)
   (*  1a. If the command name matches the name of a special built-in utility, that special built-in utility shall be invoked. *)
      match Map.lookup prog special_builtins with
-     | Just fn -> fn s0 argv env
+     | Just fn -> 
+        (* no need to mess with locals. the env has already been
+           added, because it's a special builtin! *)
+        fn s0 argv env
      | Nothing ->
         (* 1b. b. If the command name matches the name of a utility
            listed in the following table, the results are unspecified. *)
@@ -2264,7 +2295,9 @@ let run_command s0 opts checked prog_name argv env =
              search in step 1e. *)
           match (opts.force_simple_command, lookup_function prog s0) with
           | (false, Just body) ->
-             Right (set_function_params 0 argv s0,
+             let s1 = push_locals s0 env in
+             let s2 = set_function_params 0 argv s1 in
+             Right (s2,
                     Call s0.sh.loop_nest (get_function_params s0) prog body body,
                     true)
           | _ -> 
@@ -2274,10 +2307,11 @@ let run_command s0 opts checked prog_name argv env =
                 utility shall be invoked. *)
              match Map.lookup prog builtins with
              | Just fn -> 
+                let s1 = push_locals s0 env in
                 (* force a restore *)
-                match fn s0 argv env with
-                | Left err -> Left err
-                | Right (s1, stmt) -> Right (s1, stmt, true)
+                match fn s1 argv env with
+                | Left (s1, err) -> Left (pop_locals s1, err)
+                | Right (s1, stmt) -> Right (pop_locals s1, stmt, true)
                 end
              | Nothing ->
                 match check_execve Nothing (* no prefix *) s0 prog with
@@ -2286,7 +2320,10 @@ let run_command s0 opts checked prog_name argv env =
                    Right (s1, Done, true)
                 | (s1, Just executable) ->
                    let cmd = symbolic_string_of_string executable in
-                   let exec = Exec cmd prog_name argv env TryBinSh in
+                   let exported = exported_vars s1 in
+                   (* use env to override exports---impl as Pmap.(union) *)
+                   let exec_env = Map.(union) exported env in
+                   let exec = Exec cmd prog_name argv exec_env TryBinSh in
                    if opts.should_fork 
                    then
                      let (s2,pid) =

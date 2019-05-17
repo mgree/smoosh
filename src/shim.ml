@@ -770,8 +770,21 @@ and json_field_of_src = function
 and json_of_env (env:(string, symbolic_string) Pmap.map) : json =
   Assoc (List.map (fun (k,v) -> (k, json_of_symbolic_string v)) (Pmap.bindings_list env))
 
+and json_of_local_env (env:(string, (symbolic_string option * local_opts)) Pmap.map) : json =
+  Assoc (List.map 
+           (fun (k,(m_v,opts)) -> 
+             (k, match m_v with
+                 | None -> String "unset"
+                 | Some v -> json_of_symbolic_string v))
+           (Pmap.bindings_list env))
+
+and json_of_locals (locals:(string, (symbolic_string option * local_opts)) Pmap.map list) 
+    : json =
+  List (List.map json_of_local_env locals)
+
 and json_of_shell_state (sh:shell_state) : json = 
   Assoc [("env", json_of_env sh.env);
+         ("locals", json_of_locals sh.locals);
          ("cwd", String sh.cwd);
          ("locale", String sh.locale.name)]
 

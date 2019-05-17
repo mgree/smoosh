@@ -1,0 +1,21 @@
+f() {
+    local x;
+    export x;
+    echo "f <${x-unset}>"
+    x=hi
+    echo "f <${x-still unset}>"
+    export | grep 'x='
+}
+
+echo WITH x UNSET
+echo "<${x-initially unset}>"
+f
+echo "<${x-still unset}>"
+export | grep 'x='
+
+echo WITH x SET
+x=defaulted
+echo "<${x-initially unset}>"
+f
+echo "<${x-still unset}>"
+export | grep 'x='

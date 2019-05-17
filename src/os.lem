@@ -58,6 +58,99 @@ type os_state 'a = <|
 
 (* Parameter helpers **************************************************)
 
+type local_binding = 
+    LocalNotFound 
+  | LocalUnset of local_opts
+  | LocalSet of symbolic_string * local_opts
+
+val pop_locals : forall 'a. os_state 'a -> os_state 'a
+let pop_locals os =
+  match os.sh.locals with
+  | [] -> Assert_extra.failwith "pop_locals"
+  | _::locals' -> <| os with sh = <| os.sh with locals = locals' |> |>
+  end
+
+val push_locals : forall 'a. os_state 'a -> env -> os_state 'a
+let push_locals os env =
+  let local_env = Map.map (fun v -> (Just v, local_opts_default)) env in
+  <| os with sh = <| os.sh with locals = local_env::os.sh.locals |> |>
+
+val get_locals_loop : list local_env -> set string
+let rec get_locals_loop locals =
+  match locals with
+  | [] -> Set.empty
+  | env::locals' -> Set.(union) (Map.domain env) (get_locals_loop locals')
+  end
+
+val get_locals : forall 'a. os_state 'a -> list string
+let get_locals os = Set_extra.toOrderedList (get_locals_loop os.sh.locals)
+
+val lookup_local_param_loop : string -> list local_env -> local_binding
+let rec lookup_local_param_loop x locals =
+  match locals with
+  | [] -> LocalNotFound
+  | env::locals' ->
+     match Map.lookup x env with
+     | Nothing -> lookup_local_param_loop x locals'
+     | Just (Nothing, opts) -> LocalUnset opts
+     | Just (Just ss, opts) -> LocalSet ss opts
+     end
+  end
+
+val lookup_local_param : forall 'a. os_state 'a -> string -> local_binding
+let lookup_local_param os x = lookup_local_param_loop x os.sh.locals
+
+val set_local_param_opts_loop : string -> (local_opts -> local_opts) -> list local_env -> maybe (list local_env)
+let rec set_local_param_opts_loop x upd locals =
+  match locals with
+  | [] -> Nothing
+  | env::locals' ->
+     match Map.lookup x env with
+     | Nothing -> 
+        (* not in this level of locals... recur! *)
+        match set_local_param_opts_loop x upd locals' with
+        | Nothing -> Nothing
+        | Just set_locals -> Just (env::set_locals)
+        end
+     | Just (v, opts) ->
+        let env' = Map.insert x (v, upd opts) env in
+        Just (env'::locals')
+     end
+  end
+
+val set_local_param_opts : forall 'a. os_state 'a -> string -> (local_opts -> local_opts) -> os_state 'a * bool
+let set_local_param_opts os x upd =
+  match set_local_param_opts_loop x upd os.sh.locals with
+  | Nothing -> (os, false)
+  | Just locals' -> (<| os with sh = <| os.sh with locals = locals' |> |>, true)
+  end
+
+val set_local_param_loop : string -> maybe symbolic_string -> list local_env -> maybe (list local_env)
+let rec set_local_param_loop x m_v locals =
+  match locals with
+  | [] -> Nothing
+  | env::locals' ->
+     match Map.lookup x env with
+     | Nothing -> 
+        (* not in this level of locals... recur! *)
+        match set_local_param_loop x m_v locals' with
+        | Nothing -> Nothing
+        | Just set_locals -> Just (env::set_locals)
+        end
+     | Just (_, opts) ->
+        (* we don't bother checking readonly here---we'll do it elsewhere *)
+        let env' = Map.insert x (m_v, opts) env in
+        Just (env'::locals')
+     end
+  end
+
+val set_local_param : forall 'a. os_state 'a -> string -> maybe symbolic_string -> os_state 'a * bool
+let set_local_param os x m_v =
+  match set_local_param_loop x m_v os.sh.locals with
+  | Nothing -> (os, false)
+  | Just locals' -> (<| os with sh = <| os.sh with locals = locals' |> |>, true)
+  end
+
 val lookup_positional_param : forall 'a. nat -> os_state 'a -> maybe symbolic_string
 let lookup_positional_param num os = index os.sh.positional_params num
 
@@ -89,7 +182,12 @@ let lookup_string_param os str =
      let num_params = length os.sh.positional_params in
      Just (symbolic_string_of_string (stringFromNat (max 0 (num_params - 1))))
      (* number of positional arguments excluding $0 *)
-  | (Left _,_) -> Map.lookup str os.sh.env
+  | (Left _,_) -> 
+     match lookup_local_param os str with
+     | LocalNotFound -> Map.lookup str os.sh.env
+     | LocalUnset _opts -> Nothing (* bash returns empty string; dash looks up in parent *)
+     | LocalSet ss _opts -> Just ss
+     end
   end
 
 val lookup_param : forall 'a. os_state 'a -> string -> maybe fields
@@ -136,15 +234,90 @@ let get_path os =
   end
 
 val is_readonly : forall 'a. string -> os_state 'a -> bool
-let is_readonly var os = Set.member var os.sh.readonly
-   
+let is_readonly var os = 
+  match lookup_local_param os var with
+  | LocalNotFound -> Set.member var os.sh.readonly
+  | LocalUnset opts -> opts.local_readonly
+  | LocalSet _ opts -> opts.local_readonly
+  end
+
+val set_readonly : forall 'a. os_state 'a -> string -> os_state 'a
+let set_readonly os0 x =
+  let (os1, found_local) = 
+    set_local_param_opts os0 x (fun opts -> <| opts with local_readonly = true |>) 
+  in
+  if found_local
+  then os1
+  else <| os1 with sh = <| os1.sh with readonly = Set.insert x os1.sh.readonly |> |>
+
+val set_exported : forall 'a. os_state 'a -> string -> os_state 'a
+let set_exported os0 x =
+  let (os1, found_local) = 
+    set_local_param_opts os0 x (fun opts -> <| opts with local_exported = true |>) 
+  in
+  if found_local
+  then os1
+  else <| os1 with sh = <| os1.sh with export = Set.insert x os1.sh.export |> |>
+
+val readonly_vars : forall 'a. os_state 'a -> env
+let readonly_vars os =
+  let globals = 
+    Map_extra.mapMaybe 
+      (fun x v -> if Set.member x os.sh.readonly then Just v else Nothing)
+      os.sh.env
+  in
+  let add_local lenv env =
+    let readonly_locals =
+      Map_extra.mapMaybe
+        (fun _x (m_v, opts) ->
+          if opts.local_readonly
+          then m_v
+          else Nothing)
+        lenv
+    in
+    (* override bindings in env with the local one *)
+    Map_extra.fold Map.insert env readonly_locals
+  in
+  (* foldr will let more recent locals override less recent ones---the right behaviors *)
+  List.foldr add_local globals os.sh.locals
+
+  
+val exported_vars : forall 'a. os_state 'a -> env
+let exported_vars os =
+  let globals = 
+    Map_extra.mapMaybe 
+      (fun x v -> if Set.member x os.sh.export then Just v else Nothing)
+      os.sh.env
+  in
+  let add_local lenv env =
+    let exported_locals =
+      Map_extra.mapMaybe
+        (fun _x (m_v, opts) ->
+          if opts.local_exported
+          then m_v
+          else Nothing)
+        lenv
+    in
+    (* override bindings in env with the local one *)
+    Map_extra.fold Map.insert env exported_locals
+  in
+  (* foldr will let more recent locals override less recent ones---the right behaviors *)
+  List.foldr add_local globals os.sh.locals
+
 val internal_set_param 
     : forall 'a. string -> symbolic_string -> os_state 'a -> os_state 'a
-let internal_set_param x v os = 
-  <| os with sh = <| os.sh with env = Map.insert x v os.sh.env |> |>
+let internal_set_param x v os0 =
+  let (os1, found_local) = set_local_param os0 x (Just v) in
+  if found_local
+  then os1
+  else <| os0 with sh = <| os0.sh with env = Map.insert x v os0.sh.env |> |>
 
 val unset_param : forall 'a. string -> os_state 'a -> os_state 'a
-let unset_param x os0 = <| os0 with sh = <| os0.sh with env = Map.delete x os0.sh.env |> |>
+let unset_param x os0 = 
+  let (os1, found_local) = set_local_param os0 x Nothing in
+  if found_local
+  then os1
+  else <| os0 with sh = <| os0.sh with env = Map.delete x os0.sh.env |> |>
 
 (* Logging ************************************************************)
 

@@ -11,49 +11,6 @@
 
 ### Implementation TODO
 
-- variable assignments in functions/`local`
-
-> local [option] [name[=value] ...]
->
-> -r     Make names readonly.  These names cannot then be assigned values
->        by subsequent assignment statements or unset.
->
-> -x     Mark names for export to subsequent commands via the environment.
->
-> For each argument, a local variable named name is created,
-> and assigned value. The option can be any of the options accepted by
-> declare. When local is used within a function, it causes the
-> variable name to have a visible scope restricted to that function
-> and its children. With no operands, local writes a list of local
-> variables to the standard output. It is an error to use local when
-> not within a function. The return status is 0 unless local is used
-> outside a function, an invalid name is supplied, or name is a
-> readonly variable.
-              
-  + smoosh_prelude
-    [ ] add stack of local environments: `type local_env = map string (maybe symbolic_string)`
-        need to track two bits of info: which names are local AND their values
-        local names can be unset!
-  + os
-    [ ] parameter lookup traverses local first
-    [ ] parameter set traverses local first
-    [ ] unset traverses local and global
-        drops local flag? not the case in bash, dash or yash :(
-  + semantics
-    [ ] consider locals in exported lists (`CommandReady`)
-    [ ] fix redundant logic calling `set_param` on exported variables (`CommandReady`)
-        move all of this logic to `run_command`?
-    [ ] pop locals on function return (`Call`)
-  + command
-    [ ] `run_command` takes `env` as an argument without exports
-    [ ] `run_command` manually adds exports before execve'ing
-    [ ] push locals on function call (`run_command`)
-    [ ] implement `builtin_local`
-  + shim
-    [ ] show local stack
-  + custom.js
-    [ ] show locals
-
 - history
   + fc
   + Sh_nolog

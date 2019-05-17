@@ -20,7 +20,10 @@ $(shell pwd)/default.env :
 	@echo TEST_SHELL=$$(cd ../src; pwd)/smoosh >>$@
 	@echo TEST_TIME=$$(date +%Y-%m-%d_%H:%M) >>$@
 
-utils : util/fds util/argv
+utils : util/fds util/argv util/getenv
+
+util/getenv : util/getenv.c
+	gcc -o $@ $<
 
 util/fds : util/fds.c
 	gcc -o $@ $<

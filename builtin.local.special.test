@@ -1,0 +1,7 @@
+f() {
+    X=hi local
+}
+
+echo ${X-unset}
+f
+echo ${X-still unset}

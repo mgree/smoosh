@@ -1,0 +1,11 @@
+# successful command
+unset x
+x=value command alias >/dev/null 2>&1
+echo ${x-unset}
+test -z "$x" || exit 1
+
+# unsuccessful command
+unset x
+x=value command alias -: >/dev/null 2>&1
+echo ${x-unset}
+test -z "$x" || exit 2

@@ -817,15 +817,10 @@ and step_eval s0 checked stmt =
      else
      let s0_traced = xtrace (string_of_stmt cmd) s0 in
      (* load exported variables, perform assignments *)
-     let exported = 
-       Map_extra.mapMaybe 
-         (fun x v -> if Set.member x s0_traced.sh.export then Just v else Nothing)
-         s0_traced.sh.env
-     in
      let env = 
        foldr (fun (x,f) env' -> 
            Map.insert x (symbolic_string_of_fields f) env') 
-         exported assigns
+         Map.empty assigns
      in
      (* "If the command name is a special built-in utility, variable
         assignments shall affect the current execution environment."
@@ -1191,6 +1186,22 @@ and step_eval s0 checked stmt =
            ForRunning var f body body)
      end
   | ForRunning var f body cur ->
+     let continue s0 step msg i f' =
+       match set_param var i s0 with
+       | Left err ->
+          Right (XSNested (XSFor (var ^ " became readonly")) step,
+                 fail_with err s0,
+                 if is_interactive s0 then Done else Exit)
+       | Right s1 ->
+          Right (XSNested 
+                   (XSFor 
+                      (msg ^ " to next iteration with " ^ var ^ " = " ^ 
+                         string_of_symbolic_string i)) 
+                   step,
+                 s1,
+                 ForRunning var f' body body)
+       end
+      in
       match step_eval s0 checked cur with
       | Left e -> Left e
       | Right (step, s1, Exit)       -> Right (XSNested (XSFor "exiting") step, s1, Exit)
@@ -1198,21 +1209,16 @@ and step_eval s0 checked stmt =
       | Right (step, s1, Break 1)    -> Right (XSNested (XSFor "breaking loop") step, exit_loop s1, Done)
       | Right (step, s1, Break n)    -> Right (XSNested (XSFor "breaking to outer loop") step, exit_loop s1, Break (n-1))
       | Right (step, s1, Continue 1) ->
-          match f with
-          | [] -> Right (XSNested (XSFor "continued at last iteration") step, exit_loop s1, Done)
-          | (i::f') -> Right (XSNested (XSFor ("continuing to next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step,
-                              (* if the var name was good the first time, it's still good *)
-                              internal_set_param var i s1,
-                              ForRunning var f' body body)
-          end
+         match f with
+         | [] -> Right (XSNested (XSFor "continued at last iteration") step, exit_loop s1, Done)
+         | (i::f') -> continue s1 step "continuing" i f'
+         end
       | Right (step, s1, Continue n) -> Right (XSNested (XSFor "continuing to outer loop") step, s1, Continue (n-1))
       | Right (step, s1, Done) ->
          check_traps
            (match f with
             | [] -> Right (XSNested (XSFor "finished last iteration") step, exit_loop s1, Done)
-            | (i::f') -> Right (XSNested (XSFor ("starting next iteration with " ^ var ^ " = " ^ string_of_symbolic_string i)) step,
-                                internal_set_param var i s1,
-                                ForRunning var f' body body)
+            | (i::f') -> continue s1 step "stepping" i f'
             end)
       | Right (step, s1, cur') -> Right (XSNested (XSFor "") step, s1, ForRunning var f body cur')
       end
@@ -1278,21 +1284,24 @@ and step_eval s0 checked stmt =
 
   (* CALL *********************************************************************)
   | Call old_loop_nest old_positional_params f orig c ->
+     let cleanup os =
+       set_function_params old_loop_nest old_positional_params (pop_locals os)
+     in
      match step_eval s0 checked c with
      | Left e -> Left e
      | Right (step, s1, Done) ->
         check_traps
           (Right (XSStack (f ^ ": implicit return") step,
-                  set_function_params old_loop_nest old_positional_params s1,
+                  cleanup s1,
                   Done))
      | Right (step, s1, Return) ->
         check_traps 
           (Right (XSStack (f ^ ": explicit return") step,
-                  set_function_params old_loop_nest old_positional_params s1,
+                  cleanup s1,
                   Done))
      | Right (step, s1, Exit) ->
         Right (XSStack (f ^ ": exit") step,
-               set_function_params old_loop_nest old_positional_params s1,
+               cleanup s1,
                Exit)
      (* what do we do if there's a break or continue in a call? 
         
@@ -1311,13 +1320,13 @@ and step_eval s0 checked stmt =
         for now, we'll follow bash.
       *)
      | Right (step, s1, Break n) ->
-        let s2 = set_function_params old_loop_nest old_positional_params s1 in
+        let s2 = cleanup s1 in
         let s3 = log_trace Trace_unspec "non-lexical break in function call" s2 in
         Right (XSStack (f ^ ": break [unspecified behavior]") step,
                s3,
                Break n)
      | Right (step, s1, Continue n) ->
-        let s2 = set_function_params old_loop_nest old_positional_params s1 in
+        let s2 = cleanup s1 in
         let s3 = log_trace Trace_unspec "non-lexical continue in function call" s2 in
         Right (XSStack (f ^ ": continue [unspecified behavior]") step,
                s3,

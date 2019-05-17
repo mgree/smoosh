@@ -46,3 +46,15 @@ pre.stream {
 .stmt {
     font-family: monospace;
 }
+
+div.env tr.local {
+    background-color: honeydew;
+}
+
+div.env tr.local td.val.unset {
+    background-color: seashell;
+}
+
+div.env tr.local td.val.unset::before {
+    content: "declared but unset";
+}

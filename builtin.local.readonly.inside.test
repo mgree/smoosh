@@ -1,0 +1,9 @@
+f() {
+    local x=hi
+    readonly x
+    echo "<$x>"
+    x=update
+    echo "<$x>"
+}
+
+f

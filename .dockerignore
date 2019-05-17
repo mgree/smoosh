@@ -122,6 +122,7 @@ tests/default.env
 tests/log
 tests/util/fds
 tests/util/argv
+tests/util/getenv
 
 ################################################################################
 # web

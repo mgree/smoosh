@@ -1,0 +1,5 @@
+x is unset
+x is unset
+x='5'
+x='6'
+x is 5

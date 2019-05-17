@@ -1,3 +1,4 @@
+# ADDTOPOSIX
 show() { echo "got ${EFF-unset}"; }
 unset x
 EFF=${x=assign} show 2>${x=redir}

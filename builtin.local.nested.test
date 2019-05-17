@@ -1,0 +1,24 @@
+f() { 
+    local x
+    echo f "<${x-unset}>"
+    x=hi
+    echo f "<${x-still unset}>"
+}
+
+g() { 
+    local x
+    echo g "<${x-unset}>"
+    f
+    x=sup
+    f
+    echo g "<${x-still unset}>"
+}
+
+h() { 
+    local x
+    echo h "<${x-unset}>"
+}
+
+g
+
+h
