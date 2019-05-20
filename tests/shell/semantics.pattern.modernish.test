@@ -1,0 +1,14 @@
+# from https://github.com/modernish/modernish/blob/e3b66a8b68695265b9aebd43e1de1ab3fef66e57/lib/modernish/aux/fatal.sh
+t='  ::  \on\e :\tw'\''o \th\'\''re\e :\\'\''fo\u\r:   : :  '
+IFS=': '
+set -- ${t}
+IFS=''
+t=${#},${1-U},${2-U},${3-U},${4-U},${5-U},${6-U},${7-U},${8-U},${9-U},${10-U},${11-U},${12-U}
+printf "%s\n" "$t"
+case ${t} in
+( '8,,,\on\e,\tw'\''o,\th\'\''re\e,\\'\''fo\u\r,,,U,U,U,U' \
+| '9,,,\on\e,\tw'\''o,\th\'\''re\e,\\'\''fo\u\r,,,,U,U,U' )  # QRK_IFSFINAL
+	echo good ;;
+'8,,,\on\e,\tw'\''o,\th\'\''re\e,\\'\''fo\u\r,,,U,U,U,U') echo weird;;
+( * ) echo bad ; exit 1 ;;
+esac

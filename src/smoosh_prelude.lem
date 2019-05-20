@@ -1942,6 +1942,17 @@ and string_of_intermediate_fields ifs =
   | tf::ifs' -> string_of_tmp_field tf ^ string_of_intermediate_fields ifs'
   end
 
+and debug_expanded_words ew =
+  match ew with
+  | [] -> ""
+  | UsrF::ws -> "<UsrF>" ^ debug_expanded_words ws
+  | ExpS s::ws -> "<ExpS(" ^ s ^ ")>" ^ debug_expanded_words ws
+  | DQuo ss::ws -> "<DQuo(" ^ string_of_symbolic_string ss ^ ")>" ^ debug_expanded_words ws
+  | At fs::ws -> "<At(" ^ concat "," (List.map string_of_symbolic_string fs) ^ ")>" ^ debug_expanded_words ws
+  | EWSym sym::ws -> "<EWSym(" ^ string_of_symbolic sym ^ ")>" ^ debug_expanded_words ws
+  | UsrS s::ws -> "<UsrS(" ^ s ^ ")>" ^ debug_expanded_words ws
+  end
+
 and string_of_expanded_words ew = 
   match ew with
   | [] -> ""

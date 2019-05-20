@@ -181,8 +181,6 @@ let rec needs_expansion ss =
   | C #'?'::_ -> true
   | C #'*'::_ -> true
   | C #'['::_ -> true
-  | C #'\"'::_ -> true
-  | C #'\''::_ -> true
   | _::ss' -> needs_expansion ss'
   end
 

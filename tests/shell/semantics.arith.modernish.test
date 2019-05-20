@@ -1,0 +1,11 @@
+# from https://github.com/modernish/modernish/blob/e3b66a8b68695265b9aebd43e1de1ab3fef66e57/lib/modernish/aux/fatal.sh
+i=7
+j=0
+case $(( ((j+=6*i)==0x2A)>0 ? 014 : 015 )) in
+( 12 | 14 ) echo ok;;	# OK or BUG_NOOCTAL
+( * )	echo fail; exit 1 ;;
+esac
+case $j in
+( 42 )	echo ok;;	# BUG_NOOCTAL
+( * )	echo fail; exit 1;;
+esac
