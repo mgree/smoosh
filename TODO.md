@@ -4,10 +4,8 @@
     * modernish --test!
 
 - use travis to automate all testing, collect results nightly, auto-deploy
-  + run on dash, yash, bash, and smoosh
-  + automatically export test journal summaries
-
-- performance tests?
+  + run on dash, yash, bash, CoLiS, and smoosh
+  + automatically export test journal summaries and timing
 
 ### Implementation TODO
 
