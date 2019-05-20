@@ -23,6 +23,8 @@
   should trigger Sh_notify on SIGCHLD
 
 - unspec rundown
+  + unset and function names
+  + variables and functions!
 
 - non-special shell variables
   LINENO
