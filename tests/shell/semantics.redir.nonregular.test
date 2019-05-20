@@ -1,0 +1,3 @@
+set -C
+: >/dev/null || exit 2
+echo ok

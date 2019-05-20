@@ -140,13 +140,14 @@ let expand_param s0 split q str f =
   let ewfs fs = (s1, expanded_words_of_fields fs, []) in
   let wrds w  = (s1, [], w) in
   let ctrl k  = (s1, [], [K k]) in
-  if not (elem str ["@"; "*"]) && 
-     Set.member Sh_nounset s0.sh.opts &&
-     value = Nothing
-  then ctrl (LError str [ExpS "parameter not set"] [])
-  else match (value, f) with
+  let unst o  = 
+    if not (elem str ["@"; "*"]) && Set.member Sh_nounset s0.sh.opts 
+    then ctrl (LError str [ExpS "parameter not set"] [])
+    else o
+  in
+  match (value, f) with
   (* NORMAL *)
-  | (Nothing, Normal)     -> wrds [] (* unset, no field *)
+  | (Nothing, Normal)     -> unst (wrds []) (* unset, no field *)
   | (Just fs, Normal)     -> ewfs fs
   (* DEFAULT *)
   | (Nothing, Default w)  -> wrds w
@@ -183,7 +184,7 @@ let expand_param s0 split q str f =
      | Just false -> ewfs fs
      end
   (* LENGTH *)
-  | (Nothing, Length) -> cstr "0"
+  | (Nothing, Length) -> unst (cstr "0")
   | (Just fs, Length) ->
      (* TODO 2018-10-08 need to return a new state to support logging of concretization *)
      match try_concrete_fields fs with
@@ -203,7 +204,7 @@ let expand_param s0 split q str f =
      | Just false -> wrds w
      end
   (* SUBTRINGS (prefix/suffix) *)
-  | (Nothing, Substring _ _ _) -> cstr ""
+  | (Nothing, Substring _ _ _) -> unst (cstr "")
   | (Just fs, Substring s m w) -> ctrl (LMatch fs s m [] w)
   end
 

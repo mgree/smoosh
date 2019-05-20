@@ -146,6 +146,8 @@ type open_flags
 declare ocaml target_rep type open_flags = `System.open_flags` 
 val to_flags : open_flags
 declare ocaml target_rep function to_flags = `System.to_flags`
+val to_special_flags : open_flags
+declare ocaml target_rep function to_special_flags = `System.to_special_flags`
 val clobber_flags : open_flags
 declare ocaml target_rep function clobber_flags = `System.clobber_flags`
 val from_flags : open_flags   
@@ -155,10 +157,16 @@ declare ocaml target_rep function fromto_flags = `System.fromto_flags`
 val append_flags : open_flags
 declare ocaml target_rep function append_flags = `System.append_flags`
 
-val flags_of_redir_type : forall 'a. os_state 'a -> redir_type -> open_flags
-let flags_of_redir_type s0 rt =
+val flags_of_redir_type : os_state system -> redir_type -> string -> open_flags
+let flags_of_redir_type s0 rt file =
   match rt with
-  | To -> if Set.member Sh_noclobber s0.sh.opts then to_flags else clobber_flags
+  | To -> 
+     if Set.member Sh_noclobber s0.sh.opts
+     then if real_file_exists file && 
+             real_file_type_follow file <> Just FileRegular
+          then to_special_flags (* O_WRONLY *)
+          else to_flags (* O_WRONLY | O_CREAT | O_EXCL *)
+     else clobber_flags
   | Clobber -> clobber_flags
   | From -> from_flags
   | FromTo -> fromto_flags
@@ -382,10 +390,10 @@ instance (OS unit)
   let os_set_umask os mask = 
     let _ = real_set_umask (nat_of_perms mask) in
     os
-
+    
   let os_open_file_for_redir os0 ty sfile =
-    let flags = flags_of_redir_type os0 ty in
     let (os1,_,file) = concretize os0 sfile in
+    let flags = flags_of_redir_type os0 ty file in
     (os1,
      match real_open file flags with
      | Left err -> Left err
