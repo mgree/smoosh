@@ -1,0 +1,3 @@
+touch present
+[ present -nt absent ] || exit 1
+[ present -ot absent ] || exit 2

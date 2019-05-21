@@ -1,0 +1,11 @@
+touch first
+[ first -ef first ] || exit 3
+touch second
+[ second -nt first ] || exit 3
+[ second -ot first ] && exit 4
+[ first -ot second ] || exit 5
+[ first -nt second ] && exit 6
+mkdir up
+[ first -ef up/../first ] || exit 7
+[ first -ef up/../up/../second ] && exit 8
+exit 0

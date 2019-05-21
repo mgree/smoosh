@@ -509,6 +509,10 @@ instance (OS symbolic)
     | Just _ -> true
     end
 
+  (* TODO 2019-05-21 need to track this info, too... *)
+  let os_file_mtime _os _path = Nothing
+  let os_file_number _os _path = Nothing
+
   let os_write_fd = symbolic_write_fd
 
   let os_read_all_fd step_eval os0 fd =

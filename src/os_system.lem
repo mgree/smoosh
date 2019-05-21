@@ -127,6 +127,12 @@ declare ocaml target_rep function real_is_writeable = `System.real_is_writeable`
 val real_is_executable : path -> bool
 declare ocaml target_rep function real_is_executable = `System.real_is_executable`
 
+val real_file_mtime : path -> maybe real
+declare ocaml target_rep function real_file_mtime = `System.real_file_mtime`
+
+val real_file_number : path -> maybe (int * int)
+declare ocaml target_rep function real_file_number = `System.real_file_number`
+
 val real_readdir : string -> list (string * bool)
 declare ocaml target_rep function real_readdir = `System.real_readdir`
 
@@ -295,6 +301,9 @@ instance (OS unit)
   let os_is_readable _os path = real_is_readable path
   let os_is_writeable _os path = real_is_writeable path
   let os_is_executable _os path = real_is_executable path
+
+  let os_file_mtime _os path = real_file_mtime path
+  let os_file_number _os path = real_file_number path
 
   let os_readdir _os path = 
     let contents = real_readdir path in

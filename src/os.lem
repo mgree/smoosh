@@ -741,6 +741,8 @@ class ( OS 'a )
   val os_file_type_follow : os_state 'a -> path -> maybe file_type
   val os_file_size : os_state 'a -> path -> maybe nat
   val os_file_perms : os_state 'a -> path -> maybe perms
+  val os_file_mtime : os_state 'a -> path -> maybe real
+  val os_file_number : os_state 'a -> path -> maybe (int * int)
   val os_is_tty : os_state 'a -> fd -> bool
   val os_is_readable : os_state 'a -> path -> bool
   val os_is_writeable : os_state 'a -> path -> bool
@@ -855,6 +857,9 @@ let file_perms os path = wrap_syscall_path "file_perms" path os os_file_perms
 let is_readable os path = wrap_syscall_path "is_readable" path os os_is_readable
 let is_writeable os path = wrap_syscall_path "is_writeable" path os os_is_writeable
 let is_executable os path = wrap_syscall_path "is_executable" path os os_is_executable
+
+let file_mtime os path  = wrap_syscall_path "file_mtime" path os os_file_mtime
+let file_number os path  = wrap_syscall_path "file_number" path os os_file_number
 
 let is_tty os fd = wrap_syscall_fd "is_tty" fd os os_is_tty
 let write_fd os fd = wrap_syscall_fd "write_fd" fd os os_write_fd

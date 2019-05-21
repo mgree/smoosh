@@ -388,6 +388,14 @@ let real_file_type_follow (path : string) : Unix.file_kind option =
 let real_isdir (path : string) : bool = 
   Sys.file_exists path && Sys.is_directory path
 
+let real_file_mtime (path : string) : float option =
+  try Some (Unix.stat path).st_mtime
+  with Unix.Unix_error(_,_,_) -> None
+
+let real_file_number (path : string) : (int * int) option =
+  try let st = Unix.stat path in
+      Some (st.st_dev, st.st_ino)
+  with Unix.Unix_error(_,_,_) -> None
 
 let real_readdir (path : string) : (string * bool) list =
   let contents = Sys.readdir path in
