@@ -1,2 +1,4 @@
+x=\n
+echo ${#x}
 x=\\n
 echo ${#x}
