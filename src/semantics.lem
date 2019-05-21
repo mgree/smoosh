@@ -337,7 +337,7 @@ let rec expand_control s0 split q tm k =
        | Left err -> Left err
        end
     | LMatch str side mode f [] -> 
-       let sympat = symbolic_string_of_expanded_words true (* for pattern *) f in
+       let sympat = symbolic_string_of_expanded_words false (* lowkey for pattern... but don't munge quotes *) f in
        let symstr = symbolic_string_of_fields str in
        let (s1,_concretized,pat) = concretize s0 sympat in
        let matched = try_match_substring s1.sh.locale side mode pat symstr in
