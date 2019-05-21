@@ -169,7 +169,11 @@ let prepare_command () : string list (* positional args *) =
      try_set_interactive ();
      parse_source := ParseSTDIN; Sys.argv.(0)::!params
   | CFlag cmd ->
-     parse_source := ParseString (ParseEval, cmd); cmd::!params
+     parse_source := ParseString (ParseEval, cmd); 
+     begin match !params with
+     | [] -> ["smoosh"]
+     | actuals -> actuals
+     end
 
 let setup_handlers () =
   System.real_eval := 

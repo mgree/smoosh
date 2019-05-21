@@ -1,0 +1,4 @@
+cat > scr <<EOF
+echo "i am \$0, hear me roar"
+EOF
+$TEST_SHELL -c '. "$0"' ./scr
