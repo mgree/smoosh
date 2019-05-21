@@ -5,6 +5,7 @@
 
 - use travis to automate all testing, collect results nightly, auto-deploy
   + run on dash, yash, bash, CoLiS, and smoosh
+  + separate docker build for all of the crap that the test suite needs---why rebuild every time?
   + automatically export test journal summaries and timing
 
 ### Implementation TODO
