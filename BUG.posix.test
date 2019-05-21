@@ -1,6 +1,0 @@
-[ -f scr ] && rm scr
-printf '%s\t\n'  > scr \
-       'printf %s\\n foobar\|\&\;\<\>\(\)\$\`\\\"\'\''\ \?\*\[\'
-. ./scr
-rm scr
-
