@@ -1,6 +1,0 @@
-case 'foo\
-bar' in
-( foo\\"
-"bar )	echo good ;;
-( * )	echo bad  ;;
-esac

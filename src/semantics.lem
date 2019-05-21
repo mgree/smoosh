@@ -1257,7 +1257,7 @@ and step_eval s0 checked stmt =
   | CaseCheckMatch f pat cmd cases ->
       let (step, os1, st1) = step_expansion (s0, pat) in
       match st1 with
-        | ExpError err -> expansion_error true (* may exit *)os1 (XSCase "error in argument expansion") step err
+        | ExpError err -> expansion_error true (* may exit *) os1 (XSCase "error in argument expansion") step err
         | ExpExpand _opts _tm ew [] ->
            (* "each pattern that labels a compound-list shall be
               subjected to tilde expansion, parameter expansion,

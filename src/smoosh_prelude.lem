@@ -1329,7 +1329,7 @@ let escape_sc chars sc =
   end
       
 val escape_quotes : symbolic_string -> symbolic_string
-let escape_quotes ss = concatMap (escape_sc [#'\"'])  ss
+let escape_quotes ss = concatMap (escape_sc [#'\"'; #'\\'])  ss
 
 val escape_patterns : symbolic_string -> symbolic_string
 let escape_patterns ss = concatMap (escape_sc pattern_escs) ss

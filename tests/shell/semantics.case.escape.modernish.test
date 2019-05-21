@@ -1,0 +1,7 @@
+# from https://github.com/modernish/modernish/blob/e3b66a8b68695265b9aebd43e1de1ab3fef66e57/lib/modernish/aux/fatal.sh
+case 'foo\
+bar' in
+( foo\\"
+"bar )	echo good ;;
+( * )	echo bad  ;;
+esac
