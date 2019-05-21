@@ -2153,6 +2153,8 @@ let env_default : env =
   Map.fromList
     [ ("OPTIND", symbolic_string_of_string "1") 
     ; ("PPID", symbolic_string_of_nat (getppid ()))
+    ; ("SMOOSH_VERSION", symbolic_string_of_string Version.smoosh_version)
+    ; ("SMOOSH_BUILD", symbolic_string_of_string Version.smoosh_build)
     ]
 
 let default_shell_state = <|
