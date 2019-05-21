@@ -1537,7 +1537,9 @@ let sprintf_esc fmt =
        end
      else (* no octal digits... just write the unrecognized character *)
        ("\\" ^ toString [d1], d2::d3::fmt')
-  | c::fmt' -> ("\\" ^ toString [c], fmt')
+  | c::fmt' -> 
+     (* TODO 2019-05-21 unspec *)
+     ("\\" ^ toString [c], fmt')
   | [] -> ("\\", [])
   end
 
@@ -1764,6 +1766,9 @@ let printf_format s0 fmt0 args0 =
        end
 
     (* numeric *)
+    (* TODO 2019-05-21 The printf utility is required to notify the user
+       when conversion errors are detected while producing numeric output
+     *)
     | (_, Just (num_mode, fmt2), Just (Just s, args1)) ->
        match unbounded_read (toCharList s) with
        | Left msg ->
@@ -1782,7 +1787,11 @@ let printf_format s0 fmt0 args0 =
        Right (sprintf_format_numeric spec num_mode (fromNat 0), fmt2, [])
 
     (* unrecognized *)
-    | (c::fmt2, _, _) -> 
+    | (c::fmt2, _, _) ->
+       (* TODO 2019-05-21 If a character sequence in the format
+          operand begins with a '%' character, but does not form a
+          valid conversion specification, the behavior is
+          unspecified. *)
        let f_str = toString [#'%'; c] in
        Left (f_str, "unrecognized format " ^ f_str, 1, fmt2, args0)
     end
