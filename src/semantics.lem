@@ -1281,7 +1281,8 @@ and step_eval s0 checked stmt =
   | Defun name body -> 
      if is_special_builtin name
      then Left (XSDefun ("invalid function name " ^ name ^ " (shadows special built-in)"), s0)
-     else check_traps (Right (XSDefun ("defined " ^ name), defun name body s0, Done))
+     else check_traps (Right (XSDefun ("defined " ^ name), 
+                              defun name body (exit_with 0 s0), Done))
 
   (* CALL *********************************************************************)
   | Call old_loop_nest old_positional_params f orig c ->

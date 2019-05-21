@@ -1,0 +1,10 @@
+# ADDTOPOSIX
+false
+f() { echo hi ; }
+echo $?
+f
+
+false
+f() { echo hello ; }
+echo $?
+f
