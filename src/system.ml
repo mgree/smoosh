@@ -404,7 +404,7 @@ let real_is_tty (fd : int) = Unix.isatty (ExtUnix.file_descr_of_int fd)
 
 type open_flags = Unix.open_flag list
 
-let to_flags = [Unix.O_WRONLY; Unix.O_CREAT]
+let to_flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_EXCL]
 let to_special_flags = [Unix.O_WRONLY]
 let clobber_flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC]
 let from_flags = [Unix.O_RDONLY]
