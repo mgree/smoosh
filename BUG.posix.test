@@ -1,4 +1,6 @@
+[ -f scr ] && rm scr
 printf '%s\t\n'  > scr \
        'printf %s\\n foobar\|\&\;\<\>\(\)\$\`\\\"\'\''\ \?\*\[\'
-$TEST_SHELL scr
+. ./scr
+rm scr
 
