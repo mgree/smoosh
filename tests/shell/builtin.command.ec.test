@@ -1,0 +1,12 @@
+false
+command -V alias >/dev/null
+ec=$?
+echo $ec
+[ $ec -eq 0 ] || exit 1
+false
+x=$(command -V alias)
+ec=$?
+echo $ec
+[ $ec -eq 0 ] || exit 2
+command -V nonesuch >/dev/null && exit 3
+exit 0

@@ -1173,7 +1173,7 @@ let builtin_command s0 argv env =
   | (CMVerbose human_readable, _) ->
      show_commands
        (if human_readable then human_readable_command_type else concise_command_type)
-       s0
+       (exit_with 0 s0) (* to be overriden later *)
        (command_path s0 path)
        argv'
   end
