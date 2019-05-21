@@ -133,12 +133,38 @@ let range_bc (bc : bracket_char) : maybe range_char =
   | Class _c -> Nothing (* TODO implement *)
   end
 
+let rec parse_bracket_quoted_entries (pat:list char)
+      : either string (list char * list bracket_entry) =
+  match pat with
+  | [] -> Left "expected end quote"
+  | #'\"'::pat' -> Right (pat', [])
+  | c::pat' ->
+     match parse_bracket_quoted_entries pat' with
+     | Left err -> Left err
+     | Right (pat'', es) -> Right (pat'', BC (Char c)::es)
+     end
+  end
+
 let rec parse_bracket_entries (pat:list char) 
         : either string (list char * list bracket_entry) = 
   match pat with
   | [] -> Left "expected bracket entries, found end-of-pattern"
   | #']'::pat' -> Right (pat', [])
   | #'-'::#']'::pat' -> Right (pat', [BC (Char #'-')])
+  | #'\"'::pat' -> 
+     match parse_bracket_quoted_entries pat' with
+     | Left _err -> 
+        (* eh, treat it as a normal quote *)
+        match parse_bracket_entries pat' with
+        | Left err -> Left err
+        | Right (pat'',es) -> Right (pat'',BC (Char #'\"')::es)
+        end
+     | Right (pat'', es) ->
+        match parse_bracket_entries pat'' with
+        | Left err -> Left err
+        | Right (pat''', es') -> Right (pat''', es ++ es')
+        end
+     end
   | _ -> 
      match parse_bracket_char pat with
      | Left err -> Left err

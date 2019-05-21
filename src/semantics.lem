@@ -337,7 +337,7 @@ let rec expand_control s0 split q tm k =
        | Left err -> Left err
        end
     | LMatch str side mode f [] -> 
-       let sympat = symbolic_string_of_expanded_words false (* don't keep quotes *) f in
+       let sympat = symbolic_string_of_expanded_words true (* for pattern *) f in
        let symstr = symbolic_string_of_fields str in
        let (s1,_concretized,pat) = concretize s0 sympat in
        let matched = try_match_substring s1.sh.locale side mode pat symstr in
@@ -1234,7 +1234,7 @@ and step_eval s0 checked stmt =
         (* "...matched by the string resulting from the tilde
            expansion, parameter expansion, command substitution,
            arithmetic expansion, and quote removal of the given word." *)
-           let ss = symbolic_string_of_expanded_words false (* don't keep quotes *) ew in
+           let ss = symbolic_string_of_expanded_words false (* not for pattern *) ew in
            Right (XSCase "argument fully expanded", os1, CaseMatch ss cases)
         | (_ as in_progress) ->
            Right(XSExpand (XSCase "argument expansion step") step,
@@ -1264,7 +1264,7 @@ and step_eval s0 checked stmt =
               command substitution, and arithmetic expansion" ...
             *)
            (* TODO 2018-08-29 use proper locale *)
-           let pat' = symbolic_string_of_expanded_words true (* keep quotes *) ew in
+           let pat' = symbolic_string_of_expanded_words true (* for pattern *) ew in
            match match_exact lc_ambient pat' f with
            | NoMatch -> Right (XSCase "case did not match, trying the next",
                                os1, CaseMatch f cases)

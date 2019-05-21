@@ -1,9 +1,0 @@
-t='ab]cd'
-case c in
-( *["${t}"]* )
-	case e in
-	( *[!"${t}"]* ) echo OK;;
-	( * ) echo FAILED inner ;;
-	esac ;;
-( * )	echo FAILED outer ;;
-esac

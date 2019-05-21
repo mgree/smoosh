@@ -1,0 +1,15 @@
+# from https://github.com/modernish/modernish/blob/e3b66a8b68695265b9aebd43e1de1ab3fef66e57/lib/modernish/aux/fatal.sh
+t='ab]cd'
+case c in
+( *["${t}"]* )
+	case e in
+	( *[!"${t}"]* ) echo OK;;
+	( * ) echo FAILED inner ;;
+	esac ;;
+( * )	echo FAILED outer ;;
+esac
+
+case \" in
+( *["${t}"]* ) echo QUOTED ;;
+( * )	echo UNQUOTED ;;
+esac

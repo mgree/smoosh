@@ -1373,26 +1373,26 @@ val unescape_heredoc : intermediate_fields -> intermediate_fields
 let unescape_heredoc = List.map unescape_heredoc_field
                                  
 val symbolic_string_of_expanded_words 
-    : bool (* keep quotes? *) -> expanded_words -> symbolic_string
-let rec symbolic_string_of_expanded_words keep_quotes w =
+    : bool (* for pattern? *) -> expanded_words -> symbolic_string
+let rec symbolic_string_of_expanded_words for_pattern w =
   match w with
   | [] -> symbolic_string_of_string ""
-  | UsrF::ws -> symbolic_string_of_string " " ++ symbolic_string_of_expanded_words keep_quotes ws
-  | ExpS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words keep_quotes ws
+  | UsrF::ws -> symbolic_string_of_string " " ++ symbolic_string_of_expanded_words for_pattern ws
+  | ExpS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words for_pattern ws
   | DQuo ss::ws -> 
     (* we don't include the quotes, since they'll be ultimately erased anyway! *)
-     (if keep_quotes 
-      then [C #'\"'] ++ ss ++ [C #'\"'] 
-      else ss) ++ symbolic_string_of_expanded_words keep_quotes ws
+     (if for_pattern 
+      then [C #'\"'] ++ ss ++ [C #'\"']
+      else ss) ++ symbolic_string_of_expanded_words for_pattern ws
   | At fs::ws -> 
      (* we collapse the result of $@ expansion, too. special cased in expand_control *)
-     symbolic_string_of_fields fs ++ symbolic_string_of_expanded_words keep_quotes ws
-  | EWSym sym::ws -> Sym sym::symbolic_string_of_expanded_words keep_quotes ws
+     symbolic_string_of_fields fs ++ symbolic_string_of_expanded_words for_pattern ws
+  | EWSym sym::ws -> Sym sym::symbolic_string_of_expanded_words for_pattern ws
   | UsrS s::ws -> 
      let ss = symbolic_string_of_string s in
      (* when DQuo generates quotes, we want to escape the other quotes *)
-     (if keep_quotes then escape_quotes ss else ss) ++ 
-     symbolic_string_of_expanded_words keep_quotes ws
+     (if for_pattern then escape_quotes ss else ss) ++ 
+     symbolic_string_of_expanded_words for_pattern ws
   end
 
 val symbolic_string_of_intermediate_fields : intermediate_fields -> symbolic_string
