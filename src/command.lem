@@ -2290,11 +2290,11 @@ let run_command s0 opts checked prog_name argv env =
      | Nothing ->
         (* 1b. b. If the command name matches the name of a utility
            listed in the following table, the results are unspecified. *)
-        if is_unspecified_utility prog
-        then
-          let s1 = safe_write_stderr (prog ^ ": unspecified, doing nothing") s0 in
-          Right (s1, Done, true)
-        else 
+        let s1 = 
+          if is_unspecified_utility prog
+          then log_trace Trace_unspec (prog ^ "is unspecified") s0
+          else s0
+        in
           (* 1c. If the command name matches the name of a function
              known to this shell, the function shall be invoked as
              described in Function Definition Command. If the
@@ -2302,12 +2302,12 @@ let run_command s0 opts checked prog_name argv env =
              form of a function, it shall not be recognized at this
              point. It shall be invoked in conjunction with the path
              search in step 1e. *)
-          match (opts.force_simple_command, lookup_function prog s0) with
+          match (opts.force_simple_command, lookup_function prog s1) with
           | (false, Just body) ->
-             let s1 = push_locals s0 env in
-             let s2 = set_function_params 0 argv s1 in
-             Right (s2,
-                    Call s0.sh.loop_nest (get_function_params s0) prog body body,
+             let s2 = push_locals s1 env in
+             let s3 = set_function_params 0 argv s2 in
+             Right (s3,
+                    Call s1.sh.loop_nest (get_function_params s1) prog body body,
                     true)
           | _ -> 
              (* 1d. If the command name matches the name [XSI] [Option
@@ -2316,40 +2316,37 @@ let run_command s0 opts checked prog_name argv env =
                 utility shall be invoked. *)
              match Map.lookup prog builtins with
              | Just fn -> 
-                let s1 = push_locals s0 env in
+                let s2 = push_locals s1 env in
                 (* force a restore *)
-                match fn s1 argv env with
-                | Left (s1, err) -> Left (pop_locals s1, err)
-                | Right (s1, stmt) -> Right (pop_locals s1, stmt, true)
+                match fn s2 argv env with
+                | Left (s2, err) -> Left (pop_locals s2, err)
+                | Right (s2, stmt) -> Right (pop_locals s2, stmt, true)
                 end
              | Nothing ->
-                match check_execve Nothing (* no prefix *) s0 prog with
-                | (s1, Nothing) -> 
+                match check_execve Nothing (* no prefix *) s1 prog with
+                | (s2, Nothing) -> 
                    (* failed... and emitted an error message and set the ec *)
-                   Right (s1, Done, true)
-                | (s1, Just executable) ->
+                   Right (s2, Done, true)
+                | (s2, Just executable) ->
                    let cmd = symbolic_string_of_string executable in
-                   let exported = exported_vars s1 in
+                   let exported = exported_vars s2 in
                    (* use env to override exports---impl as Pmap.(union) *)
                    let exec_env = Map.(union) exported env in
                    let exec = Exec cmd prog_name argv exec_env TryBinSh in
                    if opts.should_fork 
                    then
-                     let (s2,pid) =
-                       fork_and_subshell 
-                         s1 
-                         exec
-                         FG
+                     let (s3,pid) =
+                       fork_and_subshell s2 exec FG
                          Nothing (* no existing process group *)
                          true (* do job control *)
                      in
                      let stmt = CommandExpRedirs [] (prog_name::argv) ([], Nothing, []) default_cmd_opts in
-                     let (s3, _) = add_job s2 [(pid,stmt)] pid stmt FG JobRunning in
-                     Right (s3, Wait pid checked Nothing, true)
+                     let (s4, _) = add_job s3 [(pid,stmt)] pid stmt FG JobRunning in
+                     Right (s4, Wait pid checked Nothing, true)
                    else 
                      (* ??? 2019-03-01 
                         do we need to restore the redirs when we're execing anyway? *)
-                     Right (s1, exec, true)
+                     Right (s2, exec, true)
                 end
              end
           end
