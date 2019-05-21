@@ -1,5 +1,6 @@
 touch first
 [ first -ef first ] || exit 3
+sleep 1
 touch second
 [ second -nt first ] || exit 3
 [ second -ot first ] && exit 4
