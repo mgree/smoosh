@@ -171,7 +171,7 @@ let prepare_command () : string list (* positional args *) =
   | CFlag cmd ->
      parse_source := ParseString (ParseEval, cmd); 
      begin match !params with
-     | [] -> ["smoosh"]
+     | [] -> [Sys.executable_name]
      | actuals -> actuals
      end
 
