@@ -1359,12 +1359,18 @@ and step_eval s0 checked stmt =
            in
            Right (XSEval linno src "done", s3, c)
         | ParseError -> 
-           let s3 = exit_with 1 s2 in
+           let s3 = exit_with 2 s2 in
            let c' =
              if is_interactive_mode interactive && is_toplevel shell_level 
              then EvalLoop linno ctx src interactive shell_level
-             else let _ = parse_cleanup sstr shell_level in
-                  Done
+             else 
+               let _ = parse_cleanup sstr shell_level in
+               let catching_errors = not (checked_exit checked) && 
+                                       Set.member Sh_errexit s1.sh.opts in
+               let exit_on_error = catching_errors || not (is_interactive s3) in
+               if exit_on_error
+               then Exit
+               else Done                  
            in 
            Right (XSEval linno src "parse error", s3, c')
         | ParseNull ->

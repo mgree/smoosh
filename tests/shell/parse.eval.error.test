@@ -1,0 +1,6 @@
+cat >scr <<EOF
+eval "if"
+echo lived
+EOF
+$TEST_SHELL scr && exit 1
+exit 0
