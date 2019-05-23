@@ -1058,11 +1058,17 @@ type command_type =
   | CmdFunction
   | CmdAlias of string
   | CmdPath of string 
+  | CmdKeyword
   | CmdNotFound
 
-(* TODO 2018-09-17 need to check alias table *)
+val shell_keywords : list string
+let shell_keywords = ["!"; "{"; "}"; "case"; "do"; "done"; "elif"; "else"; 
+                      "esac"; "fi"; "for"; "if"; "in"; "then"; "until"; "while"]
+
 let command_type s0 path cmd =
-  if is_special_builtin cmd
+  if List.elem cmd shell_keywords
+  then CmdKeyword
+  else if is_special_builtin cmd
   then CmdSpecial
   else if is_builtin cmd
   then CmdBuiltin
@@ -1082,6 +1088,7 @@ let concise_command_type s0 path cmd =
   | Nothing -> string_of_symbolic_string cmd
   | Just name ->
      match command_type s0 path name with
+     | CmdKeyword -> name ^ "\n"
      | CmdSpecial -> name ^ "\n"
      | CmdBuiltin -> name ^ "\n"
      | CmdFunction -> name ^ "\n"
@@ -1098,6 +1105,7 @@ let human_readable_command_type s0 path cmd =
   | Just name ->
      let msg = 
        match command_type s0 path name with
+       | CmdKeyword -> " is a shell keyword"
        | CmdSpecial -> " is a special shell builtin"
        | CmdBuiltin -> " is a shell builtin"
        | CmdFunction -> " is a shell function"

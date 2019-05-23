@@ -1,0 +1,6 @@
+# ADDTOPOSIX
+set -e
+command -v !
+command -v while
+command -V while >/dev/null 2>&1
+type do >/dev/null 2>&1
