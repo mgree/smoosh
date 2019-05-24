@@ -862,7 +862,7 @@ and step_eval s0 checked stmt =
      let (s0_logged, concretized, prog_name) = concretize s0_traced prog in
      let prog_special = is_special_builtin prog_name in
      let s1 = 
-       if not concretized && prog_special
+       if not concretized && prog_special && not opts.force_simple_command
        then
          (* need a call to set_param, which has the right logic for
             Sh_allexport.
