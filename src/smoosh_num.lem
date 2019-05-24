@@ -1,4 +1,5 @@
 open import Pervasives_extra
+import Debug
 
 (*--------------------------------*)
 (* Nat class                      *)
@@ -145,12 +146,22 @@ let readSignedInteger base chars =
   | _ -> readUnsignedInteger base chars
   end        
   
+val system_int_size : nat
+declare ocaml target_rep function system_int_size = `Sys.int_size`
+
+(* computed carefully to avoid overflow *)
+val highestNat : nat
+let highestNat = 2 ** (system_int_size - 2) - 1 + 2 ** (system_int_size - 2)
+
 (* only use this for base 10 literals *)
 val readNat : (list char) -> either string nat
 let readNat cs =
   if is_numeric cs
   then match readUnsignedInteger 10 cs with
-       | Right n -> Right (toNat n)
+       | Right n -> 
+          if n > integerFromNat (highestNat)
+          then Right highestNat
+          else Right (toNat n)
        | Left e -> Left e
        end
   else Left (toString cs ^ " is non-numeric")
