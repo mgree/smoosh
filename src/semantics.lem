@@ -916,7 +916,7 @@ and step_eval s0 checked stmt =
             Lists), the shell shall wait for the last command
             specified in the pipeline to complete, and may also wait
             for all commands to complete. *)
-         (s2, Wait last_pid checked Nothing) 
+         (s2, Wait last_pid checked Nothing WaitInternal) 
      in
      check_traps (Right (XSPipe "started pipe",
                          s2,
@@ -1007,7 +1007,7 @@ and step_eval s0 checked stmt =
      check_traps
        (Right (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
                s1, 
-               Wait pid checked Nothing))
+               Wait pid checked Nothing WaitInternal))
   | Subshell stmt' redir_state ->
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
@@ -1436,20 +1436,22 @@ and step_eval s0 checked stmt =
      end
 
   (* WAIT *********************************************************************)
-  | Wait n _checked (Just 0) -> (* out of steps *)
+  | Wait n _checked (Just 0) _mode -> (* out of steps *)
      check_traps
        (Right (XSWait ("stopped blocking on process with pid " ^ stringFromNat n),
                s0,
                Done))
    
-  | Wait pid checking bound -> 
+  | Wait pid checking bound mode -> 
      let exit_on_error = not (checked_exit checking) && Set.member Sh_errexit s0.sh.opts in
      let s_pid = stringFromNat pid in
      match wait_for_pid step_eval s0 pid with
      | (s1, Nothing) -> 
         check_traps
           (Right (XSWait ("couldn't step process with pid " ^ s_pid), 
-                  safe_write_stderr ("wait: pid " ^ s_pid ^ " is not a child of this shell\n") s1, 
+                  if from_wait_command mode
+                  then safe_write_stderr ("wait: pid " ^ s_pid ^ " is not a child of this shell\n") s1
+                  else s1, 
                   Done))
      | (s1, Just (Left step)) ->
         (* we took a step, so record it *)
@@ -1462,7 +1464,7 @@ and step_eval s0 checked stmt =
         Right (XSNested (XSWait ("process with pid " ^ s_pid ^ " stepped")) 
                         step,
                s1,
-               Wait pid checking bound')
+               Wait pid checking bound' mode)
      | (s1, Just (Right code)) ->
         let s2 = delete_job_with_pid s1 pid in
         check_traps

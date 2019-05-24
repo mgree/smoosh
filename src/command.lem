@@ -1382,7 +1382,7 @@ let builtin_wait s0 argv env =
   match argv with
   | [] ->
      let (s1,jobs) = active_jobs s0 in
-     let waits = List.map (fun job -> Wait job.pid Unchecked Nothing) jobs in
+     let waits = List.map (fun job -> Wait job.pid Unchecked Nothing WaitCommand) jobs in
      (* the skip on the end makes sure we return 0 *)
      Right (s1, sequence (waits ++ [skip]))
   | pid::pids' ->
@@ -1396,9 +1396,9 @@ let builtin_wait s0 argv env =
          *)
         let next = 
           if null pids'
-          then Wait pid Unchecked Nothing
+          then Wait pid Unchecked Nothing WaitCommand
           else Semi 
-                 (Wait pid Unchecked Nothing) 
+                 (Wait pid Unchecked Nothing WaitCommand) 
                  (simple_command "wait" pids' env)
         in
         Right (s0, next)
@@ -1477,7 +1477,7 @@ let builtin_read s0 argv env =
      | (s1, ReadBlocked pid) -> 
         Right (s1, 
                Semi 
-                 (Wait pid Unchecked (Just default_block))
+                 (Wait pid Unchecked (Just default_block) WaitInternal)
                  (simple_command "read" argv env))
      | (s1, ReadSuccess line hit_eof) ->
         let trimmed = trimr_one_newline line in
@@ -2172,7 +2172,7 @@ let builtin_fg os0 argv _env =
   | Left err -> Left (os0, err)
   | Right job -> 
      let os1 = send_sigcont os0 "fg" job FG (* call tc_setfg *) in
-     Right (os1, Wait job.pid Unchecked Nothing)
+     Right (os1, Wait job.pid Unchecked Nothing WaitInternal)
   end
 
 let jobs_of_argv os0 argv =
@@ -2350,7 +2350,7 @@ let run_command s0 opts checked prog_name argv env =
                      in
                      let stmt = CommandExpRedirs [] (prog_name::argv) ([], Nothing, []) default_cmd_opts in
                      let (s4, _) = add_job s3 [(pid,stmt)] pid stmt FG JobRunning in
-                     Right (s4, Wait pid checked Nothing, true)
+                     Right (s4, Wait pid checked Nothing WaitInternal, true)
                    else 
                      (* ??? 2019-03-01 
                         do we need to restore the redirs when we're execing anyway? *)

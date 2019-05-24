@@ -819,6 +819,15 @@ let checked_exit checking_mode =
   | Unchecked -> false
   end
 
+type wait_mode = WaitCommand | WaitInternal
+
+val from_wait_command : wait_mode -> bool
+let from_wait_command wait_mode =
+  match wait_mode with
+  | WaitCommand -> true
+  | WaitInternal -> false
+  end
+
 (**********************************************************************)
 (* AST ****************************************************************)
 (**********************************************************************)
@@ -930,6 +939,7 @@ and stmt =
   | Wait of pid 
           * checking_mode
           * maybe nat (* Nothing = block; Just n = n steps *)
+          * wait_mode
   | Trapped of signal * nat (* ec to restore *) * stmt (* current handler *) * stmt (* continuation *)
   | Pushredir of stmt * saved_fds
   | Done
@@ -1837,7 +1847,7 @@ and string_of_stmt c =
   | Return -> "return"
   | Exit -> "exit"
   | Exec _cmd cmd_argv0 args _env _binsh -> spaced "exec" (string_of_fields (cmd_argv0::args))
-  | Wait n _checked _steps -> "wait " ^ string_of_pid n
+  | Wait n _checked _steps _mode -> "wait " ^ string_of_pid n
   | Trapped signal _ec c_handler c_cont -> 
      ": trap on " ^ string_of_signal signal ^ " ; " ^ string_of_stmt c_handler ^ " ; " ^
      ": end trap ; " ^ string_of_stmt c_cont

@@ -527,7 +527,7 @@ let rec json_of_stmt = function
             ("args", json_of_fields args);
             ("env", json_of_env env);
             ("binsh", Bool (try_binsh binsh))]
-  | Wait (n, checked, bound) -> 
+  | Wait (n, checked, bound, _mode) -> 
      Assoc ([tag "Wait"; ("pid", Int n); ("checked", Bool (checked_exit checked))] @
               match bound with
               | None -> []
