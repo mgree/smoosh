@@ -137,21 +137,30 @@ let set_initialpgrp () =
              initialpgrp := -1
            end
 
+let rec real_close (fd:int) : unit =
+  try Unix.close (ExtUnix.file_descr_of_int fd)
+  with Unix.Unix_error(Unix.EINTR,_,_) -> real_close fd
+     | Unix.Unix_error(_,_,_) -> ()
+
 let renumber ?cloexec:(ce=true) fd =
-  let newfd = Dash.freshfd_ge10 (ExtUnix.int_of_file_descr fd) in
+  let orig = ExtUnix.int_of_file_descr fd in
+  let newfd = Dash.freshfd_ge10 orig in
   if newfd >= 0
   then begin
-      Unix.close fd;
+      real_close orig;
       if not ce
       then Unix.clear_close_on_exec (ExtUnix.file_descr_of_int newfd);
       newfd      
     end
   else failwith "out of file descriptors"
           
-let xopenfile file flags mode =
-  let fd = Unix.openfile file flags mode in
-  try Right (renumber fd)
-  with Failure msg -> Left msg
+let rec xopenfile file flags mode =
+  try 
+    let fd = Unix.openfile file flags mode in
+    try Right (renumber fd)
+    with Failure msg -> Left msg
+  with Unix.Unix_error(EINTR,_,_) -> xopenfile file flags mode
+     | Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
           
 let open_ttyfd () =
   match !ttyfd with
@@ -181,7 +190,7 @@ let close_ttyfd () =
   | Some fd -> 
      begin 
        ttyfd := None;
-       Unix.close fd
+       real_close (ExtUnix.int_of_file_descr fd)
      end
 
 let real_getpgrp () = ExtUnix.getpgid 0
@@ -329,6 +338,7 @@ let real_wait_child (jc : bool) : (int * Unix.process_status) option =
     | (0, _) -> None (* running/no update *)
     | (pid, status) -> Some (pid, status)
   with Unix.Unix_error(Unix.ECHILD,_,_) -> gotsigchld := false; None
+     | Unix.Unix_error(Unix.EINTR,_,_) -> (* got sigchld? *) None
 
 let show_time time =
   let mins = time /. 60.0 in
@@ -426,10 +436,6 @@ let real_open (file:string) (flags:open_flags) : (string,int) either =
   | Unix.Unix_error(Unix.EEXIST,_,_) -> Left ("cannot create " ^ file ^ ": file exists")
   | Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
 
-let real_close (fd:int) : unit =
-  try Unix.close (ExtUnix.file_descr_of_int fd)
-  with Unix.Unix_error(_,_,_) -> ()
-
 (* uninterruptable read and write, per dash *)
 let rec xread (fd:Unix.file_descr) (buff : Bytes.t) ofs : int =
   try Unix.read fd buff ofs (Bytes.length buff - ofs) 
@@ -500,7 +506,7 @@ let real_read_line_fd (fd:int) backslash_escapes
   | Left msg -> Left msg
   | Right (cs, eof) -> Right (implode (List.rev cs), eof)
 
-let real_savefd (fd:int) : (string,int) either =
+let rec real_savefd (fd:int) : (string,int) either =
   try
     let newfd = Dash.freshfd_ge10 fd in
     if newfd = -1
@@ -509,15 +515,13 @@ let real_savefd (fd:int) : (string,int) either =
     then Left ("error duplicating fd " ^ string_of_int fd)
     else Right newfd
   with Unix.Unix_error(Unix.EBADF,_,_) -> Left "EBADF"
+     | Unix.Unix_error(Unix.EINTR,_,_) -> real_savefd fd
      | Unix.Unix_error(e,_,_) -> Left (Unix.error_message e ^ ": " ^ string_of_int fd)
 
-let real_dup2 (orig_fd:int) (tgt_fd:int) : string option =
+let rec real_dup2 (orig_fd:int) (tgt_fd:int) : string option =
   try Unix.dup2 (ExtUnix.file_descr_of_int orig_fd) (ExtUnix.file_descr_of_int tgt_fd); None
-  with Unix.Unix_error(e,_,_) -> Some (Unix.error_message e  ^ ": " ^ string_of_int orig_fd)
-
-let real_close (fd:int) : unit =
-  try Unix.close (ExtUnix.file_descr_of_int fd)
-  with Unix.Unix_error(_,_,_) -> ()
+  with Unix.Unix_error(EINTR,_,_) -> real_dup2 orig_fd tgt_fd
+     | Unix.Unix_error(e,_,_) -> Some (Unix.error_message e  ^ ": " ^ string_of_int orig_fd)
 
 let real_pipe () : int * int =
   let (fd_read,fd_write) = Unix.pipe () in
@@ -527,22 +531,22 @@ let real_openhere (s : string) : (string,int) either =
   let buff = Bytes.of_string s in
   try
     let (fd_read_orig, fd_write_orig) = Unix.pipe () in
-    let fd_read = ExtUnix.file_descr_of_int (renumber fd_read_orig) in
-    let fd_write = ExtUnix.file_descr_of_int (renumber fd_write_orig) in
+    let fd_read = renumber fd_read_orig in
+    let fd_write = renumber fd_write_orig in
     if Bytes.length buff <= 4096 (* from dash *)
     then 
       (* just write it, the pipe can hold it *)
       begin
-        ignore (xwrite fd_write buff);
-        Unix.close fd_write;
-        Right (ExtUnix.int_of_file_descr fd_read)
+        ignore (xwrite (ExtUnix.file_descr_of_int fd_write) buff);
+        real_close fd_write;
+        Right fd_read
       end       
     else 
       (* heredoc is too big for the pipe, so spin up a process to do the writing *)
       match Unix.fork () with
       | 0 -> 
          begin
-           Unix.close fd_read;
+           real_close fd_read;
            (* ignore SIGINT, SIGQUIT, SIGHUP, SIGTSTP *)
            Sys.set_signal Sys.sigint Sys.Signal_ignore;
            Sys.set_signal Sys.sigquit Sys.Signal_ignore;
@@ -550,13 +554,13 @@ let real_openhere (s : string) : (string,int) either =
            Sys.set_signal Sys.sigtstp Sys.Signal_ignore;
            (* SIGPIPE gets default handler... maybe we didn't need the whole heredoc? *)
            Sys.set_signal Sys.sigpipe Sys.Signal_default;
-           ignore (xwrite fd_write buff);
+           ignore (xwrite (ExtUnix.file_descr_of_int fd_write) buff);
            exit 0
          end
       | _pid -> 
          begin
-           Unix.close fd_write;
-           Right (ExtUnix.int_of_file_descr fd_read)
+           real_close fd_write;
+           Right fd_read
          end
   with Unix.Unix_error(e,_,_) -> Left (Unix.error_message e)
 
@@ -576,5 +580,5 @@ let real_handle_signal signal action =
 let rec real_signal_pid signal pid as_pg =
   try Unix.kill (if as_pg then -pid else pid) signal; true
   with
-    Unix.Unix_error(EINTR,_,_) -> real_signal_pid signal pid as_pg
+    Unix.Unix_error(EINTR,_,_) -> real_signal_pid signal pid as_pg (* shouldn't be possible, per `man 2 kill` *)
   | Unix.Unix_error(_) -> false

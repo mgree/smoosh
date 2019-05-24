@@ -602,7 +602,14 @@ let builtin_source argv0 s0 argv _env =
 let builtin_exec s0 argv env =
   match argv with
   | [] -> 
-     Right (s0, Done, false (* don't restore *))
+     (* one might worry that this ec will override whatever the
+        redirects brought.  but there's no way we'd even run the
+        command if the redirs failed!
+
+        we'll exit in a noninteractive shell, or just fail
+        interactively or with command exec 
+      *)
+     Right (exit_with 0 s0, Done, false (* don't restore *))
   | scmd::args ->
      match try_concrete scmd with
      | Nothing -> Left (s0, "couldn't handle symbolic argument " ^ string_of_symbolic_string scmd)
@@ -2331,7 +2338,16 @@ let run_command s0 opts checked prog_name argv env =
                 (* force a restore *)
                 match fn s2 argv env with
                 | Left (s2, err) -> Left (pop_locals s2, err)
-                | Right (s2, stmt) -> Right (pop_locals s2, stmt, true)
+                | Right (s2, stmt) -> 
+                   let restore = 
+                     match stmt with
+                     | CommandReady _env cmd [] [] _opts -> 
+                        (* special case for command exec w/o args *)
+                        cmd <> symbolic_string_of_string "exec"
+                     | _ -> true
+                     end
+                   in
+                   Right (pop_locals s2, stmt, restore)
                 end
              | Nothing ->
                 match check_execve Nothing (* no prefix *) s1 prog with
