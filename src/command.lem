@@ -551,7 +551,10 @@ let builtin_eval s0 argv _env =
   if null argv
   then Right (exit_with 0 s0, Done, true)
   else 
-    let src = ParseString ParseEval (string_of_fields argv) in
+    (* not required by POSIX, but makes things easier. 
+       avoids QRK_EVALNOOPT in modernish *)
+    let argv' = strip_double_dash argv in
+    let src = ParseString ParseEval (string_of_fields argv') in
     let sstr = parse_init src in
     Right (s0, 
            EvalLoop 1 (sstr, Just (stack_init ())) src 

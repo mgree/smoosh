@@ -11,6 +11,7 @@
 ### Implementation TODO
 
 - port over new testcases (test for presence of local to make it compliant?)
+  current blockage: problem in the LOOP definition (hitting race condition... EINTR?)
 
 - generalize tc_setfg use in job control to pull code out of system.ml
 
