@@ -76,19 +76,34 @@ class ( Read 'a )
   val write : 'a -> string
 end
 
+val trim : list char -> list char
+let trim cs = 
+  let ltrim = List.dropWhile is_whitespace cs in
+  let rtrim_rev = List.dropWhile is_whitespace (reverse ltrim) in
+  reverse rtrim_rev
+
 let rec readConstant dec hex oct chars =
-  match chars with
-  | #'+'::cs -> readConstant dec hex oct cs
-  | #'-'::cs -> 
-     match readConstant dec hex oct cs with
-     | Left msg -> Left msg
-     | Right n -> Right (~n)
-     end
-  | [#'0'] -> dec chars (* doesn't matter *)
-  | #'0'::#'x'::cs -> hex cs
-  | #'0'::cs -> oct cs
-  | _ -> dec chars
-  end
+  let cs = trim chars in
+  let (negative, cs') =
+    match cs with
+    | #'-'::cs' -> (true, cs')
+    | _ -> (false, cs)
+    end
+  in
+  let res = 
+    match cs' with
+    | [#'0'] -> dec cs' (* doesn't matter *)
+    | #'0'::#'x'::cs'' -> hex cs''
+    | #'0'::cs'' -> oct cs''
+    | _ -> dec cs'
+    end
+  in
+  if negative
+  then match res with
+       | Left msg -> Left msg
+       | Right n -> Right (~n)
+       end
+  else res
 
 let int64Max = ((int64FromNat 2) ** 63) - 1
 let int64Min = ~((int64FromNat 2) ** 63)
