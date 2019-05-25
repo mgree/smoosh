@@ -87,7 +87,8 @@ let rec readConstant dec hex oct chars =
   let (negative, cs') =
     match cs with
     | #'-'::cs' -> (true, cs')
-    | _ -> (false, cs)
+    | #'+'::cs' -> (false, cs')
+    | _         -> (false, cs)
     end
   in
   let res = 
