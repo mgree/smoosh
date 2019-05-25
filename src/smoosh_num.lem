@@ -151,6 +151,7 @@ let readUnsignedInteger base chars =
 
 val readSignedInteger : nat -> list char -> either string integer
 let readSignedInteger base chars =
+  let chars = trim chars in
   match chars with
   | #'+'::cs -> readUnsignedInteger base cs
   | #'-'::cs ->
@@ -171,6 +172,7 @@ let highestNat = 2 ** (system_int_size - 2) - 1 + 2 ** (system_int_size - 2)
 (* only use this for base 10 literals *)
 val readNat : (list char) -> either string nat
 let readNat cs =
+  let cs = trim cs in
   if is_numeric cs
   then match readUnsignedInteger 10 cs with
        | Right n -> 

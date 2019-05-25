@@ -320,7 +320,7 @@ let builtin_break s0 argv _env =
      (* default to just breaking the immediate loop *)
      let (s1, n) = bounded 1 in
      Right (exit_with 0 s1, Break n, true) 
-  | [s] -> match readUnsignedInteger 10 (char_list_of_symbolic_string s) with
+  | [s] -> match readUnsignedInteger 10 (trim (char_list_of_symbolic_string s)) with
            | Right n -> 
               if n < 1
               then Left (s0,write n ^ ": loop count out of range")
@@ -347,7 +347,7 @@ let builtin_continue s0 argv _env =
 let builtin_exit s0 argv _env =
   match argv with
   | [] -> Right (s0, Exit, true) (* default to exit code of last command *)
-  | [s] -> match readUnsignedInteger 10 (char_list_of_symbolic_string s) with
+  | [s] -> match readUnsignedInteger 10 (trim (char_list_of_symbolic_string s)) with
            | Right n -> 
               if n < 0 || n > 255
               then Left (s0, write n ^ ": illegal number")
@@ -1561,9 +1561,8 @@ let sprintf_esc fmt =
   | [] -> ("\\", [])
   end
 
-(* TODO 2018-10-05
-
-Each conversion specification is introduced by the <percent-sign> character ( '%' ). After the character '%', the following shall appear in sequence:
+(* Each conversion specification is introduced by the <percent-sign> character ( '%' ).
+   After the character '%', the following shall appear in sequence:
 
 The conversion specifiers and their meanings are:
 
