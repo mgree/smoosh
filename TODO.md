@@ -10,6 +10,8 @@
 
 ### Implementation TODO
 
+- add other utilities to testing
+
 - port over new testcases (test for presence of local to make it compliant?)
   current blockage: problem in the LOOP definition with --split
 
