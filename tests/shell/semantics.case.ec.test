@@ -1,0 +1,30 @@
+# ADDTOPOSIX
+
+(exit 3)
+echo $? # make sure we're making good ecs
+case a in
+    ( b ) (exit 4) ;;
+    ( * ) ;; # don't alter ec
+esac
+echo $? # should be 3
+
+(exit 5)
+case a$(echo $?>ec) in # observe ec before entering case
+    ( b ) (exit 6) ;;
+esac
+echo $?
+[ $(cat ec) = "5" ] || exit 2 # shouldn't have been altered yet!
+
+# make sure the ec is actually visible
+false
+case a in
+    ( a ) echo visible $? ;;
+esac
+
+# but make sure that no match cases set the ec to 0
+false
+case a in
+    ( b ) (exit 6) ;;
+esac
+echo $?
+

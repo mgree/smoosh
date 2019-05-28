@@ -1248,7 +1248,7 @@ and step_eval s0 checked stmt =
   | CaseMatch f cases ->
       match cases with
         | [] ->
-           check_traps (Right (XSCase "no match in case statement", s0, Done))
+           check_traps (Right (XSCase "no match in case statement", exit_with 0 s0, Done))
         | ([], _cmd)::cases' ->
            Right (XSCase "exhausted patterns, checking next case",
                   s0,
