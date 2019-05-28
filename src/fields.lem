@@ -97,6 +97,11 @@ let collapse_quoted w =
 let rec skip_field_splitting w =
   match w with
   | [] -> []
+  (* properly handle null fields that might have been generated
+
+       these are distinct from empty fields, which ought to have `UsrS
+     ""` or `ExpS ""` or `DQuo ...` in them.  *)
+  | UsrF::UsrF::ws -> skip_field_splitting (UsrF::ws)
   | UsrF::ws -> FS::skip_field_splitting ws
   | UsrS s::ws -> Field (symbolic_string_of_string s)::skip_field_splitting ws
   | ExpS s::ws -> Field (symbolic_string_of_string s)::skip_field_splitting ws

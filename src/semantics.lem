@@ -201,10 +201,10 @@ let expand_param s0 split q str f =
      | Nothing -> 
         let s2 = log_trace Trace_symbolic "Unsoundly treating symbolic fields as non-empty" s1 in
         (s2, [], w)
-     | Just true -> cstr ""
+     | Just true -> null ()
      | Just false -> wrds w
      end
-  (* SUBTRINGS (prefix/suffix) *)
+  (* SUBSTRINGS (prefix/suffix) *)
   | (Nothing, Substring _ _ _) -> unst (cstr "")
   | (Just fs, Substring s m w) -> ctrl (LMatch fs s m [] w)
   end
