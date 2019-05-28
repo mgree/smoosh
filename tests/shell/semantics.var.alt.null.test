@@ -1,0 +1,6 @@
+f() { echo $# ; }
+unset -v nonesuch
+f ${nonesuch+nonempty} a b
+
+x=foo
+f ${x+hi} a b

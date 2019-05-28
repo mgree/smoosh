@@ -139,6 +139,7 @@ let expand_param s0 split q str f =
   let cstr s  = (s1, [ExpS s], []) in
   let ewfs fs = (s1, expanded_words_of_fields fs, []) in
   let wrds w  = (s1, [], w) in
+  let null () = (s1, [], []) in
   let ctrl k  = (s1, [], [K k]) in
   let unst o  = 
     if not (elem str ["@"; "*"]) && Set.member Sh_nounset s0.sh.opts 
@@ -147,7 +148,7 @@ let expand_param s0 split q str f =
   in
   match (value, f) with
   (* NORMAL *)
-  | (Nothing, Normal)     -> unst (wrds []) (* unset, no field *)
+  | (Nothing, Normal)     -> unst (null ()) (* unset, no field *)
   | (Just fs, Normal)     -> ewfs fs
   (* DEFAULT *)
   | (Nothing, Default w)  -> wrds w
@@ -192,9 +193,9 @@ let expand_param s0 split q str f =
      | Just strs -> cstr (show (stringLength strs))
      end
   (* ALT *)
-  | (Nothing, Alt _)  -> cstr ""
+  | (Nothing, Alt _)  -> null ()
   | (Just _, Alt w)  -> wrds w
-  | (Nothing, NAlt _) -> cstr ""
+  | (Nothing, NAlt _) -> null ()
   | (Just fs, NAlt w) ->
      match null_fields fs with
      | Nothing -> 
