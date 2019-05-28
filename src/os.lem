@@ -259,50 +259,39 @@ let set_exported os0 x =
   then os1
   else <| os1 with sh = <| os1.sh with export = Set.insert x os1.sh.export |> |>
 
-val readonly_vars : forall 'a. os_state 'a -> env
-let readonly_vars os =
-  let globals = 
-    Map_extra.mapMaybe 
-      (fun x v -> if Set.member x os.sh.readonly then Just v else Nothing)
-      os.sh.env
+type unset_env = map string (maybe symbolic_string)
+
+val collect_vars : forall 'a. (os_state 'a -> set string) -> (local_opts -> bool) -> os_state 'a -> unset_env
+let collect_vars get_globals select_local os =
+  let globals : unset_env = 
+    foldr (fun x m -> Map.insert x (lookup_string_param os x) m) Map.empty 
+      (Set_extra.toOrderedList (get_globals os))
   in
-  let add_local lenv env =
-    let readonly_locals =
+  let add_local (lenv : local_env) (env : unset_env) : unset_env =
+    let selected_locals =
       Map_extra.mapMaybe
         (fun _x (m_v, opts) ->
-          if opts.local_readonly
-          then m_v
+          if select_local opts
+          then Just m_v
           else Nothing)
         lenv
     in
     (* override bindings in env with the local one *)
-    Map_extra.fold Map.insert env readonly_locals
+    Map_extra.fold Map.insert env selected_locals
   in
   (* foldr will let more recent locals override less recent ones---the right behaviors *)
   List.foldr add_local globals os.sh.locals
 
-  
-val exported_vars : forall 'a. os_state 'a -> env
-let exported_vars os =
-  let globals = 
-    Map_extra.mapMaybe 
-      (fun x v -> if Set.member x os.sh.export then Just v else Nothing)
-      os.sh.env
-  in
-  let add_local lenv env =
-    let exported_locals =
-      Map_extra.mapMaybe
-        (fun _x (m_v, opts) ->
-          if opts.local_exported
-          then m_v
-          else Nothing)
-        lenv
-    in
-    (* override bindings in env with the local one *)
-    Map_extra.fold Map.insert env exported_locals
-  in
-  (* foldr will let more recent locals override less recent ones---the right behaviors *)
-  List.foldr add_local globals os.sh.locals
+val readonly_vars : forall 'a. os_state 'a -> unset_env
+let readonly_vars os = 
+  collect_vars (fun os -> os.sh.readonly) (fun opts -> opts.local_readonly) os
+
+val exported_vars : forall 'a. os_state 'a -> unset_env
+let exported_vars os = 
+  collect_vars (fun os -> os.sh.export) (fun opts -> opts.local_exported) os
+
+val exported_set_vars : forall 'a. os_state 'a -> env
+let exported_set_vars os = Map_extra.mapMaybe (fun _x m_v -> m_v) (exported_vars os)
 
 val internal_set_param 
     : forall 'a. string -> symbolic_string -> os_state 'a -> os_state 'a

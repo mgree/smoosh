@@ -1,0 +1,5 @@
+set -e
+unset x
+export x
+export -p | grep 'export x'
+echo ok

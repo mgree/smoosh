@@ -257,8 +257,9 @@ let rec eval_test_expr s0 expr =
      end
   | TestOlderFile f1 f2    -> 
      match (file_mtime s0 f1, file_mtime s0 f2) with
-     | (Nothing, _) -> false
-     | (Just _, Nothing) -> true
+     | (Nothing, Nothing) -> false
+     | (Nothing, Just _) -> true
+     | (Just _, Nothing) -> false
      | (Just time1, Just time2) -> time1 < time2
      end
   | TestSameFile f1 f2     ->

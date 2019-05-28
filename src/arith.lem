@@ -516,6 +516,9 @@ let rec eval_arith bits s0 e =
   | (Num n) -> Right (s0, n)
   | (Var s) ->
       match lookup_concrete_param s0 s with
+      | Just "" ->
+         let s1 = log_trace Trace_unspec ("used null variable '" ^ s ^ "' in arithmetic expansion, treating as 0") s0 in
+         Right (s1, fromNat 0)
       | Just str ->
           match read (toCharList str) with
           | Right n -> Right (s0, n)

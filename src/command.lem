@@ -617,7 +617,7 @@ let builtin_exec s0 argv env =
         match check_execve (Just "exec") s0 cmd with
         | (s1, Nothing) -> Right (s1, Done, true)
         | (s1, Just executable) -> 
-           let exported = exported_vars s1 in
+           let exported = exported_set_vars s1 in
            (* use env to override exports---impl as Pmap.(union) *)
            let exec_env = Map.(union) exported env in
            Right (s1, 
@@ -2355,7 +2355,7 @@ let run_command s0 opts checked prog_name argv env =
                    Right (s2, Done, true)
                 | (s2, Just executable) ->
                    let cmd = symbolic_string_of_string executable in
-                   let exported = exported_vars s2 in
+                   let exported = exported_set_vars s2 in
                    (* use env to override exports---impl as Pmap.(union) *)
                    let exec_env = Map.(union) exported env in
                    let exec = Exec cmd prog_name argv exec_env TryBinSh in
