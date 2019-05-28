@@ -227,11 +227,9 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
      then (* we're in arithmetic or double quotes, so tilde is ignored *)
        arg_char (S "~") s bqlist stack
      else
-       let uname,s' = parse_tilde [] s in
-       begin
-         match uname with 
-         | None -> arg_char (K Tilde) s bqlist stack
-         | Some user -> arg_char (K (TildeUser user)) s' bqlist stack
+       begin match parse_tilde [] s with
+       | None -> arg_char (S "~") s bqlist stack
+       | Some (prefix, s') -> arg_char (K (Tilde prefix)) s' bqlist stack
        end
   (* ordinary character *)
   | _::_,_ -> 
@@ -239,19 +237,19 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
      arg_char (S (implode str)) s' bqlist stack
 
 and parse_tilde acc = 
-  let ret = if acc = [] then None else Some (implode acc) in
+  let ret s = Some (implode (List.rev acc), s) in
   function
-  | [] -> (ret , [])
-  (* CTLESC *)
-  | '\129'::_ as s -> None, s
+  | [] -> ret []
   (* CTLQUOTEMARK *)
-  | '\136'::_ as s -> None, s
+  | '\136'::_ as s -> None
   (* terminal: CTLENDVAR, /, : *)
-  | '\131'::_ as s -> ret, s
-  | ':'::_ as s -> ret, s
-  | '/'::_ as s -> ret, s
+  | '\131'::_ as s -> ret s
+  | ':'::_ as s -> ret s
+  | '/'::_ as s -> ret s
+  (* CTLESC *)
+  | '\129'::c::s' -> parse_tilde (c::acc) s'
   (* ordinary char *)
-  | c::s' -> parse_tilde (acc @ [c]) s'  
+  | c::s' -> parse_tilde (c::acc) s'  
 
 and parse_string acc quoted = function
   | [] -> List.rev acc, []
@@ -616,8 +614,7 @@ and json_of_entry = function
   | F -> obj "F"
   | ESym sym -> Assoc [tag "ESym"; ("v", json_of_symbolic sym)]
 and json_of_control = function
-  | Tilde -> obj "Tilde"
-  | TildeUser user -> Assoc [tag "TildeUser"; ("user", String user)]
+  | Tilde prefix -> Assoc [tag "Tilde"; ("prefix", String prefix)]
   | Param (x,fmt) -> Assoc [tag "Param"; ("var", String x); ("fmt", json_of_format fmt)]
   | LAssign (x,f,w) -> Assoc [tag "LAssign"; ("var", String x);
                               ("f", json_of_expanded_words f); ("w", json_of_words w)]

@@ -1196,7 +1196,7 @@ function renderFormat(info, elt, format) {
 function renderControl(info, elt, control) {
   console.assert(typeof control === 'object', 'expected control object, got ' + control);
   console.assert('tag' in control, 'expected tag for control object');
-  console.assert(['Tilde', 'TildeUser', 'Param', 'LAssign', 'LMatch', 'LError', 
+  console.assert(['Tilde', 'Param', 'LAssign', 'LMatch', 'LError', 
                   'Backtick', 'LBacktick', 'LBacktickWait', 
                   'Arith', 'Quote'].includes(control['tag']), 
                  'got weird control tag ' + control['tag']);
@@ -1205,16 +1205,9 @@ function renderControl(info, elt, control) {
   
   switch (control['tag']) {
     case 'Tilde':
-      // | Tilde -> obj "Tilde"
+      // | Tilde prefix -> Assoc [tag "Tilde"; ("prefix", String prefix)]
 
-      elt.append('~');
-
-      break;
-
-    case 'TildeUser':
-      // | TildeUser user -> Assoc [tag "TildeUser"; ("user", String user)]
-
-      elt.append('~' + control['user']);
+      elt.append('~' + control['prefix']);
 
       break;
 
@@ -1686,8 +1679,6 @@ function renderExpansionTraceEntry(info, elt, step) {
 
   let term = $('<div></div>').addClass('term').appendTo(elt);
   renderExpansionState(info, term, step['term']);
-
-  console.log(step['locals']);
 
   let env = $('<div></div>').addClass('env').appendTo(elt);
   renderEnv(info, env, step['env'], step['locals']);

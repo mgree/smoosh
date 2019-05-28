@@ -210,52 +210,56 @@ let expand_param s0 split q str f =
 
 let rec expand_control s0 split q tm k =
     match k with
-    | Tilde -> 
-       if tm = YesTilde then
-         let (msg, dir) = match lookup_concrete_param s0 "HOME" with
-         (* if HOME is unset, results are unspecified---we return "~" 
-            dash:
-              $ unset HOME
-              $ echo ~
-              ~
-              $ HOME=""
-              $ echo ~
-              ~
-              $ HOME="/Users/mgree"
-              $ echo ~
-              /Users/mgree
-
-            bash:
-              $ unset HOME
-              $ echo ~
-              /Users/mgree
-              $ HOME=""
-              $ echo ~
-              
-              $ HOME="/Users/mgree"
-              $ echo ~
-              /Users/mgree            
-
-            lol
-          *)
-           | Nothing -> ("defaulting to dash behavior for unset HOME (unspec per 2.6.1)", 
-                         ExpS "~")
-           | Just dir -> ("", DQuo (symbolic_string_of_string dir))
-           end in
-           Right (ESTilde msg, s0, YesTilde, [dir], [])
+    | Tilde prefix -> 
+       if tm = YesTilde 
+       then if prefix = ""
+            then let (s1, dir) = 
+                   match lookup_concrete_param s0 "HOME" with
+                   (* if HOME is unset, results are unspecified---we return "~" 
+                      dash:
+                        $ unset HOME
+                        $ echo ~
+                        ~
+                        $ HOME=""
+                        $ echo ~
+                        ~
+                        $ HOME="/Users/mgree"
+                        $ echo ~
+                        /Users/mgree
+                      
+                      bash:
+                        $ unset HOME
+                        $ echo ~
+                        /Users/mgree
+                        $ HOME=""
+                        $ echo ~
+                        
+                        $ HOME="/Users/mgree"
+                        $ echo ~
+                        /Users/mgree            
+                      
+                      lol
+                   *)
+                   | Nothing -> 
+                      (log_trace Trace_unspec 
+                         "unset HOME for ~ (unspec per 2.6.1)" s0, 
+                       ExpS "~")
+                   | Just dir -> (s0, DQuo (symbolic_string_of_string dir))
+                 end in
+                 Right (ESTilde "", s1, YesTilde, [dir], [])
+            else
+              match getpwnam s0 prefix with
+              | Nothing ->
+                 (* unspec per 2.6.1, but we follow dash *)
+                 let s1 = log_trace Trace_unspec
+                            ("defaulting to dash behavior for failed getpwnam " ^
+                                 "(unspec per 2.6.1)")
+                            s0 
+                 in
+                 Right (ESTilde "", s1, YesTilde, [ExpS ("~" ^ prefix)], []) 
+              | Just path -> Right (ESTilde "", s0, YesTilde, [ExpS path], [])
+              end
         else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [ExpS "~"], [])
-    | TildeUser usr -> 
-       if tm = YesTilde
-       then
-         match getpwnam s0 usr with
-         | Nothing ->
-            (* unspec per 2.6.1, but we follow dash *)
-            Right (ESTilde ("defaulting to dash behavior for failed getpwnam " ^
-                            "(unspec per 2.6.1)"), 
-                   s0, YesTilde, [ExpS ("~" ^ usr)], []) 
-         | Just path -> Right (ESTilde "", s0, YesTilde, [ExpS path], [])
-         end
-       else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [ExpS ("~" ^ usr)], [])
     | Param s f -> 
        (* We special case logic for "$@" here. The rest is in expand_param. *)
        if s = "@" && q = Quoted
