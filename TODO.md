@@ -1,16 +1,18 @@
-### Artifact TODO
 
-- https://github.com/modernish/modernish to check for quirks, bugs, etc.
-    * modernish --test!
+### Artifact TODO
 
 - use travis to automate all testing, collect results nightly, auto-deploy
   + run on dash, yash, bash, CoLiS, and smoosh
   + separate docker build for all of the crap that the test suite needs---why rebuild every time?
+  + automatically export smoosh test suite report
   + automatically export test journal summaries and timing
+  + automatically export modernish report
 
 ### Implementation TODO
 
 - add other utilities to testing
+
+- fix `QRK_BCDANGER` `QRK_EMPTPPWRD` in modernish
 
 - port over new testcases (test for presence of local to make it compliant?)
   current blockage: problem in the LOOP definition with --split
