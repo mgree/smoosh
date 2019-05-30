@@ -187,15 +187,9 @@
 - per Ryan Culpepper: controlling dynamic extents to restrict phases.
   Ralf &co are more or less doing this with their restriction on aliases
 
-### Bugs in real shells
+### Resolving unspec behavior
 
 * Bash
-  - Bug related to variable assignments before built in utilities
-    - "If the command name is a special built-in utility, variable assignments shall affect the current execution environment. Unless the set -a option is on (see set), it is unspecified:"
-    - "x=5 :" should set x=5 in the current shell env, but it does not in Bash (version 4.4.12(1)-release)
-    
-    not REALLY a bug---there's an obscure flag to turn on the POSIX behavior
-
 "If parameter is '*' or '@', the result of the expansion is unspecified."
 weird choice in bash:
 ```
@@ -207,85 +201,4 @@ yields
   3
 ```
     is also not _really_ a bug
-
-- Dash
-  - Found (and fixed) arithmetic bug
-  - Are `EXP_VARTILDE` and `EXP_VARTILDE2` necessary? 
-    it seems to me that the parser is properly separating things out...
-    test it!
-
-  - seems like timescmd is implemented incorrectly, printing out wrong numbers
-  - mishandles empty alias
-
-- Dash, Bash
-  - printf %5% seems perfectly valid, but both reject it as ill formatted
-  - kill -l doesn't fit the output format
- 
-- Yash
-  - set +m doesn't cause redirect of STDIN to /dev/null on asynchronous commands
-  - fg has incorrect output
-
-### Bugs per the spec
-     
-#### Dash
-
-- empty aliases (441); fixed in patch
-
-#### POSIX test suite and spec
-
-- I think there's a typo/rendering error in Section 2.7.4. In the
-  sentence that begins "However, the double-quote character...", the
-  actual double-quote is mangled (or at least isn't displaying properly
-  in my browser).
-
-##### Confirmed
-
-- bug in `sh_05.sh`
-  
-In `sh_05.sh` lines 5806-5815, we find the snippet:
-
-```
-    function func_sh5_326 {
-        if [ $1 -eq 1 ] && [ $2 -eq 2 ] && [ $2 -eq 2 ] && 
-           [ $3 -eq 3 ] && [ $4 -eq 4 ] && [ $5 -eq 5 ] &&
-           [ $6 -eq 6 ] && [ $7 -eq 7 ] && [ $8 -eq 8 ] && [ $9 -eq 9 ]
-        then
-                return 0
-        else
-                return 1
-        fi
-    }
-```
-
-But that's not the right syntax. It should instead be:
-
-```
-    func_sh5_326() {
-        ...
-    }
-```
-
-Confirmed by Brian Selves of OpenGroup on 2019-01-07; will be fixed in
-the next version.
-
-- bugs in sh_12.ex
-
-> You are correct that the test code assumes the shell will wait for
-> both commands in the pipeline, but the standard doesn't require the
-> shell to do that.  We will change the test code to ensure the echo
-> has completed before the output is checked.
-
-- I think I've found another subtle issue in sh_12.ex: test #718 uses
-  the command `kill -TERM $$`... but `-[signame]` is an XSI extension,
-  so not every shell will support it. It should be safe to use `kill
-  -s TERM $$` on any platform.
-
-> You  are right that sh_12.ex test #718 should use kill -s TERM $$
-
-- I'm back with another subtle issue: tp722 seems to execute undefined
-  behavior by setting a trap for SIGKILL. (There's also a typo in its
-  header, writing signal 0 instead of 9 for SIGKILL).
-
-> You are right :)  We will change the test so it doesn't try to
-> catch signal 9 / SIGKILL (and fix the typo).
 
