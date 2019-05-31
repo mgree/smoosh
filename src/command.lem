@@ -310,36 +310,49 @@ let builtin_break s0 argv _env =
   (* "If n is greater than the number of enclosing loops, the
      outermost enclosing loop shall be exited. If there is no
      enclosing loop, the behavior is unspecified." *)
-  let bounded n =
-    if n <= s0.sh.loop_nest
-    then (s0, n)
-    else (s0, s0.sh.loop_nest)
+  let try_break wanted_n =
+    let n = if wanted_n <= s0.sh.loop_nest then wanted_n else s0.sh.loop_nest in
+    if n <= 0
+    then
+      let s_n = stringFromNat wanted_n in
+      let s1 = log_trace Trace_unspec ("break " ^ s_n ^ " outside of loop") s0 in
+      let s2 = safe_write_stderr
+                 ("break: " ^ s_n ^ ": loop count out of range\n") s1 in
+      Right (exit_with 2 s2, Done, true)
+    else Right (exit_with 0 s0, Break n, true)
   in
   match argv with
   | [] -> 
      (* default to just breaking the immediate loop *)
-     let (s1, n) = bounded 1 in
-     Right (exit_with 0 s1, Break n, true) 
+     try_break 1
   | [s] -> match readUnsignedInteger 10 (trim (char_list_of_symbolic_string s)) with
-           | Right n -> 
-              if n < 1
-              then Left (s0,write n ^ ": loop count out of range")
-              else
-                let (s1, actual_n) = bounded (toNat n) in
-                Right (exit_with 0 s1, Break actual_n, true)
-           | Left _ -> Left (s0,string_of_symbolic_string s ^ ": numeric argument required")
+           | Right n -> try_break (toNat n)
+           | Left _ -> Left (s0, string_of_symbolic_string s ^
+                                   ": positive argument required")
            end
   | _ -> Left (s0,"too many arguments")
   end
 
 let builtin_continue s0 argv _env =
+  let try_continue wanted_n =
+    let n = if wanted_n <= s0.sh.loop_nest then wanted_n else s0.sh.loop_nest in
+    if n <= 0
+    then
+      let s_n = stringFromNat wanted_n in
+      let s1 = log_trace Trace_unspec ("continue " ^ s_n ^ " outside of loop") s0 in
+      let s2 = safe_write_stderr
+                 ("continue: " ^ s_n ^ ": loop count out of range\n") s1 in
+      Right (exit_with 2 s2, Done, true)
+    else Right (exit_with 0 s0, Continue n, true)
+  in
   match argv with
   | [] -> 
      (* default to just continuing the immediate loop *)
-     Right (exit_with 0 s0, Continue 1, true) 
-  | [s] -> match readNat (char_list_of_symbolic_string s) with
-           | Right n -> Right (exit_with 0 s0, Continue n, true)
-           | Left _ -> Left (s0,string_of_symbolic_string s ^ ": numeric argument required")
+     try_continue 1
+  | [s] -> match readUnsignedInteger 10 (trim (char_list_of_symbolic_string s)) with
+           | Right n -> try_continue (toNat n)
+           | Left _ -> Left (s0, string_of_symbolic_string s ^
+                                   ": positive numeric argument required")
            end
   | _ -> Left (s0, "too many arguments")
   end
