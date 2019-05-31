@@ -12,7 +12,7 @@
 
 - add other utilities to testing
 
-- fix `QRK_BCDANGER` `QRK_EMPTPPWRD` in modernish
+- fix `QRK_EMPTPPWRD` in modernish
 
 - port over new testcases (test for presence of local to make it compliant?)
   current blockage: problem in the LOOP definition with --split
@@ -31,10 +31,14 @@
 - unspec rundown
   + unset and function names
   + variables and functions!
+  + a way to log each unspec/undef behavior to some directory
+    * tracing w/help won't work with subshells. 
+      best to just have timestamped occurrences w/maximum context
 
 - non-special shell variables
   LINENO
   ENV (interactive only)
+  
 - faithful handling of PATH_MAX
 
 ### Known bugs/issues to investigate
