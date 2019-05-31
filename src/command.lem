@@ -311,7 +311,10 @@ let builtin_break s0 argv _env =
      outermost enclosing loop shall be exited. If there is no
      enclosing loop, the behavior is unspecified." *)
   let try_break wanted_n =
-    let n = if wanted_n <= s0.sh.loop_nest then wanted_n else s0.sh.loop_nest in
+    let n = if wanted_n <= s0.sh.loop_nest || Set.member Sh_nonlexicalctrl s0.sh.opts
+            then wanted_n
+            else s0.sh.loop_nest
+    in
     if n <= 0
     then
       let s_n = stringFromNat wanted_n in
@@ -335,7 +338,10 @@ let builtin_break s0 argv _env =
 
 let builtin_continue s0 argv _env =
   let try_continue wanted_n =
-    let n = if wanted_n <= s0.sh.loop_nest then wanted_n else s0.sh.loop_nest in
+    let n = if wanted_n <= s0.sh.loop_nest || Set.member Sh_nonlexicalctrl s0.sh.opts
+            then wanted_n
+            else s0.sh.loop_nest
+    in
     if n <= 0
     then
       let s_n = stringFromNat wanted_n in

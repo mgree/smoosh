@@ -1312,31 +1312,33 @@ and step_eval s0 checked stmt =
                Exit)
      (* what do we do if there's a break or continue in a call? 
         
-        break/continue don't seem to ever be lexically enclosed in a loop, so behavior is unspecified.
-        bash supports "non local break", dash doesn't:
+        CURRENT SETUP
 
-          $ brk() { break 5; echo post; }        
-          $ while true; do brk; done 
+        - lexical control (default, set +o nonlexicalctrl)
 
-        dash diverges, printing post
-        bash breaks immediately, no printing
+          `builtin_{break,command}` won't generate breaks without an appropriate loop   
+          nest. these cases never occur.
 
-        following dash is tricky: 
-        wherever there's a break, you have look at loop_nest.
-        when i refactor step_eval to treat terminating control differently, we'll be made.
-        for now, we'll follow bash.
+        - non-lexical control (set -o nonlexicalctrl)
+
+          no checks. behave like bash.
+
+        assertions check the invariant. in either case, it's the builtin's 
+        responsibility to log the unspec behavior.
       *)
      | Right (step, s1, Break n) ->
+        let _ = Assert_extra.ensure (Set.member Sh_nonlexicalctrl s1.sh.opts)
+                  "non-lexical break without -o nonlexicalctrl" in
         let s2 = cleanup s1 in
-        let s3 = log_trace Trace_unspec "non-lexical break in function call" s2 in
         Right (XSStack (f ^ ": break [unspecified behavior]") step,
-               s3,
+               s2,
                Break n)
      | Right (step, s1, Continue n) ->
+        let _ = Assert_extra.ensure (Set.member Sh_nonlexicalctrl s1.sh.opts)
+                  "non-lexical continue without -o nonlexicalctrl" in
         let s2 = cleanup s1 in
-        let s3 = log_trace Trace_unspec "non-lexical continue in function call" s2 in
         Right (XSStack (f ^ ": continue [unspecified behavior]") step,
-               s3,
+               s2,
                Continue n)
      | Right (step, s1, c') ->
         Right (XSStack f step,

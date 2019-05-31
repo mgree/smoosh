@@ -589,47 +589,51 @@ type sh_opt =
   | Sh_nounset
   | Sh_verbose
   | Sh_vi
-  | Sh_xtrace      
+  | Sh_xtrace
+  (* custom smoosh stuff *)
+  | Sh_nonlexicalctrl
   | Sh_trace of trace_tag
 
 let string_of_sh_opt o =
   match o with
-  | Sh_allexport   -> "allexport"
-  | Sh_errexit     -> "errexit"
-  | Sh_ignoreeof   -> "ignoreeof"
-  | Sh_earlyhash   -> "earlyhash"
-  | Sh_interactive -> "interactive"
-  | Sh_monitor     -> "monitor"
-  | Sh_noclobber   -> "noclobber"
-  | Sh_noglob      -> "noglob"
-  | Sh_noexec      -> "noexec"
-  | Sh_nolog       -> "nolog"
-  | Sh_notify      -> "notify"
-  | Sh_nounset     -> "nounset"
-  | Sh_verbose     -> "verbose"
-  | Sh_vi          -> "vi"
-  | Sh_xtrace      -> "xtrace"
-  | Sh_trace tag   -> "trace" ^ string_of_trace_tag tag
+  | Sh_allexport      -> "allexport"
+  | Sh_errexit        -> "errexit"
+  | Sh_ignoreeof      -> "ignoreeof"
+  | Sh_earlyhash      -> "earlyhash"
+  | Sh_interactive    -> "interactive"
+  | Sh_monitor        -> "monitor"
+  | Sh_noclobber      -> "noclobber"
+  | Sh_noglob         -> "noglob"
+  | Sh_noexec         -> "noexec"
+  | Sh_nolog          -> "nolog"
+  | Sh_notify         -> "notify"
+  | Sh_nounset        -> "nounset"
+  | Sh_verbose        -> "verbose"
+  | Sh_vi             -> "vi"
+  | Sh_xtrace         -> "xtrace"
+  | Sh_nonlexicalctrl -> "nonlexicalctrl"
+  | Sh_trace tag      -> "trace" ^ string_of_trace_tag tag
   end
 
 let char_of_sh_opt o =
   match o with
-  | Sh_allexport   -> Just #'a'
-  | Sh_errexit     -> Just #'e'
-  | Sh_ignoreeof   -> Nothing
-  | Sh_earlyhash   -> Just #'h'
-  | Sh_interactive -> Just #'i'
-  | Sh_monitor     -> Just #'m'
-  | Sh_noclobber   -> Just #'C'
-  | Sh_noglob      -> Just #'f'
-  | Sh_noexec      -> Just #'n'
-  | Sh_nolog       -> Nothing
-  | Sh_notify      -> Just #'b'
-  | Sh_nounset     -> Just #'u'
-  | Sh_verbose     -> Just #'v'
-  | Sh_vi          -> Nothing
-  | Sh_xtrace      -> Just #'x'
-  | Sh_trace _    -> Nothing
+  | Sh_allexport      -> Just #'a'
+  | Sh_errexit        -> Just #'e'
+  | Sh_ignoreeof      -> Nothing
+  | Sh_earlyhash      -> Just #'h'
+  | Sh_interactive    -> Just #'i'
+  | Sh_monitor        -> Just #'m'
+  | Sh_noclobber      -> Just #'C'
+  | Sh_noglob         -> Just #'f'
+  | Sh_noexec         -> Just #'n'
+  | Sh_nolog          -> Nothing
+  | Sh_notify         -> Just #'b'
+  | Sh_nounset        -> Just #'u'
+  | Sh_verbose        -> Just #'v'
+  | Sh_vi             -> Nothing
+  | Sh_xtrace         -> Just #'x'
+  | Sh_nonlexicalctrl -> Nothing
+  | Sh_trace _        -> Nothing
   end
 
 let sh_opt_of_shortopt so = 
@@ -663,6 +667,7 @@ let sh_opt_of_longopt lo =
   | "verbose" -> Just Sh_verbose
   | "vi" -> Just Sh_vi
   | "xtrace" -> Just Sh_xtrace
+  | "nonlexicalctrl" -> Just Sh_nonlexicalctrl
   | _ -> 
      let cs = toCharList lo in
      match cs with
@@ -692,7 +697,8 @@ let all_sh_opts = sortBy (fun o1 o2 -> string_of_sh_opt o1 <= string_of_sh_opt o
    ; Sh_nounset
    ; Sh_verbose
    ; Sh_vi
-   ; Sh_xtrace] ++ 
+   ; Sh_xtrace
+   ; Sh_nonlexicalctrl] ++ 
      map Sh_trace all_trace_tags)
 
 val unimplemented_sh_opts : list sh_opt
