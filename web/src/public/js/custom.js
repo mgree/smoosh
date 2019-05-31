@@ -170,10 +170,13 @@ function stmtSimple(info, elt, stmt, fAssign, fArgs) {
         const v = $('<span></span>').addClass('variable').appendTo(a);
         fAssign(info, v, assign['value']);
       }
+
+      const has_redirs =
+        ('rs'  in stmt && stmt['rs'].length  !== 0) ||
+        ('ers' in stmt && stmt['ers'].length !== 0);
     
       // if we had an assignment and also have args or redirects, then put a space in
-      if (stmt['assigns'].length !== 0 && 
-          (stmt['args'].length !== 0 || stmt['rs'].length !== 0)) {
+      if (stmt['assigns'].length !== 0 && (stmt['args'].length !== 0 || has_redirs)) {
         assignsExp.append(fieldSep);
       }
     
@@ -181,8 +184,7 @@ function stmtSimple(info, elt, stmt, fAssign, fArgs) {
       fArgs(info, argsExp, stmt['args']);
 
       // if we have following redirs, then put a space in
-      if (   ('rs' in stmt && stmt['rs'].length !== 0)
-          || ('ers' in stmt && stmt['ers'].length !== 0)) {
+      if (has_redirs) {
         argsExp.append(fieldSep);
       }
 

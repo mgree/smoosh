@@ -460,6 +460,17 @@ let rec expand_control s0 split q tm k =
              s0, NoTilde, collapse_quoted f, [])
    | Quote f w -> 
        match expand_words s0 split Quoted NoTilde GeneratedString ([],w) with
+       | Right (step, s1, _tm1, [], w1) ->
+          (* special case for null fields... avoids QRK_EMPTPPWRD
+
+             set --
+             x=""
+             set -- "$x$@$x"
+             echo $# 
+             
+             should yield 1
+           *)
+          Right (step, s1, NoTilde, [], [K (Quote (f ++ [DQuo []]) w1)])
        | Right (step, s1, _tm1, f1, w1) -> 
           Right (step, s1, NoTilde, [], [K (Quote (f ++ f1) w1)])
        | Left err -> Left err

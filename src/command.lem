@@ -319,9 +319,8 @@ let builtin_break s0 argv _env =
     then
       let s_n = stringFromNat wanted_n in
       let s1 = log_trace Trace_unspec ("break " ^ s_n ^ " outside of loop") s0 in
-      let s2 = safe_write_stderr
-                 ("break: " ^ s_n ^ ": loop count out of range\n") s1 in
-      Right (exit_with 2 s2, Done, true)
+      (* printing here or returning non-0 breaks the POSIX test suite *)
+      Right (exit_with 0 s1, Done, true)
     else Right (exit_with 0 s0, Break n, true)
   in
   match argv with
@@ -346,9 +345,8 @@ let builtin_continue s0 argv _env =
     then
       let s_n = stringFromNat wanted_n in
       let s1 = log_trace Trace_unspec ("continue " ^ s_n ^ " outside of loop") s0 in
-      let s2 = safe_write_stderr
-                 ("continue: " ^ s_n ^ ": loop count out of range\n") s1 in
-      Right (exit_with 2 s2, Done, true)
+      (* printing here or returning non-0 breaks the POSIX test suite *)
+      Right (exit_with 0 s1, Done, true)
     else Right (exit_with 0 s0, Continue n, true)
   in
   match argv with
