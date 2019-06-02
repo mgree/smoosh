@@ -2,8 +2,22 @@
 ### Artifact TODO
 
 - use travis to automate all testing, collect results nightly, auto-deploy
-  + run on dash, yash, bash, osh, zsh, fish?, CoLiS, and smoosh
-  + automatically export smoosh test suite report
+  + shells: smoosh bash dash yash zsh
+    still need to install: osh? fish CoLiS ksh?
+  + run our tests
+    * smoosh suite
+    * modernish
+    * POSIX test suite
+  + automatically export reports
+    * smoosh test suite
+    * modernish
+    * POSIX (test journal summaries, timing)
+
+### Implementation TODO
+
+- modernish broken in docker for smoosh (memory error?!)
+
+- add other utilities to testing
 ```
 #   cd command echo false getopts kill printf pwd read sh test true wait
 #
@@ -16,17 +30,8 @@
 # ^tr ^true ^tty ^umask ^uname ^uniq ^wait ^wc ^xargs
 ```
 
-  + automatically export test journal summaries and timing
-  + automatically export modernish report
-
-### Implementation TODO
-
-- add other utilities to testing
-
-- fix `QRK_EMPTPPWRD` in modernish
-
-- port over new testcases (test for presence of local to make it compliant?)
-  current blockage: problem in the LOOP definition with --split
+- port over local testcases (test for presence of local to make it compliant?)
+  characterize difference!
 
 - generalize tc_setfg use in job control to pull code out of system.ml
 
