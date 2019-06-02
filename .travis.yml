@@ -8,8 +8,7 @@ services:
 before_install:
   - docker pull ocaml/opam2:debian-9
   - docker build -t smoosh .
-  - docker build -t smoosh-test -f Dockerfile.test .
 
 script:
-  - docker run smoosh-test
+  - docker build -t smoosh-test -f Dockerfile.test .
   - docker build -t smoosh-web -f Dockerfile.web .

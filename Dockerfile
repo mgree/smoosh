@@ -5,8 +5,24 @@ FROM ocaml/opam2:debian-9
 # TODO this still isn't silencing it :(
 ENV DEBIAN_FRONTEND=noninteractive
 
+# we frontload installation so that things that inherit from us don't need network access
+# we also (inadvisedly) do an update, but we'll ask for particular shell versions
+RUN sudo apt-get update
+
+# other shells we'll want
+RUN sudo apt-get install -y dash=0.5.8-2.4
+RUN sudo apt-get install -y --no-install-recommends bash=4.4-5
+RUN sudo apt-get install -y yash=2.43-1
+RUN sudo apt-get install -y zsh=5.3.1-4+b2
+
 # system support for libdash; libgmp for zarith for lem
 RUN sudo apt-get install -y autoconf autotools-dev libtool pkg-config libffi-dev libgmp-dev
+
+# need expect for the POSIX test suite
+RUN sudo apt-get install -y --no-install-recommends expect
+
+# need gawk for POSIX test sutie tests tp448 and tp450; will be used POSIXLY_CORRECT
+RUN sudo apt-get install -y gawk
 
 # make sure we have ocamlfind and ocamlbuild
 RUN opam install ocamlfind ocamlbuild
@@ -45,6 +61,9 @@ ADD --chown=opam:opam README.md .
 
 # build smoosh
 RUN cd src; opam config exec -- make all all.byte
+
+# install smoosh
+RUN sudo cp /home/opam/src/smoosh /bin/smoosh
 
 ENTRYPOINT [ "opam", "config", "exec", "--" ]
 CMD [ "bash" ]

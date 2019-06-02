@@ -2,9 +2,20 @@
 ### Artifact TODO
 
 - use travis to automate all testing, collect results nightly, auto-deploy
-  + run on dash, yash, bash, CoLiS, and smoosh
-  + separate docker build for all of the crap that the test suite needs---why rebuild every time?
+  + run on dash, yash, bash, osh, zsh, fish?, CoLiS, and smoosh
   + automatically export smoosh test suite report
+```
+#   cd command echo false getopts kill printf pwd read sh test true wait
+#
+# ^awk ^basename ^bc ^cat ^cd ^chgrp ^chmod ^chown ^cksum ^cmp ^comm
+# ^command ^cp ^cut ^date ^dd ^diff ^dirname ^echo ^ed ^env ^expr
+# ^false ^find ^fold ^getconf ^getopts ^grep ^head ^id ^join ^kill
+# ^ln ^locale ^localedef ^logger ^logname ^lp ^ls ^mailx ^mkdir
+# ^mkfifo ^mv ^nohup ^od ^paste ^pathchk ^pax ^pr ^printf ^pwd
+# ^read ^rm ^rmdir ^sed ^sh ^sleep ^sort ^stty ^tail ^tee ^test ^touch 
+# ^tr ^true ^tty ^umask ^uname ^uniq ^wait ^wc ^xargs
+```
+
   + automatically export test journal summaries and timing
   + automatically export modernish report
 
