@@ -6,14 +6,15 @@
 TEST_SCRIPT=${0##*/}
 
 cleanup () {
-    if ! [ -z "$TMP" ]
+    if [ "$TMP" ]
     then
+        echo
         echo Cleaning up temporary directory $TMP...
         rm -r $TMP
     fi
 }
 
-trap 'cleanup' EXIT INT
+trap 'cleanup' EXIT
 
 msg() {
     printf "${TEST_SCRIPT}: $@\n"
@@ -51,18 +52,23 @@ abort() {
     exit 1
 }
 
-failed() {
-    msg "$1 failed"
-}
-
 tick() {
     if [ $((count % 70)) -eq 0 ] && [ ${count} -ne 0 ]
     then
 	printf '\n'
     fi
-
-    printf '.'
 }
+
+failed() {
+    if debugging
+    then
+        msg "$1 failed"
+    else
+        tick
+        printf 'x'
+    fi
+}
+
 
 passed() {
     if debugging
@@ -70,6 +76,7 @@ passed() {
 	msg "$1 passed"
     else
 	tick
+        printf '.'
     fi
 }
 
@@ -114,13 +121,16 @@ do
     expected_out=${case_name}.out
     expected_err=${case_name}.err
 
-    got_out=${TEST_LOGDIR}/${case_name}.out
-    got_err=${TEST_LOGDIR}/${case_name}.err
+    prefix=${TEST_LOGDIR}/${case_name}
+    got_timeout=${prefix}.timeout
+    got_out=${prefix}.out
+    got_err=${prefix}.err
 
     # actually run the test
     TMP=$(mktemp -d)
     cd $TMP
-    ${TEST_SHELL} ${TEST_SHELL_FLAGS} $BASE/${test_case} >${got_out} 2>${got_err}
+    ${TEST_UTIL}/timeout -l ${got_timeout} \
+      ${TEST_SHELL} ${TEST_SHELL_FLAGS} $BASE/${test_case} >${got_out} 2>${got_err}
     got_ec="$?"
     cd $BASE
     rm -r $TMP
@@ -131,6 +141,13 @@ do
 
     failures=0
 
+    # check for timeout
+    if [ -f "${got_timeout}" ]
+    then
+        debug "${case_name}: timed out"
+        : $((failures += 1))
+    fi
+    
     # check exit code
     if [ "${expected_ec}" -ne "${got_ec}" ]
     then
