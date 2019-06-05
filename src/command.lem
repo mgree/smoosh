@@ -54,7 +54,7 @@ let builtin_names =
   ; "hash"
   ; "jobs"
   ; "kill"
-(*  ; "local" *) (* unimpl *)
+  ; "local"
 (*  ; "newgrp" *) (* use command *)
   ; "printf"
   ; "pwd"
@@ -323,7 +323,7 @@ let builtin_break s0 argv _env =
       Right (exit_with 0 s1, Done, true)
     else Right (exit_with 0 s0, Break n, true)
   in
-  match argv with
+  match strip_double_dash argv with
   | [] -> 
      (* default to just breaking the immediate loop *)
      try_break 1
@@ -349,7 +349,7 @@ let builtin_continue s0 argv _env =
       Right (exit_with 0 s1, Done, true)
     else Right (exit_with 0 s0, Continue n, true)
   in
-  match argv with
+  match strip_double_dash argv with
   | [] -> 
      (* default to just continuing the immediate loop *)
      try_continue 1
@@ -362,7 +362,7 @@ let builtin_continue s0 argv _env =
   end
 
 let builtin_exit s0 argv _env =
-  match argv with
+  match strip_double_dash argv with
   | [] -> Right (s0, Exit, true) (* default to exit code of last command *)
   | [s] -> match readUnsignedInteger 10 (trim (char_list_of_symbolic_string s)) with
            | Right n -> 
@@ -377,7 +377,7 @@ let builtin_exit s0 argv _env =
 let builtin_return s0 argv _env =
   (* 2018-03-2 the present arrangement yields exit code of 1 on error; bash gives 255 for return; dash does 2.
         unspecified in POSIX docs *)
-  match argv with
+  match strip_double_dash argv with
   | [] -> Right (s0, Return, true) (* just keep the last command's return status *)
   | [s] -> match readNat (char_list_of_symbolic_string s) with
            | Right n -> Right (exit_with n s0, Return, true)
@@ -387,7 +387,7 @@ let builtin_return s0 argv _env =
   end
 
 let builtin_shift s0 argv _env =
-  let n = match argv with
+  let n = match strip_double_dash argv with
     | [] -> Right 1
     | [s] -> match readNat (char_list_of_symbolic_string s) with
           | Right n -> Right n
@@ -579,7 +579,7 @@ let builtin_eval s0 argv _env =
            true)
 
 let builtin_source argv0 s0 argv _env = 
-  match argv with
+  match strip_double_dash argv with
   | [] -> Left (s0, "usage: " ^ argv0 ^ " filename")
   | sfile::_ ->
      match try_concrete sfile with
@@ -617,10 +617,10 @@ let builtin_source argv0 s0 argv _env =
   end
 
 let builtin_exec s0 argv env =
-  match argv with
+  match strip_double_dash argv with
   | [] -> 
      (* one might worry that this ec will override whatever the
-        redirects brought.  but there's no way we'd even run the
+        redirects brought. but there's no way we'd even run the
         command if the redirs failed!
 
         we'll exit in a noninteractive shell, or just fail
@@ -835,7 +835,7 @@ let rec builtin_trap s0 argv _env =
     then s0
     else clear_supershell_traps s0
   in
-  match argv with
+  match strip_double_dash argv with
   | [] -> 
      let show (trap,cmd) os =
        let quoted_cmd = "'" ^ string_of_symbolic_string cmd ^ "'" in
@@ -850,7 +850,6 @@ let rec builtin_trap s0 argv _env =
      in
      let s2 = foldr show s1 (Map_extra.toList traps) in
      Right (s2, Done, true)
-  | [C #'-'; C #'-']::argv' -> builtin_trap s1 argv' _env
   | arg::signals ->
      match readNat (char_list_of_symbolic_string arg) with
      | Right _n -> 

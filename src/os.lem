@@ -759,7 +759,6 @@ class ( OS 'a )
                     fd (* wanted number *) -> 
                     os_state 'a * either string saved_fds
   val os_restore_fd : os_state 'a -> fd -> saved_fd_info -> os_state 'a
-
 end
 
 (* Logging for syscalls ***********************************************)

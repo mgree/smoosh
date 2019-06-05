@@ -38,7 +38,7 @@ util/argv : util/argv.c
 	gcc -o $@ $<
 
 clean :
-	-rm -f util/fds
+	-rm -f util/fds util/getenv util/argv
 	-rm -f default.env
 
 veryclean : clean
