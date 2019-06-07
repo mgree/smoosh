@@ -10,7 +10,7 @@ has() {
         exit 2
     fi
     
-    echo $res | grep "$1" >/dev/null
+    printf '%s\n' "$res" | grep "$1" >/dev/null
 }
 
 # FIND THE UTILITY
@@ -19,12 +19,13 @@ type local >/dev/null 2>&1 || { echo 'absent' && exit 1 ; }
 echo 'present'
 type local | grep special >/dev/null && echo 'special'
 type local | grep 'function' >/dev/null && echo 'function' 
+type local | grep 'reserved' >/dev/null && echo 'reserved'
 type local | grep built >/dev/null && echo 'builtin' 
 
 # SPECIAL BUILTIN?
 
 is_special() {
-    x=hi local
+    x=hi local >/dev/null 2>&1
     case "${x+set}" in
         ( set ) return 0;;
         ( *   ) return 1;;
@@ -33,6 +34,18 @@ is_special() {
 }
 
 is_special && echo 'truly special' || echo 'not truly special'
+
+# PLAIN LOCAL
+
+plain_local() {
+    local x y z=hi
+    local 2>&1
+}
+
+res=$(plain_local)
+[ ! "$res" ] && echo 'plain empty'
+has 'z=hi' && echo 'plain assign'
+has 'local' && echo 'plain keyword'
 
 # READONLY INTERACTION?
 
@@ -89,7 +102,7 @@ inner_overrides() {
 }
 
 inner_overrides && echo 'inner overrides' \
-                || echo 'inner no effect'
+                || echo 'inner nested'
 
 unset x
 
@@ -101,16 +114,35 @@ scope_inner2() {
 
 inner_overrides2() {
     local x
-    scope_inner
+    scope_inner2
     case "${x:-nothing}" in
-        ( nothing ) echo 'inner/local no effect';;
+        ( nothing ) echo 'inner/local nested';;
         ( hi ) echo 'inner/local overrides';;
-        ( * ) fail "inner_overrides: unexpected x='$x'";;
+        ( * ) fail "inner_overrides2: unexpected x='$x'";;
     esac
 }
 
 inner_overrides2
 
+unset x
+
+# SCOPED OVERRIDE DEFINED LOCAL
+
+scope_inner3() {
+    local x=inner
+}
+
+scope_outer3() {
+    local x=outer
+    scope_inner3
+    case "$x" in
+        ( outer ) echo 'inner/local/defined nested';;
+        ( inner ) echo 'inner/local/defined overrides';;
+        ( * ) fail "inner_overrides3: unexpected x='$x'";;
+    esac
+}
+
+scope_outer3
 unset x
 
 # SCOPED UNSET
