@@ -421,7 +421,7 @@ function renderStmt(info, elt, stmt) {
       //           ("args", json_of_fields (cmd::args));
       //           ("saved_fds", json_of_saved_fds saved_fds)]
 
-      stmtSimple(info, elt, stmt, renderFields, renderFields);
+      stmtSimple(info, elt, stmt, renderSymbolicString, renderFields);
 
       break;
 

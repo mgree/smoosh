@@ -911,7 +911,7 @@ and stmt =
   | CommandExpArgs of list (string * words) * expansion_state * list redir * command_opts
   | CommandExpRedirs of list (string * words) * fields * redir_state * command_opts
   | CommandExpAssign of list (string * expansion_state) * fields * saved_fds * command_opts
-  | CommandReady of list (string * fields) * symbolic_string * fields * saved_fds * command_opts
+  | CommandReady of list (string * symbolic_string) * symbolic_string * fields * saved_fds * command_opts
   | Pipe of bg_mode * list stmt
   | Redir of stmt * redir_state
   | Background of stmt * redir_state
@@ -1468,8 +1468,8 @@ let is_special_param x =
   | Left _ -> elem x ["@"; "*"; "#"; "?"; "-"; "$"; "!"]
   end
 
-val assigns_of_env : env -> list (string * fields)
-let assigns_of_env env = map (fun (x,v) -> (x,[v])) (Map_extra.toList env)
+val assigns_of_env : env -> list (string * symbolic_string)
+let assigns_of_env env = map (fun (x,v) -> (x,v)) (Map_extra.toList env)
 
 val sequence : list stmt -> stmt
 let rec sequence stmts =
@@ -1782,7 +1782,7 @@ and string_of_stmt c =
      string_of_simple string_of_expansion_state string_of_fields (fun _ -> "")
        assigns cmds saved_fds
   | CommandReady assigns cmd args saved_fds _opts -> 
-     string_of_simple string_of_fields string_of_fields (fun _ -> "")
+     string_of_simple string_of_symbolic_string string_of_fields (fun _ -> "")
        assigns (cmd::args) saved_fds
   | Pipe mode cmds ->
      let p = concat " | " (List.map string_of_stmt cmds) in

@@ -46,7 +46,7 @@ class Command
     begin
       @process.start
     rescue ChildProcess::LaunchError => e
-      raise PDK::CLI::FatalError, _("Failed to execute '%{command}': %{message}") % { command: command_string, message: e.message }
+      raise ("Failed to execute '%{command}': %{message}" % { command: command_string, message: e.message })
     end
 
     if timeout

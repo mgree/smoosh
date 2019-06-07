@@ -57,23 +57,27 @@ type os_state 'a = <|
  |> 
 
 (* Parameter helpers **************************************************)
-
+   
 type local_binding = 
     LocalNotFound 
   | LocalUnset of local_opts
   | LocalSet of symbolic_string * local_opts
 
-val pop_locals : forall 'a. os_state 'a -> os_state 'a
+val pop_locals : forall 'a. os_state 'a -> os_state 'a * local_env
 let pop_locals os =
   match os.sh.locals with
   | [] -> Assert_extra.failwith "pop_locals"
-  | _::locals' -> <| os with sh = <| os.sh with locals = locals' |> |>
+  | outer::locals' -> (<| os with sh = <| os.sh with locals = locals' |> |>, outer)
   end
 
 val push_locals : forall 'a. os_state 'a -> env -> os_state 'a
 let push_locals os env =
   let local_env = Map.map (fun v -> (Just v, local_opts_default)) env in
   <| os with sh = <| os.sh with locals = local_env::os.sh.locals |> |>
+
+val new_local_scope : forall 'a. os_state 'a -> os_state 'a
+let new_local_scope os =
+  <| os with sh = <| os.sh with locals = Map.empty::os.sh.locals |> |>
 
 val get_locals_loop : list local_env -> set string
 let rec get_locals_loop locals =
@@ -100,6 +104,22 @@ let rec lookup_local_param_loop x locals =
 val lookup_local_param : forall 'a. os_state 'a -> string -> local_binding
 let lookup_local_param os x = lookup_local_param_loop x os.sh.locals
 
+val is_readonly : forall 'a. string -> os_state 'a -> bool
+let is_readonly var os = 
+  match lookup_local_param os var with
+  | LocalNotFound -> Set.member var os.sh.readonly
+  | LocalUnset opts -> opts.local_readonly
+  | LocalSet _ opts -> opts.local_readonly
+  end
+
+val check_param : forall 'a. string -> os_state 'a -> maybe string (* err msg *)
+let check_param x os0 =  
+  if is_readonly x os0
+  then Just (x ^ ": is read only")
+  else if is_special_param x
+  then Just (x ^ ": is a special parameter and not a valid identifier")
+  else Nothing
+                            
 val set_local_param_opts_loop : string -> (local_opts -> local_opts) -> list local_env -> maybe (list local_env)
 let rec set_local_param_opts_loop x upd locals =
   match locals with
@@ -150,6 +170,19 @@ let set_local_param os x m_v =
   | Nothing -> (os, false)
   | Just locals' -> (<| os with sh = <| os.sh with locals = locals' |> |>, true)
   end
+
+val force_local_param : forall 'a. os_state 'a -> string -> symbolic_string -> either string (os_state 'a)
+let force_local_param os x v =
+  match os.sh.locals with
+  | [] -> Assert_extra.failwith "force_local_param missing local scope"
+  | env::locals' ->
+     match check_param x os with
+     | Just err -> Left err
+     | Nothing ->
+        let env' = Map.insert x (Just v, local_opts_default) env in
+        Right <| os with sh = <| os.sh with locals = env'::locals' |> |>
+     end
+  end                                      
 
 val lookup_positional_param : forall 'a. nat -> os_state 'a -> maybe symbolic_string
 let lookup_positional_param num os = index os.sh.positional_params num
@@ -231,14 +264,6 @@ let get_path os =
   match lookup_concrete_param os "PATH" with
   | Nothing -> ""
   | Just path -> path
-  end
-
-val is_readonly : forall 'a. string -> os_state 'a -> bool
-let is_readonly var os = 
-  match lookup_local_param os var with
-  | LocalNotFound -> Set.member var os.sh.readonly
-  | LocalUnset opts -> opts.local_readonly
-  | LocalSet _ opts -> opts.local_readonly
   end
 
 val set_readonly : forall 'a. os_state 'a -> string -> os_state 'a
@@ -1277,32 +1302,35 @@ let xtrace msg os =
   if Set.member Sh_xtrace os.sh.opts && msg <> ""
   then write_stderr (ps4 os ^ msg ^ "\n") os
   else os
-   
+  
+val checked_set_param : forall 'a. OS 'a =>
+                  string -> symbolic_string -> os_state 'a -> os_state 'a
+let checked_set_param x v os0 =
+  let os1 = internal_set_param x v os0 in
+  let os2 = 
+    (* TODO 2019-06-07 what does this do with locals? 
+       bash exports, dash does not
+     *)
+    if Set.member Sh_allexport os1.sh.opts 
+    then <| os1 with sh = <| os1.sh with export = Set.insert x os1.sh.export |> |>
+    else os1
+  in
+  (* special variable handling for the parser and other internals *)
+  if x = "OPTIND" 
+  then <| os2 with sh = <| os2.sh with optoff = Nothing |> |>
+  else if x = "PS1"
+  then set_ps1 os2 v
+  else if x = "PS2"
+  then set_ps2 os2 v
+  else os2
+
 val set_param : forall 'a. OS 'a =>
                   string -> symbolic_string -> os_state 'a -> either string (os_state 'a)
-let set_param x v os0 = 
-  if is_readonly x os0
-  then Left (x ^ ": is read only")
-  else if is_special_param x
-  then Left (x ^ ": is a special parameter and not a valid identifier")
-  else 
-    let os1 = internal_set_param x v os0 in
-    let os2 = 
-      if Set.member Sh_allexport os1.sh.opts 
-      then <| os1 with sh = <| os1.sh with export = Set.insert x os1.sh.export |> |>
-      else os1
-    in
-    (* special variable handling for the parser and other internals *)
-    let os3 = 
-      if x = "OPTIND" 
-      then <| os2 with sh = <| os2.sh with optoff = Nothing |> |>
-      else if x = "PS1"
-      then set_ps1 os2 v
-      else if x = "PS2"
-      then set_ps2 os2 v
-      else os2
-    in
-    Right os3
+let set_param x v os0 =
+  match check_param x os0 with
+  | Just err -> Left err
+  | Nothing -> Right (checked_set_param x v os0)
+  end
                                   
 (* Shell options ******************************************************)
 

@@ -2352,7 +2352,9 @@ let run_command s0 opts checked prog_name argv env =
                 let s2 = push_locals s1 env in
                 (* force a restore *)
                 match fn s2 argv env with
-                | Left (s2, err) -> Left (pop_locals s2, err)
+                | Left (s2, err) -> 
+                   let (s3, _) = pop_locals s2 in
+                   Left (s3, err)
                 | Right (s2, stmt) -> 
                    let restore = 
                      match stmt with
@@ -2362,7 +2364,8 @@ let run_command s0 opts checked prog_name argv env =
                      | _ -> true
                      end
                    in
-                   Right (pop_locals s2, stmt, restore)
+                   let (s3, _)  = pop_locals s2 in
+                   Right (s3, stmt, restore)
                 end
              | Nothing ->
                 match check_execve Nothing (* no prefix *) s1 prog with

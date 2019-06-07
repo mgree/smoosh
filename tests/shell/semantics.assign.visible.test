@@ -1,0 +1,6 @@
+set -e
+x=5 y=$((x+2))
+[ "$x" -eq 5 ]
+# either x is treated as unset (and so y = 2) or not (and so y = 7)
+[ "$y" -eq 2 ] || [ "$y" -eq 7 ]
+echo ok

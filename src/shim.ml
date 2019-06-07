@@ -604,7 +604,7 @@ and json_of_redirs rs = List (List.map json_of_redir rs)
 and json_of_expanded_redirs rs = List (List.map json_of_expanded_redir rs)
 and json_of_assign (x, w) = Assoc [("var", String x); ("value", json_of_words w)]
 and json_of_inprogress_assign (x, state) = Assoc [("var", String x); ("value", json_of_expansion_state state)]
-and json_of_expanded_assign (x, f) = Assoc [("var", String x); ("value", json_of_fields f)]
+and json_of_expanded_assign (x, ss) = Assoc [("var", String x); ("value", json_of_symbolic_string ss)]
 and json_of_case (ws, c) = Assoc [("pats", List (List.map json_of_words ws));
                                   ("stmt", json_of_stmt c)]
 and json_of_words w = List (List.map json_of_entry w)

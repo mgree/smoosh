@@ -26,11 +26,6 @@ type redir_exp_result 'a =
   | REError of fields
   | REStep of expansion_step * 'a * expanding_redir
 
-type step_assign_result 'a =
-    SADone of list (string * fields)
-  | SAError of fields
-  | SAStep of evaluation_step * os_state 'a * list (string * expansion_state)
-            
 val expand_control : forall 'a. OS 'a => 
                      os_state 'a -> splitting_mode -> quoting_mode -> tilde_mode -> control ->
                      either (expansion_step * os_state 'a * expanded_words) 
@@ -47,9 +42,6 @@ val step_redir : forall 'a. OS 'a =>
                    os_state 'a -> expanding_redir -> redir_exp_result (os_state 'a)
 val step_redir_state : forall 'a. OS 'a => os_state 'a -> redir_state -> 
                        os_state 'a * string * maybe (redir_state * maybe expansion_step)
-val step_assign : forall 'a. OS 'a => 
-                    os_state 'a -> list (string * expansion_state) ->
-                    step_assign_result 'a
 val check_traps : forall 'a. OS 'a => step_result 'a -> step_result 'a (* see os.lem for defn *)
 val expansion_error : forall 'a. OS 'a => bool (* may exit? *) -> os_state 'a -> evaluation_step -> expansion_step -> fields -> step_result 'a (* see os.lem for defn *)
 val step_eval : forall 'a. OS 'a => step_fun 'a (* see os.lem for defn *)
@@ -630,24 +622,6 @@ and step_redir_state os0 redir_state =
      end
   end
 
-(* Steps the first, non-complete expansion_state and returns.
- * If it reached the base case, they are all complete, so
- *   we return the Left type to continue on the arg expansion. *)
-and step_assign s0 assigns =
-  match assigns with
-  | [] -> SADone []
-  | (_x, ExpError f)::_assigns -> SAError f
-  | ((x, ExpDone f) as finished)::assigns' ->
-    match step_assign s0 assigns' with
-    | SAStep step s1 processed -> SAStep step s1 (finished::processed)
-    | SAError err -> SAError err
-    | SADone completed -> SADone ((x, f)::completed)
-    end
-  | (x, exp_state)::assigns' ->
-    let (step, s1, next_state) = step_expansion (s0, exp_state) in
-    SAStep (XSExpand (XSSimple x) step) s1 ((x, next_state)::assigns')
-  end
-
 and step_eval s0 checked stmt =
   (* 
      extremely subtle behavior with errors in expansion:
@@ -727,8 +701,14 @@ and step_eval s0 checked stmt =
               (x, ExpStart <| splitting = NoSplit; globbing = false |> w)) 
             assigns
         in
+        (* initialize local scope for assignments 
+
+           using a new local scope means that every expansion step can see these new locals
+           we'll pop the scope before running whatever command we see
+         *)
+        let s3 = new_local_scope s2 in
         Right (XSSimple "redirected; expanding assignments",
-               s2,
+               s3,
                CommandExpAssign exp_assigns args saved_fds opts)
      end
 
@@ -758,73 +738,95 @@ and step_eval s0 checked stmt =
                 CommandExpRedirs assigns args redir_state' opts')
       end
 
-  (* COMMAND: SPECIAL CASE: plain assignment, no command **************)
-  (* in this case, we WANT the visibility between each assignment, so
-     don't bother with the step_assigns rigamarole below
-   *)
-  | CommandExpAssign ((x,exp_state0)::assigns) [] saved_fds opts ->
+  (* expanding assignments *)      
+  | CommandExpAssign ((x,exp_state0)::assigns) args saved_fds opts ->
      let (step, s1, exp_state1) = step_expansion (s0, exp_state0) in
      let opts' = <| opts with
          ran_cmd_subst = opts.ran_cmd_subst || ran_command_substitution step
        |>
      in
      match exp_state1 with
-     | ExpDone f -> 
-        match set_param x (symbolic_string_of_fields f) s1 with
+     | ExpDone f ->
+        (* write the to our outer local scope *)
+        match force_local_param s1 x (symbolic_string_of_fields f) with
         | Left err -> 
+           (* PENDING CONFIRMATION 2019-06-07 
+              we should always exit 
+            *)
+           let special_or_assign =
+             match args with
+             | cmd::_ -> is_special_builtin (string_of_symbolic_string cmd)
+             | [] -> true
+             end
+           in
+           let may_exit =
+             (not (checked_exit checked) && Set.member Sh_errexit s1.sh.opts) || 
+             not (is_interactive s1) 
+           in
            let s2 = safe_write_stderr (err ^ "\n") s1 in
-           if (not (checked_exit checked) && Set.member Sh_errexit s1.sh.opts) || 
-               not (is_interactive s1) 
-           then Left (XSSimple "assignment error", s2)
-           else Right (XSSimple "assignment error", s2, Done)
+           Right (XSSimple "assignment error", exit_with 2 s2,
+                  if special_or_assign && may_exit 
+                  then Exit
+                  else Done)
         | Right s2 ->
-           let s3 = xtrace (x ^ "=" ^ string_of_fields f) s2 in
-           Right (XSSimple ("assign " ^ x),
-                  s3, 
-                  CommandExpAssign assigns [] saved_fds opts')
+           Right (XSSimple ("assign " ^ x), s2,
+                  CommandExpAssign assigns args saved_fds opts')
         end
      | ExpError err -> 
         expansion_error true (* may exit *) s1 (XSSimple "assignment expansion") step err
      | _ -> 
         Right (XSExpand (XSSimple "") step,
                s1, 
-               CommandExpAssign ((x,exp_state1)::assigns) [] saved_fds opts')
+               CommandExpAssign ((x,exp_state1)::assigns) args saved_fds opts')
      end
 
-  (* all local assignments are done, just need to restore fds from redirs 
+  (* we're done expanding assignments. do we have a command? *)
+  | CommandExpAssign [] args saved_fds opts ->
+     (* save our accumulated locals.
 
-     "If there is no command name, but the command contained a command
-     substitution, the command shall complete with the exit status of
-     the last command substitution performed. Otherwise, the command
-     shall complete with a zero exit status"
-   *)
-  | CommandExpAssign [] [] saved_fds opts ->
-     let s1 = restore_fds s0 saved_fds in
-     let s2 = 
-       if opts.ran_cmd_subst
-       then s1
-       else exit_with 0 s1
+        we can ignore any options set on these variables, becuase
+        assignments all happen in subshells and couldn't change things
+        anyway.
+
+        we can similarly ignore empty entries, which can only come
+        from the `local` builtin (as run in a subshell)
+      *)
+     let (s1, local_env) = pop_locals s0 in
+     let assigns =
+       Map_extra.toList (Map_extra.mapMaybe (fun _x (m_v, _opts) -> m_v) local_env)
      in
-     Right (XSSimple "finished assignments, popping redirects",
-            s2,
-            Done)
-
-  (* GENERAL CASE: command with possible assignments ******************)
-  (* assignments no longer go in the general environment *)
-  | CommandExpAssign assigns (cmd::argv as args) saved_fds opts ->
-     match step_assign s0 assigns with
-     (* Perform an expansion step in an assignment *)
-     | SAStep exp_step s1 assigns' ->
-        Right (exp_step,
-               s1,
-               CommandExpAssign assigns' args saved_fds opts)
-     | SAError f -> expansion_error true (* may exit *) s0 (XSSimple "assign expansion") (ESStep "") f
-     (* Done, move on to expanding arguments *)
-     | SADone assigns' ->
+     match args with
+     | [] ->
+       (* we're done expanding assignments and there's no command 
+          all local assignments are done, just need to restore fds from redirs 
+     
+          "If there is no command name, but the command contained a command
+          substitution, the command shall complete with the exit status of
+          the last command substitution performed. Otherwise, the command
+          shall complete with a zero exit status"
+        *)
+       let s2 = restore_fds s1 saved_fds in
+       let s3 = 
+         if opts.ran_cmd_subst
+         then s2
+         else exit_with 0 s2
+       in
+       (* we've already called check_param in force_local_param *)
+       let s4 = List.foldr (fun (x,v) os -> checked_set_param x v os) s3 assigns in
+       (* announce what we've done if `set -x` *)
+       let trace =
+         concat " " (map (fun (x,v) -> x ^ "=" ^ string_of_symbolic_string v) assigns)
+       in
+       let s5 = xtrace trace s4 in
+       Right (XSSimple "finished assignments w/o command, popping redirects",
+              s5,
+              Done)
+     | cmd::argv ->
+       (* we have commands---let's go! *)
         Right (XSSimple "assignments fully expanded",
-               s0,
-               CommandReady assigns' cmd argv saved_fds opts)
-    end
+               s1,
+               CommandReady assigns cmd argv saved_fds opts)
+     end
 
   (* COMMAND: ready ***************************************************)
   (* expansion is done, try to run command *)
@@ -833,12 +835,6 @@ and step_eval s0 checked stmt =
      then Right (XSSimple "set -n: skipping command", s0, Done)
      else
      let s0_traced = xtrace (string_of_stmt cmd) s0 in
-     (* load exported variables, perform assignments *)
-     let env = 
-       foldr (fun (x,f) env' -> 
-           Map.insert x (symbolic_string_of_fields f) env') 
-         Map.empty assigns
-     in
      (* "If the command name is a special built-in utility, variable
         assignments shall affect the current execution environment."
 
@@ -883,25 +879,22 @@ and step_eval s0 checked stmt =
          (* need a call to set_param, which has the right logic for
             Sh_allexport.
 
-            we don't need to worry about bad variable names in this
-            setting because the parser rejects forms like `?=1 :` 
+            NB that check_param has already been called during assignments
           *)
-         let set (x,v) os = 
-           match set_param x v os with
-           | Left _ -> os
-           | Right os' -> os'
-           end
-         in
-         foldr set s0_logged (Map_extra.toList env)
+         foldr (fun (x,v) os -> checked_set_param x v os) s0_logged assigns
        else s0_logged
      in
-     let catching_errors = not (checked_exit checked) && Set.member Sh_errexit s1.sh.opts in
+     let catching_errors = 
+       not (checked_exit checked) && Set.member Sh_errexit s1.sh.opts 
+     in
      let exit_on_error = 
        catching_errors ||
        (prog_special && 
         not opts.force_simple_command && 
         not (is_interactive s1)) (* per table in 2.8.1 *)
      in
+     (* load exported variables, perform assignments *)
+     let env = Map.fromList assigns in
      match run_command s1 opts checked prog args env with
      | Right (s2, stmt', restore) -> 
         Right (XSSimple ("ran " ^ string_of_symbolic_string prog), 
@@ -1303,7 +1296,8 @@ and step_eval s0 checked stmt =
   (* CALL *********************************************************************)
   | Call old_loop_nest old_positional_params f orig c ->
      let cleanup os =
-       set_function_params old_loop_nest old_positional_params (pop_locals os)
+       let (os', _) = pop_locals os in
+       set_function_params old_loop_nest old_positional_params os'
      in
      match step_eval s0 checked c with
      | Left e -> Left e
