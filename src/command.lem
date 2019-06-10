@@ -406,7 +406,6 @@ let builtin_shift s0 argv _env =
        Right (exit_with 0 s1, Done, true)
   end
 
-(* TODO 2018-10-22 don't allow unsetting of special variables *)
 val unset_var : 
   forall 'a. OS 'a => symbolic_string -> os_state 'a -> either string (os_state 'a)
 let unset_var sx s0 =
@@ -417,11 +416,7 @@ let unset_var sx s0 =
      then Left (x ^ " is read-only")
      else if is_special_param x
      then Left (x ^ " is a special parameter and cannot be unset")
-     else Right <| s0 with sh = <| s0.sh with 
-                                     env = Map.delete x s0.sh.env;
-                                     readonly = Set.delete x s0.sh.readonly;
-                                     export = Set.delete x s0.sh.export
-                                |> |>
+     else Right (unset_param x s0)
   end
 
 val unset_fun : 
@@ -501,12 +496,18 @@ let rec update_varlist s0 cmd update args =
      end
   end
 
+let log_null_argv_unspec s0 name argv =
+  if null argv 
+  then log_trace Trace_unspec (name ^ " invoked with no arguments; pretending we got -p") s0
+  else s0
+
 let builtin_export s0 argv _env = 
   let (opts,argv') = getopts [#'p'] argv in
   if elem #'p' opts || null argv'
   then (* print out current export vars *)
-    let vars = Set_extra.toOrderedList (Map.domain (exported_vars s0)) in
-    Right (show_varlist s0 "export" vars, Done, true)
+    let s1 = log_null_argv_unspec s0 "export" argv in
+    let vars = Set_extra.toOrderedList (Map.domain (exported_vars s1)) in
+    Right (show_varlist s1 "export" vars, Done, true)
   else (* mark export and possibly set *)
     update_varlist s0 "export" set_exported argv'
 
@@ -514,8 +515,9 @@ let builtin_readonly s0 argv _env =
   let (opts,argv') = getopts [#'p'] argv in
   if elem #'p' opts || null argv'
   then (* print out current readonly vars *)
-    let vars = Set_extra.toOrderedList (Map.domain (readonly_vars s0)) in
-    Right (show_varlist s0 "readonly" vars, Done, true)
+    let s1 = log_null_argv_unspec s0 "readonly" argv in
+    let vars = Set_extra.toOrderedList (Map.domain (readonly_vars s1)) in
+    Right (show_varlist s1 "readonly" vars, Done, true)
   else (* mark readonly and possibly set *)
     update_varlist s0 "readonly" set_readonly argv'
 
@@ -527,9 +529,18 @@ let rec add_locals os env args =
      if is_readonly var os
      then Left (var ^ ": readonly variable")
      else let binding =
-            match mvalue with
-            | Nothing -> (Nothing, local_opts_default)
-            | Just value -> (Just value, local_opts_default)
+            let opts = 
+              if Set.member Sh_allexport os.sh.opts
+              then <| local_opts_default with local_exported = true |>
+              else local_opts_default
+            in
+            match (mvalue, Map.lookup var env) with
+              (* existing binding! *)
+            | (Nothing, Just (existing, e_opts)) -> 
+               (existing, <| e_opts with 
+                  local_exported = e_opts.local_exported || opts.local_exported |>)
+            | (Nothing, Nothing) -> (Nothing, opts)
+            | (Just value, _) -> (Just value, opts)
             end
           in
           add_locals os (Map.insert var binding env) args'

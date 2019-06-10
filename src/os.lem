@@ -331,7 +331,13 @@ let unset_param x os0 =
   let (os1, found_local) = set_local_param os0 x Nothing in
   if found_local
   then os1
-  else <| os0 with sh = <| os0.sh with env = Map.delete x os0.sh.env |> |>
+  else <| os1 with sh = <| os1.sh with 
+    env = Map.delete x os1.sh.env;
+    readonly = Set.delete x os1.sh.readonly;
+    export = Set.delete x os1.sh.export
+  |> |>
+
+
 
 (* Logging ************************************************************)
 

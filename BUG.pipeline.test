@@ -1,0 +1,2 @@
+hostname | wc -l # SIGTTOU?!
+hostname | echo hi | wc -l # stalls?!

@@ -25,7 +25,7 @@ type local | grep built >/dev/null && echo 'builtin'
 # SPECIAL BUILTIN?
 
 is_special() {
-    x=hi local >/dev/null 2>&1
+    #x=hi local #>/dev/null 2>&1
     case "${x+set}" in
         ( set ) return 0;;
         ( *   ) return 1;;
@@ -40,19 +40,18 @@ unset x
 
 plain_local() {
     local x y z=hi
-    local -p 2>&1
+    local #2>&1
 }
 
 res=$(plain_local)
-[ "$?" -eq "0" ] || echo '-p fails'
-[ ! "$res" ] && echo '-p empty'
-has 'z=hi' && echo '-p assign'
-has 'local x' && echo '-p keyword'
-has 'typeset z' && echo '-p typeset macro'
+[ ! "$res" ] && echo 'plain empty'
+has 'z=hi' && echo 'plain assign'
+has 'local' && echo 'plain keyword'
 
 # READONLY INTERACTION?
 
 overrides_readonly() {
+    echo "in <$or_x>"
     local or_x=0
     echo "out <$or_x>"
 }
@@ -65,22 +64,6 @@ has 'out' || echo 'readonly failure'
 [ "$or_x" = "hello" ] || echo 'readonly BUG'
 
 # can't unset or_x!
-
-override_inner() {
-    local ro2=1
-    readonly ro2
-}
-
-override_outer() {
-    local ro2=0
-    override_inner
-    (ro2=1) || { echo 'readonly/nested failure' && return ; }
-    ro2=1
-    return $ro2
-}
-
-override_outer && echo 'readonly/nested stays readonly' \
-               || echo 'readonly/nested updates'
 
 # LOCAL W/O ASSIGNMENT
 
@@ -256,43 +239,4 @@ has 'x=' && echo 'local/set-a exported out of scope' \
          || echo 'local/set-a not exported out of scope'
 
 set +o allexport
-unset x
-
-# DOUBLE DECLARATION
-
-double_declaration() {
-    local x=hi
-    local x
-    case "${x:-o},${x+o}" in
-        ( o, ) echo "double overrides";;
-        ( hi,o ) echo "double noop";;
-        ( * ) fail "double_declaration: unexpected x='$x'" ;;
-    esac
-}
-
-double_declaration
-
-unset x
-
-# LOCAL/READ
-
-local_read() {
-    local x=start
-    read x
-    echo $x
-}
-
-x=outer
-res=$(local_read <<EOF
-redir
-EOF
-)
-
-case $res,$x in
-    ( start,redir ) echo "read override unscoped";;
-    ( redir,outer ) echo "read local";;
-    ( start,outer ) echo "read noop";;
-    ( * ) fail "local_read: unexpected res='$res' x='$x'";;
-esac
-
 unset x
