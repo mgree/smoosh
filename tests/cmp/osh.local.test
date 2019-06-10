@@ -1,3 +1,5 @@
+# from OIL https://github.com/oilshell/oil/blob/master/LICENSE.txt
+
 f() {
 	echo "x=$x"
 	
