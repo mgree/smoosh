@@ -934,13 +934,16 @@ let rec path_mode opts =
 
 val resolve_path_mode : forall 'a. OS 'a => os_state 'a -> path_mode -> os_state 'a * string
 let resolve_path_mode s0 mode =
-  match mode with
-  | Link -> (s0, s0.sh.cwd)
-  | Physical -> 
-     let pwd = physical_cwd s0 in
-     let s1 = <| s0 with sh = <| s0.sh with cwd = pwd |> |> in
-     (internal_set_param "PWD" (symbolic_string_of_string pwd) s1, pwd)
-  end
+  let (s1, pwd) = 
+    match mode with
+    | Link -> (s0, s0.sh.cwd)
+    | Physical -> 
+       let pwd = physical_cwd s0 in
+       let s1 = <| s0 with sh = <| s0.sh with cwd = pwd |> |> in
+       (s1, pwd)
+    end
+  in
+  (internal_set_param "PWD" (symbolic_string_of_string pwd) s1, pwd)
 
 let builtin_pwd s0 argv _env =
   let (opts,_argv') = getopts [#'L';#'P'] argv in

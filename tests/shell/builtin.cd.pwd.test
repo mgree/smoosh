@@ -1,0 +1,11 @@
+pwd -P # resolve physical PWD
+orig=$(pwd)
+echo $orig $PWD
+[ "$orig" = "$PWD" ] || exit 1
+mkdir inner
+cd inner
+[ "$orig"/inner = "$PWD" ] || exit 2
+[ $(pwd) = "$PWD" ] || exit 3
+cd ..
+[ "$orig" = "$PWD" ] || exit 4
+[ $(pwd) = "$PWD" ] || exit 5
