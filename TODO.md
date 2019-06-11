@@ -54,8 +54,15 @@
     currently have `susp_fds` and `curpid` being tracked in symbolic
     but the big issue here is that signal handling isn't working for the _current_ process
     
-    a better solution here is to have the write_fd OS call possibly signal EPIPE, 
-        which is forcibly handled as a SIGPIPE by the semantics
+    another solution here is to have the write_fd OS call possibly signal EPIPE, 
+    which is forcibly handled as a SIGPIPE by the semantics.
+        but that might mean a fair bit of error handling.
+        real signals will be nicer to program with.
+        
+  use procs heavily. initialize things with main shell in proc 0
+  change shim to send over the full OS state, including the proc list
+  render all of the live procs side by side
+    collapse all but the main shell and the active proc?
 
 - bools are technical debt
 
