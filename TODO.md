@@ -14,6 +14,8 @@
 
 ### Implementation TODO
 
+- PS1/PS2 expansion uses dash's expander/environment
+
 - modernish broken in docker for smoosh (memory error?!)
   probably related to parse aborts we've seen
       mishandling of erroneous parsing in eval?
