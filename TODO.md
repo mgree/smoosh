@@ -1,4 +1,3 @@
-
 ### Artifact TODO
 
 - use travis to automate all testing, collect results nightly, auto-deploy
@@ -146,14 +145,16 @@
   + nicer way to edit the environment and home directories
   + way to configure fs
     interactions w/dash parser and host fs
+    way to explore FS
+  + set STDIN
   + use syntax highlighting in editor window
   + favicon
   + cleaner handling of environment, etc.
     add positional variables to display
+    only show what changed
   + presets
-  + way to explore FS
   + more shell info
-  + use a JS contracts/types library 
+  + use a JS contracts/types library (TypeScript?)
 - CLI
   + pretty printer for JSON output
 

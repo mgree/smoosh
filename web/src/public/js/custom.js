@@ -59,6 +59,16 @@ const fileRedirSym = { 'To': '&gt;',
 const dupRedirSym = { 'ToFD': '&gt;&amp;',
                       'FromFD': '&lt;&amp;' }
 
+function same(o1, o2) {
+    if (typeof(o1) !== typeof(o2)) {
+        return false;
+    } else if (o1 === o2 || Object.is(o1,o2)) {
+        return true;
+    }
+
+    return JSON.stringify(o1) === JSON.stringify(o2);
+}
+
 function showUnless(def, actual) {
   return def === actual ? "" : String(actual);
 }
@@ -1878,7 +1888,7 @@ function renderEvaluationStep(info, step) {
   }
 }
 
-function renderEvaluationTraceEntry(info, elt, step) {
+function renderEvaluationTraceEntry(info, elt, step, showEnv) {
   console.assert(typeof step === 'object', 'expected step object, got ' + step);
   console.assert('term' in step, 'expected term for step object');
   console.assert('env' in step, 'expected environment for step object');
@@ -1889,11 +1899,11 @@ function renderEvaluationTraceEntry(info, elt, step) {
   const term = $('<div></div>').addClass('term').appendTo(elt);
   renderStmt(info, term, step['term']);
 
-  $('<div></div>').addClass('ui hidden divider').appendTo(elt);
-
-  const env = $('<div></div>').addClass('env').appendTo(elt);
-  renderEnv(info, env, step['env'], step['locals']);
-
+  if (showEnv) {
+    $('<div></div>').addClass('ui hidden divider').appendTo(elt);
+    const env = $('<div></div>').addClass('env').appendTo(elt);
+    renderEnv(info, env, step['env'], step['locals']);
+  } 
 };
 
 function renderStream(elt, last, force, step, name) {
@@ -1951,7 +1961,9 @@ $('#expansionForm').submit(function(e) {
     let steps = $('<div></div>').addClass('ui segments').appendTo(result);
 
     var last = { 'STDOUT': "",
-                 'STDERR': "" };
+                 'STDERR': "",
+                 'env': {}
+               };
 
     for(var i = 0; i < data.length; i++) {
       var step = data[i];
@@ -1987,12 +1999,16 @@ $('#expansionForm').submit(function(e) {
           elt.addClass('error');
           elt.append(step.error);
       } else {
-          renderEvaluationTraceEntry(crumb, elt, step);
+          const isFinal = i === data.length - 1;
+          
+          const updatedEnv = !same(last['env'], step['env']);
 
+          renderEvaluationTraceEntry(crumb, elt, step, updatedEnv || isFinal);
+          last['env'] = step['env'];
+          
           const updatedStreams = 
                 last['STDOUT'] !== step['STDOUT'] ||
                 last['STDERR'] !== step['STDERR'];
-          const isFinal = i === data.length - 1;
 
           if (updatedStreams || isFinal) {
             $('<div></div>').addClass('ui hidden divider').appendTo(elt);
