@@ -31,6 +31,32 @@
 # ^tr ^true ^tty ^umask ^uname ^uniq ^wait ^wc ^xargs
 ```
 
+- $$ not installed for symbolic shell
+  but PPID is
+  trickiness: $$ is unchanged in subshells, which can signal the top-level
+              need to carefully hold on to such signals
+  plan #1:
+    add TopLevel option to proc
+    add some symbolic state to record pending top-level signals
+    execute on restore from step
+  plan #2:
+    actually put a proc entry in for the top-level shell
+    much more faithful, messes with visualizaton as it exists now
+
+  SIGPIPE in symbolic mode when reading from closed FDs
+
+  while true; do echo 5; done | { read x; echo $((x+42)); }
+  
+  need to send SIGPIPE in write_fifo...
+  which needs to know the current actor's PID...
+  which means we need to track that?
+  
+    currently have `susp_fds` and `curpid` being tracked in symbolic
+    but the big issue here is that signal handling isn't working for the _current_ process
+    
+    a better solution here is to have the write_fd OS call possibly signal EPIPE, 
+        which is forcibly handled as a SIGPIPE by the semantics
+
 - bools are technical debt
 
 - generalize tc_setfg use in job control to pull code out of system.ml
@@ -58,20 +84,6 @@
 - faithful handling of PATH_MAX
 
 ### Known bugs/issues to investigate
-
-- $$ not installed for symbolic shell
-  but PPID is
-  trickiness: $$ is unchanged in subshells, which can signal the top-level
-              need to carefully hold on to such signals
-  plan #1:
-    add TopLevel option to proc
-    add some symbolic state to record pending top-level signals
-    execute on restore from step
-  plan #2:
-    actually put a proc entry in for the top-level shell
-    much more faithful, messes with visualizaton as it exists now
-
-- SIGPIPE in symbolic mode when reading from closed FDs
 
 - `string_of_fields` pretty printing
   put single quotes around fields that have WS in them

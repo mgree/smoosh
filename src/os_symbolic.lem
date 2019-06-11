@@ -89,11 +89,13 @@ and proc =
 and symbolic = <|
     passwd: Map.map string string; (* TODO relate to /etc/passwd, emulate getpwnam properly in getpwdir *)
     sh_fds: fds;
+    susp_fds: maybe fds; (* KLUDGE FDs of suspended shell. necessary because top-level shell isn't tracked in procs, so we can't find it when looking for readers *)
     fs_root: fs;
     fifos: list fifo;
     procs: list proc;
     exited: bool;
-    umask: perms
+    umask: perms;
+    curpid: pid
   |>
 
 type evaluation_trace = 
@@ -108,6 +110,7 @@ let fds_default : fds =
 
 let symbolic_empty : symbolic = <|
     sh_fds = fds_default;
+    susp_fds = Nothing;
     passwd = Map.empty;
     fs_root = fs_empty;
     fifos = ["" (* STDIN *)
@@ -116,7 +119,8 @@ let symbolic_empty : symbolic = <|
             ];
     procs = [];
     exited = false;
-    umask = default_umask
+    umask = default_umask;
+    curpid = 0
  |>
 
 let os_empty : os_state symbolic = 
@@ -210,7 +214,44 @@ let symbolic_fresh_fd sh_fds =
   | Just max -> max + 1
   end
 
-(* TODO 2018-10-11 identify the writer of a given fifo_num *)
+val symbolic_fds_reads_fifo : fifo_num -> fds -> bool
+let symbolic_fds_reads_fifo fifo_num fds =
+  let select_readers _fd fd_tgt =
+    match fd_tgt with
+    | FIFO fifo_num' -> 
+       if fifo_num = fifo_num'
+       then Just (FIFO fifo_num')
+       else Nothing
+    | Path _ -> Nothing
+    end
+  in
+  (* any FDs are writing our FIFO? *)
+  let readers = Map_extra.mapMaybe select_readers fds in
+  not (Map.null readers)
+
+val symbolic_has_reader : os_state symbolic -> fifo_num -> bool
+let symbolic_has_reader os fifo_num = 
+  (* STDOUT and STDERR always have readers, let's pretend *)
+  fifo_num = 1 || fifo_num = 2 || 
+  (* do any other processes read this FIFO? *)
+  let procs = mapi (fun pid proc -> (pid,proc)) os.symbolic.procs in
+  let other_fds = 
+    List.mapMaybe (fun (pid,proc) ->
+        if pid <> os.symbolic.curpid
+        then match proc with
+             | Shell _ _ _ fds -> Just fds
+             | Zombie _ -> Nothing
+             end
+        else Nothing) procs 
+  in
+  let all_fds = 
+    match os.symbolic.susp_fds with
+    | Nothing -> other_fds
+    | Just fds -> fds::other_fds 
+    end
+  in
+  any (symbolic_fds_reads_fifo fifo_num) all_fds
+
 val symbolic_fds_writes_fifo : fifo_num -> fds -> bool
 let symbolic_fds_writes_fifo fifo_num fds =
   let select_writers fd fd_tgt =
@@ -239,83 +280,37 @@ let symbolic_find_writer os fifo_num =
      so we'll just paw through it and find the first one that's writing
    *)
   findIndex (symbolic_writes_fifo fifo_num) os.symbolic.procs
-  
 
-let symbolic_write_fd os fd s =
+(* a recursive knot:
+   writing to an FD can cause SIGPIPE
+   sending a signal might need to write to an FD 
+ *)
+let rec symbolic_write_fd os fd s =
   match symbolic_resolve_fd os.symbolic fd with
   | Just fifo_num -> 
      match write_fifo os.symbolic fifo_num s with
      | Nothing -> Nothing
-     | Just symbolic' -> Just <| os with symbolic = symbolic' |>
+     | Just symbolic' -> 
+        (* write succeeded... but are there readers left? *)
+        if symbolic_has_reader os fifo_num 
+        then Just <| os with symbolic = symbolic' |>
+        else (* send SIGPIPE *)
+          let _ = Debug.print_endline ("SIGPIPE to " ^ stringFromNat os.symbolic.curpid) in
+          let (os', _sent) = symbolic_signal_pid os SIGPIPE os.symbolic.curpid SignalProcess in
+          Just os'
      end
   | Nothing -> Nothing
   end
 
-let symbolic_write_stderr s os =
+and symbolic_write_stderr s os =
   match symbolic_write_fd os STDERR s with
   | Nothing -> os
   | Just os' -> os'
   end
 
-let symbolic_log_trace = log_trace_with symbolic_write_stderr
+and symbolic_log_trace s os = log_trace_with symbolic_write_stderr s os
 
-let symbolic_step_pid step_eval os0 pid =
-  match index os0.symbolic.procs pid with
-  | Nothing -> (os0, Nothing)
-  | Just (Zombie ec) -> (os0, Just (Right ec))
-  | Just (Shell Proc_Stopped _stmt _sh' _fds') ->
-     let os1 = symbolic_write_stderr ("warning: process with pid " ^ stringFromNat pid ^ " is stopped") os0 in
-     (os1, Nothing)
-  | Just (Shell Proc_Running stmt sh' fds') ->
-     let os1 = <| os0 with sh = sh'; symbolic = <| os0.symbolic with sh_fds = fds' |> |> in
-     match step_eval os1 Unchecked stmt with
-     | Left (_step, os2) -> 
-        (<| os2 with sh = os0.sh; 
-                     symbolic = <| os2.symbolic with 
-                                      sh_fds = os0.symbolic.sh_fds;
-                                      procs = update os2.symbolic.procs pid (Zombie 1) |> |>, 
-         Just (Right 1)) (* errored, signal with code *)
-     | Right (_step, os2, Done) ->
-        (* KLUDGE we're going to manually simulate the EXIT trap here...
-           this lets us leave os.symbolic.exited as a global bit
-         *)
-        let (os3, m_handler) = exit_trap os2 in
-        match m_handler with
-        | Just handler ->
-           (* we're not done yet---run the EXIT trap *)
-           (<| os3 with sh = os0.sh; 
-                        symbolic = <| os3.symbolic with 
-                                        sh_fds = os0.symbolic.sh_fds;
-                                        procs = 
-                                          List.update os3.symbolic.procs pid 
-                                            (Shell Proc_Running handler os3.sh os3.symbolic.sh_fds) |> |>,
-            Just (Left (XSNested (XSSimple "trapped on EXIT") (XSProc pid handler))))
-        | Nothing ->        
-          (* terminated! grab the code, update everything *)
-          (* TODO 2019-04-29 should also close any open FDs 
-             this behavior is important for pipes, but it means we need to track more writer info
-           *)
-           let ec = os3.sh.exit_code in
-           (<| os3 with 
-                  sh = os0.sh; 
-                  symbolic = 
-                    <| os3.symbolic with 
-                        sh_fds = os0.symbolic.sh_fds;
-                        procs = update os3.symbolic.procs pid (Zombie ec) |> |>,
-            Just (Right ec))
-        end
-     | Right (step, os2, stmt') ->
-        (<| os2 with sh = os0.sh; 
-                     symbolic = <| os2.symbolic with 
-                                      sh_fds = os0.symbolic.sh_fds;
-                                      procs = 
-                                        List.update os2.symbolic.procs pid 
-                                          (Shell Proc_Running stmt' os2.sh os2.symbolic.sh_fds) |> |>,
-         Just (Left (XSNested step (XSProc pid stmt'))))
-     end
-  end
-
-let symbolic_signal_pid os0 signal pid _as_pg = 
+and symbolic_signal_pid os0 signal pid _as_pg = 
   match index os0.symbolic.procs pid with
   | Nothing -> (os0, false)
   | Just (Zombie _ec) -> (os0, false)
@@ -324,6 +319,7 @@ let symbolic_signal_pid os0 signal pid _as_pg =
      | Nothing -> 
         match signal_default_behavior signal with
         | SigBeh_Terminate actions ->
+           let _ = Debug.print_endline (string_of_signal signal ^ " killed " ^ stringFromNat pid) in
            let os1 =
              if actions
              then symbolic_log_trace Trace_unspec "Implementation-defined abnormal termination actions, such as creation of a core file, may also occur." os0
@@ -341,10 +337,10 @@ let symbolic_signal_pid os0 signal pid _as_pg =
            in
            (os1, true)
         | SigBeh_Stop ->
-           let procs' = update os0.symbolic.procs pid (Shell Proc_Stopped stmt proc_sh proc_fds ) in
+           let procs' = update os0.symbolic.procs pid (Shell Proc_Stopped stmt proc_sh proc_fds) in
            (<| os0 with symbolic = <| os0.symbolic with procs = procs' |> |>, true)
         | SigBeh_Continue ->
-           let procs' = update os0.symbolic.procs pid (Shell Proc_Running stmt proc_sh proc_fds ) in
+           let procs' = update os0.symbolic.procs pid (Shell Proc_Running stmt proc_sh proc_fds) in
            (<| os0 with symbolic = <| os0.symbolic with procs = procs' |> |>, true)
         end
      | Just handler ->
@@ -356,6 +352,62 @@ let symbolic_signal_pid os0 signal pid _as_pg =
             (Shell Proc_Running (command_eval handler) proc_sh proc_fds)
         in
         (<| os1 with symbolic = <| os1.symbolic with procs = procs' |> |>, true)
+     end
+  end
+
+let symbolic_step_pid step_eval os0 pid =
+  match index os0.symbolic.procs pid with
+  | Nothing -> (os0, Nothing)
+  | Just (Zombie ec) -> (os0, Just (Right ec))
+  | Just (Shell Proc_Stopped _stmt _sh' _fds') ->
+     let os1 = symbolic_write_stderr ("warning: process with pid " ^ stringFromNat pid ^ " is stopped") os0 in
+     (os1, Nothing)
+  | Just (Shell Proc_Running stmt sh' fds') ->
+     let os1 = <| os0 with sh = sh'; symbolic = <| os0.symbolic with sh_fds = fds'; curpid = pid; susp_fds = Just os0.symbolic.sh_fds |> |> in
+     match step_eval os1 Unchecked stmt with
+     | Left (_step, os2) -> 
+        (<| os2 with sh = os0.sh; 
+                     symbolic = <| os2.symbolic with 
+                                      sh_fds = os0.symbolic.sh_fds; curpid = os0.symbolic.curpid; susp_fds = os0.symbolic.susp_fds;
+                                      procs = update os2.symbolic.procs pid (Zombie 1) |> |>, 
+         Just (Right 1)) (* errored, signal with code *)
+     | Right (_step, os2, Done) ->
+        (* KLUDGE we're going to manually simulate the EXIT trap here...
+           this lets us leave os.symbolic.exited as a global bit
+         *)
+        let (os3, m_handler) = exit_trap os2 in
+        match m_handler with
+        | Just handler ->
+           (* we're not done yet---run the EXIT trap *)
+           (<| os3 with sh = os0.sh; 
+                        symbolic = <| os3.symbolic with 
+                                        sh_fds = os0.symbolic.sh_fds; curpid = os0.symbolic.curpid; susp_fds = os0.symbolic.susp_fds;
+                                        procs = 
+                                          List.update os3.symbolic.procs pid 
+                                            (Shell Proc_Running handler os3.sh os3.symbolic.sh_fds) |> |>,
+            Just (Left (XSNested (XSSimple "trapped on EXIT") (XSProc pid handler))))
+        | Nothing ->        
+          (* terminated! grab the code, update everything *)
+          (* TODO 2019-04-29 should also close any open FDs 
+             this behavior is important for pipes, but it means we need to track more writer info
+           *)
+           let ec = os3.sh.exit_code in
+           (<| os3 with 
+                  sh = os0.sh; 
+                  symbolic = 
+                    <| os3.symbolic with 
+                        sh_fds = os0.symbolic.sh_fds; curpid = os0.symbolic.curpid; susp_fds = os0.symbolic.susp_fds;
+                        procs = update os3.symbolic.procs pid (Zombie ec) |> |>,
+            Just (Right ec))
+        end
+     | Right (step, os2, stmt') ->
+        (<| os2 with sh = os0.sh; 
+                     symbolic = <| os2.symbolic with 
+                                      sh_fds = os0.symbolic.sh_fds; curpid = os0.symbolic.curpid; susp_fds = os0.symbolic.susp_fds;
+                                      procs = 
+                                        List.update os2.symbolic.procs pid 
+                                          (Shell Proc_Running stmt' os2.sh os2.symbolic.sh_fds) |> |>,
+         Just (Left (XSNested step (XSProc pid stmt'))))
      end
   end
 
