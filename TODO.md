@@ -15,6 +15,8 @@
 ### Implementation TODO
 
 - modernish broken in docker for smoosh (memory error?!)
+  probably related to parse aborts we've seen
+      mishandling of erroneous parsing in eval?
 
 - add other utilities to testing
 ```
@@ -29,8 +31,7 @@
 # ^tr ^true ^tty ^umask ^uname ^uniq ^wait ^wc ^xargs
 ```
 
-- port over local testcases (test for presence of local to make it compliant?)
-  characterize difference!
+- bools are technical debt
 
 - generalize tc_setfg use in job control to pull code out of system.ml
 
@@ -45,7 +46,7 @@
 
 - unspec rundown
   + unset and function names
-  + variables and functions!
+  + variables and functions!x
   + a way to log each unspec/undef behavior to some directory
     * tracing w/help won't work with subshells. 
       best to just have timestamped occurrences w/maximum context
