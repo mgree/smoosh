@@ -1263,7 +1263,7 @@ val fork_pipe_subshell : forall 'a. OS 'a =>
                  pipeline_info ->
                  os_state 'a * pipeline_info * pid
 let fork_pipe_subshell s0 stmt bg pgid  pipeline =
-  let (s1, pid) = fork_and_subshell s0 stmt bg pgid true in
+  let (s1, pid) = fork_and_subshell s0 stmt bg pgid false in
   (s1, pipeline, pid)
 
 val run_pipe_loop : forall 'a. OS 'a =>
