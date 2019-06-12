@@ -1354,7 +1354,7 @@ and step_eval s0 checked stmt =
   (* EVALLOOP *****************************************************************)
 
   | EvalLoop linno ((sstr,stackmark) as ctx) src interactive shell_level ->
-     (* INVARIANT: you must call parse_done sstr if you're leaving the eval loop *)
+     (* INVARIANT: you must call parse_cleanup sstr if you're leaving the eval loop *)
      let s1 = show_changed_jobs DeleteJobs Sh_monitor s0 in
      let (s2, parsed) = parse_next s1 interactive stackmark in
      check_traps
@@ -1389,7 +1389,12 @@ and step_eval s0 checked stmt =
            Right (XSEval linno src "empty line", s2, 
                   EvalLoop (linno+1) ctx src interactive shell_level)
         | ParseStmt c ->
-           Right (XSEval linno src "", s2,
+           let s3 = 
+             if is_interactive_mode interactive && is_toplevel shell_level
+             then add_to_history c s2
+             else s2
+           in
+           Right (XSEval linno src "", s3,
                   EvalLoopCmd (linno+1) ctx src interactive shell_level c)
         end)
   | EvalLoopCmd linno ((sstr,_stackmark) as ctx) src interactive shell_level c ->

@@ -337,9 +337,7 @@ let unset_param x os0 =
     export = Set.delete x os1.sh.export
   |> |>
 
-
-
-(* Logging ************************************************************)
+(* Logging and history ************************************************)
 
 val log : forall 'a. log_entry -> os_state 'a -> os_state 'a
 let log entry os = <| os with log = entry::os.log |>
@@ -417,6 +415,43 @@ let log_trace_with write tag msg os0 =
 
 val log_concretization : forall 'a. symbolic_string -> os_state 'a -> os_state 'a
 let log_concretization ss = log (LogConcretization ss)
+
+val histwrap : forall 'a. os_state 'a -> nat
+let histwrap os =
+  (* When the number reaches an implementation-defined upper limit,
+     which shall be no smaller than the value in HISTSIZE or 32767
+     (whichever is greater), the shell may wrap the numbers, starting
+     the next command with a lower number (usually 1). *)
+  let hard_upper_limit = toNat int32Max in
+  match lookup_concrete_param os "HISTSIZE" with
+  | Nothing -> hard_upper_limit
+  | Just n_str -> 
+     let usr_n =
+       match readUnsignedInteger 10 (toCharList n_str) with
+       | Left _ -> (* yikes? *) hard_upper_limit
+       | Right n -> max (toNat n) 128
+       end
+     in
+     min usr_n hard_upper_limit
+  end
+
+val next_histnum : forall 'a. os_state 'a -> nat
+let next_histnum os =
+  match os.sh.history with
+  | [] -> 1
+  | (last,_)::_ -> 
+     if last = histwrap os
+     then 1
+     else last + 1
+  end
+
+val add_to_history : forall 'a. stmt -> os_state 'a -> os_state 'a
+let add_to_history c os =
+  if Set.member Sh_nolog os.sh.opts
+  then os
+  else
+    let histnum = next_histnum os in
+    <| os with sh = <| os.sh with history = (histnum,c)::os.sh.history |> |>
 
 (* Concretization *****************************************************)
 

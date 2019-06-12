@@ -114,6 +114,9 @@ let pad_right_with c s len =
   let padding = max (len - stringLength s) 0 in
   s ^ toString (replicate padding c) 
 
+val pad_left : string -> nat -> string
+let pad_left = pad_left_with #' '
+
 val pad_right : string -> nat -> string
 let pad_right = pad_right_with #' '
 
@@ -706,10 +709,6 @@ let unimplemented_sh_opts =
   [ (* will not support these *)
     Sh_earlyhash
   ; Sh_vi
-
-    (* TODO 2018-09-10 implement remaining set flags *)
-    (* need history *)
-  ; Sh_nolog
   ]
 
 (**********************************************************************)
@@ -1139,7 +1138,8 @@ and shell_state = <|
     aliases: Map.map string string;
     cwd: string;
     locale: locale;
-    loop_nest: nat (* for tracking break/continue *)
+    loop_nest: nat (* for tracking break/continue *);
+    history: list (nat * stmt)
  |>
 
 val STDIN : fd
@@ -2190,6 +2190,7 @@ let default_shell_state = <|
       aliases = Map.empty;
       cwd = "/";
       locale = lc_ambient;
-      loop_nest = 0
+      loop_nest = 0;
+      history = [];
   |>
 

@@ -52,6 +52,7 @@ let builtin_names =
   ; "fg"
   ; "getopts"
   ; "hash"
+  ; "history"
   ; "jobs"
   ; "kill"
   ; "local"
@@ -82,7 +83,7 @@ let is_unspecified_utility s =
           "chdir";"clone";"comparguments";"compcall";"compctl";"compdescribe";
           "compfiles";"compgen";"compgroups";"complete";"compquote";"comptags";
           "comptry";"compvalues";"declare";"dirs";"disable";"disown";"dosh";
-          "echotc";"echoti";(*"help";*)"history";"hist";"let";(*"local";*)"login";
+          "echotc";"echoti";(*"help";*)(*"history";*)"hist";"let";(*"local";*)"login";
           "logout";"map";"mapfile";"popd";"print";"pushd";"readarray";"repeat";
           "savehistory";"source";"shopt";"stop";"suspend";"typeset";"whence"]
        
@@ -2281,10 +2282,64 @@ let builtin_help os0 argv _env =
      Left (os0, "unknown arguments: " ^ string_of_fields argv)
   end
 
-(* TODO 2018-10-01 remaining worthwhile operations *)
-
 (* history *)
+let builtin_history s0 argv _env =
+  (* bash
+history: history [-c] [-d offset] [n] or history -awrn [filename] or history -ps arg [arg...]
+    Display the history list with line numbers.  Lines listed with
+    with a `*' have been modified.  Argument of N says to list only
+    the last N lines.  The `-c' option causes the history list to be
+    cleared by deleting all of the entries.  The `-d' option deletes
+    the history entry at offset OFFSET.  The `-w' option writes out the
+    current history to the history file;  `-r' means to read the file and
+    append the contents to the history list instead.  `-a' means
+    to append history lines from this session to the history file.
+    Argument `-n' means to read all history lines not already read
+    from the history file and append them to the history list.
+    
+    If FILENAME is given, then that is used as the history file else
+    if $HISTFILE has a value, that is used, else ~/.bash_history.
+    If the -s option is supplied, the non-option ARGs are appended to
+    the history list as a single entry.  The -p option means to perform
+    history expansion on each ARG and display the result, without storing
+    anything in the history list.
+    
+    If the $HISTTIMEFORMAT variable is set and not null, its value is used
+    as a format string for strftime(3) to print the time stamp associated
+    with each displayed history entry.  No time stamps are printed otherwise.
+   *)
+  (* yash
+history: manage command history
+
+Syntax:
+	history [-cF] [-d entry] [-s command] [-r file] [-w file] [count]
+
+Options:
+	-c       --clear
+	-d ...   --delete=...
+	-r ...   --read=...
+	-s ...   --set=...
+	-w ...   --write=...
+	-F       --flush-file
+
+Try `man yash' for details.
+   *)
+  match strip_double_dash argv with
+  | [] ->
+     let maxnum = if null s0.sh.history then 0 else maximum (map fst s0.sh.history) in
+     let numwidth = stringLength (stringFromNat maxnum) in
+     let show (num,c) = pad_left (stringFromNat num) numwidth ^ "\t" ^ string_of_stmt c in
+     let msgs = List.reverseMap show s0.sh.history in
+     let s1 = safe_write_stdout "history" (concat "\n" msgs ^ "\n") s0 in
+     Right (exit_with 0 s1, Done)
+  | [[C #'-'; C #'c']] ->
+     Right (exit_with 0 <| s0 with sh = <| s0.sh with history = [] |> |>, Done)
+  | argv' -> Left (s0, "unimplemented option: " ^ string_of_fields argv')
+  end
+
 let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stuff *)
+
+(* TODO 2018-10-01 remaining worthwhile operations *)
 
 (* POSIX user control *)
 let builtin_ulimit = builtin_unimplemented (* XSI *)
@@ -2308,6 +2363,7 @@ let builtins =
     ; ("getopts", builtin_getopts)
     ; ("hash", builtin_hash)
     ; ("help", builtin_help)
+    ; ("history", builtin_history)
     ; ("jobs", builtin_jobs)
     ; ("kill", builtin_kill)
 (*    ; ("newgrp", builtin_newgrp) *)
