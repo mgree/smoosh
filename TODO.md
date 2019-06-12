@@ -14,12 +14,6 @@
 
 ### Implementation TODO
 
-- PS1/PS2 expansion uses dash's expander/environment
-
-- modernish broken in docker for smoosh (memory error?!)
-  probably related to parse aborts we've seen
-      mishandling of erroneous parsing in eval?
-
 - add other utilities to testing
 ```
 #   cd command echo false getopts kill printf pwd read sh test true wait
@@ -37,22 +31,6 @@
 
 - generalize tc_setfg use in job control to pull code out of system.ml
 
-- history
-  + fc
-  + Sh_nolog
-  + HISTFILE
-
-- job control
-  need to be careful update current job statuses on ECHLD
-  should trigger Sh_notify on SIGCHLD
-
-- unspec rundown
-  + unset and function names
-  + variables and functions!x
-  + a way to log each unspec/undef behavior to some directory
-    * tracing w/help won't work with subshells. 
-      best to just have timestamped occurrences w/maximum context
-
 - non-special shell variables
   LINENO
   ENV (interactive only)
@@ -61,20 +39,6 @@
 
 ### Known bugs/issues to investigate
 
-- $$ not installed for symbolic shell
-  but PPID is
-  trickiness: $$ is unchanged in subshells, which can signal the top-level
-              need to carefully hold on to such signals
-  plan #1:
-    add TopLevel option to proc
-    add some symbolic state to record pending top-level signals
-    execute on restore from step
-  plan #2:
-    actually put a proc entry in for the top-level shell
-    much more faithful, messes with visualizaton as it exists now
-
-- SIGPIPE in symbolic mode when reading from closed FDs
-
 - `string_of_fields` pretty printing
   put single quotes around fields that have WS in them
 
@@ -82,32 +46,10 @@
   cf. https://mail-index.netbsd.org/tech-userlevel/2018/11/24/msg011468.html
   via David Holland
 
-- traps in symbolic mode
-    track pid in each shell
-      can do away with outermost! just compare pid and rootpid
-    track pending signals for each pid in symbolic state
-      special entry for pid 0, i.e., outermost shell
-      
-    need to check in about the KLUDGE at os_symbolic.lem:277 for the exit trap
-
-    something to show `exit_code` in the shtepper
-
 - https://www.spinics.net/lists/dash/msg01766.html
   my solution was to make `set` not actually break things... is that right?
   or is there something deeper going on here?
 
-- job control and PIDs
-  + INTON/INTOFF to get correct command editing behavior:
-  
-    If sh receives a SIGINT signal in command mode (whether generated
-    by typing the interrupt character or by other means), it shall
-    terminate command line editing on the current command line,
-    reissue the prompt on the next line of the terminal, and reset the
-    command history (see fc) so that the most recently executed
-    command is the previous command (that is, the command that was
-    being edited when it was interrupted is not re-entered into the
-    history).
-    
 - "A trap on EXIT shall be executed before the shell terminates,
   except when the exit utility is invoked in that trap itself, in
   which case the shell shall exit immediately."
@@ -123,16 +65,6 @@
   + we probably want to keep it for step_expansion
     it's handy to know more clearly about errors (rather than just checking ec)
 
-- abstract over parser
-  + functions:
-    support for `EvalLoop`
-      * context (e.g., stackmark/parser state)
-      * parse_next function
-    `set_ps1`
-    `set_ps2`
-  + libdash instance
-  + morbig instance
-    https://github.com/colis-anr/morbig/issues/102
 - expansion: make null more explicit... simplify matches?
 
 - collapse logic for tracing to there's just one eval function
