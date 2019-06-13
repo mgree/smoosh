@@ -195,21 +195,26 @@ let close_ttyfd () =
 
 let real_getpgrp () = ExtUnix.getpgid 0
 
-let xtcsetpgrp pgid : bool =
+let rec xtcsetpgrp src pid : bool =
+  let pgid = ExtUnix.getpgid pid in
+  Printf.eprintf "xtcsetpgrp %s pid=%d pgid=%d\n%!" src pid pgid;
   match !ttyfd with
   | None -> false
   | Some fd ->
      try ExtUnix.tcsetpgrp fd pgid; true
-     with Unix.Unix_error(e,_,_) ->
+     with 
+       Unix.Unix_error(EINTR,_,_) -> xtcsetpgrp src pid
+     | Unix.Unix_error(e,_,_) ->
        (* disabling warning because we're overdoing this *)
        Printf.eprintf "Cannot set tty process group to %d in %d (%s)\n" pgid (Unix.getpid ()) (Unix.error_message e); 
        false
 
 let xsetpgid pid pgrp =
+(*  Printf.eprintf "xsetpgid %d %d\n%!" pid pgrp *)
   if pgrp >= 0
   then try ExtUnix.setpgid pid pgrp
-       with Unix.Unix_error(Unix.EINVAL,_,_) -> ()
-          | Unix.Unix_error(Unix.EPERM,_,_) -> () (* must not be a tty... *)
+       with Unix.Unix_error(Unix.EINVAL,_,_) -> Printf.eprintf "EINVAL\n%!"; ()
+          | Unix.Unix_error(Unix.EPERM,_,_) -> Printf.eprintf "EPERM\n%!"; ()
           
 let real_enable_jobcontrol rootpid =
   open_ttyfd ();
@@ -243,7 +248,7 @@ let real_enable_jobcontrol rootpid =
      Sys.set_signal Sys.sigtstp Sys.Signal_ignore;
      initialpgrp := pgrp;
      xsetpgid 0 rootpid;
-     ignore (xtcsetpgrp rootpid)
+     ignore (xtcsetpgrp "enable_jobcontrol" rootpid)
   | None -> give_up "can't access tty"
 
 let real_disable_jobcontrol () =
@@ -251,7 +256,7 @@ let real_disable_jobcontrol () =
   | None -> ()
   | Some _ ->
      begin
-       ignore (xtcsetpgrp !initialpgrp);
+       ignore (xtcsetpgrp ("disable_jobcontrol pid=" ^ string_of_int (Unix.getpid ())) !initialpgrp);
        xsetpgid 0 !initialpgrp;
        Sys.set_signal Sys.sigttou Sys.Signal_default;
        Sys.set_signal Sys.sigttin Sys.Signal_default;
@@ -259,8 +264,9 @@ let real_disable_jobcontrol () =
        close_ttyfd ()
      end
 
-let real_exit (code : int) = 
-  real_disable_jobcontrol ();
+let real_exit (jc : bool) (code : int) = 
+  Printf.eprintf "exit %d %s\n%!" (Unix.getpid ()) (if jc then "-m" else "+m");
+  if jc then real_disable_jobcontrol ();
   exit code
 
 let real_fork_and_eval 
@@ -276,16 +282,23 @@ let real_fork_and_eval
   sigblockall ();
   match Unix.fork () with
   | 0 -> 
+     Printf.eprintf "fork_and_eval child %d %s %s %s\n%!"
+       (Unix.getpid ())
+       (match pgid with
+        | None -> "no pgid"
+        | Some pgid -> "pgid=" ^ string_of_int pgid)
+       (if outermost then "outermost" else "!outermost")
+       (if jc then "-m" else "+m");
      List.iter 
        (fun signal -> if signal <> 0 then Sys.set_signal signal Signal_default) 
        handlers;
      (* more or less following dash's forkchild in jobs.c:847-907 *)
+     let pid = Unix.getpid () in
+     xsetpgid 0 (pgrp pid);
      if outermost && jc
      then begin
-         let pid = Unix.getpid () in
-         xsetpgid 0 (pgrp pid);
          if not bg 
-         then ignore (xtcsetpgrp (pgrp pid));
+         then ignore (xtcsetpgrp "fork_and_eval child" (pgrp pid));
          Sys.set_signal Sys.sigtstp Signal_default;
          Sys.set_signal Sys.sigttou Signal_default
        end
@@ -309,11 +322,16 @@ let real_fork_and_eval
      (* save state for handlers---will be process-local *)
      sigunblockall ();
      let status = !real_eval os stmt in 
-     real_exit status
+     (* technically unreachable---real_eval will exit for us *)
+     real_exit jc status
   | pid -> 
+     Printf.eprintf "fork_and_eval parent %d %s\n%!"
+       pid
+       (match pgid with
+        | None -> "no pgid"
+        | Some pgid -> "pgid=" ^ string_of_int pgid);
      sigunblockall (); 
-     if jc
-     then xsetpgid pid (pgrp pid);
+     xsetpgid pid (pgrp pid);
      pid
 
 let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int option =
@@ -333,7 +351,7 @@ let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int option =
      see jobs.c:1032
    *)
   if jc
-  then ignore (xtcsetpgrp rootpid);
+  then ignore (xtcsetpgrp "waitpid" rootpid);
   code
 
 let real_wait_child (jc : bool) : (int * Unix.process_status) option =

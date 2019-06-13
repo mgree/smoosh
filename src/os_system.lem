@@ -73,7 +73,7 @@ declare ocaml target_rep function real_signal_pid = `System.real_signal_pid`
 val real_pending_signal : unit -> maybe signal
 declare ocaml target_rep function real_pending_signal = `System.real_pending_signal`
 
-val real_tcsetpgrp : pid -> bool
+val real_tcsetpgrp : string -> pid -> bool
 declare ocaml target_rep function real_tcsetpgrp = `System.xtcsetpgrp`
 
 val real_enable_jobcontrol : pid -> unit
@@ -82,7 +82,7 @@ declare ocaml target_rep function real_enable_jobcontrol = `System.real_enable_j
 val real_disable_jobcontrol : unit -> unit
 declare ocaml target_rep function real_disable_jobcontrol = `System.real_disable_jobcontrol`
 
-val real_exit : forall 'a. nat -> 'a
+val real_exit : forall 'a. bool -> nat -> 'a
 declare ocaml target_rep function real_exit = `System.real_exit`
 
 val real_times : unit -> string * string * string * string
@@ -251,7 +251,7 @@ instance (OS unit)
     end
 
   let os_fork_and_subshell os stmt bg pgid jc =
-    let (subsh,handlers) = prepare_subshell os.sh in
+    let (subsh,handlers) = prepare_subshell jc os.sh in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
        command substitution containing only a single trap command,
@@ -264,7 +264,7 @@ instance (OS unit)
     let pid = 
       real_fork_and_eval 
         (List.mapMaybe ocaml_signal_of_signal handlers) (* set these signals to default! *)
-        (<| os with sh = subsh |>) (* update the traps *)
+        (<| os with sh = subsh; (* use the prepared subshell, w/updated traps *) |>) 
         (try_avoid_fork stmt)
         (is_bg bg)
         pgid
@@ -339,7 +339,7 @@ instance (OS unit)
       then real_handle_signal ocaml_sigint Nothing
       else ()
     in
-    real_exit os.sh.exit_code
+    real_exit (is_monitoring os) os.sh.exit_code
 
   let os_waitpid _step_eval os0 pid =
     let mcode = real_waitpid os0.sh.rootpid pid (is_monitoring os0) in
@@ -379,7 +379,7 @@ instance (OS unit)
 
   let os_tc_setfg os0 pid =
     if is_monitoring os0
-    then (os0, real_tcsetpgrp pid)
+    then (os0, real_tcsetpgrp "smoosh" pid)
     else (os0, false)
 
   let os_set_job_control os0 on =

@@ -633,13 +633,16 @@ let exit_trap s0 =
  *
  * Returns a list of signals that _were_ handled so they can be set to default actions.
  *)
-val prepare_subshell : shell_state -> shell_state * list signal
-let prepare_subshell sh0 =
+val prepare_subshell : bool (* job control? *) -> shell_state -> shell_state * list signal
+let prepare_subshell jc sh0 =
   let sh1 =
     <| sh0 with outermost = false;
                 optoff = Nothing;
                 jobs = [];
-                loop_nest = 0
+                loop_nest = 0;
+                opts = if jc
+                       then sh0.opts
+                       else Set.delete Sh_monitor sh0.opts
     |> in
   clear_traps_for_subshell sh1
 
@@ -1283,12 +1286,8 @@ val fork_pipe_subshell : forall 'a. OS 'a =>
                  pipeline_info ->
                  os_state 'a * pipeline_info * pid
 let fork_pipe_subshell s0 stmt bg pgid last pipeline =
+  let _ = Debug.print_endline ("fork_pipe_subshell " ^ (if last then "last" else "!last") ^ " " ^ (if is_monitoring s0 then "-m" else "+m")) in
   let (s1, pid) = fork_and_subshell s0 stmt bg pgid last in
-(*  let s2 =
-    if last && is_fg bg
-    then fst (tc_setfg s1 pid)
-    else s1
-  in *)
   (s1, pipeline, pid)
 
 val run_pipe_loop : forall 'a. OS 'a =>

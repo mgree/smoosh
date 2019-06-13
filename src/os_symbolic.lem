@@ -382,7 +382,7 @@ instance (OS symbolic)
   let os_execve os _prog _prog_argv0 _argv _env _binsh =
     (os, Left "symbolic execve unimplemented")
 
-  let os_fork_and_subshell os stmt _bg _pgid _jc =
+  let os_fork_and_subshell os stmt _bg _pgid jc =
     (* TODO 2018-10-24 if bg is false, this command will be controlling the terminal
        should record that in symbolic state for fancier symbolic signal handling
      *)
@@ -390,7 +390,7 @@ instance (OS symbolic)
     (* prepare_subshell/clear_traps_for_subshell already emptied traps
        nothing else to do with the handlers 
      *)
-    let (subsh,_handlers) = prepare_subshell os.sh in
+    let (subsh,_handlers) = prepare_subshell jc os.sh in
     let proc = Shell Proc_Running (try_avoid_fork stmt) subsh os.symbolic.sh_fds in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
