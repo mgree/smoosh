@@ -26,7 +26,10 @@ count :
 	@printf "==============\n"
 	@printf "Total      %3d\n" $(shell ls shell/*.test | wc -l)
 
-utils : util/fds util/argv util/getenv
+utils : util/fds util/argv util/getenv util/readdir
+
+util/readdir : util/readdir.c
+	gcc -o $@ $<
 
 util/getenv : util/getenv.c
 	gcc -o $@ $<
@@ -38,7 +41,7 @@ util/argv : util/argv.c
 	gcc -o $@ $<
 
 clean :
-	-rm -f util/fds util/getenv util/argv
+	-rm -f util/fds util/getenv util/argv util/readdir
 	-rm -f default.env
 
 veryclean : clean

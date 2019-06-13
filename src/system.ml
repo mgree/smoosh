@@ -413,9 +413,15 @@ let real_file_number (path : string) : (int * int) option =
   with Unix.Unix_error(_,_,_) -> None
 
 let real_readdir (path : string) : (string * bool) list =
-  let contents = Sys.readdir path in
-  let dir_info file = (file, real_isdir (Filename.concat path file)) in
-  Array.to_list (Array.map dir_info contents)
+  try   
+    let rec go h acc =
+      try 
+        let file = Unix.readdir h in
+        go h ((file, real_isdir (Filename.concat path file))::acc)
+      with End_of_file -> List.rev acc
+    in
+    go (Unix.opendir path) []
+  with Unix.Unix_error(e,_,_) -> []
 
 let real_chdir (path : string) : string option =
   try if real_isdir path 
