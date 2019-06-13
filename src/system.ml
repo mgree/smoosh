@@ -225,6 +225,7 @@ let xsetpgid pid pgrp =
 let real_enable_jobcontrol rootpid =
   open_ttyfd ();
   let give_up msg = 
+    Printf.eprintf "giving up\n%!";
     initialpgrp := -1;
     close_ttyfd ();
     (* Printf.eprintf "set -m: %s; job control off\n%!" msg *) 
@@ -242,19 +243,28 @@ let real_enable_jobcontrol rootpid =
            then failwith "NOFG"
            else
              begin 
-               Unix.kill 0 Sys.sigttin; 
+               let pgid = ExtUnix.getpgid 0 in
+               (* PICK UP HERE
+                  why does `smoosh -c 'echo | smoosh -i'` block?
+                *)
+               Printf.eprintf "ping pid=%d pgid=%d\n%!" (Unix.getpid ()) pgid;
+               Unix.kill (-pgid) Sys.sigttin;
+               Printf.eprintf "sent sigttin\n%!";
                foreground() 
              end
        with Unix.Unix_error(e,_,_) -> give_up ("tcgetprgp: " ^ Unix.error_message e)
           | Failure("NOFG") -> give_up "couldn't take foreground"
      in
      foreground ();
+     Printf.eprintf "clearing signals\n%!";
      Sys.set_signal Sys.sigttou Sys.Signal_ignore;
      Sys.set_signal Sys.sigttin Sys.Signal_ignore;
      Sys.set_signal Sys.sigtstp Sys.Signal_ignore;
      initialpgrp := pgrp;
      xsetpgid 0 rootpid;
-     ignore (xtcsetpgrp "enable_jobcontrol" rootpid)
+     Printf.eprintf "taking tc\n%!";
+     ignore (xtcsetpgrp "enable_jobcontrol" rootpid);
+     Printf.eprintf "taken!\n%!"
   | None -> give_up "can't access tty"
 
 let real_disable_jobcontrol () =
