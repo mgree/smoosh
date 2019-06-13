@@ -1286,7 +1286,6 @@ val fork_pipe_subshell : forall 'a. OS 'a =>
                  pipeline_info ->
                  os_state 'a * pipeline_info * pid
 let fork_pipe_subshell s0 stmt bg pgid last pipeline =
-  let _ = Debug.print_endline ("fork_pipe_subshell " ^ (if last then "last" else "!last") ^ " " ^ (if is_monitoring s0 then "-m" else "+m")) in
   let (s1, pid) = fork_and_subshell s0 stmt bg pgid last in
   (s1, pipeline, pid)
 

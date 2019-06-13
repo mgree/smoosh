@@ -3,6 +3,11 @@ open Either
 (* use the ExtUnix sub-library where calls that compile are implemented *)
 module ExtUnix = ExtUnixSpecific
 
+let dbgprintf (fmt : ('a, out_channel, unit) format) : 'a = 
+  if false
+  then Printf.eprintf fmt
+  else Printf.ifprintf stderr fmt
+
 let implode = Dash.implode
 let explode = Dash.explode
 
@@ -196,25 +201,26 @@ let close_ttyfd () =
 let real_getpgrp () = ExtUnix.getpgid 0
 
 let rec xtcsetpgrp src pid : bool =
-  let pgid = ExtUnix.getpgid pid in
-  Printf.eprintf "xtcsetpgrp %s pid=%d pgid=%d\n%!" src pid pgid;
   match !ttyfd with
   | None -> false
   | Some fd ->
-     try ExtUnix.tcsetpgrp fd pgid; true
+     try 
+       let pgid = ExtUnix.getpgid pid in
+       dbgprintf "xtcsetpgrp %s pid=%d pgid=%d\n%!" src pid pgid;
+       ExtUnix.tcsetpgrp fd pgid; true
      with 
        Unix.Unix_error(EINTR,_,_) -> xtcsetpgrp src pid
      | Unix.Unix_error(e,_,_) ->
        (* disabling warning because we're overdoing this *)
-       Printf.eprintf "Cannot set tty process group to %d in %d (%s)\n" pgid (Unix.getpid ()) (Unix.error_message e); 
+       Printf.eprintf "Cannot set tty process group in %d (%s)\n" (Unix.getpid ()) (Unix.error_message e); 
        false
 
 let xsetpgid pid pgrp =
-(*  Printf.eprintf "xsetpgid %d %d\n%!" pid pgrp *)
+  dbgprintf "xsetpgid %d %d\n%!" pid pgrp;
   if pgrp >= 0
   then try ExtUnix.setpgid pid pgrp
-       with Unix.Unix_error(Unix.EINVAL,_,_) -> Printf.eprintf "EINVAL\n%!"; ()
-          | Unix.Unix_error(Unix.EPERM,_,_) -> Printf.eprintf "EPERM\n%!"; ()
+       with Unix.Unix_error(Unix.EINVAL,_,_) -> dbgprintf "EINVAL\n%!"; ()
+          | Unix.Unix_error(Unix.EPERM,_,_) -> dbgprintf "EPERM\n%!"; ()
           
 let real_enable_jobcontrol rootpid =
   open_ttyfd ();
@@ -265,7 +271,7 @@ let real_disable_jobcontrol () =
      end
 
 let real_exit (jc : bool) (code : int) = 
-  Printf.eprintf "exit %d %s\n%!" (Unix.getpid ()) (if jc then "-m" else "+m");
+  dbgprintf "exit %d %s\n%!" (Unix.getpid ()) (if jc then "-m" else "+m");
   if jc then real_disable_jobcontrol ();
   exit code
 
@@ -282,7 +288,7 @@ let real_fork_and_eval
   sigblockall ();
   match Unix.fork () with
   | 0 -> 
-     Printf.eprintf "fork_and_eval child %d %s %s %s\n%!"
+     dbgprintf "fork_and_eval child %d %s %s %s\n%!"
        (Unix.getpid ())
        (match pgid with
         | None -> "no pgid"
@@ -325,7 +331,7 @@ let real_fork_and_eval
      (* technically unreachable---real_eval will exit for us *)
      real_exit jc status
   | pid -> 
-     Printf.eprintf "fork_and_eval parent %d %s\n%!"
+     dbgprintf "fork_and_eval parent %d %s\n%!"
        pid
        (match pgid with
         | None -> "no pgid"
@@ -607,7 +613,10 @@ let real_handle_signal signal action =
     Sys.set_signal signal handler
 
 let rec real_signal_pid signal pid as_pg =
-  try Unix.kill (if as_pg then ExtUnix.getpgid pid else pid) signal; true
+  dbgprintf "signal_pid %d %s\n%!" pid (if as_pg then "as_pg" else "!as_pg");
+  try Unix.kill (if as_pg then -(ExtUnix.getpgid pid) else pid) signal; true
   with
     Unix.Unix_error(EINTR,_,_) -> real_signal_pid signal pid as_pg (* shouldn't be possible, per `man 2 kill` *)
-  | Unix.Unix_error(_e,_,_) -> false
+  | Unix.Unix_error(e,_,_) -> 
+     dbgprintf "signal_pid error %s\n%!" (Unix.error_message e);
+     false
