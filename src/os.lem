@@ -1064,7 +1064,7 @@ val add_job
         os_state 'a ->
         list (pid * stmt) -> pid -> stmt (* cmd *) -> bg_mode -> job_status ->
         os_state 'a * job_info
-val update_job_with_pid : forall 'a. OS 'a => os_state 'a -> nat -> job_status -> os_state 'a * job_info
+val update_job_with_pid : forall 'a. OS 'a => os_state 'a -> nat -> job_status -> os_state 'a * maybe job_info
 val update_jobs_loop : forall 'a. OS 'a => os_state 'a -> list job_info -> os_state 'a * list job_info
 val update_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info (* changed *)
 
@@ -1101,25 +1101,44 @@ and add_job os0 pipeline pid cmd bg_mode status =
 
 and update_job_with_pid os0 pid new_status =
   match List.find (fun j -> j.pid = pid) os0.sh.jobs with
-  | Nothing -> 
-     (* no such job... weird! get a fake job, which we'll immediately trash if we can *)
-     let (os1, job) = add_job os0 [(pid,skip)] pid skip BG new_status in
-     let os2 = delete_job os1 job.id in
-     (os2, job)
+  | Nothing ->
+     (* must be a sub-child... the following is more or less dead code.
+        TODO 2019-06-12 what is really going on here?
+      *)
+     let pid_in_pipeline pid j =
+       match List.find (fun (pid',_) -> pid = pid') j.pipeline with
+       | Nothing -> false
+       | Just _ -> true
+       end
+     in
+     match List.find (pid_in_pipeline pid) os0.sh.jobs with
+     | Nothing -> 
+        (* no such job... weird! get a fake job, which we'll immediately trash if we can *)
+(*        let (os1, job) = add_job os0 [(pid,skip)] pid skip BG new_status in
+        let os2 = delete_job os1 job.id in *)
+        (os0, Nothing)
+     | Just _parent -> (os0, Nothing)
+     end
   | Just job -> (* update the job status! *)
      let job' = <| job with status = new_status |> in
      let cur_jobs = map (fun j -> if j.id = job'.id then job' else j) os0.sh.jobs in
      let os1 = <| os0 with sh = <| os0.sh with jobs = cur_jobs |> |> in
      let os2 = show_job_when Sh_notify JobsNormal (cur_prev_jobs os1.sh.jobs) job' os1 in
-     (os2, job')
+     (os2, Just job')
   end
 
 and update_jobs_loop os0 changes =
   match waitchild os0 with
   | (os1, Nothing) -> (os1, changes)
   | (os1, Just (pid, status)) ->
-     let (os2, job') = update_job_with_pid os1 pid status in
-     update_jobs_loop os2 (job'::changes)
+     let (os2, m_job') = update_job_with_pid os1 pid status in
+     let changes' =
+       match m_job' with
+       | Nothing -> changes
+       | Just job' -> job'::changes
+       end
+     in
+     update_jobs_loop os2 changes'
   end
 
 and update_jobs os0 = update_jobs_loop os0 []
@@ -1141,10 +1160,10 @@ let waitpid_or_lookup step_eval os0 pid =
   | (os1, Just (Left step)) -> (os1, Just (Left step))
   | (os1, Just (Right code)) -> 
      let status = job_status_of_ec code in
-     let (os2, job) = update_job_with_pid os1 pid status in
+     let (os2, m_job) = update_job_with_pid os1 pid status in
      let os3 =
-       match status with
-       | JobStopped _ -> 
+       match (m_job, status) with
+       | (Just job, JobStopped _) -> 
           if Set.member Sh_monitor os2.sh.opts 
           then show_job JobsNormal (cur_prev_jobs os1.sh.jobs) job (write_stderr "\n" os2)
           else os2
@@ -1260,10 +1279,16 @@ val fork_pipe_subshell : forall 'a. OS 'a =>
                  stmt -> (* actual stmt *)
                  bg_mode -> (* bg? [for tty] *)
                  maybe pid -> (* pipeline pgrp *)
+                 bool -> (* last job? *)
                  pipeline_info ->
                  os_state 'a * pipeline_info * pid
-let fork_pipe_subshell s0 stmt bg pgid  pipeline =
-  let (s1, pid) = fork_and_subshell s0 stmt bg pgid false in
+let fork_pipe_subshell s0 stmt bg pgid last pipeline =
+  let (s1, pid) = fork_and_subshell s0 stmt bg pgid last in
+(*  let s2 =
+    if last && is_fg bg
+    then fst (tc_setfg s1 pid)
+    else s1
+  in *)
   (s1, pipeline, pid)
 
 val run_pipe_loop : forall 'a. OS 'a =>
@@ -1276,7 +1301,7 @@ val run_pipe_loop : forall 'a. OS 'a =>
                  os_state 'a * pipeline_info * pid
 let rec run_pipe_loop s0 stmts fd_prev bg pgid pipeline =
   match stmts with
-  | [] -> fork_pipe_subshell s0 Done bg pgid pipeline (* just run a trivial statement *)
+  | [] -> fork_pipe_subshell s0 Done bg pgid true pipeline (* just run a trivial statement *)
   | [stmt] -> (* last one *)
      let (s1, pipeline', last_pid) = 
        fork_pipe_subshell 
@@ -1286,6 +1311,7 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid pipeline =
             [ERDup ToFD CloseOrig STDIN (Just fd_prev)])
          bg
          pgid
+         true (* last job *)
          pipeline
      in
      let s2 = close_fd s1 fd_prev in
@@ -1301,6 +1327,7 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid pipeline =
             ;ERDup ToFD CloseOrig STDOUT (Just fd_write)])
          bg
          pgid
+         false (* not last job *)
          pipeline
      in
      let s3 = close_fd s2 fd_prev in
@@ -1315,9 +1342,9 @@ val run_pipe : forall 'a. OS 'a =>
                  os_state 'a * pipeline_info * pid
 let run_pipe s0 stmts bg =
   match stmts with
-  | [] -> fork_pipe_subshell s0 Done bg Nothing []     (* just run a trivial statement *)
-  | [stmt] -> fork_pipe_subshell s0 stmt bg Nothing [] (* trivial pipe *)
-  | stmt::stmts' ->                                    (* real pipe! *)
+  | [] -> fork_pipe_subshell s0 Done bg Nothing true []     (* just run a trivial statement *)
+  | [stmt] -> fork_pipe_subshell s0 stmt bg Nothing true [] (* trivial pipe *)
+  | stmt::stmts' ->                                         (* real pipe! *)
      (* set up first process *)
      let (s1, fd_next, fd_write) = pipe s0 in
      let (s2, pipeline, pid) =
@@ -1328,6 +1355,7 @@ let run_pipe s0 stmts bg =
             [ERDup ToFD CloseOrig STDOUT (Just fd_write)]) 
          bg
          Nothing
+         false (* not last job *)
          []
      in
      let s3 = close_fd s2 fd_write in
