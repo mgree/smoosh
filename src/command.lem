@@ -280,10 +280,12 @@ let pid_of_symbolic_string s0 ss =
   | Just s ->
      match toCharList s with
      | #'%'::_ ->
-        match job_of_symbolic_string s0 ss with
-        | Right job -> Right (job.pid, SignalProcessGroup) (* per dash *)
-        | Left msg -> Left msg
-        end
+        if is_monitoring s0
+        then match job_of_symbolic_string s0 ss with
+             | Right job -> Right (job.pid, SignalProcessGroup) (* per dash *)
+             | Left msg -> Left msg
+             end
+        else Left ("no such process " ^ s)
      | cs -> 
         let (cs', signal_mode) =
           match cs with

@@ -329,7 +329,7 @@ let stdout_tests : (string * symbolic os_state * string) list =
 
     (* kill *)
   ; ("echo hi & wait", os_empty, "hi\n")
-  ; ("echo hi & kill %1 ; wait", os_empty, "")
+  ; ("echo hi & kill $! ; wait", os_empty, "")
   ; ("(trap 'echo bye' SIGTERM ; echo hi) & wait", os_empty, "hi\n")
   (* this test doesn't work, because demand-driven scheduling means the trap
      is never installed before teh signal arrives *)

@@ -280,10 +280,6 @@ let real_fork_and_eval
        (fun signal -> if signal <> 0 then Sys.set_signal signal Signal_default) 
        handlers;
      (* more or less following dash's forkchild in jobs.c:847-907 *)
-     begin match pgid with
-     | None -> ()
-     | Some pgid -> xsetpgid 0 pgid
-     end;
      if outermost && jc
      then begin
          let pid = Unix.getpid () in
