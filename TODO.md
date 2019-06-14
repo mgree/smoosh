@@ -56,15 +56,6 @@
   
 ### Refactoring
 
-- drop either for step_eval?
-  + right now Left is only returned on 'hard' error
-    CommandExpAssign bad set_param 
-    CaseCheckMatch case on symbolic value
-    Defun invalid function name
-    Exec symbolic execve
-  + we probably want to keep it for step_expansion
-    it's handy to know more clearly about errors (rather than just checking ec)
-
 - expansion: make null more explicit... simplify matches?
 
 - collapse logic for tracing to there's just one eval function

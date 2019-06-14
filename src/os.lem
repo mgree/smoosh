@@ -710,14 +710,11 @@ declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
 (* OS CLASS ***********************************************************)
 (**********************************************************************)
 
-type step_result 'a =
-  either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)
-
 type step_fun 'a = 
   os_state 'a -> 
   checking_mode ->
   stmt -> 
-  step_result 'a
+  evaluation_step * os_state 'a * stmt
 
 type signal_mode = SignalProcess | SignalProcessGroup
 
