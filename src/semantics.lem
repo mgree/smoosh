@@ -754,7 +754,8 @@ and step_eval s0 checked stmt =
             *)
            let special_or_assign =
              match args with
-             | cmd::_ -> is_special_builtin (string_of_symbolic_string cmd)
+             | cmd::_ -> is_special_builtin (string_of_symbolic_string cmd) &&
+                           not (opts.force_simple_command)
              | [] -> true
              end
            in
