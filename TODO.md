@@ -56,6 +56,8 @@
   
 ### Refactoring
 
+- re-align shim.ml and libdash's ast.ml
+
 - expansion: make null more explicit... simplify matches?
 
 - collapse logic for tracing to there's just one eval function

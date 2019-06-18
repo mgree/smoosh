@@ -723,10 +723,6 @@ type substring_side =
   Prefix
 | Suffix  
 
-type tilde_mode =
-    NoTilde
-  | YesTilde
-
 (**********************************************************************)
 (* Redirects **********************************************************)
 (**********************************************************************)
@@ -1002,7 +998,7 @@ and intermediate_fields = list tmp_field
 and expansion_state = 
     (* the constructor name indicates the *next* step to perform *)
     ExpStart of expansion_opts * words
-  | ExpExpand of expansion_opts * tilde_mode * expanded_words * words
+  | ExpExpand of expansion_opts * expanded_words * words
   | ExpSplit of expansion_opts (* partially ignored *)  * expanded_words
   | ExpPath of expansion_opts (* partially ignored *) * intermediate_fields
   | ExpQuote of expansion_opts (* ignored *) * intermediate_fields
@@ -2041,7 +2037,7 @@ and string_of_substring side mode =
 and string_of_expansion_state exp_state =
   match exp_state with
   | ExpStart _opts w -> string_of_words w
-  | ExpExpand _opts _tm ew w -> string_of_expanded_words ew ^ string_of_words w
+  | ExpExpand _opts ew w -> string_of_expanded_words ew ^ string_of_words w
   | ExpSplit _opts ew -> string_of_expanded_words ew
   | ExpPath _opts ifs -> string_of_intermediate_fields ifs
   | ExpQuote _opts ifs -> string_of_intermediate_fields ifs

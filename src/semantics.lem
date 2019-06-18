@@ -27,14 +27,14 @@ type redir_exp_result 'a =
   | REStep of expansion_step * 'a * expanding_redir
 
 val expand_control : forall 'a. OS 'a => 
-                     os_state 'a -> splitting_mode -> quoting_mode -> tilde_mode -> control ->
+                     os_state 'a -> splitting_mode -> quoting_mode -> control ->
                      either (expansion_step * os_state 'a * expanded_words) 
-                            (expansion_step * os_state 'a * tilde_mode * expanded_words * words) 
+                            (expansion_step * os_state 'a * expanded_words * words) 
 val expand_words : forall 'a. OS 'a => 
-                   os_state 'a -> splitting_mode -> quoting_mode -> tilde_mode -> string_mode -> 
+                   os_state 'a -> splitting_mode -> quoting_mode -> string_mode -> 
                    (expanded_words * words) ->
                    either (expansion_step * os_state 'a * expanded_words) 
-                          (expansion_step * os_state 'a * tilde_mode * expanded_words * words) 
+                          (expansion_step * os_state 'a * expanded_words * words) 
 val step_expansion : forall 'a. OS 'a =>
                      os_state 'a * expansion_state -> 
                      expansion_step * os_state 'a * expansion_state 
@@ -200,58 +200,56 @@ let expand_param s0 split q str f =
   | (Just fs, Substring s m w) -> ctrl (LMatch fs s m [] w)
   end
 
-let rec expand_control s0 split q tm k =
+let rec expand_control s0 split q k =
     match k with
     | Tilde prefix -> 
-       if tm = YesTilde 
-       then if prefix = ""
-            then let (s1, dir) = 
-                   match lookup_concrete_param s0 "HOME" with
-                   (* if HOME is unset, results are unspecified---we return "~" 
-                      dash:
-                        $ unset HOME
-                        $ echo ~
-                        ~
-                        $ HOME=""
-                        $ echo ~
-                        ~
-                        $ HOME="/Users/mgree"
-                        $ echo ~
-                        /Users/mgree
-                      
-                      bash:
-                        $ unset HOME
-                        $ echo ~
-                        /Users/mgree
-                        $ HOME=""
-                        $ echo ~
-                        
-                        $ HOME="/Users/mgree"
-                        $ echo ~
-                        /Users/mgree            
-                      
-                      lol
-                   *)
-                   | Nothing -> 
-                      (log_trace Trace_unspec 
-                         "unset HOME for ~ (unspec per 2.6.1)" s0, 
-                       ExpS "~")
-                   | Just dir -> (s0, DQuo (symbolic_string_of_string dir))
-                 end in
-                 Right (ESTilde "", s1, YesTilde, [dir], [])
-            else
-              match getpwnam s0 prefix with
-              | Nothing ->
-                 (* unspec per 2.6.1, but we follow dash *)
-                 let s1 = log_trace Trace_unspec
-                            ("defaulting to dash behavior for failed getpwnam " ^
-                                 "(unspec per 2.6.1)")
-                            s0 
-                 in
-                 Right (ESTilde "", s1, YesTilde, [ExpS ("~" ^ prefix)], []) 
-              | Just path -> Right (ESTilde "", s0, YesTilde, [ExpS path], [])
-              end
-        else Right (ESTilde "skipped tilde expansion", s0, NoTilde, [ExpS "~"], [])
+       if prefix = ""
+       then let (s1, dir) = 
+                match lookup_concrete_param s0 "HOME" with
+                (* if HOME is unset, results are unspecified---we return "~" 
+                   dash:
+                     $ unset HOME
+                     $ echo ~
+                     ~
+                     $ HOME=""
+                     $ echo ~
+                     ~
+                     $ HOME="/Users/mgree"
+                     $ echo ~
+                     /Users/mgree
+                   
+                   bash:
+                     $ unset HOME
+                     $ echo ~
+                     /Users/mgree
+                     $ HOME=""
+                     $ echo ~
+                     
+                     $ HOME="/Users/mgree"
+                     $ echo ~
+                     /Users/mgree            
+                   
+                   lol
+                *)
+                | Nothing -> 
+                   (log_trace Trace_unspec 
+                      "unset HOME for ~ (unspec per 2.6.1)" s0, 
+                    ExpS "~")
+                | Just dir -> (s0, DQuo (symbolic_string_of_string dir))
+              end in
+              Right (ESTilde "", s1, [dir], [])
+         else
+           match getpwnam s0 prefix with
+           | Nothing ->
+              (* unspec per 2.6.1, but we follow dash *)
+              let s1 = log_trace Trace_unspec
+                         ("defaulting to dash behavior for failed getpwnam " ^
+                              "(unspec per 2.6.1)")
+                         s0 
+              in
+              Right (ESTilde "", s1, [ExpS ("~" ^ prefix)], []) 
+           | Just path -> Right (ESTilde "", s0, [ExpS path], [])
+           end
     | Param s f -> 
        (* We special case logic for "$@" here. The rest is in expand_param. *)
        if s = "@" && q = Quoted
@@ -276,8 +274,8 @@ let rec expand_control s0 split q tm k =
                   s0
            else s0
          in
-         let expand_more w = expand_words s1 split q NoTilde GeneratedString ([],w) in
-         let build_at v = Right (ESParam "expanding @", s1, NoTilde, [At v], []) in
+         let expand_more w = expand_words s1 split q GeneratedString ([],w) in
+         let build_at v = Right (ESParam "expanding @", s1, [At v], []) in
          match f with
          | Default _ -> build_at param_vars
          | NDefault w ->
@@ -318,18 +316,17 @@ let rec expand_control s0 split q tm k =
          end
        else 
          let (s1, ew, w) = expand_param s0 split q s f in
-         expand_words s1 split q YesTilde GeneratedString (ew, w)
+         expand_words s1 split q GeneratedString (ew, w)
     | LAssign s f [] ->
        match set_param s (concat_expanded f) s0 with
        | Left err -> Left (ESParam "bad or readonly variable", s0, ExpS err::f)
-       | Right s1 -> Right (ESParam "finished assignment", s1, NoTilde, f, [])
+       | Right s1 -> Right (ESParam "finished assignment", s1, f, [])
        end
     | LAssign s f w ->
-       let tm' = if f = [] then YesTilde else NoTilde in
-       match expand_words s0 NoSplit q tm' GeneratedString ([], w) with
-       | Right (step, s1, tm1, f1, w1) ->
+       match expand_words s0 NoSplit q GeneratedString ([], w) with
+       | Right (step, s1, f1, w1) ->
           Right (ESNested (ESParam "assignment") step, 
-                 s1, tm1, [], [K (LAssign s (f ++ f1) w1)])
+                 s1, [], [K (LAssign s (f ++ f1) w1)])
        | Left err -> Left err
        end
     | LMatch str side mode f [] -> 
@@ -338,25 +335,23 @@ let rec expand_control s0 split q tm k =
        let (s1,_concretized,pat) = concretize s0 sympat in
        let matched = try_match_substring s1.sh.locale side mode pat symstr in
        Right (ESParam "finished match", 
-              s1, NoTilde, [], 
+              s1, [], 
               words_of_symbolic_string matched)
     | LMatch s side mode f w ->
-       let tm' = if f = [] then YesTilde else NoTilde in
-       match expand_words s0 NoSplit q tm' GeneratedString ([], w) with
-       | Right (step, s1, tm1, f1, w1) -> 
+       match expand_words s0 NoSplit q GeneratedString ([], w) with
+       | Right (step, s1, f1, w1) -> 
           Right (ESNested (ESParam "match") step, 
-                 s1, tm1, [], [K (LMatch s side mode (f ++ f1) w1)])
+                 s1, [], [K (LMatch s side mode (f ++ f1) w1)])
        | Left err -> Left err
        end
     | LError str f [] -> 
        (* dash seems to print erroring variable name; TODO should we also have linno? *)
        Left (ESParam "raising requested error", s0, ExpS (str ^ ": ")::f) 
     | LError str f w ->
-       let tm' = if f = [] then YesTilde else NoTilde in
-       match expand_words s0 NoSplit q tm' GeneratedString ([], w) with
-       | Right (step, s1, tm1, f1, w1) -> 
+       match expand_words s0 NoSplit q GeneratedString ([], w) with
+       | Right (step, s1, f1, w1) -> 
           Right (ESNested (ESParam "error") step, 
-                 s1, tm1, [], [K (LError str (f ++ f1) w1)])
+                 s1, [], [K (LError str (f ++ f1) w1)])
        | Left err -> Left err
        end
     | Backtick c ->
@@ -374,7 +369,6 @@ let rec expand_control s0 split q tm k =
        let s3 = close_fd s2 fd_write in
        Right (ESCommand "initializing subshell", 
               s3,
-              NoTilde,
               [], 
               [K (LBacktick c pid fd_read)])
     | LBacktick corig pid fd_read ->
@@ -383,7 +377,6 @@ let rec expand_control s0 split q tm k =
            Right (ESEval (ESCommand ("process with pid " ^ stringFromNat pid ^ " stepped"))
                     step,
                   s1,
-                  NoTilde,
                   [],
                   [K (LBacktick corig pid fd_read)])
         | (s1, Right Nothing) -> 
@@ -407,7 +400,6 @@ let rec expand_control s0 split q tm k =
               performed." *)
            Right (ESCommand "command exited successfully, waiting",
                   s2, 
-                  NoTilde,
                   [], 
                   [K (LBacktickWait corig pid s_trimmed)])
         end
@@ -416,19 +408,16 @@ let rec expand_control s0 split q tm k =
         | (s1, Nothing) ->
            Right (ESCommand "command process vanished, leaving exit code unset",
                   s1,
-                  NoTilde,
                   [ExpS s],
                   [])
         | (s1, Just (Left step)) ->
            Right (ESEval (ESCommand "command process stepped") step,
                   s1,
-                  NoTilde,
                   [],
                   [K (LBacktickWait corig pid s)])
         | (s1, Just (Right code)) ->
            Right (ESCommand "command process terminated",
                   exit_with code s1,
-                  NoTilde,
                   [ExpS s],
                   [])
         end
@@ -436,22 +425,22 @@ let rec expand_control s0 split q tm k =
         match arith64 s0 (concat_expanded f) with
         | Right (s1, result) -> 
            Right (ESArith "computed arithmetic result", 
-                  s1, NoTilde, expanded_words_of_fields result, [])
+                  s1, expanded_words_of_fields result, [])
         | Left e -> Left (ESArith "arithmetic error", s0, [ExpS e])
         end
     | Arith f w ->
-       match expand_words s0 split q YesTilde GeneratedString ([],w) with
-       | Right (step, s1, tm1, f1, w1) -> 
+       match expand_words s0 split q GeneratedString ([],w) with
+       | Right (step, s1, f1, w1) -> 
           Right (ESNested (ESArith "before arithmetic parsing") step, 
-                 s1, tm1, [], [K (Arith (f ++ f1) w1)])
+                 s1, [], [K (Arith (f ++ f1) w1)])
        | Left err -> Left err
         end
    | Quote f [] ->
       Right (ESQuote "finished quote expansion", 
-             s0, NoTilde, collapse_quoted f, [])
+             s0, collapse_quoted f, [])
    | Quote f w -> 
-       match expand_words s0 split Quoted NoTilde GeneratedString ([],w) with
-       | Right (step, s1, _tm1, [], w1) ->
+       match expand_words s0 split Quoted GeneratedString ([],w) with
+       | Right (step, s1, [], w1) ->
           (* special case for null fields... avoids QRK_EMPTPPWRD
 
              set --
@@ -461,33 +450,31 @@ let rec expand_control s0 split q tm k =
              
              should yield 1
            *)
-          Right (step, s1, NoTilde, [], [K (Quote (f ++ [DQuo []]) w1)])
-       | Right (step, s1, _tm1, f1, w1) -> 
-          Right (step, s1, NoTilde, [], [K (Quote (f ++ f1) w1)])
+          Right (step, s1, [], [K (Quote (f ++ [DQuo []]) w1)])
+       | Right (step, s1, f1, w1) -> 
+          Right (step, s1, [], [K (Quote (f ++ f1) w1)])
        | Left err -> Left err
        end
   end
 
-and expand_words s0 split q tm sm (f,w) =
+and expand_words s0 split q sm (f,w) =
   match w with
-    | [] -> Right (ESStep "done", s0, tm, f, w)
-    | F::ws -> Right (ESStep "user field separator", s0, YesTilde, f ++ [UsrF], ws)
-    | S ""::ws -> expand_words s0 split q tm sm (f,ws)
+    | [] -> Right (ESStep "done", s0, f, w)
+    | F::ws -> Right (ESStep "user field separator", s0, f ++ [UsrF], ws)
+    | S ""::ws -> expand_words s0 split q sm (f,ws)
     | S s ::ws ->
        let f1 = match (q, sm) with
          | (Quoted, _) -> [DQuo (symbolic_string_of_string s)]
          | (Unquoted, UserString) -> [UsrS s]
          | (Unquoted, GeneratedString) -> [ExpS s]
        end in
-       let last_char = head (reverse (toCharList s)) in
-       let tm' = if last_char = #':' then YesTilde else NoTilde in
-       Right (ESStep "plain string", s0, tm', f ++ f1, ws)
+       Right (ESStep "plain string", s0, f ++ f1, ws)
     | K k::ws ->
-       match expand_control s0 split q tm k with
-       | Right (step, s1, tm1, f1, w1) -> Right (step, s1, tm1, f++f1, (w1 ++ ws))
+       match expand_control s0 split q k with
+       | Right (step, s1, f1, w1) -> Right (step, s1, f++f1, (w1 ++ ws))
        | Left err -> Left err
        end
-    | ESym c::ws -> Right (ESStep "skipping symbolic result", s0, tm, f ++ [EWSym c], ws)
+    | ESym c::ws -> Right (ESStep "skipping symbolic result", s0, f ++ [EWSym c], ws)
   end
 
 (**********************************************************************)
@@ -519,17 +506,17 @@ and expand_words s0 split q tm sm (f,w) =
 and step_expansion (os0,st) =
   match st with
   | ExpStart opts w0 -> 
-     match expand_words os0 opts.splitting Unquoted YesTilde UserString ([],w0) with
-     | Right (step, os1, tm, f1, w1) -> (step, os1, ExpExpand opts tm f1 w1)
+     match expand_words os0 opts.splitting Unquoted UserString ([],w0) with
+     | Right (step, os1, f1, w1) -> (step, os1, ExpExpand opts f1 w1)
      | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
-  | ExpExpand opts _tm0 f0 [] ->
+  | ExpExpand opts f0 [] ->
      if should_split opts.splitting
      then (ESSplit "starting field splitting", os0, ExpSplit opts f0)
      else (ESSplit "skipping field splitting", os0, ExpPath opts (skip_field_splitting f0))
-  | ExpExpand opts tm0 f0 w0 -> 
-     match expand_words os0 opts.splitting Unquoted tm0 UserString (f0,w0) with
-     | Right (step, os1, tm1, f1, w1) -> (step, os1, ExpExpand opts tm1 f1 w1)
+  | ExpExpand opts f0 w0 -> 
+     match expand_words os0 opts.splitting Unquoted UserString (f0,w0) with
+     | Right (step, os1, f1, w1) -> (step, os1, ExpExpand opts f1 w1)
      | Left (step, os1, f1) -> (step, os1, ExpError (fields_of_expanded_words f1))
      end
   | ExpSplit opts f0 -> (ESSplit "", os0, ExpPath opts (field_splitting os0 f0))
@@ -1229,7 +1216,7 @@ and step_eval s0 checked stmt =
       let (step, os1, st1) = step_expansion (s0, exp_state) in
       match st1 with
         | ExpError err -> expansion_error true (* may exit *) os1 (XSCase "arg expansion") step err
-        | ExpExpand _opts _tm ew [] ->
+        | ExpExpand _opts ew [] ->
         (* "...matched by the string resulting from the tilde
            expansion, parameter expansion, command substitution,
            arithmetic expansion, and quote removal of the given word." *)
@@ -1257,7 +1244,7 @@ and step_eval s0 checked stmt =
       let (step, os1, st1) = step_expansion (s0, pat) in
       match st1 with
         | ExpError err -> expansion_error true (* may exit *) os1 (XSCase "error in argument expansion") step err
-        | ExpExpand _opts _tm ew [] ->
+        | ExpExpand _opts ew [] ->
            (* "each pattern that labels a compound-list shall be
               subjected to tilde expansion, parameter expansion,
               command substitution, and arithmetic expansion" ...

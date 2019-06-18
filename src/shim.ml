@@ -147,20 +147,30 @@ and of_binary (n : node union ptr) =
   (of_node (getf n nbinary_ch1), of_node (getf n nbinary_ch2))
 
 and to_arg (n : narg structure) : words =
-  let a,s,bqlist,stack = parse_arg (explode (getf n narg_text)) (getf n narg_backquote) [] in
+  let a,s,bqlist,stack = parse_arg ~tilde_ok:true ~assign:false (explode (getf n narg_text)) (getf n narg_backquote) [] in
   (* we should have used up the string and have no backquotes left in our list *)
   assert (s = []);
   assert (nullptr bqlist);
   assert (stack = []);
   a  
 
+and to_assign (n : narg structure) : (string * words) =
+  let (v,t) = extract_assign [] (explode (getf n narg_text)) in
+  let a,s,bqlist,stack = parse_arg ~tilde_ok:true ~assign:true t (getf n narg_backquote) [] in
+  (* we should have used up the string and have no backquotes left in our list *)
+  assert (s = []);
+  assert (nullptr bqlist);
+  assert (stack = []);
+  (v,a)
+  
 and in_quote stack =
   match stack with
   | [] -> false
   | `CTLQuo::_ -> true
   | _::stack' -> in_quote stack'
 
-and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
+and parse_arg ?tilde_ok:(tilde_ok=false) ~assign:(assign:bool) 
+              (s : char list) (bqlist : nodelist structure ptr) stack =
   match s,stack with
   | [],[] -> [],[],bqlist,[]
   | [],`CTLVar::_ -> failwith "End of string before CTLENDVAR"
@@ -169,7 +179,7 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
   (* CTLESC *)
   | '\129'::_ as s,_ -> 
      let (str,s') = parse_string [] (in_quote stack) s in
-     arg_char (S (implode str)) s' bqlist stack
+     arg_char assign (S (implode str)) s' bqlist stack
   (* CTLVAR *)
   | '\130'::t::s,_ ->
      let var_name,s = Dash.split_at (fun c -> c = '=') s in
@@ -189,12 +199,12 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
         failwith ("Missing CTLENDVAR for VSNORMAL/VSLENGTH, found " ^ Char.escaped c)
      (* every other VSTYPE takes mods before CTLENDVAR *)
      | vstype,'='::s ->
-        let w,s,bqlist,stack' = parse_arg s bqlist (`CTLVar::stack) in
+        let w,s,bqlist,stack' = parse_arg ~tilde_ok:true ~assign s bqlist (`CTLVar::stack) in
         K (Param (implode var_name, var_type vstype w)), s, bqlist, stack'
      | _,c::_ -> failwith ("Expected '=' terminating variable name, found " ^ Char.escaped c)
      | _,[] -> failwith "Expected '=' terminating variable name, found EOF"
      in
-     arg_char v s bqlist stack
+     arg_char assign v s bqlist stack
   (* CTLENDVAR *)
   | '\131'::s,`CTLVar::stack' -> [],s,bqlist,stack'
   | '\131'::_,`CTLAri::_ -> failwith "Saw CTLENDVAR before CTLENDARI"
@@ -204,12 +214,12 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
   | '\132'::s,_ ->
      if nullptr bqlist
      then failwith "Saw CTLBACKQ but bqlist was null"
-     else arg_char (K (Backtick (of_node (bqlist @-> nodelist_n)))) s (bqlist @-> nodelist_next) stack
+     else arg_char assign (K (Backtick (of_node (bqlist @-> nodelist_n)))) s (bqlist @-> nodelist_next) stack
   (* CTLARI *)
   | '\134'::s,_ ->
-     let a,s,bqlist,stack' = parse_arg s bqlist (`CTLAri::stack) in
+     let a,s,bqlist,stack' = parse_arg ~assign s bqlist (`CTLAri::stack) in
      assert (stack = stack');
-     arg_char (K (Arith ([],a))) s bqlist stack'
+     arg_char assign (K (Arith ([],a))) s bqlist stack'
   (* CTLENDARI *)
   | '\135'::s,`CTLAri::stack' -> [],s,bqlist,stack'
   | '\135'::_,`CTLVar::_' -> failwith "Saw CTLENDARI before CTLENDVAR"
@@ -218,38 +228,45 @@ and parse_arg (s : char list) (bqlist : nodelist structure ptr) stack =
   (* CTLQUOTEMARK *)
   | '\136'::s,`CTLQuo::stack' -> [],s,bqlist,stack'
   | '\136'::s,_ ->
-     let a,s,bqlist,stack' = parse_arg s bqlist (`CTLQuo::stack) in
+     let a,s,bqlist,stack' = parse_arg ~assign s bqlist (`CTLQuo::stack) in
      assert (stack' = stack);
-     arg_char (K (Quote ([],a))) s bqlist stack'
-  (* tildes *)
+     arg_char assign (K (Quote ([],a))) s bqlist stack'
+  (* tildes: only when tilde_ok *)
   | '~'::s,stack ->
-     if List.exists (fun m -> m = `CTLQuo || m = `CTLAri) stack
-     then (* we're in arithmetic or double quotes, so tilde is ignored *)
-       arg_char (S "~") s bqlist stack
+     if (* we're not the first character in the word *)
+        not tilde_ok || 
+        (* we're in arithmetic or double quotes, so tilde is ignored *)
+        List.exists (fun m -> m = `CTLQuo || m = `CTLAri) stack
+     then
+       arg_char assign (S "~") s bqlist stack
      else
-       begin match parse_tilde [] s with
-       | None -> arg_char (S "~") s bqlist stack
-       | Some (prefix, s') -> arg_char (K (Tilde prefix)) s' bqlist stack
+       begin match parse_tilde assign [] s with
+       | None -> arg_char assign (S "~") s bqlist stack
+       | Some (prefix, s') -> arg_char assign (K (Tilde prefix)) s' bqlist stack
        end
   (* ordinary character *)
   | _::_,_ -> 
      let (str,s') = parse_string [] (in_quote stack) s in
-     arg_char (S (implode str)) s' bqlist stack
+     arg_char assign (S (implode str)) s' bqlist stack
 
-and parse_tilde acc = 
+and parse_tilde assign acc = 
   let ret s = Some (implode (List.rev acc), s) in
   function
+  (* terminal: end-of-string, CTLENDVAR, CTLENDARI, /, : (in assignments) *)
   | [] -> ret []
-  (* CTLQUOTEMARK *)
-  | '\136'::_ as s -> None
-  (* terminal: CTLENDVAR, /, : *)
-  | '\131'::_ as s -> ret s
-  | ':'::_ as s -> ret s
+  | '\131'::_ as s -> ret s (* CTLENDVAR *)
+  | '\135'::_ as s -> ret s (* CTLENDARI *)
+  | ':'::_ as s when assign -> ret s
   | '/'::_ as s -> ret s
   (* CTLESC *)
-  | '\129'::c::s' -> parse_tilde (c::acc) s'
+  | '\129'::c::s' -> parse_tilde assign (c::acc) s'
+  (* other control codes, e.g., quotes, interrupt a tilde *)
+  | '\130'::_ as s -> None
+  | '\132'::_ as s -> None
+  | '\134'::_ as s -> None
+  | '\136'::_ as s -> None
   (* ordinary char *)
-  | c::s' -> parse_tilde (c::acc) s'  
+  | c::s' -> parse_tilde assign (c::acc) s'  
 
 and parse_string acc quoted = function
   | [] -> List.rev acc, []
@@ -274,22 +291,36 @@ and parse_string acc quoted = function
      parse_string (List.rev c' @ acc) quoted s
   | c::s -> parse_string (c::acc) quoted s
               
-and arg_char c s bqlist stack =
-  let a,s,bqlist,stack = parse_arg s bqlist stack in
+and arg_char assign c s bqlist stack =
+  let tilde_ok = 
+    match c with
+    | S "" -> false
+    | S s -> assign && String.get s (String.length s - 1) = ':'
+    | _ -> false
+  in
+  let a,s,bqlist,stack = parse_arg ~tilde_ok ~assign s bqlist stack in
   (c::a,s,bqlist,stack)
 
-and to_assign v = function
-  | [] -> failwith ("Never found an '=' sign in assignment, got " ^ v)
-  | S "=" :: a -> (v,a)
-  | (S s) :: a ->
-     (* hunt for an = sign, try to split the string *)
-     begin match String.index_opt s '=' with
-     | None -> to_assign (v ^ s) a
-     | Some i -> (v ^ String.sub s 0 i, S (String.sub s (i+1) (String.length s - i - 1)) :: a) 
-     end
-  | _ -> failwith "Unexpected special character in assignment"
-    
-and to_assigns n = List.map (to_assign "") (to_args n)
+and extract_assign v = function
+  | [] -> failwith ("Never found an '=' sign in assignment, got " ^ implode (List.rev v))
+  | '=' :: a -> (implode (List.rev v),a)
+  | '\129'::_ -> failwith "Unexpected CTLESC in variable name"
+  | '\130'::_ -> failwith "Unexpected CTLVAR in variable name"
+  | '\131'::_ -> failwith "Unexpected CTLENDVAR in variable name"
+  | '\132'::_ -> failwith "Unexpected CTLBACKQ in variable name"
+  | '\133'::_ -> failwith "Unexpected CTL??? in variable name"
+  | '\134'::_ -> failwith "Unexpected CTLARI in variable name"
+  | '\135'::_ -> failwith "Unexpected CTLENDARI in variable name"
+  | '\136'::_ -> failwith "Unexpected CTLQUOTEMARK in variable name"
+  | c :: a ->
+     extract_assign (c::v) a
+
+and to_assigns n = 
+  if nullptr n
+  then [] 
+  else (assert (n @-> node_type = 15);
+        let n = n @-> node_narg in
+        to_assign n::to_assigns (getf n narg_next))
     
 and to_args (n : node union ptr) : words list =
   if nullptr n
@@ -713,7 +744,7 @@ and json_of_expansion_step = function
 
 and json_of_expansion_state = function
   | ExpStart (_opts, w) -> obj_w "ExpStart" w
-  | ExpExpand (_opts, _tm, f, w) -> obj_fw "ExpExpand" f w
+  | ExpExpand (_opts, f, w) -> obj_fw "ExpExpand" f w
   | ExpSplit (_opts, f) -> obj_f "ExpSplit" f
   | ExpPath (_opts, ifs) -> Assoc [tag "ExpPath"; ("ifs", json_of_intermediate_fields ifs)]
   | ExpQuote (_opts, ifs) -> Assoc [tag "ExpQuote"; ("ifs", json_of_intermediate_fields ifs)]
