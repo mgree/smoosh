@@ -24,6 +24,9 @@ RUN sudo apt-get install -y --no-install-recommends expect
 # need gawk for POSIX test sutie tests tp448 and tp450; will be used POSIXLY_CORRECT
 RUN sudo apt-get install -y gawk
 
+# camlp4 won't work in 4.08 right now 2019-06-18
+RUN opam switch 4.07
+
 # make sure we have ocamlfind and ocamlbuild
 RUN opam install ocamlfind ocamlbuild
 
