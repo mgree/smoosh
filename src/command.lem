@@ -1790,8 +1790,17 @@ let printf_format s0 fmt0 args0 =
   let sprintf_res = 
     match (fmt1, printf_parse_numeric fmt1, printf_concrete_arg args0) with
     | ([], _, _) -> Left ("", "%: missing format character", 1, [], args0)
-    | (#'%'::fmt2, _, _) -> Right ("%", fmt2, args0)
- 
+    | (#'%'::fmt2, _, _) -> 
+       match fmt0 with
+         (* there shouldn't have been any spec, per
+            http://austingroupbugs.net/view.php?id=1205#c4351
+
+            we can't juse check that we're the default, so we'll look at fmt0,
+            from before we parsed the spec
+          *)
+       | #'%'::_ -> Right ("%", fmt2, args0)
+       | _ -> Left ("", "%: conversion specifications cannot be applied to the %% escape", 1, [], args0)
+       end
     (* %s *)
     | (#'s'::fmt2, _, Just (Just s, args1)) -> 
        Right (string_precision s, fmt2, args1)
@@ -1822,7 +1831,7 @@ let printf_format s0 fmt0 args0 =
     | (_, Just (num_mode, fmt2), Just (Just s, args1)) ->
        match unbounded_read (toCharList s) with
        | Left msg ->
-          Left ("",
+          Left (sprintf_format_numeric spec num_mode (fromNat 0),
                 string_of_printf_numeric num_mode ^ ": invalid number: " ^ msg,
                 1,
                 fmt2, args1)
@@ -1830,7 +1839,7 @@ let printf_format s0 fmt0 args0 =
           Right (sprintf_format_numeric spec num_mode (n : integer), fmt2, args1)
        end
     | (_, Just (num_mode, fmt2), Just (Nothing, args1)) ->
-       Left ("", 
+       Left (sprintf_format_numeric spec num_mode (fromNat 0), 
              string_of_printf_numeric num_mode ^ ": symbolic argument", 
              2, fmt2, args1)
     | (_, Just (num_mode, fmt2), Nothing) ->
@@ -1847,12 +1856,12 @@ let printf_format s0 fmt0 args0 =
     end
   in 
   (* compute what we'll actually print *)
-  let (s1, s, fmt2, args1) = 
+  let (s1, ok, s, fmt2, args1) = 
     match sprintf_res with
     | Left (s, msg, ec, fmt2, args1) ->
-       let s1 = write_stderr msg s0 in
-       (exit_with ec s1, s, fmt2, args1)
-    | Right (s, fmt2, args1) -> (s0, s, fmt2, args1)
+       let s1 = write_stderr (msg ^ "\n") s0 in
+       (exit_with ec s1, s <> "", s, fmt2, args1)
+    | Right (s, fmt2, args1) -> (s0, true, s, fmt2, args1)
     end
   in
   (* apply padding; numbers should already be padded...
@@ -1861,7 +1870,7 @@ let printf_format s0 fmt0 args0 =
   let padded = 
     match spec.width with
     | Nothing -> s
-    | Just width -> printf_padding spec.justify #' ' s width
+    | Just width -> if ok then printf_padding spec.justify #' ' s width else s
     end
   in 
   (safe_write_stdout "printf" padded s1, fmt2, args1)
