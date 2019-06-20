@@ -1,8 +1,0 @@
-set -o allexport 
-
-f() {
-    local x
-    export -p | grep x=
-}
-
-f

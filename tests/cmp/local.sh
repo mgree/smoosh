@@ -16,11 +16,11 @@ has() {
 # FIND THE UTILITY
 
 type local >/dev/null 2>&1 || { echo 'absent' && exit 1 ; }
-echo 'present'
-type local | grep special >/dev/null && echo 'special'
-type local | grep 'function' >/dev/null && echo 'function' 
-type local | grep 'reserved' >/dev/null && echo 'reserved'
-type local | grep built >/dev/null && echo 'builtin'
+echo 'PRESENT'
+type local | grep special >/dev/null && echo 'SPECIAL'
+type local | grep 'function' >/dev/null && echo 'FUNCTION' 
+type local | grep 'reserved' >/dev/null && echo 'RESERVED'
+type local | grep built >/dev/null && echo 'BUILTIN'
 
 # SPECIAL BUILTIN?
 
@@ -44,11 +44,11 @@ plain_local() {
 }
 
 res=$(plain_local)
-[ "$?" -eq "0" ] || echo '-p fails'
-[ ! "$res" ] && echo '-p empty'
-has 'z=hi' && echo '-p assign'
-has 'local x' && echo '-p keyword'
-has 'typeset z' && echo '-p typeset macro'
+[ "$?" -eq "0" ] || echo '-p FAILS'
+[ ! "$res" ] && echo '-p EMPTY'
+has 'z=hi' && echo '-p DUMP'
+has 'local x' && echo '-p KEYWORD'
+has 'typeset z' && echo '-p ~DUMP typeset macro'
 
 # READONLY INTERACTION?
 
@@ -59,9 +59,9 @@ overrides_readonly() {
 
 readonly or_x=hello
 res=$(overrides_readonly 2>&1)
-has 'out <0>' && echo 'readonly overrides'
-has 'out <hello>' && echo 'readonly silent'
-has 'out' || echo 'readonly failure'
+has 'out <0>' && echo 'READONLY OVERRIDES'
+has 'out <hello>' && echo 'READONLY SILENT'
+has 'out' || echo 'READONLY FAILURE'
 [ "$or_x" = "hello" ] || echo 'readonly BUG'
 
 # can't unset or_x!
@@ -100,8 +100,8 @@ initial_null() {
     esac
 }
 
-initial_unset && echo 'initial unset'
-initial_null && echo 'initial null'
+initial_unset && echo 'INITIAL UNSET'
+initial_null && echo 'INITIAL NULL'
 
 unset x
 

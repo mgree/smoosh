@@ -15,6 +15,12 @@ RUN sudo apt-get install -y --no-install-recommends bash=4.4-5
 RUN sudo apt-get install -y yash=2.43-1
 RUN sudo apt-get install -y zsh=5.3.1-4+b2
 
+RUN sudo apt-get install -y python2.7 python
+RUN git clone https://github.com/oilshell/oil
+RUN cd oil; ./configure; build/dev.sh ubuntu-deps; build/dev.sh minimal
+RUN sed -i 's#REPO_ROOT=.*#REPO_ROOT=/home/opam/oil#' bin/osh
+RUN sudo ln -sf /home/opam/oil/bin/osh /usr/local/bin/osh
+
 # system support for libdash; libgmp for zarith for lem
 RUN sudo apt-get install -y autoconf autotools-dev libtool pkg-config libffi-dev libgmp-dev
 
