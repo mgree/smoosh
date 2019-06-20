@@ -32,7 +32,7 @@ is_special() {
     esac
 }
 
-is_special && echo 'truly special' || echo 'not truly special'
+is_special && echo 'TRULY SPECIAL' || echo 'NOT TRULY SPECIAL'
 
 unset x
 
