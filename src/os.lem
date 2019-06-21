@@ -453,6 +453,36 @@ let add_to_history c os =
     let histnum = next_histnum os in
     <| os with sh = <| os.sh with history = (histnum,c)::os.sh.history |> |>
 
+(* Hashing ************************************************************)
+
+val clear_hash : forall 'a . os_state 'a -> os_state 'a
+let clear_hash os = 
+  <| os with sh = <| os.sh with hashes = Map.empty |> |>
+
+val hash_lookup : forall 'a. os_state 'a -> (path -> bool) -> string -> os_state 'a * maybe path
+let hash_lookup s0 ok prog =
+  match Map.lookup prog s0.sh.hashes with
+  | Nothing -> (s0, Nothing)
+  | Just (path, hits) ->
+     if ok path
+     then let s1 = <| s0 with sh = 
+                      <| s0.sh with hashes = 
+                         Map.insert prog (path, hits+1) s0.sh.hashes |> |>
+          in
+          (s1, Just path)
+     else let s1 = <| s0 with sh = 
+                      <| s0.sh with hashes = 
+                         Map.delete prog s0.sh.hashes |> |>
+          in
+          (s1, Just path)
+  end
+
+val hash_insert : forall 'a. os_state 'a -> string -> path -> os_state 'a
+let hash_insert os prog path =
+  <| os with sh = <| os.sh with hashes = 
+     Map.insert prog (path, 1) os.sh.hashes |> 
+  |>
+
 (* Concretization *****************************************************)
 
 val concretize 
@@ -1388,6 +1418,8 @@ let checked_set_param x v os0 =
   then set_ps1 os2 v
   else if x = "PS2"
   then set_ps2 os2 v
+  else if x = "PATH"
+  then clear_hash os2
   else os2
 
 val set_param : forall 'a. OS 'a =>

@@ -1269,7 +1269,13 @@ and step_eval s0 checked stmt =
      then 
        let msg = "invalid function name " ^ name ^ " (shadows special built-in)" in
        (XSDefun msg, fail_with msg s0, if is_interactive s0 then Done else Exit)
-     else check_traps (XSDefun ("defined " ^ name), defun name body (exit_with 0 s0), Done)
+     else 
+       let s1 =
+         if Set.member Sh_earlyhash s0.sh.opts
+         then early_hash s0 body
+         else s0
+       in
+       check_traps (XSDefun ("defined " ^ name), defun name body (exit_with 0 s1), Done)
 
   (* CALL *********************************************************************)
   | Call old_loop_nest old_positional_params f orig c ->

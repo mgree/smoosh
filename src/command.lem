@@ -106,11 +106,15 @@ let rec resolve_path_with ok path name =
   | pwd::path' -> attempt (join_path pwd name) path'
   end
 
+val command_path_ok : forall 'a. OS 'a => os_state 'a -> path -> bool
+let command_path_ok s0 path =
+  file_exists s0 path && file_type_follow s0 path = Just FileRegular
+
 val resolve_command_name_in_path 
     : forall 'a. OS 'a =>
-        os_state 'a -> string (* PATH *) -> string (* program *) -> maybe string
+        os_state 'a -> path (* PATH *) -> string (* program *) -> os_state 'a * maybe string
 val resolve_command_name : forall 'a. OS 'a =>
-                           os_state 'a -> string -> maybe string
+                           os_state 'a -> string -> os_state 'a * maybe string
 
 let resolve_command_name_in_path s0 path prog =
   if elem #'/' (toCharList prog)
@@ -122,13 +126,25 @@ let resolve_command_name_in_path s0 path prog =
        and arg0 arguments set to the command name, and the remaining
        execl() arguments set to the command arguments (if any) and the
        null terminator. *)
-    Just prog
+    (s0, Just prog)
   else
-    (* Otherwise, the command shall be searched for using the PATH
-       environment variable as described in XBD Environment Variables *)
-    let paths = split_string_on true (* escapable *) #':' path in
-    let ok path = file_exists s0 path && file_type_follow s0 path = Just FileRegular in
-    resolve_path_with ok paths prog
+    let (s1, hashed) = hash_lookup s0 (command_path_ok s0) prog in
+    match hashed with
+    | Nothing -> 
+       (* Otherwise, the command shall be searched for using the PATH
+          environment variable as described in XBD Environment Variables *)
+       (* TODO PERFORMANCE 2019-06-21 should pre-split this *)
+       let paths = split_string_on true (* escapable *) #':' path in
+       let m_path = resolve_path_with (command_path_ok s0) paths prog in
+       let s2 = 
+         match m_path with
+         | Nothing -> s1
+         | Just path -> hash_insert s1 prog path
+         end
+       in
+       (s2, m_path)
+    | Just path -> (s1, Just path)
+    end
 
 let resolve_command_name s0 prog =
   resolve_command_name_in_path s0 (get_path s0) prog
@@ -147,24 +163,33 @@ let check_execve mpfx s0 prog =
     | Just pfx -> pfx ^ ": "
     end
   in
-  match resolve_command_name s0 prog with
+  let (s1, m_path) = resolve_command_name s0 prog in
+  match m_path with
   | Nothing -> 
      (* If the search is unsuccessful, the command shall
         fail with an exit status of 127 and the shell
         shall write an error message. *)
-     let s1 = write_stderr (prefix ^ prog ^ ": command not found\n") s0 in
-     (exit_with 127 s1, Nothing)
+     let s2 = write_stderr (prefix ^ prog ^ ": command not found\n") s1 in
+     (exit_with 127 s2, Nothing)
   | Just executable ->
-     if file_exists s0 executable
-     then if is_executable s0 executable
-          then (s0, Just executable)
+     if file_exists s1 executable
+     then if is_executable s1 executable
+          then (s1, Just executable)
           else
-            let s1 = write_stderr (prefix ^ executable ^ ": command not executable\n") s0 in
-            (exit_with 126 s1, Nothing)
+            let s2 = write_stderr (prefix ^ executable ^ ": command not executable\n") s1 in
+            (exit_with 126 s2, Nothing)
      else 
-       let s1 = write_stderr (prefix ^ executable ^ ": command not found\n") s0 in
-       (exit_with 127 s1, Nothing)
+       let s2 = write_stderr (prefix ^ executable ^ ": command not found\n") s1 in
+       (exit_with 127 s2, Nothing)
   end
+
+val early_hash : forall 'a. OS 'a => os_state 'a -> stmt -> os_state 'a
+let rec early_hash s0 c =
+  let cmds = Set_extra.toList (collect_command_names c) in
+  let path = get_path s0 in
+  (* Resolving the command will do the appropriate hashing if we can find it.
+   *)
+  foldr (fun cmd os -> fst (resolve_command_name_in_path os path cmd)) s0 cmds
 
 (**********************************************************************)
 (* ARGUMENT PROCESSING ************************************************)
@@ -1080,7 +1105,6 @@ let builtin_cd s0 argv _env =
      end
   end
 
-(* TODO 2018-09-17 implement hashing? it's optional... *)
 (* Once a utility has been searched for and found (either as a result
    of this specific search or as part of an unspecified shell start-up
    activity), an implementation may remember its location and need not
@@ -1090,13 +1114,25 @@ let builtin_cd s0 argv _env =
    the new location for the utility, if any. *)
 let builtin_hash s0 argv _env = 
   match argv with
-  | [] -> Right (safe_write_stdout "hash" "No commands hashed.\n" s0, Done)
-  | [C #'-'; C #'r']::_ -> Right (s0, Done)
+  | [] -> 
+     let msg =
+       if Map.null s0.sh.hashes 
+       then "No commands hashed."
+       else
+         let show (_cmd,(path,hits)) = 
+           pad_left (stringFromNat hits) 4 ^ "\t" ^ path
+         in
+         let header = "hits\tcommand\n" in
+         header ^ concat "\n" (map show (Map_extra.toList s0.sh.hashes))
+     in
+     Right (safe_write_stdout "hash" (msg ^ "\n") s0, Done)
+  | [C #'-'; C #'r']::_ -> Right (clear_hash s0, Done)
   | _ -> Right (s0, Done)
   end
 
 type command_type = 
-    CmdSpecial
+    CmdSymbolic
+  | CmdSpecial
   | CmdBuiltin
   | CmdFunction
   | CmdAlias of string
@@ -1110,63 +1146,66 @@ let shell_keywords = ["!"; "{"; "}"; "case"; "do"; "done"; "elif"; "else";
 
 let command_type s0 path cmd =
   if List.elem cmd shell_keywords
-  then CmdKeyword
+  then (s0, CmdKeyword)
   else if is_special_builtin cmd
-  then CmdSpecial
+  then (s0, CmdSpecial)
   else if is_builtin cmd
-  then CmdBuiltin
+  then (s0, CmdBuiltin)
   else match Map.lookup cmd s0.sh.aliases with
-       | Just mapping -> CmdAlias mapping
+       | Just mapping -> (s0, CmdAlias mapping)
        | Nothing ->
           if Map.member cmd s0.sh.funcs
-          then CmdFunction
-          else match resolve_command_name_in_path s0 path cmd with
-               | Just executable -> CmdPath executable
-               | Nothing -> CmdNotFound
-               end
+          then (s0, CmdFunction)
+          else let (s1, m_path) = resolve_command_name_in_path s0 path cmd in
+               (s1, 
+                match m_path with
+                | Just executable -> CmdPath executable
+                | Nothing -> CmdNotFound
+                end)
        end
 
-let concise_command_type s0 path cmd =
-  match try_concrete cmd with
-  | Nothing -> string_of_symbolic_string cmd
-  | Just name ->
-     match command_type s0 path name with
-     | CmdKeyword -> name ^ "\n"
-     | CmdSpecial -> name ^ "\n"
-     | CmdBuiltin -> name ^ "\n"
-     | CmdFunction -> name ^ "\n"
-     | CmdPath path -> path ^ "\n"
-     | CmdAlias exp -> "alias " ^ name ^ "='" ^ exp ^ "'\n"
-     | CmdNotFound -> ""
-     end 
+let command_type_symbolic s0 path scmd =
+  match try_concrete scmd with
+  | Nothing -> (s0, CmdSymbolic)
+  | Just cmd -> command_type s0 path cmd
   end
 
-let human_readable_command_type s0 path cmd =
-  match try_concrete cmd with
-  | Nothing -> 
-     string_of_symbolic_string cmd ^ " is a symbolic command"
-  | Just name ->
-     let msg = 
-       match command_type s0 path name with
-       | CmdKeyword -> " is a shell keyword"
-       | CmdSpecial -> " is a special shell builtin"
-       | CmdBuiltin -> " is a shell builtin"
-       | CmdFunction -> " is a shell function"
-       | CmdPath path -> " is " ^ path
-       | CmdAlias exp -> " is an alias for " ^ exp
-       | CmdNotFound -> ": not found"
-       end 
-     in
-     name ^ msg ^ "\n"
-  end
+let concise_command_type ct s_name =
+  let name = string_of_symbolic_string s_name in
+  match ct with
+  | CmdSymbolic -> name ^ "\n"
+  | CmdKeyword -> name ^ "\n"
+  | CmdSpecial -> name ^ "\n"
+  | CmdBuiltin -> name ^ "\n"
+  | CmdFunction -> name ^ "\n"
+  | CmdPath path -> path ^ "\n"
+  | CmdAlias exp -> "alias " ^ name ^ "='" ^ exp ^ "'\n"
+  | CmdNotFound -> ""
+  end 
+
+let human_readable_command_type ct s_name =
+  let msg = 
+    match ct with
+    | CmdSymbolic -> " is a symbolic command"
+    | CmdKeyword -> " is a shell keyword"
+    | CmdSpecial -> " is a special shell builtin"
+    | CmdBuiltin -> " is a shell builtin"
+    | CmdFunction -> " is a shell function"
+    | CmdPath path -> " is " ^ path
+    | CmdAlias exp -> " is an alias for " ^ exp
+    | CmdNotFound -> ": not found"
+    end 
+  in
+  (string_of_symbolic_string s_name) ^ msg ^ "\n"
 
 (* technically part of XSI, but useful *)
 let rec builtin_type s0 argv _env = 
   match argv with
   | [] -> Right (s0, Done)
   | cmd::argv' ->
-     let msg = human_readable_command_type s0 (get_path s0) cmd in
-     builtin_type (safe_write_stdout "type" msg s0) argv' _env
+     let (s1, ct) = command_type_symbolic s0 (get_path s0) cmd in
+     let msg = human_readable_command_type ct cmd in
+     builtin_type (safe_write_stdout "type" msg s1) argv' _env
   end
 
 type command_path = CPAmbient | CPDefault
@@ -1197,17 +1236,15 @@ let rec show_commands render s0 path argv =
   match argv with
   | [] -> Right (s0, Done)
   | name::argv' -> 
-     let msg = render s0 path name in
-     let s1 = safe_write_stdout "command" msg s0 in
-     let s2 = 
-       match try_concrete name with
-       | Nothing -> s1
-       | Just cmd ->        
-          if command_type s1 path cmd = CmdNotFound 
-          then exit_with 127 s1 
-          else s1 
-       end in
-     show_commands render s2 path argv'
+     let (s1, ct) = command_type_symbolic s0 path name in
+     let msg = render ct name in
+     let s2 = safe_write_stdout "command" msg s1 in
+     let s3 = 
+       if ct = CmdNotFound 
+       then exit_with 127 s2 
+       else s2
+     in
+     show_commands render s3 path argv'
   end
 
 val builtin_command : forall 'a. OS 'a => os_state 'a -> fields -> env ->                  
