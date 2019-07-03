@@ -100,13 +100,14 @@ type symbolic = <|
     fs_root: fs;
     fifos: list fifo;
     procs: list proc;
-    exited: bool;
     umask: perms;
     curpid: pid
   |>
 
+type evaluation_trace_entry = evaluation_step * shell_state * symbolic * stmt
+
 type evaluation_trace = 
-  list (evaluation_step * shell_state * symbolic * stmt) * os_state symbolic
+  list evaluation_trace_entry * os_state symbolic
     
 (* INVARIANT: the second number here is referring to the indices in os_empty.fifos below *)
 let fds_default : fds = 
@@ -124,7 +125,6 @@ let symbolic_empty : symbolic = <|
             ;"" (* STDERR *)
             ];
     procs = [Shell Proc_Running Done default_shell_state fds_default (Stepped false) no_signals];
-    exited = false;
     umask = default_umask;
     curpid = 0
  |>
@@ -159,6 +159,15 @@ let proc_stepped proc =
   match proc with
   | Shell _ _ _ _ (Stepped b) _ -> b
   | Zombie _ -> true (* since it can't step anyway *)
+  end
+
+val proc_stmt : os_state symbolic -> pid -> stmt
+let proc_stmt os pid =
+  match index os.symbolic.procs pid with
+  | Nothing -> Done
+  | Just (Zombie ec) -> 
+     simple_command "exit" [symbolic_string_of_string (stringFromNat ec)] Map.empty
+  | Just (Shell _ stmt _ _ _ _) -> stmt
   end
 
 val symbolic_clear_stepped : os_state symbolic -> os_state symbolic
@@ -403,7 +412,7 @@ let rec symbolic_write_fd os fd s =
         if symbolic_has_reader os fifo_num 
         then Just <| os with symbolic = symbolic' |>
         else (* send SIGPIPE *)
-          let _ = Debug.print_endline ("SIGPIPE to " ^ stringFromNat os.symbolic.curpid) in
+(*          let _ = Debug.print_endline ("SIGPIPE to " ^ stringFromNat os.symbolic.curpid) in *)
           let (os', _sent) = symbolic_signal_pid os SIGPIPE os.symbolic.curpid SignalProcess in
           Just os'
      end
@@ -445,6 +454,7 @@ and proc_receive_signal os0 signal pid _as_pg proc =
              (os0, Shell Proc_Running stmt proc_sh proc_fds stepped pending)
             end
        | Just _ -> 
+(*          let _ = Debug.print_endline ("recorded pending signal " ^ string_of_signal signal ^ " " ^ stringFromNat pid) in *)
          (os0, Shell status stmt proc_sh proc_fds stepped (pending ++ [signal]))
        end
      in
@@ -454,9 +464,12 @@ and proc_receive_signal os0 signal pid _as_pg proc =
   end
 
 and symbolic_signal_pid os0 signal pid _as_pg = 
-  match index os0.symbolic.procs pid with
-  | Nothing -> (os0, false) (* not found *)
-  | Just proc -> proc_receive_signal os0 signal pid _as_pg proc
+(*  let _ = Debug.print_endline ("symbolic_signal_pid " ^ string_of_signal signal ^ " " ^ stringFromNat pid) in *)
+  (* make sure we're synced up *)
+  let os1 = proc_save_state os0 in
+  match index os1.symbolic.procs pid with
+  | Nothing -> (os1, false) (* not found *)
+  | Just proc -> proc_receive_signal os1 signal pid _as_pg proc
   end
 
 let symbolic_step_pid step_eval os0 pid =
@@ -476,7 +489,6 @@ let symbolic_step_pid step_eval os0 pid =
        match stmt' with
        | Done ->
           (* KLUDGE we're going to manually simulate the EXIT trap here...
-             this lets us leave os.symbolic.exited as a global bit
            *)
           let (os3, m_handler) = exit_trap os2 in
           match m_handler with
@@ -561,8 +573,24 @@ instance (OS symbolic)
   let os_signal_pid os0 signal pid as_pg = symbolic_signal_pid os0 signal pid as_pg
 
   let os_pending_signal os0 =
-    (* TODO 2018-12-14 track and manage pending signals *)
-    (os0, Nothing)
+    let m_procs' = 
+      adjust_nth os0.symbolic.procs os0.symbolic.curpid 
+        (fun proc ->
+          match proc with
+          | Zombie _ec -> (proc, Nothing)
+          | Shell _status _stmt _sh _fds _stepped [] -> (proc, Nothing)
+          | Shell _status _stmt _sh _fds _stepped (signal::pending) ->
+            (Shell _status _stmt _sh _fds _stepped pending, Just signal)
+          end)
+    in
+    match m_procs' with
+    | Nothing -> 
+       Assert_extra.failwith ("os_pending_signal: couldn't find current process " ^
+                                stringFromNat os0.symbolic.curpid)
+    | Just (procs', m_sig) ->
+       (<| os0 with symbolic = <| os0.symbolic with procs = procs' |> |>,
+        m_sig)
+    end
 
   let os_tc_setfg os0 _pid = 
     (* TODO 2018-10-30 track console control info *)

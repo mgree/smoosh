@@ -1559,34 +1559,66 @@ let rec symbolic_run_full_expansion os0 st0 =
 val symbolic_full_expansion 
     : os_state symbolic -> words -> os_state symbolic * fields
 let symbolic_full_expansion s0 w0 = symbolic_run_full_expansion s0 (ExpStart <| splitting = Split; globbing = true |> w0)
-
-val symbolic_full_evaluation : os_state symbolic -> stmt -> os_state symbolic
-let symbolic_full_evaluation s0 c = full_evaluation s0 c
    
 (* Tracing evaluation *************************************************)
 (* used in expand.ml *)
 
-val run_trace_evaluation : os_state symbolic -> stmt -> evaluation_trace
-let rec run_trace_evaluation os0 stmt0 =
+val try_step_pid : os_state symbolic -> pid -> os_state symbolic * maybe evaluation_step
+let try_step_pid os0 pid =
+  let (os1, res) = symbolic_step_pid step_eval os0 pid in
+  match res with
+  | Nothing -> (os1, Nothing)
+  | Just (Right _ec) -> (os1, Nothing)
+  | Just (Left step) -> (os1, Just step)
+  end
+   
+val try_step_all_loop : os_state symbolic -> pid (* current *) -> pid (* up to, exclusive *) -> list (maybe evaluation_step) -> os_state symbolic * list (maybe evaluation_step)
+let rec try_step_all_loop os0 pid max_pid steps =
+  if pid >= max_pid
+  then (os0, List.reverse steps)
+  else
+    let (os1, res) = symbolic_step_pid step_eval os0 pid in
+    let step = 
+      match res with
+      | Nothing -> Nothing
+      | Just (Right _ec) -> Nothing
+      | Just (Left step) -> 
+         Just step
+      end
+     in
+     try_step_all_loop os1 (pid + 1) max_pid (step::steps)
+
+let try_step_all os0 =
+  try_step_all_loop os0 0 (length os0.symbolic.procs) [] 
+     
+let rec run_trace_evaluation_loop os0 =
   if out_of_fuel os0
-  then ([(XSStep "out of fuel", os0.sh, os0.symbolic, stmt0)], os0)
-  else if os0.symbolic.exited
-  then ([], os0)
+  then ([(XSStep "out of fuel", os0.sh, os0.symbolic, proc_stmt os0 0)], os0)
   else 
     let os1 = tick os0 in
-    match stmt0 with
-    | Done -> 
-       match exit_trap os0 with
-       | (s1, Nothing) -> ([], s1)
-       | (s1, Just c_handler) -> run_trace_evaluation s1 c_handler
-       end
-    | _ ->
-        let (step, os2, stmt1) = step_eval os1 Unchecked stmt0 in
-        let entry = (step, os2.sh, os2.symbolic, stmt1) in
-        let (trace,os3) = run_trace_evaluation os2 stmt1 in
-        (entry::trace, os3)
-    end
-  
+    let (os2, steps) = try_step_all os1 in
+    (* make sure we're back in pid 0, the root shell *)
+    let (os3, _sproc) = proc_select os2 0 in
+    if all isNothing steps
+    then ([], os3)
+    else let m_step0 = head steps in
+         let step0 = match m_step0 with
+           | Nothing -> XSSimple "no step in root shell"
+           | Just step -> step 
+           end
+         in
+         let entry = (step0, os3.sh, os3.symbolic, proc_stmt os3 0) in
+         let (trace,os4) = run_trace_evaluation_loop os2 in
+         (entry::trace, os4)
+
+val run_trace_evaluation : os_state symbolic -> stmt -> evaluation_trace
+let run_trace_evaluation os0 stmt =
+  let os1 = proc_set_stmt os0 0 stmt in
+  run_trace_evaluation_loop os1
+
+val symbolic_full_evaluation : os_state symbolic -> stmt -> os_state symbolic
+let symbolic_full_evaluation s0 c = snd (run_trace_evaluation s0 c)
+
 (* Real evaluation ****************************************************)
 (* convenience functions for shell.ml *)
 open import Os_system

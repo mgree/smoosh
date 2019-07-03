@@ -226,7 +226,6 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("eval set -- 1 2 3 ; echo $#", os_empty, "3\n")
   ; ("eval set -- 1 2 3 ; echo $*", os_empty, "1 2 3\n")
 
-
     (* regression: set -- *)
   ; ("set -- 1 2 3; echo $#; set --; echo $#", os_empty, "3\n0\n")
      
@@ -336,6 +335,9 @@ let stdout_tests : (string * symbolic os_state * string) list =
 (*  ; ("(trap 'echo bye' SIGTERM ; echo hi) & kill %1 ; wait", os_empty, "bye\n") *)
   ; ("(trap 'echo bye' EXIT) & wait", os_empty, "bye\n")
   ; ("trap 'echo bye' EXIT", os_empty, "bye\n")
+  ; ("(trap 'echo bye' EXIT; echo hi) ; wait", os_empty, "hi\nbye\n")
+  ; ("trap 'echo sig' SIGTERM; kill $$", os_empty, "sig\n")
+  ; ("(trap 'echo hi; exit' TERM; while true; do echo loop; done) & :; :; kill $!", os_empty, "loop\nhi\n")
 
     (* getopts *)
   ; ("getopts ab opt -a -b -- c d ; " ^
@@ -418,6 +420,9 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("set -e; ! true; echo hi", os_empty, "hi\n")
   ; ("set -e; (false; echo one) | echo two; echo three", os_empty, "two\nthree\n")
   ; ("set -e; (false; echo one) ; echo two", os_empty, "")
+
+     (* exit *)
+  ; ("echo hi; exit; echo farewell", os_empty, "hi\n")
   ]
 
 (***********************************************************************)
