@@ -488,8 +488,7 @@ let symbolic_step_pid step_eval os0 pid =
      let (os3, res) = 
        match stmt' with
        | Done ->
-          (* KLUDGE we're going to manually simulate the EXIT trap here...
-           *)
+          (* we manually simulate the EXIT trap here *)
           let (os3, m_handler) = exit_trap os2 in
           match m_handler with
           | Just handler ->

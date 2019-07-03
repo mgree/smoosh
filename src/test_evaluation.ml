@@ -253,7 +253,6 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("while true; do echo 5; done | echo done", os_empty, "done\n")
   ; ("while true; do echo 5; done | { read x; echo $((x + 42)) ; }", os_empty, "47\n")
 
-
     (* $* vs $@ 
 
        e.g.s from https://stackoverflow.com/questions/12314451/accessing-bash-command-line-args-vs/12316565
