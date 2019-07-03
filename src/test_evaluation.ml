@@ -250,6 +250,9 @@ let stdout_tests : (string * symbolic os_state * string) list =
   ; ("exec 2>&1; echo ${y?oh no}", os_empty, "y: oh no\n")
   ; ("echo ${y?oh no}", os_empty, "")
   ; ("exec 1>&2; echo ${y?oh no}", os_empty, "")
+  ; ("while true; do echo 5; done | echo done", os_empty, "done\n")
+  ; ("while true; do echo 5; done | { read x; echo $((x + 42)) ; }", os_empty, "47\n")
+
 
     (* $* vs $@ 
 
