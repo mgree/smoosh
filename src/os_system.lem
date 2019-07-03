@@ -230,6 +230,8 @@ val dash_setvar : string -> symbolic_string -> unit
 declare ocaml target_rep function dash_setvar = `Shim.dash_setvar`
 
 instance (OS unit)
+  let os_tick os = os
+ 
   let os_set_ps1 os new_ps1 = 
     let _ = dash_setvar "PS1" new_ps1 in
     os
