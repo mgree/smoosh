@@ -52,6 +52,7 @@ let builtin_names =
   ; "fg"
   ; "getopts"
   ; "hash"
+  ; "history"
   ; "jobs"
   ; "kill"
   ; "local"
@@ -82,7 +83,7 @@ let is_unspecified_utility s =
           "chdir";"clone";"comparguments";"compcall";"compctl";"compdescribe";
           "compfiles";"compgen";"compgroups";"complete";"compquote";"comptags";
           "comptry";"compvalues";"declare";"dirs";"disable";"disown";"dosh";
-          "echotc";"echoti";(*"help";*)"history";"hist";"let";(*"local";*)"login";
+          "echotc";"echoti";(*"help";*)(*"history";*)"hist";"let";(*"local";*)"login";
           "logout";"map";"mapfile";"popd";"print";"pushd";"readarray";"repeat";
           "savehistory";"source";"shopt";"stop";"suspend";"typeset";"whence"]
        
@@ -105,11 +106,15 @@ let rec resolve_path_with ok path name =
   | pwd::path' -> attempt (join_path pwd name) path'
   end
 
+val command_path_ok : forall 'a. OS 'a => os_state 'a -> path -> bool
+let command_path_ok s0 path =
+  file_exists s0 path && file_type_follow s0 path = Just FileRegular
+
 val resolve_command_name_in_path 
     : forall 'a. OS 'a =>
-        os_state 'a -> string (* PATH *) -> string (* program *) -> maybe string
+        os_state 'a -> path (* PATH *) -> string (* program *) -> os_state 'a * maybe string
 val resolve_command_name : forall 'a. OS 'a =>
-                           os_state 'a -> string -> maybe string
+                           os_state 'a -> string -> os_state 'a * maybe string
 
 let resolve_command_name_in_path s0 path prog =
   if elem #'/' (toCharList prog)
@@ -121,13 +126,25 @@ let resolve_command_name_in_path s0 path prog =
        and arg0 arguments set to the command name, and the remaining
        execl() arguments set to the command arguments (if any) and the
        null terminator. *)
-    Just prog
+    (s0, Just prog)
   else
-    (* Otherwise, the command shall be searched for using the PATH
-       environment variable as described in XBD Environment Variables *)
-    let paths = split_string_on true (* escapable *) #':' path in
-    let ok path = file_exists s0 path && file_type_follow s0 path = Just FileRegular in
-    resolve_path_with ok paths prog
+    let (s1, hashed) = hash_lookup s0 (command_path_ok s0) prog in
+    match hashed with
+    | Nothing -> 
+       (* Otherwise, the command shall be searched for using the PATH
+          environment variable as described in XBD Environment Variables *)
+       (* TODO PERFORMANCE 2019-06-21 should pre-split this *)
+       let paths = split_string_on true (* escapable *) #':' path in
+       let m_path = resolve_path_with (command_path_ok s0) paths prog in
+       let s2 = 
+         match m_path with
+         | Nothing -> s1
+         | Just path -> hash_insert s1 prog path
+         end
+       in
+       (s2, m_path)
+    | Just path -> (s1, Just path)
+    end
 
 let resolve_command_name s0 prog =
   resolve_command_name_in_path s0 (get_path s0) prog
@@ -146,24 +163,33 @@ let check_execve mpfx s0 prog =
     | Just pfx -> pfx ^ ": "
     end
   in
-  match resolve_command_name s0 prog with
+  let (s1, m_path) = resolve_command_name s0 prog in
+  match m_path with
   | Nothing -> 
      (* If the search is unsuccessful, the command shall
         fail with an exit status of 127 and the shell
         shall write an error message. *)
-     let s1 = write_stderr (prefix ^ prog ^ ": command not found\n") s0 in
-     (exit_with 127 s1, Nothing)
+     let s2 = write_stderr (prefix ^ prog ^ ": command not found\n") s1 in
+     (exit_with 127 s2, Nothing)
   | Just executable ->
-     if file_exists s0 executable
-     then if is_executable s0 executable
-          then (s0, Just executable)
+     if file_exists s1 executable
+     then if is_executable s1 executable
+          then (s1, Just executable)
           else
-            let s1 = write_stderr (prefix ^ executable ^ ": command not executable\n") s0 in
-            (exit_with 126 s1, Nothing)
+            let s2 = write_stderr (prefix ^ executable ^ ": command not executable\n") s1 in
+            (exit_with 126 s2, Nothing)
      else 
-       let s1 = write_stderr (prefix ^ executable ^ ": command not found\n") s0 in
-       (exit_with 127 s1, Nothing)
+       let s2 = write_stderr (prefix ^ executable ^ ": command not found\n") s1 in
+       (exit_with 127 s2, Nothing)
   end
+
+val early_hash : forall 'a. OS 'a => os_state 'a -> stmt -> os_state 'a
+let rec early_hash s0 c =
+  let cmds = Set_extra.toList (collect_command_names c) in
+  let path = get_path s0 in
+  (* Resolving the command will do the appropriate hashing if we can find it.
+   *)
+  foldr (fun cmd os -> fst (resolve_command_name_in_path os path cmd)) s0 cmds
 
 (**********************************************************************)
 (* ARGUMENT PROCESSING ************************************************)
@@ -279,10 +305,12 @@ let pid_of_symbolic_string s0 ss =
   | Just s ->
      match toCharList s with
      | #'%'::_ ->
-        match job_of_symbolic_string s0 ss with
-        | Right job -> Right (job.pid, SignalProcessGroup) (* per dash *)
-        | Left msg -> Left msg
-        end
+        if is_monitoring s0
+        then match job_of_symbolic_string s0 ss with
+             | Right job -> Right (job.pid, SignalProcessGroup) (* per dash *)
+             | Left msg -> Left msg
+             end
+        else Left ("no such process " ^ s)
      | cs -> 
         let (cs', signal_mode) =
           match cs with
@@ -934,13 +962,16 @@ let rec path_mode opts =
 
 val resolve_path_mode : forall 'a. OS 'a => os_state 'a -> path_mode -> os_state 'a * string
 let resolve_path_mode s0 mode =
-  match mode with
-  | Link -> (s0, s0.sh.cwd)
-  | Physical -> 
-     let pwd = physical_cwd s0 in
-     let s1 = <| s0 with sh = <| s0.sh with cwd = pwd |> |> in
-     (internal_set_param "PWD" (symbolic_string_of_string pwd) s1, pwd)
-  end
+  let (s1, pwd) = 
+    match mode with
+    | Link -> (s0, s0.sh.cwd)
+    | Physical -> 
+       let pwd = physical_cwd s0 in
+       let s1 = <| s0 with sh = <| s0.sh with cwd = pwd |> |> in
+       (s1, pwd)
+    end
+  in
+  (internal_set_param "PWD" (symbolic_string_of_string pwd) s1, pwd)
 
 let builtin_pwd s0 argv _env =
   let (opts,_argv') = getopts [#'L';#'P'] argv in
@@ -1074,7 +1105,6 @@ let builtin_cd s0 argv _env =
      end
   end
 
-(* TODO 2018-09-17 implement hashing? it's optional... *)
 (* Once a utility has been searched for and found (either as a result
    of this specific search or as part of an unspecified shell start-up
    activity), an implementation may remember its location and need not
@@ -1084,13 +1114,25 @@ let builtin_cd s0 argv _env =
    the new location for the utility, if any. *)
 let builtin_hash s0 argv _env = 
   match argv with
-  | [] -> Right (safe_write_stdout "hash" "No commands hashed.\n" s0, Done)
-  | [C #'-'; C #'r']::_ -> Right (s0, Done)
+  | [] -> 
+     let msg =
+       if Map.null s0.sh.hashes 
+       then "No commands hashed."
+       else
+         let show (_cmd,(path,hits)) = 
+           pad_left (stringFromNat hits) 4 ^ "\t" ^ path
+         in
+         let header = "hits\tcommand\n" in
+         header ^ concat "\n" (map show (Map_extra.toList s0.sh.hashes))
+     in
+     Right (safe_write_stdout "hash" (msg ^ "\n") s0, Done)
+  | [C #'-'; C #'r']::_ -> Right (clear_hash s0, Done)
   | _ -> Right (s0, Done)
   end
 
 type command_type = 
-    CmdSpecial
+    CmdSymbolic
+  | CmdSpecial
   | CmdBuiltin
   | CmdFunction
   | CmdAlias of string
@@ -1104,63 +1146,66 @@ let shell_keywords = ["!"; "{"; "}"; "case"; "do"; "done"; "elif"; "else";
 
 let command_type s0 path cmd =
   if List.elem cmd shell_keywords
-  then CmdKeyword
+  then (s0, CmdKeyword)
   else if is_special_builtin cmd
-  then CmdSpecial
+  then (s0, CmdSpecial)
   else if is_builtin cmd
-  then CmdBuiltin
+  then (s0, CmdBuiltin)
   else match Map.lookup cmd s0.sh.aliases with
-       | Just mapping -> CmdAlias mapping
+       | Just mapping -> (s0, CmdAlias mapping)
        | Nothing ->
           if Map.member cmd s0.sh.funcs
-          then CmdFunction
-          else match resolve_command_name_in_path s0 path cmd with
-               | Just executable -> CmdPath executable
-               | Nothing -> CmdNotFound
-               end
+          then (s0, CmdFunction)
+          else let (s1, m_path) = resolve_command_name_in_path s0 path cmd in
+               (s1, 
+                match m_path with
+                | Just executable -> CmdPath executable
+                | Nothing -> CmdNotFound
+                end)
        end
 
-let concise_command_type s0 path cmd =
-  match try_concrete cmd with
-  | Nothing -> string_of_symbolic_string cmd
-  | Just name ->
-     match command_type s0 path name with
-     | CmdKeyword -> name ^ "\n"
-     | CmdSpecial -> name ^ "\n"
-     | CmdBuiltin -> name ^ "\n"
-     | CmdFunction -> name ^ "\n"
-     | CmdPath path -> path ^ "\n"
-     | CmdAlias exp -> "alias " ^ name ^ "='" ^ exp ^ "'\n"
-     | CmdNotFound -> ""
-     end 
+let command_type_symbolic s0 path scmd =
+  match try_concrete scmd with
+  | Nothing -> (s0, CmdSymbolic)
+  | Just cmd -> command_type s0 path cmd
   end
 
-let human_readable_command_type s0 path cmd =
-  match try_concrete cmd with
-  | Nothing -> 
-     string_of_symbolic_string cmd ^ " is a symbolic command"
-  | Just name ->
-     let msg = 
-       match command_type s0 path name with
-       | CmdKeyword -> " is a shell keyword"
-       | CmdSpecial -> " is a special shell builtin"
-       | CmdBuiltin -> " is a shell builtin"
-       | CmdFunction -> " is a shell function"
-       | CmdPath path -> " is " ^ path
-       | CmdAlias exp -> " is an alias for " ^ exp
-       | CmdNotFound -> ": not found"
-       end 
-     in
-     name ^ msg ^ "\n"
-  end
+let concise_command_type ct s_name =
+  let name = string_of_symbolic_string s_name in
+  match ct with
+  | CmdSymbolic -> name ^ "\n"
+  | CmdKeyword -> name ^ "\n"
+  | CmdSpecial -> name ^ "\n"
+  | CmdBuiltin -> name ^ "\n"
+  | CmdFunction -> name ^ "\n"
+  | CmdPath path -> path ^ "\n"
+  | CmdAlias exp -> "alias " ^ name ^ "='" ^ exp ^ "'\n"
+  | CmdNotFound -> ""
+  end 
+
+let human_readable_command_type ct s_name =
+  let msg = 
+    match ct with
+    | CmdSymbolic -> " is a symbolic command"
+    | CmdKeyword -> " is a shell keyword"
+    | CmdSpecial -> " is a special shell builtin"
+    | CmdBuiltin -> " is a shell builtin"
+    | CmdFunction -> " is a shell function"
+    | CmdPath path -> " is " ^ path
+    | CmdAlias exp -> " is an alias for " ^ exp
+    | CmdNotFound -> ": not found"
+    end 
+  in
+  (string_of_symbolic_string s_name) ^ msg ^ "\n"
 
 (* technically part of XSI, but useful *)
 let rec builtin_type s0 argv _env = 
   match argv with
   | [] -> Right (s0, Done)
   | cmd::argv' ->
-     let msg = human_readable_command_type s0 (get_path s0) cmd in
-     builtin_type (safe_write_stdout "type" msg s0) argv' _env
+     let (s1, ct) = command_type_symbolic s0 (get_path s0) cmd in
+     let msg = human_readable_command_type ct cmd in
+     builtin_type (safe_write_stdout "type" msg s1) argv' _env
   end
 
 type command_path = CPAmbient | CPDefault
@@ -1191,17 +1236,15 @@ let rec show_commands render s0 path argv =
   match argv with
   | [] -> Right (s0, Done)
   | name::argv' -> 
-     let msg = render s0 path name in
-     let s1 = safe_write_stdout "command" msg s0 in
-     let s2 = 
-       match try_concrete name with
-       | Nothing -> s1
-       | Just cmd ->        
-          if command_type s1 path cmd = CmdNotFound 
-          then exit_with 127 s1 
-          else s1 
-       end in
-     show_commands render s2 path argv'
+     let (s1, ct) = command_type_symbolic s0 path name in
+     let msg = render ct name in
+     let s2 = safe_write_stdout "command" msg s1 in
+     let s3 = 
+       if ct = CmdNotFound 
+       then exit_with 127 s2 
+       else s2
+     in
+     show_commands render s3 path argv'
   end
 
 val builtin_command : forall 'a. OS 'a => os_state 'a -> fields -> env ->                  
@@ -1784,8 +1827,17 @@ let printf_format s0 fmt0 args0 =
   let sprintf_res = 
     match (fmt1, printf_parse_numeric fmt1, printf_concrete_arg args0) with
     | ([], _, _) -> Left ("", "%: missing format character", 1, [], args0)
-    | (#'%'::fmt2, _, _) -> Right ("%", fmt2, args0)
- 
+    | (#'%'::fmt2, _, _) -> 
+       match fmt0 with
+         (* there shouldn't have been any spec, per
+            http://austingroupbugs.net/view.php?id=1205#c4351
+
+            we can't juse check that we're the default, so we'll look at fmt0,
+            from before we parsed the spec
+          *)
+       | #'%'::_ -> Right ("%", fmt2, args0)
+       | _ -> Left ("", "%: conversion specifications cannot be applied to the %% escape", 1, [], args0)
+       end
     (* %s *)
     | (#'s'::fmt2, _, Just (Just s, args1)) -> 
        Right (string_precision s, fmt2, args1)
@@ -1816,7 +1868,7 @@ let printf_format s0 fmt0 args0 =
     | (_, Just (num_mode, fmt2), Just (Just s, args1)) ->
        match unbounded_read (toCharList s) with
        | Left msg ->
-          Left ("",
+          Left (sprintf_format_numeric spec num_mode (fromNat 0),
                 string_of_printf_numeric num_mode ^ ": invalid number: " ^ msg,
                 1,
                 fmt2, args1)
@@ -1824,7 +1876,7 @@ let printf_format s0 fmt0 args0 =
           Right (sprintf_format_numeric spec num_mode (n : integer), fmt2, args1)
        end
     | (_, Just (num_mode, fmt2), Just (Nothing, args1)) ->
-       Left ("", 
+       Left (sprintf_format_numeric spec num_mode (fromNat 0), 
              string_of_printf_numeric num_mode ^ ": symbolic argument", 
              2, fmt2, args1)
     | (_, Just (num_mode, fmt2), Nothing) ->
@@ -1841,12 +1893,12 @@ let printf_format s0 fmt0 args0 =
     end
   in 
   (* compute what we'll actually print *)
-  let (s1, s, fmt2, args1) = 
+  let (s1, ok, s, fmt2, args1) = 
     match sprintf_res with
     | Left (s, msg, ec, fmt2, args1) ->
-       let s1 = write_stderr msg s0 in
-       (exit_with ec s1, s, fmt2, args1)
-    | Right (s, fmt2, args1) -> (s0, s, fmt2, args1)
+       let s1 = write_stderr (msg ^ "\n") s0 in
+       (exit_with ec s1, s <> "", s, fmt2, args1)
+    | Right (s, fmt2, args1) -> (s0, true, s, fmt2, args1)
     end
   in
   (* apply padding; numbers should already be padded...
@@ -1855,7 +1907,7 @@ let printf_format s0 fmt0 args0 =
   let padded = 
     match spec.width with
     | Nothing -> s
-    | Just width -> printf_padding spec.justify #' ' s width
+    | Just width -> if ok then printf_padding spec.justify #' ' s width else s
     end
   in 
   (safe_write_stdout "printf" padded s1, fmt2, args1)
@@ -2278,10 +2330,64 @@ let builtin_help os0 argv _env =
      Left (os0, "unknown arguments: " ^ string_of_fields argv)
   end
 
-(* TODO 2018-10-01 remaining worthwhile operations *)
-
 (* history *)
+let builtin_history s0 argv _env =
+  (* bash
+history: history [-c] [-d offset] [n] or history -awrn [filename] or history -ps arg [arg...]
+    Display the history list with line numbers.  Lines listed with
+    with a `*' have been modified.  Argument of N says to list only
+    the last N lines.  The `-c' option causes the history list to be
+    cleared by deleting all of the entries.  The `-d' option deletes
+    the history entry at offset OFFSET.  The `-w' option writes out the
+    current history to the history file;  `-r' means to read the file and
+    append the contents to the history list instead.  `-a' means
+    to append history lines from this session to the history file.
+    Argument `-n' means to read all history lines not already read
+    from the history file and append them to the history list.
+    
+    If FILENAME is given, then that is used as the history file else
+    if $HISTFILE has a value, that is used, else ~/.bash_history.
+    If the -s option is supplied, the non-option ARGs are appended to
+    the history list as a single entry.  The -p option means to perform
+    history expansion on each ARG and display the result, without storing
+    anything in the history list.
+    
+    If the $HISTTIMEFORMAT variable is set and not null, its value is used
+    as a format string for strftime(3) to print the time stamp associated
+    with each displayed history entry.  No time stamps are printed otherwise.
+   *)
+  (* yash
+history: manage command history
+
+Syntax:
+	history [-cF] [-d entry] [-s command] [-r file] [-w file] [count]
+
+Options:
+	-c       --clear
+	-d ...   --delete=...
+	-r ...   --read=...
+	-s ...   --set=...
+	-w ...   --write=...
+	-F       --flush-file
+
+Try `man yash' for details.
+   *)
+  match strip_double_dash argv with
+  | [] ->
+     let maxnum = if null s0.sh.history then 0 else maximum (map fst s0.sh.history) in
+     let numwidth = stringLength (stringFromNat maxnum) in
+     let show (num,c) = pad_left (stringFromNat num) numwidth ^ "\t" ^ string_of_stmt c in
+     let msgs = List.reverseMap show s0.sh.history in
+     let s1 = safe_write_stdout "history" (concat "\n" msgs ^ "\n") s0 in
+     Right (exit_with 0 s1, Done)
+  | [[C #'-'; C #'c']] ->
+     Right (exit_with 0 <| s0 with sh = <| s0.sh with history = [] |> |>, Done)
+  | argv' -> Left (s0, "unimplemented option: " ^ string_of_fields argv')
+  end
+
 let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stuff *)
+
+(* TODO 2018-10-01 remaining worthwhile operations *)
 
 (* POSIX user control *)
 let builtin_ulimit = builtin_unimplemented (* XSI *)
@@ -2305,6 +2411,7 @@ let builtins =
     ; ("getopts", builtin_getopts)
     ; ("hash", builtin_hash)
     ; ("help", builtin_help)
+    ; ("history", builtin_history)
     ; ("jobs", builtin_jobs)
     ; ("kill", builtin_kill)
 (*    ; ("newgrp", builtin_newgrp) *)

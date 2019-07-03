@@ -1,0 +1,12 @@
+set -h
+hash -r
+f() {
+    ls
+    touch hi
+    rm hi
+}
+hash
+hash | grep ls || exit 1
+hash | grep touch || exit 2
+hash | grep rm || exit 3
+

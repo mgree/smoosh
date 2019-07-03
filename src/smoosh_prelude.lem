@@ -114,6 +114,9 @@ let pad_right_with c s len =
   let padding = max (len - stringLength s) 0 in
   s ^ toString (replicate padding c) 
 
+val pad_left : string -> nat -> string
+let pad_left = pad_left_with #' '
+
 val pad_right : string -> nat -> string
 let pad_right = pad_right_with #' '
 
@@ -703,13 +706,8 @@ let all_sh_opts = sortBy (fun o1 o2 -> string_of_sh_opt o1 <= string_of_sh_opt o
 
 val unimplemented_sh_opts : list sh_opt
 let unimplemented_sh_opts = 
-  [ (* will not support these *)
-    Sh_earlyhash
-  ; Sh_vi
-
-    (* TODO 2018-09-10 implement remaining set flags *)
-    (* need history *)
-  ; Sh_nolog
+  [ (* will not support *)
+    Sh_vi
   ]
 
 (**********************************************************************)
@@ -723,10 +721,6 @@ type substring_mode =
 type substring_side =
   Prefix
 | Suffix  
-
-type tilde_mode =
-    NoTilde
-  | YesTilde
 
 (**********************************************************************)
 (* Redirects **********************************************************)
@@ -1003,7 +997,7 @@ and intermediate_fields = list tmp_field
 and expansion_state = 
     (* the constructor name indicates the *next* step to perform *)
     ExpStart of expansion_opts * words
-  | ExpExpand of expansion_opts * tilde_mode * expanded_words * words
+  | ExpExpand of expansion_opts * expanded_words * words
   | ExpSplit of expansion_opts (* partially ignored *)  * expanded_words
   | ExpPath of expansion_opts (* partially ignored *) * intermediate_fields
   | ExpQuote of expansion_opts (* ignored *) * intermediate_fields
@@ -1139,7 +1133,9 @@ and shell_state = <|
     aliases: Map.map string string;
     cwd: string;
     locale: locale;
-    loop_nest: nat (* for tracking break/continue *)
+    loop_nest: nat (* for tracking break/continue *);
+    history: list (nat * stmt);
+    hashes: Map.map string (path * nat (* hit count *));
  |>
 
 val STDIN : fd
@@ -1542,6 +1538,9 @@ let rec try_avoid_fork stmt =
      Redir (try_avoid_fork stmt') redir_state
   | _ -> stmt
   end
+
+val unions : forall 'a. SetType 'a => list (set 'a) -> set 'a
+let unions ss = List.foldr Set.(union) Set.empty ss
 
 val expanded_redir_has_stdin_redir : expanded_redir -> bool
 let expanded_redir_has_stdin_redir er =
@@ -2041,7 +2040,7 @@ and string_of_substring side mode =
 and string_of_expansion_state exp_state =
   match exp_state with
   | ExpStart _opts w -> string_of_words w
-  | ExpExpand _opts _tm ew w -> string_of_expanded_words ew ^ string_of_words w
+  | ExpExpand _opts ew w -> string_of_expanded_words ew ^ string_of_words w
   | ExpSplit _opts ew -> string_of_expanded_words ew
   | ExpPath _opts ifs -> string_of_intermediate_fields ifs
   | ExpQuote _opts ifs -> string_of_intermediate_fields ifs
@@ -2152,6 +2151,110 @@ let rec split_equal var ss =
 val try_split_assign : symbolic_string -> string * maybe symbolic_string
 let try_split_assign ss = split_equal "" ss
 
+(* Command extraction (depends on string conversion) ******************)
+
+val try_command_name : forall 'a. ('a -> string) -> 'a -> set string
+let try_command_name conv cmds =
+  let str = conv cmds in
+  let cs = toCharList str in
+  let (first, _rest) = break_on_esc false (* not escapable *) #' ' cs in
+  if null first
+  then Set.empty
+  else Set.singleton (toString first)
+
+let try_command_words cmds =
+  match cmds with
+  | S cmd::_ -> cmd
+  | _ -> ""
+  end
+
+let try_command_expanded_words cmds =
+  match cmds with
+  | UsrS cmd::_ -> cmd
+  | ExpS cmd::_ -> cmd
+  | _ -> ""
+  end
+
+let try_command_intermediate_fields cmds =
+  match cmds with
+  | Field cmd::_ -> string_of_symbolic_string cmd
+  | QField cmd::_ -> string_of_symbolic_string cmd
+  | _ -> ""
+  end
+
+let try_command_fields cmds =
+  match cmds with
+  | [] -> ""
+  | cmd::_ -> string_of_symbolic_string cmd
+  end
+
+let try_command_expansion_state es =
+  match es with
+  | ExpStart _eo w -> try_command_words w
+  | ExpExpand _eo [] w -> try_command_words w
+  | ExpExpand _eo e _w -> try_command_expanded_words e
+  | ExpSplit _eo e -> try_command_expanded_words e
+  | ExpPath _eo i -> try_command_intermediate_fields i
+  | ExpQuote _eo i -> try_command_intermediate_fields i
+  | ExpError _ -> ""
+  | ExpDone f -> try_command_fields f
+  end
+
+val collect_command_names : stmt -> set string
+let rec collect_command_names c = 
+  match c with
+  | Command _assigns cmds _redirs _opts -> try_command_name try_command_words cmds
+  | CommandExpArgs _assigns cmds _redirs _opts -> try_command_name string_of_expansion_state cmds
+  | CommandExpRedirs _assigns cmds _redir_state _opts -> try_command_name try_command_fields cmds
+  | CommandExpAssign _assigns cmds _saved_fds _opts -> try_command_name try_command_fields cmds
+  | CommandReady _assigns cmd _args _saved_fds _opts -> Set.singleton (string_of_symbolic_string cmd)
+  | Pipe _mode cmds -> unions (map collect_command_names cmds)
+  | Redir cmd _redir_state -> collect_command_names cmd
+  | Background cmd _redir_state -> collect_command_names cmd
+  | Subshell cmd _redir_state -> collect_command_names cmd
+  | And cmd1 cmd2 -> Set.(union) (collect_command_names cmd1) (collect_command_names cmd2)
+  | Or cmd1 cmd2 -> Set.(union) (collect_command_names cmd1) (collect_command_names cmd2)
+  | Semi cmd1 cmd2 -> Set.(union) (collect_command_names cmd1) (collect_command_names cmd2)
+  | Not cmd -> collect_command_names cmd
+  | If c1 c2 c3 -> unions [collect_command_names c1;
+                           collect_command_names c2;
+                           collect_command_names c3]
+  | While c1 c2 -> Set.(union) (collect_command_names c1) (collect_command_names c2)
+  | WhileCond c cur body _saved_ec -> 
+     unions [collect_command_names c;
+             collect_command_names cur;
+             collect_command_names body]
+  | WhileRunning c body cur -> 
+     unions [collect_command_names c;
+             collect_command_names cur;
+             collect_command_names body]
+  | For _x _w c -> collect_command_names c
+  | ForExpArgs _x _exp_state body -> collect_command_names body
+  | ForExpanded _x _f body -> collect_command_names body
+  | ForRunning _x _f body cur -> 
+     Set.(union) (collect_command_names body) (collect_command_names cur)
+  | Case _w cs -> unions (map (fun (_pat, c) -> collect_command_names c) cs)
+  | CaseExpArg _exp cs -> unions (map (fun (_pat, c) -> collect_command_names c) cs)
+  | CaseMatch _s cs -> unions (map (fun (_pat, c) -> collect_command_names c) cs)
+  | CaseCheckMatch _s _exp c cs -> 
+     unions (map (fun (_pat, c) -> collect_command_names c) (([],c)::cs))
+  | Defun _name cmd -> collect_command_names cmd
+  | Call _loopnest _argv _f body c -> 
+     Set.(union) (collect_command_names body) (collect_command_names c)
+  | EvalLoop _linno _ctx _src _i _tl -> Set.empty
+  | EvalLoopCmd _linno _ctx _src _i _tl c -> collect_command_names c
+  | Break _n -> Set.empty
+  | Continue _n -> Set.empty
+  | Return -> Set.empty
+  | Exit -> Set.empty
+  | Exec cmd _cmd_argv0 _args _env _binsh -> Set.singleton (string_of_symbolic_string cmd)
+  | Wait _n _checked _steps _mode -> Set.empty
+  | Trapped _signal _ec c_handler c_cont -> 
+     Set.(union) (collect_command_names c_handler) (collect_command_names c_cont)
+  | Pushredir c _saved -> collect_command_names c
+  | Done -> Set.empty
+  end
+
 (**********************************************************************)
 (* DEFAULT SHELL STATE ************************************************)
 (**********************************************************************)
@@ -2190,6 +2293,8 @@ let default_shell_state = <|
       aliases = Map.empty;
       cwd = "/";
       locale = lc_ambient;
-      loop_nest = 0
+      loop_nest = 0;
+      history = [];
+      hashes = Map.empty;
   |>
 

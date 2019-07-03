@@ -1,0 +1,9 @@
+ls                >/dev/null
+hash | grep ls    >/dev/null || exit 1
+touch hi
+hash | grep ls    >/dev/null || exit 2
+hash | grep touch >/dev/null || exit 3
+hash -r
+hash | grep ls    >/dev/null && exit 4
+hash | grep touch >/dev/null && exit 5
+echo ok

@@ -202,7 +202,7 @@ let xtcsetpgrp pgid : bool =
      try ExtUnix.tcsetpgrp fd pgid; true
      with Unix.Unix_error(e,_,_) ->
        (* disabling warning because we're overdoing this *)
-       Printf.eprintf "Cannot set tty process group (%s)\n" (Unix.error_message e);
+       Printf.eprintf "Cannot set tty process group to %d in %d (%s)\n" pgid (Unix.getpid ()) (Unix.error_message e); 
        false
 
 let xsetpgid pid pgrp =
@@ -247,9 +247,17 @@ let real_enable_jobcontrol rootpid =
   | None -> give_up "can't access tty"
 
 let real_disable_jobcontrol () =
-  ignore (xtcsetpgrp !initialpgrp);
-  xsetpgid 0 !initialpgrp;
-  close_ttyfd ()
+  match !ttyfd with
+  | None -> ()
+  | Some _ ->
+     begin
+       ignore (xtcsetpgrp !initialpgrp);
+       xsetpgid 0 !initialpgrp;
+       Sys.set_signal Sys.sigttou Sys.Signal_default;
+       Sys.set_signal Sys.sigttin Sys.Signal_default;
+       Sys.set_signal Sys.sigtstp Sys.Signal_default;
+       close_ttyfd ()
+     end
 
 let real_exit (code : int) = 
   real_disable_jobcontrol ();
@@ -301,14 +309,11 @@ let real_fork_and_eval
      (* save state for handlers---will be process-local *)
      sigunblockall ();
      let status = !real_eval os stmt in 
-     (* TODO restore the terminal? *)
      real_exit status
   | pid -> 
      sigunblockall (); 
      if jc
-     then begin
-       xsetpgid pid (pgrp pid)
-       end;
+     then xsetpgid pid (pgrp pid);
      pid
 
 let rec real_waitpid (rootpid : int) (pid : int) (jc : bool) : int option =
@@ -408,9 +413,15 @@ let real_file_number (path : string) : (int * int) option =
   with Unix.Unix_error(_,_,_) -> None
 
 let real_readdir (path : string) : (string * bool) list =
-  let contents = Sys.readdir path in
-  let dir_info file = (file, real_isdir (Filename.concat path file)) in
-  Array.to_list (Array.map dir_info contents)
+  try   
+    let rec go h acc =
+      try 
+        let file = Unix.readdir h in
+        go h ((file, real_isdir (Filename.concat path file))::acc)
+      with End_of_file -> List.rev acc
+    in
+    go (Unix.opendir path) []
+  with Unix.Unix_error(e,_,_) -> []
 
 let real_chdir (path : string) : string option =
   try if real_isdir path 
@@ -578,7 +589,7 @@ let real_handle_signal signal action =
     Sys.set_signal signal handler
 
 let rec real_signal_pid signal pid as_pg =
-  try Unix.kill (if as_pg then -pid else pid) signal; true
+  try Unix.kill (if as_pg then ExtUnix.getpgid pid else pid) signal; true
   with
     Unix.Unix_error(EINTR,_,_) -> real_signal_pid signal pid as_pg (* shouldn't be possible, per `man 2 kill` *)
-  | Unix.Unix_error(_) -> false
+  | Unix.Unix_error(_e,_,_) -> false

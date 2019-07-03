@@ -123,6 +123,7 @@ tests/log
 tests/util/fds
 tests/util/argv
 tests/util/getenv
+tests/util/readdir
 
 ################################################################################
 # web

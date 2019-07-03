@@ -337,9 +337,7 @@ let unset_param x os0 =
     export = Set.delete x os1.sh.export
   |> |>
 
-
-
-(* Logging ************************************************************)
+(* Logging and history ************************************************)
 
 val log : forall 'a. log_entry -> os_state 'a -> os_state 'a
 let log entry os = <| os with log = entry::os.log |>
@@ -417,6 +415,73 @@ let log_trace_with write tag msg os0 =
 
 val log_concretization : forall 'a. symbolic_string -> os_state 'a -> os_state 'a
 let log_concretization ss = log (LogConcretization ss)
+
+val histwrap : forall 'a. os_state 'a -> nat
+let histwrap os =
+  (* When the number reaches an implementation-defined upper limit,
+     which shall be no smaller than the value in HISTSIZE or 32767
+     (whichever is greater), the shell may wrap the numbers, starting
+     the next command with a lower number (usually 1). *)
+  let hard_upper_limit = toNat int32Max in
+  match lookup_concrete_param os "HISTSIZE" with
+  | Nothing -> hard_upper_limit
+  | Just n_str -> 
+     let usr_n =
+       match readUnsignedInteger 10 (toCharList n_str) with
+       | Left _ -> (* yikes? *) hard_upper_limit
+       | Right n -> max (toNat n) 128
+       end
+     in
+     min usr_n hard_upper_limit
+  end
+
+val next_histnum : forall 'a. os_state 'a -> nat
+let next_histnum os =
+  match os.sh.history with
+  | [] -> 1
+  | (last,_)::_ -> 
+     if last = histwrap os
+     then 1
+     else last + 1
+  end
+
+val add_to_history : forall 'a. stmt -> os_state 'a -> os_state 'a
+let add_to_history c os =
+  if Set.member Sh_nolog os.sh.opts
+  then os
+  else
+    let histnum = next_histnum os in
+    <| os with sh = <| os.sh with history = (histnum,c)::os.sh.history |> |>
+
+(* Hashing ************************************************************)
+
+val clear_hash : forall 'a . os_state 'a -> os_state 'a
+let clear_hash os = 
+  <| os with sh = <| os.sh with hashes = Map.empty |> |>
+
+val hash_lookup : forall 'a. os_state 'a -> (path -> bool) -> string -> os_state 'a * maybe path
+let hash_lookup s0 ok prog =
+  match Map.lookup prog s0.sh.hashes with
+  | Nothing -> (s0, Nothing)
+  | Just (path, hits) ->
+     if ok path
+     then let s1 = <| s0 with sh = 
+                      <| s0.sh with hashes = 
+                         Map.insert prog (path, hits+1) s0.sh.hashes |> |>
+          in
+          (s1, Just path)
+     else let s1 = <| s0 with sh = 
+                      <| s0.sh with hashes = 
+                         Map.delete prog s0.sh.hashes |> |>
+          in
+          (s1, Just path)
+  end
+
+val hash_insert : forall 'a. os_state 'a -> string -> path -> os_state 'a
+let hash_insert os prog path =
+  <| os with sh = <| os.sh with hashes = 
+     Map.insert prog (path, 1) os.sh.hashes |> 
+  |>
 
 (* Concretization *****************************************************)
 
@@ -675,14 +740,11 @@ declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
 (* OS CLASS ***********************************************************)
 (**********************************************************************)
 
-type step_result 'a =
-  either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)
-
 type step_fun 'a = 
   os_state 'a -> 
   checking_mode ->
   stmt -> 
-  step_result 'a
+  evaluation_step * os_state 'a * stmt
 
 type signal_mode = SignalProcess | SignalProcessGroup
 
@@ -1029,7 +1091,7 @@ val add_job
         os_state 'a ->
         list (pid * stmt) -> pid -> stmt (* cmd *) -> bg_mode -> job_status ->
         os_state 'a * job_info
-val update_job_with_pid : forall 'a. OS 'a => os_state 'a -> nat -> job_status -> os_state 'a * job_info
+val update_job_with_pid : forall 'a. OS 'a => os_state 'a -> nat -> job_status -> os_state 'a * maybe job_info
 val update_jobs_loop : forall 'a. OS 'a => os_state 'a -> list job_info -> os_state 'a * list job_info
 val update_jobs : forall 'a. OS 'a => os_state 'a -> os_state 'a * list job_info (* changed *)
 
@@ -1066,25 +1128,44 @@ and add_job os0 pipeline pid cmd bg_mode status =
 
 and update_job_with_pid os0 pid new_status =
   match List.find (fun j -> j.pid = pid) os0.sh.jobs with
-  | Nothing -> 
-     (* no such job... weird! get a fake job, which we'll immediately trash if we can *)
-     let (os1, job) = add_job os0 [(pid,skip)] pid skip BG new_status in
-     let os2 = delete_job os1 job.id in
-     (os2, job)
+  | Nothing ->
+     (* must be a sub-child... the following is more or less dead code.
+        TODO 2019-06-12 what is really going on here?
+      *)
+     let pid_in_pipeline pid j =
+       match List.find (fun (pid',_) -> pid = pid') j.pipeline with
+       | Nothing -> false
+       | Just _ -> true
+       end
+     in
+     match List.find (pid_in_pipeline pid) os0.sh.jobs with
+     | Nothing -> 
+        (* no such job... weird! get a fake job, which we'll immediately trash if we can *)
+(*        let (os1, job) = add_job os0 [(pid,skip)] pid skip BG new_status in
+        let os2 = delete_job os1 job.id in *)
+        (os0, Nothing)
+     | Just _parent -> (os0, Nothing)
+     end
   | Just job -> (* update the job status! *)
      let job' = <| job with status = new_status |> in
      let cur_jobs = map (fun j -> if j.id = job'.id then job' else j) os0.sh.jobs in
      let os1 = <| os0 with sh = <| os0.sh with jobs = cur_jobs |> |> in
      let os2 = show_job_when Sh_notify JobsNormal (cur_prev_jobs os1.sh.jobs) job' os1 in
-     (os2, job')
+     (os2, Just job')
   end
 
 and update_jobs_loop os0 changes =
   match waitchild os0 with
   | (os1, Nothing) -> (os1, changes)
   | (os1, Just (pid, status)) ->
-     let (os2, job') = update_job_with_pid os1 pid status in
-     update_jobs_loop os2 (job'::changes)
+     let (os2, m_job') = update_job_with_pid os1 pid status in
+     let changes' =
+       match m_job' with
+       | Nothing -> changes
+       | Just job' -> job'::changes
+       end
+     in
+     update_jobs_loop os2 changes'
   end
 
 and update_jobs os0 = update_jobs_loop os0 []
@@ -1106,10 +1187,10 @@ let waitpid_or_lookup step_eval os0 pid =
   | (os1, Just (Left step)) -> (os1, Just (Left step))
   | (os1, Just (Right code)) -> 
      let status = job_status_of_ec code in
-     let (os2, job) = update_job_with_pid os1 pid status in
+     let (os2, m_job) = update_job_with_pid os1 pid status in
      let os3 =
-       match status with
-       | JobStopped _ -> 
+       match (m_job, status) with
+       | (Just job, JobStopped _) -> 
           if Set.member Sh_monitor os2.sh.opts 
           then show_job JobsNormal (cur_prev_jobs os1.sh.jobs) job (write_stderr "\n" os2)
           else os2
@@ -1225,10 +1306,16 @@ val fork_pipe_subshell : forall 'a. OS 'a =>
                  stmt -> (* actual stmt *)
                  bg_mode -> (* bg? [for tty] *)
                  maybe pid -> (* pipeline pgrp *)
+                 bool -> (* last job? *)
                  pipeline_info ->
                  os_state 'a * pipeline_info * pid
-let fork_pipe_subshell s0 stmt bg pgid  pipeline =
-  let (s1, pid) = fork_and_subshell s0 stmt bg pgid true in
+let fork_pipe_subshell s0 stmt bg pgid last pipeline =
+  let (s1, pid) = fork_and_subshell s0 stmt bg pgid last in
+(*  let s2 =
+    if last && is_fg bg
+    then fst (tc_setfg s1 pid)
+    else s1
+  in *)
   (s1, pipeline, pid)
 
 val run_pipe_loop : forall 'a. OS 'a =>
@@ -1241,7 +1328,7 @@ val run_pipe_loop : forall 'a. OS 'a =>
                  os_state 'a * pipeline_info * pid
 let rec run_pipe_loop s0 stmts fd_prev bg pgid pipeline =
   match stmts with
-  | [] -> fork_pipe_subshell s0 Done bg pgid pipeline (* just run a trivial statement *)
+  | [] -> fork_pipe_subshell s0 Done bg pgid true pipeline (* just run a trivial statement *)
   | [stmt] -> (* last one *)
      let (s1, pipeline', last_pid) = 
        fork_pipe_subshell 
@@ -1251,6 +1338,7 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid pipeline =
             [ERDup ToFD CloseOrig STDIN (Just fd_prev)])
          bg
          pgid
+         true (* last job *)
          pipeline
      in
      let s2 = close_fd s1 fd_prev in
@@ -1266,6 +1354,7 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid pipeline =
             ;ERDup ToFD CloseOrig STDOUT (Just fd_write)])
          bg
          pgid
+         false (* not last job *)
          pipeline
      in
      let s3 = close_fd s2 fd_prev in
@@ -1280,9 +1369,9 @@ val run_pipe : forall 'a. OS 'a =>
                  os_state 'a * pipeline_info * pid
 let run_pipe s0 stmts bg =
   match stmts with
-  | [] -> fork_pipe_subshell s0 Done bg Nothing []     (* just run a trivial statement *)
-  | [stmt] -> fork_pipe_subshell s0 stmt bg Nothing [] (* trivial pipe *)
-  | stmt::stmts' ->                                    (* real pipe! *)
+  | [] -> fork_pipe_subshell s0 Done bg Nothing true []     (* just run a trivial statement *)
+  | [stmt] -> fork_pipe_subshell s0 stmt bg Nothing true [] (* trivial pipe *)
+  | stmt::stmts' ->                                         (* real pipe! *)
      (* set up first process *)
      let (s1, fd_next, fd_write) = pipe s0 in
      let (s2, pipeline, pid) =
@@ -1293,6 +1382,7 @@ let run_pipe s0 stmts bg =
             [ERDup ToFD CloseOrig STDOUT (Just fd_write)]) 
          bg
          Nothing
+         false (* not last job *)
          []
      in
      let s3 = close_fd s2 fd_write in
@@ -1328,6 +1418,8 @@ let checked_set_param x v os0 =
   then set_ps1 os2 v
   else if x = "PS2"
   then set_ps2 os2 v
+  else if x = "PATH"
+  then clear_hash os2
   else os2
 
 val set_param : forall 'a. OS 'a =>

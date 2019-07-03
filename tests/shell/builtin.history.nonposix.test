@@ -1,0 +1,15 @@
+cat > scr <<EOF
+history | grep history >/dev/null || exit 1
+echo hi >/dev/null
+history | grep echo >/dev/null || exit 2
+history -c
+history >hist
+grep echo >/dev/null hist && exit 3
+set -o nolog
+history -c
+echo hello >/dev/null
+history >hist2
+grep echo >/dev/null hist2 && exit 4
+echo ok
+EOF
+$TEST_SHELL -i scr 2>/dev/null

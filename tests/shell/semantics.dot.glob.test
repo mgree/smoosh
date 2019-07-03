@@ -1,0 +1,25 @@
+has_dot() {
+  $TEST_UTIL/readdir | grep -e '^.$' >/dev/null
+}
+
+has_dotdot() {
+  $TEST_UTIL/readdir | grep -e '^..$' >/dev/null
+}
+
+mkdir -p bar/inner
+touch bar/foo
+touch bar/inner/foo
+cd bar/inner
+echo .*/foo | sort # should be ../foo and ./foo
+
+# some FS may be weird and not give these entries... simulate!
+has_dot    || echo "./foo"
+has_dotdot || echo "../foo"
+
+cd ../../
+rm -r bar
+
+# this issue is under active discussion on the POSIX mailing list
+
+# bash, dash, yash all work
+# fish, zsh fail

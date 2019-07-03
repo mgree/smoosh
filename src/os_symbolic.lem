@@ -363,15 +363,10 @@ let symbolic_step_pid step_eval os0 pid =
      let os1 = symbolic_write_stderr ("warning: process with pid " ^ stringFromNat pid ^ " is stopped") os0 in
      (os1, Nothing)
   | Just (Shell Proc_Running stmt sh' fds') ->
-     let os1 = <| os0 with sh = sh'; symbolic = <| os0.symbolic with sh_fds = fds'; curpid = pid; susp_fds = Just os0.symbolic.sh_fds |> |> in
-     match step_eval os1 Unchecked stmt with
-     | Left (_step, os2) -> 
-        (<| os2 with sh = os0.sh; 
-                     symbolic = <| os2.symbolic with 
-                                      sh_fds = os0.symbolic.sh_fds; curpid = os0.symbolic.curpid; susp_fds = os0.symbolic.susp_fds;
-                                      procs = update os2.symbolic.procs pid (Zombie 1) |> |>, 
-         Just (Right 1)) (* errored, signal with code *)
-     | Right (_step, os2, Done) ->
+     let os1 = <| os0 with sh = sh'; symbolic = <| os0.symbolic with sh_fds = fds' |> |> in
+     let (step, os2, stmt') = step_eval os1 Unchecked stmt in
+     match stmt' with
+     | Done ->
         (* KLUDGE we're going to manually simulate the EXIT trap here...
            this lets us leave os.symbolic.exited as a global bit
          *)
@@ -400,7 +395,7 @@ let symbolic_step_pid step_eval os0 pid =
                         procs = update os3.symbolic.procs pid (Zombie ec) |> |>,
             Just (Right ec))
         end
-     | Right (step, os2, stmt') ->
+     | _ ->
         (<| os2 with sh = os0.sh; 
                      symbolic = <| os2.symbolic with 
                                       sh_fds = os0.symbolic.sh_fds; curpid = os0.symbolic.curpid; susp_fds = os0.symbolic.susp_fds;

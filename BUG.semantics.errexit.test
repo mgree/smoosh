@@ -1,0 +1,3 @@
+set -e
+x=$(exit 1) command :
+echo hi
