@@ -342,10 +342,6 @@ let unset_param x os0 =
 val log : forall 'a. log_entry -> os_state 'a -> os_state 'a
 let log entry os = <| os with log = entry::os.log |>
 
-val tick : forall 'a. os_state 'a -> os_state 'a
-let tick os =
-  <| os with fuel = Maybe.map (fun n -> if n > 0 then n - 1 else 0) os.fuel |>
-
 val out_of_fuel : forall 'a. os_state 'a -> bool
 let out_of_fuel os =
   match os.fuel with
@@ -765,6 +761,9 @@ let allow_escapes escape_mode =
   end
         
 class ( OS 'a )
+  (* FOR SYMBOLIC TRACKING *)
+  val os_tick : os_state 'a -> os_state 'a
+
   (* PARSER INTERACTIONS *)
   val os_set_ps1 : os_state 'a -> symbolic_string -> os_state 'a
   val os_set_ps2 : os_state 'a -> symbolic_string -> os_state 'a
@@ -887,6 +886,9 @@ let wrap_syscall_fd msg fd os f = f (log_syscall (msg ^ "(" ^ stringFromNat fd ^
 
 (* Wrapped syscalls ***************************************************) 
  
+let tick os =
+  <| (os_tick os) with fuel = Maybe.map (fun n -> if n > 0 then n - 1 else 0) os.fuel |>
+
 let set_ps1 os = wrap_syscall "set_ps1" os os_set_ps1
 let set_ps2 os = wrap_syscall "set_ps2" os os_set_ps2
 
