@@ -1,0 +1,22 @@
+touch .foo
+
+found=$(echo *foo)
+echo $found
+[ "$found" = "*foo" ] || exit 1
+
+unset found
+
+found=$(echo .f*)
+echo $found
+[ "$found" = ".foo" ] || exit 2
+
+unset found
+
+found=$(echo [.abc]foo)
+echo $found
+if [ "$found" = ".foo" ]
+then
+        echo dot bracket matches hidden file
+else
+        echo dot bracket does not match hidden file
+fi

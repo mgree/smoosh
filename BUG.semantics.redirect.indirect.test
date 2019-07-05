@@ -1,0 +1,12 @@
+f() {
+    echo message >&2
+}
+
+msg=$(f 2>&1)
+echo [$msg] [message]
+[ "$msg" = "message" ] || exit 1
+
+unset msg
+x=1
+msg=$(f 2>&$x)
+[ "$msg" = "message" ] || exit 2
