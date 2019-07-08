@@ -946,17 +946,18 @@ and stmt =
 (* TODO 2018-08-24 refactor into redir 'a with appropriate params *)
 and redir = 
    | RFile of redir_type * nat * words
-   | RDup of dup_type * nat * maybe nat (* Nothing if we're just closing *)
+   | RDup of dup_type * nat * words
    | RHeredoc of heredoc_type * nat * words
 
 and expanding_redir =
    | XRFile of redir_type * nat * expansion_state
+   | XRDup of dup_type * nat * expansion_state
    | XRHeredoc of heredoc_type * nat * expansion_state
 
 and expanded_redir = 
-   | ERFile of redir_type * nat * fields
+   | ERFile of redir_type * nat * symbolic_string
    | ERDup of dup_type * orig_fd_action * nat * maybe nat
-   | ERHeredoc of heredoc_type * nat * fields
+   | ERHeredoc of heredoc_type * nat * symbolic_string
 
 and redir_state = list expanded_redir * maybe expanding_redir * list redir
 
@@ -1580,6 +1581,7 @@ val get_expanding_redir_state : expanding_redir -> expansion_state
 let get_expanding_redir_state er =
   match er with
   | XRFile _ _ es -> es
+  | XRDup _ _ es -> es
   | XRHeredoc _ _ es -> es
   end
 
@@ -1587,6 +1589,7 @@ val is_heredoc : expanding_redir -> bool
 let is_heredoc er =
   match er with
   | XRFile _ _ _ -> false
+  | XRDup _ _ _ -> false
   | XRHeredoc _ _ _ -> true
   end
 
@@ -1594,14 +1597,8 @@ val set_expanding_redir_state : expansion_state -> expanding_redir -> expanding_
 let set_expanding_redir_state es er =
   match er with
   | XRFile ty src _ -> XRFile ty src es
+  | XRDup ty src _ -> XRDup ty src es
   | XRHeredoc ty src _ -> XRHeredoc ty src es
-  end
-
-val expand_redir : expanding_redir -> fields -> expanded_redir
-let expand_redir er f =
-  match er with
-  | XRFile ty src _ -> ERFile ty src f
-  | XRHeredoc ty src _ -> ERHeredoc ty src f
   end
 
 val parse_source_for_dot : parse_source -> bool
@@ -1901,12 +1898,7 @@ and string_of_heredoc ty fd heredoc =
 and string_of_redir r = 
   match r with
   | RFile ty fd a    -> string_of_rfile ty fd ^ string_of_words a
-  | RDup ty fd tgt   -> 
-     string_of_rdup ty fd ^ 
-       match tgt with
-       | Nothing -> "-"
-       | Just fd_tgt -> stringFromNat fd_tgt
-       end
+  | RDup ty fd tgt   -> string_of_rdup ty fd ^ string_of_words tgt
   | RHeredoc ty fd a -> string_of_heredoc ty fd (string_of_words a)
   end 
 
@@ -1915,20 +1907,22 @@ and string_of_expanding_redir exp_redir =
   | Nothing -> ""
   | Just (XRFile ty fd exp_state) -> 
      string_of_rfile ty fd ^ string_of_expansion_state exp_state
+  | Just (XRDup ty fd exp_state) -> 
+     string_of_rdup ty fd ^ string_of_expansion_state exp_state
   | Just (XRHeredoc ty fd exp_state) ->
      string_of_heredoc ty fd (string_of_expansion_state exp_state)
   end
 
 and string_of_expanded_redir er =
   match er with
-  | ERFile ty fd a   ->  string_of_rfile ty fd ^ string_of_fields a
+  | ERFile ty fd a   ->  string_of_rfile ty fd ^ string_of_symbolic_string a
   | ERDup ty _close_orig fd tgt  -> 
      string_of_rdup ty fd ^ 
        match tgt with
        | Nothing -> "-"
        | Just fd_tgt -> stringFromNat fd_tgt
        end
-  | ERHeredoc ty fd a -> string_of_heredoc ty fd (string_of_fields a)
+  | ERHeredoc ty fd a -> string_of_heredoc ty fd (string_of_symbolic_string a)
   end 
 
 and string_of_expanded_redirs ers =
@@ -2150,6 +2144,38 @@ let rec split_equal var ss =
 
 val try_split_assign : symbolic_string -> string * maybe symbolic_string
 let try_split_assign ss = split_equal "" ss
+
+(* Redirect munging (depends on string converson) *********************)
+
+val try_extract_field : fields -> either string symbolic_string
+let try_extract_field f =
+  match f with
+  | [s] -> Right s
+  | [] -> Left "empty redirect target"
+  | _ -> Left ("redirect target wasn't a single field: '" ^ string_of_fields f ^ "'")
+  end
+
+val try_extract_dup_tgt : symbolic_string -> either string (maybe nat)
+let try_extract_dup_tgt ss =
+  if ss = [C #'-'] 
+  then Right Nothing
+  else match readNat (toCharList (string_of_symbolic_string ss)) with
+       | Left err -> Left ("invalid file descriptor: " ^ err)
+       | Right n -> Right (Just n)
+       end
+
+val try_expand_redir : expanding_redir -> fields -> either string expanded_redir
+let try_expand_redir er f =
+  match (er, try_extract_field f) with
+  | (_, Left err) -> Left err
+  | (XRFile ty src _   , Right ss) -> Right (ERFile ty src ss)
+  | (XRDup ty src _    , Right ss) -> 
+     match try_extract_dup_tgt ss with
+     | Left err -> Left err
+     | Right tgt -> Right (ERDup ty LeaveOrig src tgt)
+     end
+  | (XRHeredoc ty src _, Right ss) -> Right (ERHeredoc ty src ss)
+  end
 
 (* Command extraction (depends on string conversion) ******************)
 

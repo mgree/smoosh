@@ -110,10 +110,14 @@ and redirs (n : node union ptr) =
     let mk_dup ty =
       let n = n @-> node_ndup in
       let src = getf n ndup_fd in
-      let tgt = 
-        match getf n ndup_dupfd with
-        | -1 -> None
-        | fd -> Some fd
+      let vname = getf n ndup_vname in
+      let tgt =
+        if nullptr vname
+        then let dupfd = getf n ndup_dupfd in
+             if dupfd = -1
+             then [S "-"]
+             else [S (string_of_int (getf n ndup_dupfd))]
+        else to_arg (vname @-> node_narg)
       in
       RDup (ty,src,tgt) in
     let mk_here ty =
@@ -586,12 +590,9 @@ and json_of_redir = function
   | RFile (ty, fd, w) -> 
      Assoc [tag "File"; 
             ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_words w)]
-  | RDup (ty, src, Some tgt) -> 
+  | RDup (ty, src, tgt) -> 
      Assoc [tag "Dup";
-            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt)]
-  | RDup (ty, src, None) -> 
-     Assoc [tag "Dup";
-            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", String "-")]
+            ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", json_of_words tgt)]
   | RHeredoc (ty, src, w) -> 
      Assoc [tag "Heredoc";
             ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_words w)]
@@ -601,24 +602,29 @@ and json_of_expanding_redir = function
             ("ty", json_of_redir_type ty); 
             ("src", Int fd); 
             ("tgt", json_of_expansion_state es)]
+  | XRDup (ty, fd, es) -> 
+     Assoc [tag "Dup"; 
+            ("ty", json_of_dup_type ty); 
+            ("src", Int fd); 
+            ("tgt", json_of_expansion_state es)]
   | XRHeredoc (ty, src, es) -> 
      Assoc [tag "Heredoc";
             ("ty", json_of_heredoc_type ty); 
             ("src", Int src); 
             ("w", json_of_expansion_state es)]
 and json_of_expanded_redir = function
-  | ERFile (ty, fd, f) -> 
+  | ERFile (ty, fd, ss) -> 
      Assoc [tag "File"; 
-            ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_fields f)]
+            ("ty", json_of_redir_type ty); ("src", Int fd); ("tgt", json_of_symbolic_string ss)]
   | ERDup (ty, orig_action, src, Some tgt) -> 
      Assoc [tag "Dup";
             ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt); ("close", Bool (should_close_orig orig_action))]
   | ERDup (ty, orig_action, src, None) -> 
      Assoc [tag "Dup";
             ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", String "-"); ("close", Bool (should_close_orig orig_action))]
-  | ERHeredoc (ty, src, f) -> 
+  | ERHeredoc (ty, src, ss) -> 
      Assoc [tag "Heredoc";
-            ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_fields f)]
+            ("ty", json_of_heredoc_type ty); ("src", Int src); ("w", json_of_symbolic_string ss)]
 and json_of_redir_type = function
   | To -> String "To"
   | Clobber -> String "Clobber"

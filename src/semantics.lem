@@ -541,7 +541,11 @@ and step_redir os0 er =
   let (step, os1, st1) = step_expansion (os0, exp_state) in
   match st1 with
    | ExpError err -> REError err
-   | ExpDone f -> REDone os1 (expand_redir er f)
+   | ExpDone f -> 
+      match try_expand_redir er f with
+      | Left err -> REError [symbolic_string_of_string err]
+      | Right er' -> REDone os1 er'
+      end
    | ExpPath opts ifs ->
       (* "Pathname expansion shall not be performed on the word [that
          is the target of redirection] by a non-interactive shell; an
@@ -581,12 +585,12 @@ and step_redir_state os0 redir_state =
      let (msg, ers, exp_state) =
        match r with
        | RFile ty src w -> ("expanding file redirect", ers, Just (XRFile ty src (ExpStart opts w)))
-       | RDup ty src tgt -> ("trivially expanded dup", ers ++ [ERDup ty LeaveOrig src tgt], Nothing)
+       | RDup ty src w -> ("expanding dup redirect", ers, Just (XRDup ty src (ExpStart opts w)))
        | RHeredoc XHere src w -> 
           ("expanding unquoted heredoc", ers, Just (XRHeredoc XHere src (ExpStart opts w)))
        | RHeredoc Here src w -> 
           ("not expanding quoted heredoc", 
-           ers ++ [ERHeredoc Here src [symbolic_string_of_string (string_of_words w)]], 
+           ers ++ [ERHeredoc Here src (symbolic_string_of_string (string_of_words w))], 
            Nothing)
        end in
      (os0, msg, Just ((ers, exp_state, redirs), Nothing))
@@ -959,7 +963,7 @@ and step_eval s0 checked stmt =
             redirection of standard input shall override this
             activity. *)
          (* TODO 2019-04-11 make /dev/null path configurable *)
-         (ERFile From 0 [symbolic_string_of_string "/dev/null"]::ers, Nothing, [])
+         (ERFile From 0 (symbolic_string_of_string "/dev/null")::ers, Nothing, [])
        else redir_state
      in
      (* defer to Redir to load redirs *)

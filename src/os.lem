@@ -1249,12 +1249,11 @@ val redirect : forall 'a. OS 'a => os_state 'a -> expanded_redir ->
                os_state 'a * either string saved_fds
 let redirect os0 er =
   match er with
-  | ERFile ty wanted_fd [sfile] -> 
+  | ERFile ty wanted_fd sfile -> 
      match open_file_for_redir os0 ty sfile with
      | (os1, Left err) -> (os1, Left err)
      | (os1, Right new_fd) -> renumber_fd os1 CloseOrig new_fd wanted_fd
      end
-  | ERFile _ _ fs -> (os0, Left ("expected single file field, got: " ^ string_of_fields fs))
   | ERDup _ty _close_orig orig_fd Nothing ->
      (* we're meant to close orig_fd *)
      close_and_save_fd os0 orig_fd
@@ -1263,10 +1262,10 @@ let redirect os0 er =
         both resolve to the same dup2 call, since dup2 doesn't care
         about fd direction *)
      renumber_fd os0 close_orig wanted_fd orig_fd
-  | ERHeredoc _ty wanted_fd fs -> 
+  | ERHeredoc _ty wanted_fd ss -> 
      (* ty is irrelevant at this point---we used it to determine the
         kinds of expansion we'll go through *)
-     let (os1,_concretized,s) = concretize_fields os0 fs in
+     let (os1,_concretized,s) = concretize os0 ss in
      match open_heredoc os1 s with
      | Left err -> (os1, Left err)
      | Right (os2, new_fd) -> renumber_fd os2 CloseOrig new_fd wanted_fd
