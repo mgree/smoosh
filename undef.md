@@ -92,3 +92,7 @@ If n is specified, but its value is not between 0 and 255 inclusively, the exit 
 * 2.14 trap: SIGKILL/SIGSTOP
 
 Setting a trap for SIGKILL or SIGSTOP produces undefined results.
+
+* 4 sh: - and --
+
+If both '-' and "--" are given as arguments, or if other operands precede the single <hyphen-minus>, the results are undefined.

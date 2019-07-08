@@ -78,7 +78,12 @@ If there are no positional parameters, the expansion of '@' shall generate zero 
 
 * 2.5.3 Shell variables: ENV not absolute
 
-The file need not be executable. If the expanded value of ENV is not an absolute pathname, the results are unspecified.
+If the expanded value of ENV is not an absolute pathname, the results are unspecified.
+
+  but also
+  4 sh: ENV not absolute
+
+If the expanded value of ENV is not an absolute pathname, the results are unspecified.
 
 * 2.5.3 Shell variables: IFS invalid character
 
@@ -323,3 +328,39 @@ If the first argument is '-', the results are unspecified.
 * 2.14 unset: no such variable, function w/o -f
 
 If neither -f nor -v is specified, name refers to a variable; if a variable by that name does not exist, it is unspecified whether a function by that name, if any, shall be unset.
+
+* 4 sh: asynchronous STDIN
+
+When the command expecting to read standard input is started asynchronously by an interactive shell, it is unspecified whether characters are read by the command or interpreted by the shell.
+
+* 4 sh: history from multiple shells
+
+If more than one instance of the shell is using the same history file, it is unspecified how updates to the history file from those shells interact.
+
+* 4 sh: history removal
+
+It is unspecified when history file entries are physically removed from the history file.
+
+* 4 sh: HISTSIZE unset
+
+If this variable is unset, an unspecified default greater than or equal to 128 shall be used. The maximum number of commands in the history list is unspecified, but shall be at least 128.
+
+* 4 sh: HISTSIZE change
+
+...it is unspecified whether changes made to HISTSIZE after the history file has been initialized are effective.
+
+* 4 sh: MAIL message format
+
+If this variable is set, the shell shall inform the user if the file named by the variable is created or if its modification time has changed. Informing the user shall be accomplished by writing a string of unspecified format to standard error prior to the writing of the next primary prompt string.
+
+* 4 sh: MAILPATH message format
+
+The default message is unspecified. 
+
+* 4 sh: +m terminal signals
+
+If the -m option is not in effect, it is unspecified whether SIGTTIN, SIGTTOU, and SIGTSTP signals are ignored, set to the default action, or caught. If they are caught, the shell shall, in the signal-catching function, set the signal to the default action and raise the signal (after taking any appropriate steps, such as restoring terminal settings).
+
+* 4 sh: vi editing mode EOF
+
+If end-of-file is entered other than at the beginning of the line, the results are unspecified.
