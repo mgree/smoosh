@@ -149,6 +149,10 @@
 
 ### Resolving unspec behavior
 
+* function defns must be compound commands
+  `f() echo "$@"; f hi` vs `f() if true; then echo "$@"; fi; f hi`
+  (but not in dash, zsh, ksh, ksh parser)
+
 * Bash
 "If parameter is '*' or '@', the result of the expansion is unspecified."
 weird choice in bash:
