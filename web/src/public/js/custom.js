@@ -102,7 +102,7 @@ function renderRedirWith(info, elt, redir, render) {
     case 'Dup':
       // | RDup (ty, src, tgt) -> 
       //    Assoc [tag "Dup";
-      //           ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", Int tgt)]
+      //           ("ty", json_of_dup_type ty); ("src", Int src); ("tgt", json_of_words tgt)]
 
       const dSrc = $('<span></span>').addClass('redir-Dup-src').appendTo(elt);
       dSrc.append(showUnless(dupRedirDefault[redir['ty']], redir['src']));
@@ -111,7 +111,14 @@ function renderRedirWith(info, elt, redir, render) {
       dSym.append(dupRedirSym[redir['ty']]);
 
       const dTgt = $('<span></span>').addClass('redir-Dup-tgt').appendTo(elt);
-      dTgt.append(String(redir['tgt']));
+
+      if (typeof(redir['tgt']) === 'string') {
+          dTgt.append("-");
+      } else if (typeof(redir['tgt']) === 'number') {
+          dTgt.append(redir['tgt']);
+      } else {
+          render(info, dTgt, redir['tgt']);
+      }
 
       break;
 
@@ -164,7 +171,7 @@ function renderRedir(info, elt, redir) {
 }
 
 function renderExpandedRedir(info, elt, redir) {
-  renderRedirWith(info, elt, redir, renderFields);
+  renderRedirWith(info, elt, redir, renderSymbolicString);
 }
 
 /* Statements *********************************************************/
@@ -361,20 +368,16 @@ function stmtCase(info, elt, fArgs, stmt) {
 function renderStmt(info, elt, stmt) {
   console.assert(typeof stmt === 'object', 'expected statement object, got ' + stmt);
   console.assert('tag' in stmt, 'expected tag for statement object');
-  console.assert(['Command', 
-                  'CommandExpArgs', 'CommandExpRedirs', 'CommandExpAssign', 
-                  'CommandReady',
-                  'Pipe', 
-                  'Redir', 'RedirExpRedirs', 
-                  'Background', 'BackgroundExpRedirs', 
-                  'Subshell', 'SubshellExpRedirs',
+  console.assert(['Command', 'CommandExpArgs', 'CommandExpRedirs', 'CommandExpAssign', 
+                  'CommandReady', 'Pipe', 'Redir', 'Background', 'Subshell', 
                   'And', 'Or', 'Not', 'Semi', 'If', 
                   'While', 'WhileCond', 'WhileRunning',
                   'For', 'ForExpArgs', 'ForExpanded', 'ForRunning',
                   'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
                   'Defun', 'Call', 'EvalLoop', 'EvalLoopCmd',
                   'Break', 'Continue', 'Return', 
-                  'Exec', 'Wait', 'Trapped', 'Exit', 'Done'].includes(stmt['tag']), 
+                  'Exec', 'Wait', 'Trapped', 
+                  'Pushredir', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
 
   elt.addClass('stmt stmt-' + stmt['tag']);
@@ -851,6 +854,17 @@ function renderStmt(info, elt, stmt) {
 
       var cont = $('<span></span>').addClass('command continuation').appendTo(elt);
       renderStmt(info, cont, stmt['cont']);
+
+      break;
+
+    case 'Pushredir':
+       // | Pushredir (c, saved_fds) -> 
+       //    Assoc [tag "Pushredir"; 
+       //           ("c", json_of_stmt c);
+       //           ("saved_fds", json_of_saved_fds saved_fds)]
+
+      var cmd = $('<span></span>').addClass('command control pushredir').appendTo(elt);
+      renderStmt(info, cmd, stmt['c']);
 
       break;
 
@@ -1560,13 +1574,11 @@ function renderDivider(info) {
     $('<i></i>').addClass('icon divider right chevron').appendTo(info);
 }
 
-function stepMessage(msg) {
-  return msg === '' ? '' : ': ' + msg;
-}
-
 function renderMessage(info, desc, step) {
   const crumb = $('<div></div>').addClass('section').appendTo(info)
-  crumb.append(desc + stepMessage(step['msg']));
+  const colon = desc !== '' && step['msg'] !== '' ? ': ' : '';
+
+  crumb.text(desc + colon + step['msg']);
 }
 
 
@@ -1697,6 +1709,13 @@ function renderExpansionTraceEntry(info, elt, step) {
 
 };
 
+function evalStepQuiet(step) {
+    return ( step['tag'] === 'XSEval' || 
+            (step['tag'] == 'XSProc' && step['pid'] === 0)) && 
+           ('msg' in step && step['msg'] === '') ||
+           ('c_str' in step && step['c_str'] === ': EvalLoop');
+}
+
 function renderEvaluationStep(info, step) {
   console.assert(typeof step === 'object', 'expected step object, got ' + step);
   console.assert('tag' in step, 'expected tag for step object');
@@ -1818,8 +1837,17 @@ function renderEvaluationStep(info, step) {
       //           ("pid", Int pid);
       //           ("c_str", String (string_of_stmt stmt)]]
 
-      step['msg'] = "pid " + step['pid'].toString() + ": " + step['c_str'];
-      renderMessage(info, 'Process step', step);
+      // special case rootpid to be less noisy
+      let tag = '';
+      if (step['pid'] == 0) {
+          step['msg'] = step['c_str'];
+      } else {
+          step['msg'] = "pid " + step['pid'].toString() + ": " + step['c_str'];
+          tag = 'Process step';
+      }
+
+      debugger;
+      renderMessage(info, tag, step);
 
       break;
 
@@ -1839,13 +1867,11 @@ function renderEvaluationStep(info, step) {
       //   | ParseString cmd -> [("cmd", String cmd)]
       //   | ParseFile file -> [("src", String file)]
 
-      var evalSrc = ' of ';
+      var evalSrc = '';
       if ('cmd' in step) {
           evalSrc = 'string command \'' + step['cmd'] + '\'';
       } else if ('src' in step) {
           evalSrc = 'file ' + step['src'];
-      } else {
-          evalSrc = '';
       }
 
       step['msg'] += ' (line ' + step['linno'].toString() + ' of ' + evalSrc + ')';
@@ -1870,16 +1896,22 @@ function renderEvaluationStep(info, step) {
     case 'XSNested':
 
       renderEvaluationStep(info, step['outer']);
-      renderDivider(info);
-      renderEvaluationStep(info, step['inner']);
+
+      if (!evalStepQuiet(step['inner'])) {
+          renderDivider(info);
+          renderEvaluationStep(info, step['inner']);
+      }
 
       break;
 
     case 'XSExpand':
 
       renderEvaluationStep(info, step['outer']);
-      renderDivider(info);
-      renderExpansionStep(info, step['inner']);
+
+      if (!evalStepQuiet(step['inner'])) {
+          renderDivider(info);
+          renderExpansionStep(info, step['inner']);
+      }
 
       break;
 
