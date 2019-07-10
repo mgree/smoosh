@@ -1366,6 +1366,8 @@ and step_eval s0 checked stmt =
            (XSEval linno src "empty line", s2, 
             EvalLoop (linno+1) ctx src interactive shell_level)
         | ParseStmt c ->
+           (* TODO 2019-07-10 adding the parsed command to the history should be fine
+              but may be surprising to people! ideal to put in the original string *)
            let s3 = 
              if is_interactive_mode interactive && is_toplevel shell_level
              then add_to_history c s2

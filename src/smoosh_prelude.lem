@@ -74,6 +74,19 @@ let rec collect_either l =
 val isInfixOf : forall 'a. Eq 'a => list 'a -> list 'a -> bool
 let isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
 
+val replace : forall 'a. Eq 'a => list 'a (* old *) -> list 'a (* new *) -> list 'a (* orig *) -> list 'a
+let rec replace l_old l_new l_orig =
+  if isPrefixOf l_old l_orig
+  then l_new ++ drop (length l_old) l_orig
+  else match l_orig with
+       | [] -> []
+       | x::l_orig' -> x::replace l_old l_new l_orig'
+       end
+
+val replace_string : string (* old *) -> string (* new *) -> string (* orig *) -> string
+let replace_string s_old s_new s_orig =
+  toString (replace (toCharList s_old) (toCharList s_new) (toCharList s_orig))
+
 val ltrim_newlines_cl : list char -> list char
 let rec ltrim_newlines_cl cl =
   match cl with
@@ -1101,6 +1114,8 @@ and job_info = <|
     status: job_status
   |>
 
+and history = list (nat * stmt)
+
 and shell_state = <|
     rootpid: pid;
     outermost: bool; (* true in top-level shell; false in subshells *)
@@ -1135,7 +1150,7 @@ and shell_state = <|
     cwd: string;
     locale: locale;
     loop_nest: nat (* for tracking break/continue *);
-    history: list (nat * stmt);
+    history: history;
     hashes: Map.map string (path * nat (* hit count *));
  |>
 

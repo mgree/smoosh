@@ -48,7 +48,7 @@ let builtin_names =
   ; "exit"
   ; "export"
   ; "false"
-(*  ; "fc" *) (* unimpl *)
+  ; "fc"
   ; "fg"
   ; "getopts"
   ; "hash"
@@ -2385,7 +2385,290 @@ Try `man yash' for details.
   | argv' -> Left (s0, "unimplemented option: " ^ string_of_fields argv')
   end
 
-let builtin_fc = builtin_unimplemented (* needs history, tricky substitution stuff *)
+(* fc [-r] [-e editor] [first [last]]
+   fc -l [-nr] [first [last]]
+   fc -s [old=new] [first] *)
+
+type fc_mode = 
+  | FC_Edit of symbolic_string (* default; -e *)
+  | FC_List                    (* -l *)
+  | FC_NoEdit                  (* -s *)
+
+(* "The value in the FCEDIT variable shall be used as a default when
+   -e is not specified. If FCEDIT is null or unset, ed shall be used
+   as the editor." *)
+val fc_default_mode : forall 'a. OS 'a => os_state 'a -> fc_mode
+let fc_default_mode s0 = 
+  match lookup_string_param s0 "FCEDIT" with
+  | Just ss -> FC_Edit ss
+  | Nothing -> FC_Edit (symbolic_string_of_string "ed")
+  end
+
+val string_of_fc_mode : fc_mode -> string
+let string_of_fc_mode fc_mode =
+  match fc_mode with
+  | FC_Edit ss -> "-e " ^ string_of_symbolic_string ss
+  | FC_List -> "-l"
+  | FC_NoEdit -> "-s"
+  end
+
+type fc_opt =
+  | FC_Reverse  (* -r *)
+  | FC_NoNumber (* -n *)
+
+val string_of_fc_opt : fc_opt -> string
+let string_of_fc_opt fc_opt =
+  match fc_opt with
+  | FC_Reverse -> "-r"
+  | FC_NoNumber -> "-n"
+  end
+
+val fc_optchars : list char
+let fc_optchars = toCharList "elsrn"
+
+val fc_options_loop : fields -> fc_mode -> set fc_opt -> either string (fields * fc_mode * set fc_opt)
+let rec fc_options_loop argv fc_mode fc_opts =
+  match getopt fc_optchars argv with 
+  | Nothing -> Right (argv, fc_mode, fc_opts)
+  | Just (Nothing, argv') -> Right (argv', fc_mode, fc_opts)
+  | Just (Just opt, argv') ->
+     match opt with
+     | #'e' -> 
+        match argv' with
+        | [] -> Left "missing editor after -e"
+        | (C #'-'::weird_editor)::argv'' ->
+           (* handle `fc -er foo` as an error but `fc -e -weirdo` as OK *)
+           let orig_arg = head argv in
+           if orig_arg = C #'-'::C #'e'::weird_editor
+           then Left ("missing editor in grouped option '" ^ 
+                        string_of_symbolic_string orig_arg ^ "'")
+           else fc_options_loop argv'' (FC_Edit weird_editor) fc_opts
+        | editor::argv'' -> fc_options_loop argv'' (FC_Edit editor) fc_opts
+        end
+     | #'l' -> fc_options_loop argv' FC_List fc_opts
+     | #'s' -> fc_options_loop argv' FC_NoEdit fc_opts
+     | #'r' -> fc_options_loop argv' fc_mode (Set.insert FC_Reverse fc_opts)
+     | #'n' -> fc_options_loop argv' fc_mode (Set.insert FC_NoNumber fc_opts)
+     | _ -> Left ("unrecognized option '" ^ toString [opt] ^ "'")
+     end
+  end
+
+type fc_operand =
+  | FC_CmdNumber of nat    (* [+]n *)
+  | FC_Previous of nat     (* -n *)
+  | FC_Matching of string  (* string *)
+
+let string_of_fc_operand op =
+  match op with
+  | FC_CmdNumber n -> "+" ^ stringFromNat n
+  | FC_Previous n -> "~" ^ stringFromNat n
+  | FC_Matching s -> s
+  end
+
+val fc_operand : symbolic_string -> either string fc_operand
+let fc_operand ss_arg =
+  match try_concrete ss_arg with
+  | Nothing -> Left ("couldn't handle symbolic operand '" ^ 
+                       string_of_symbolic_string ss_arg ^ "'")
+  | Just arg -> 
+     match readSignedInteger 10 (toCharList arg) with
+     | Right n -> 
+        if n < 0 
+        then Right (FC_Previous (toNat (~n)))
+        else if n > 0
+        then Right (FC_CmdNumber (toNat n))
+        else (* n == 0 *) Left ("invalid operand '" ^ arg ^ "'")
+     | Left _ -> Right (FC_Matching arg)
+     end
+  end
+
+type fc_noedit_operands = 
+  <| noedit_replace: maybe (string * symbolic_string); noedit_first: fc_operand |>
+
+let fc_noedit_default_operands = <| noedit_replace = Nothing; noedit_first = FC_Previous 1 |>
+
+val fc_noedit_operand : symbolic_string -> fc_noedit_operands -> either string fc_noedit_operands
+let fc_noedit_operand arg ops =
+  match try_split_assign arg with
+  | (_s, Nothing) -> (* no =, must be a real operand *)
+     match fc_operand arg with
+     | Left err -> Left err
+     | Right op -> Right <| ops with noedit_first = op |>
+     end
+  | (s_old, Just s_new) -> Right <| ops with noedit_replace = Just (s_old, s_new) |>
+  end
+
+let fc_noedit_operands argv =
+  match argv with 
+  | [] -> Right fc_noedit_default_operands
+  | [arg] -> fc_noedit_operand arg fc_noedit_default_operands
+  | [arg1; arg2] -> 
+     match fc_noedit_operand arg1 fc_noedit_default_operands with
+     | Left err -> Left err
+     | Right ops -> fc_noedit_operand arg2 ops
+     end
+  | _ -> Left ("expected [old=new] [first], got '" ^ string_of_fields argv ^ "'")
+  end
+
+type fc_editlist_operands = <| editlist_first: fc_operand; editlist_last : fc_operand |>
+
+let fc_editlist_operands list_mode argv =
+  match argv with
+  | [] -> 
+     let first = FC_Previous 1 in
+     let last = if list_mode then FC_Previous 16 else FC_Previous 1 in
+     Right <| editlist_first = first; editlist_last = last |>
+  | [first_arg] ->
+     match fc_operand first_arg with
+     | Left err -> Left err
+     | Right first ->
+        let last = if list_mode then FC_Previous 1 else first in
+        Right <| editlist_first = first; editlist_last = last |>
+     end
+  | [first_arg; last_arg] ->
+     match fc_operand first_arg with
+     | Left err -> Left err
+     | Right first ->
+        match fc_operand last_arg with
+        | Left err -> Left err
+        | Right last -> Right <| editlist_first = first; editlist_last = last |>
+        end
+     end
+  | _ -> Left ("expected [first [last]], got '" ^ string_of_fields argv)
+  end
+
+val fc_matches : string -> stmt -> bool
+let fc_matches s c = isPrefixOf (toCharList s) (toCharList (string_of_stmt c))
+
+(* TODO 2019-07-10 
+When a range of commands is used, it shall not be an error to specify first or last values that are not in the history list; fc shall substitute the value representing the oldest or newest command in the list, as appropriate.
+*)
+(* returns an INDEX into the history along with the entry *)
+val fc_find_matching_entry : fc_operand -> history -> maybe (nat * (nat * stmt))
+let rec fc_find_matching_entry op history =
+  let incr_index = Maybe.map (fun (idx, entry) -> (idx + 1, entry)) in
+  match (op, history) with
+  | (_, []) -> Nothing
+  | (FC_CmdNumber n, (n', c)::history') -> 
+     if n = n' 
+     then Just (0,(n', c))
+     else incr_index (fc_find_matching_entry op history')
+  | (FC_Previous 0, (n,c)::_) -> Just (0, (n,c))
+  | (FC_Previous n, _::history') -> 
+     incr_index (fc_find_matching_entry (FC_Previous (n-1)) history')
+  | (FC_Matching s, (n, c)::history') ->
+     if fc_matches s c
+     then Just (0, (n, c))
+     else incr_index (fc_find_matching_entry op history')
+  end
+
+val fc_find_matching_index : fc_operand -> history -> maybe nat
+let fc_find_matching_index op history = Maybe.map fst (fc_find_matching_entry op history)
+
+let fc_editlist_commands opts ops history = 
+  (* "When commands are edited (when the -l option is not specified),
+     the resulting lines shall be entered at the end of the history
+     list and then re-executed by sh. The fc command that caused the
+     editing shall not be entered into the history list." *)
+  (* TODO 2019-07-10 yash prints out the fc command on fc -l; other shells don't *)
+  (* "When a range of commands is used, it shall not be an error to
+     specify first or last values that are not in the history list; fc
+     shall substitute the value representing the oldest or newest
+     command in the list, as appropriate." *)
+  (* TODO 2019-07-10 this may not _exactly_ right, since the range may
+     not have been specified by the user explicitly. what's the right behavior? 
+
+     fc -16 -1 is behaving funny in the current regime.
+   *)
+  let first_idx = Maybe.fromMaybe 0 (fc_find_matching_index ops.editlist_first history) in
+  let last_idx  = Maybe.fromMaybe (length history - 1) 
+                    (fc_find_matching_index ops.editlist_last history) in
+  (* If first represents a newer command than last, the commands shall
+     be listed or edited in reverse sequence. *)
+  let (drop_amt, take_amt, should_reverse) =
+    (* NB we don't subtract 1 from the drop amount to avoid listing the fc command itself *)
+    if last_idx < first_idx
+    then (last_idx, first_idx - last_idx + 1, true)
+    else (first_idx, last_idx - first_idx + 1, false)
+  in
+  let cmds = List.take take_amt (List.drop drop_amt history) in
+  (* cmds is in HISTORY order, i.e., recent to less recent, i.e., ALREADY reversed *)
+  if should_reverse || Set.member FC_Reverse opts
+  then cmds
+  else List.reverse cmds
+
+let fc_editlist_args s0 fc_opts fc_mode argv =
+  match fc_editlist_operands (fc_mode = FC_List) argv with
+  | Left err -> Left err
+  | Right ops -> 
+     let cmds = fc_editlist_commands fc_opts ops s0.sh.history in
+     if null cmds
+     then Left "history specification out of range"
+     else Right cmds
+  end
+
+let builtin_fc s0 argv _env = 
+  match fc_options_loop argv (fc_default_mode s0) Set.empty with
+  | Left err -> Left (s0, err)
+  | Right (argv', fc_mode, fc_opts) ->
+(*     let debug_args = 
+            ("fc " ^ spaced_many ([string_of_fc_mode fc_mode] ++
+                                  List.map string_of_fc_opt (Set_extra.toList fc_opts) ++
+                                  List.map string_of_symbolic_string argv') ^ "\n") in *)
+     let s1 = (* safe_write_stdout "fc" debug_args *) s0 in
+     (* we've parsed the flags and any --, but we still need to parse operands.
+        operands are mode dependent, though!
+      *)
+     match fc_mode with
+     | FC_NoEdit -> (* fc -s [old=new] [first] *)
+        match fc_noedit_operands argv' with
+        | Left err -> Left (s1, err)
+        | Right ops ->
+(*           let debug_ops = 
+             spaced 
+               (match ops.noedit_replace with
+                | Nothing -> "no replace"
+                | Just (s_old, s_new) -> s_old ^ "=" ^ string_of_symbolic_string s_new
+                end)
+               (string_of_fc_operand ops.noedit_first) ^ "\n"
+           in *)
+           let s2 = (* safe_write_stdout "fc" debug_ops *) s1 in
+           match fc_find_matching_entry ops.noedit_first s2.sh.history with
+           | Nothing -> Left (s2, "history specification out of range")
+           | Just (_idx,(_n,c)) ->
+              match ops.noedit_replace with
+              | Nothing -> 
+                 Right (add_to_history c s2, c) 
+              | Just (s_old, ss_new) -> 
+                 let (s3, _concretized, s_new) = concretize s2 ss_new in
+                 let s_orig = string_of_stmt c in
+                 let s_replaced = replace_string s_old s_new s_orig in
+                 (* TODO 2019-07-10 hide the eval in added history? 
+                    alternative solution: history holds strings, not parsed stmts
+                  *)
+                 let c = command_eval (symbolic_string_of_string s_replaced) in
+                 Right (add_to_history c s3, c)
+              end
+           end
+        end
+     | FC_List -> (* fc -l [-nr] [first [last]] *)
+        match fc_editlist_args s1 fc_opts fc_mode argv' with
+        | Left err -> Left (s1, err)
+        | Right cmds ->
+            let show_cmd (n,c) =
+              (if Set.member FC_NoNumber fc_opts then "" else stringFromNat n ^ "\t") ^
+                string_of_stmt c ^ "\n"
+            in
+            let s2 = safe_write_stdout "fc" (concat "" (List.map show_cmd cmds)) s1 in
+            Right (s2, Done)
+        end
+     | FC_Edit _editor -> (* fc [-r] [-e editor] [first [last]] *)
+        match fc_editlist_args s1 fc_opts fc_mode argv' with
+        | Left err -> Left (s1, err)
+        | Right _cmds -> Left (s1, "editor usage is unimplemented")
+        end
+     end
+  end
 
 (* TODO 2018-10-01 remaining worthwhile operations *)
 
