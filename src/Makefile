@@ -49,7 +49,7 @@ loc :  $(SRCFILES)
 	lem -ocaml $<
 
 bump :
-	-rm version.lem
+	if [ -f version.lem ]; then rm version.lem; fi
 
 rebuild : bump
 	-rm shtepper smoosh runtest smoosh.byte
