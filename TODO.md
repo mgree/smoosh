@@ -74,6 +74,10 @@
   
 ### Refactoring
 
+- refactor semantics.lem to use is_terminating_control
+    don't immediately step! Break _n -> Done
+- use monads (better parsing, etc.)
+
 - re-align shim.ml and libdash's ast.ml
 
 - expansion: make null more explicit... simplify matches?
@@ -142,10 +146,6 @@
     can we drop the `step_eval` dependency in OS?
 
 - symbolic pathname expansion
-- refactor semantics.lem to use is_terminating_control
-    don't immediately step! Break _n -> Done
-  follow dash on break/continue behavior inside of functions
-- use monads (better parsing, etc.)
 - support for nondeterminism
 
 - per Ryan Culpepper: controlling dynamic extents to restrict phases.
