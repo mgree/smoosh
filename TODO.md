@@ -1,4 +1,4 @@
-### Artifact TODO
+### Automation
 
 - use travis to automate all testing, collect results nightly, auto-deploy
   + shells: smoosh bash dash yash zsh
@@ -12,7 +12,19 @@
     * modernish
     * POSIX (test journal summaries, timing)
 
+- add bosh
+  http://schilytools.sourceforge.net/bosh.html
+
 ### Implementation TODO
+
+- ulimit
+  id:20190721151028.2asrnf7eqimbuxs6@gondor.apana.org.au
+
+- check opendir behavior
+  id:20190723085552.GA24238@lt2.masqnet
+
+- check bg/fg behavior
+  id:20190807084015.GA402@lt2.masqnet
 
 - add other utilities to testing
 ```
@@ -26,6 +38,15 @@
 # ^read ^rm ^rmdir ^sed ^sh ^sleep ^sort ^stty ^tail ^tee ^test ^touch 
 # ^tr ^true ^tty ^umask ^uname ^uniq ^wait ^wc ^xargs
 ```
+
+- $$ not installed for symbolic shell
+  but PPID is
+  trickiness: $$ is unchanged in subshells, which can signal the top-level
+              need to carefully hold on to such signals
+  use procs heavily. initialize things with main shell in proc 0
+  change shim to send over the full OS state, including the proc list
+  render all of the live procs side by side
+    collapse all but the main shell and the active proc?
 
 - bools are technical debt
 
@@ -56,14 +77,11 @@
   
 ### Refactoring
 
-- drop either for step_eval?
-  + right now Left is only returned on 'hard' error
-    CommandExpAssign bad set_param 
-    CaseCheckMatch case on symbolic value
-    Defun invalid function name
-    Exec symbolic execve
-  + we probably want to keep it for step_expansion
-    it's handy to know more clearly about errors (rather than just checking ec)
+- refactor semantics.lem to use is_terminating_control
+    don't immediately step! Break _n -> Done
+- use monads (better parsing, etc.)
+
+- re-align shim.ml and libdash's ast.ml
 
 - expansion: make null more explicit... simplify matches?
 
@@ -95,7 +113,19 @@
 
 ### Long-term
 
+- parser
+  + use Morbig
+    morsmall/our AST alignment?
+  + use OSH
+  
+  test on a variety of scripts!
+  http://www.oilshell.org/release/0.6.0/test/wild.wwz/
+
 - OSS fuzz; fuzz a variety of shells
+  http://llvm.org/docs/LibFuzzer.html#fuzz-target
+  https://github.com/google/oss-fuzz
+  https://github.com/google/fuzzer-test-suite/blob/master/tutorial/libFuzzerTutorial.md
+  https://blog.trailofbits.com/2018/10/05/how-to-spot-good-fuzzing-research/
 
 - generate symbolic results of unknown executables
 
@@ -114,36 +144,29 @@
     is it in-spec to have a shell with bignum?
 - proper locale support
 
-- explicit scheduler
-  `read_line_fd` and `builtin_read` use Wait to trigger blocking.
-
-  `read_all_fd`, which gets used for subshells, doesn't need
-  `step_eval` function because we can be careful to do the stepping
-  ourselves. but `read_char_fd` _does_, because who knows how far down
-  the pipeline the things we want are!
-  
-  `waitpid`, however, triggers real blocking :(
-  
-  in the long term, it'd be good to have OS calls that ask the
-  scheduler to do things. 
-  
-  we can put `step_eval` (and `eval_for_exit_code`) into an OS 'a
-  value. it would only ever be used by the symbolic parts, and it
-  might trigger a call to `step_eval` and appropriate logging in
-  `os.log`. the system mode can rely on the system scheduler and real
-  blocking.
+- simplify scheduler
+    explicit calls to indicate a desire for something else to be scheduled?
+    can we drop the `step_eval` dependency in OS?
 
 - symbolic pathname expansion
-- refactor semantics.lem to use is_terminating_control
-    don't immediately step! Break _n -> Done
-  follow dash on break/continue behavior inside of functions
-- use monads (better parsing, etc.)
 - support for nondeterminism
 
 - per Ryan Culpepper: controlling dynamic extents to restrict phases.
   Ralf &co are more or less doing this with their restriction on aliases
 
 ### Resolving unspec behavior
+
+* function defns must be compound commands
+  `f() echo "$@"; f hi` vs `f() if true; then echo "$@"; fi; f hi`
+  (but not in dash, zsh, ksh, ksh parser)
+  
+* does `fc -l` print the `fc -l` itself?
+
+* what do shells do with PS1=${NEVERSET-$(cmd)}?
+  or PS1=${PS1+$(cmd)}
+  
+* what is the notion of job/forking?
+  id:20190721164533.z3wmmjev3lih5fm5@chaz.gmail.com
 
 * Bash
 "If parameter is '*' or '@', the result of the expansion is unspecified."

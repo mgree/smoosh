@@ -1,9 +1,0 @@
-f() {
-    echo "in <$x>"
-    local x=sup
-    echo "out <$x>"
-}
-
-readonly x=hello
-f
-echo "done <$x>"

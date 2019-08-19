@@ -342,10 +342,6 @@ let unset_param x os0 =
 val log : forall 'a. log_entry -> os_state 'a -> os_state 'a
 let log entry os = <| os with log = entry::os.log |>
 
-val tick : forall 'a. os_state 'a -> os_state 'a
-let tick os =
-  <| os with fuel = Maybe.map (fun n -> if n > 0 then n - 1 else 0) os.fuel |>
-
 val out_of_fuel : forall 'a. os_state 'a -> bool
 let out_of_fuel os =
   match os.fuel with
@@ -452,6 +448,36 @@ let add_to_history c os =
   else
     let histnum = next_histnum os in
     <| os with sh = <| os.sh with history = (histnum,c)::os.sh.history |> |>
+
+(* Hashing ************************************************************)
+
+val clear_hash : forall 'a . os_state 'a -> os_state 'a
+let clear_hash os = 
+  <| os with sh = <| os.sh with hashes = Map.empty |> |>
+
+val hash_lookup : forall 'a. os_state 'a -> (path -> bool) -> string -> os_state 'a * maybe path
+let hash_lookup s0 ok prog =
+  match Map.lookup prog s0.sh.hashes with
+  | Nothing -> (s0, Nothing)
+  | Just (path, hits) ->
+     if ok path
+     then let s1 = <| s0 with sh = 
+                      <| s0.sh with hashes = 
+                         Map.insert prog (path, hits+1) s0.sh.hashes |> |>
+          in
+          (s1, Just path)
+     else let s1 = <| s0 with sh = 
+                      <| s0.sh with hashes = 
+                         Map.delete prog s0.sh.hashes |> |>
+          in
+          (s1, Just path)
+  end
+
+val hash_insert : forall 'a. os_state 'a -> string -> path -> os_state 'a
+let hash_insert os prog path =
+  <| os with sh = <| os.sh with hashes = 
+     Map.insert prog (path, 1) os.sh.hashes |> 
+  |>
 
 (* Concretization *****************************************************)
 
@@ -713,14 +739,11 @@ declare ocaml target_rep function FileSocket    = `Unix.S_SOCK`
 (* OS CLASS ***********************************************************)
 (**********************************************************************)
 
-type step_result 'a =
-  either (evaluation_step * os_state 'a) (evaluation_step * os_state 'a * stmt)
-
 type step_fun 'a = 
   os_state 'a -> 
   checking_mode ->
   stmt -> 
-  step_result 'a
+  evaluation_step * os_state 'a * stmt
 
 type signal_mode = SignalProcess | SignalProcessGroup
 
@@ -741,6 +764,9 @@ let allow_escapes escape_mode =
   end
         
 class ( OS 'a )
+  (* FOR SYMBOLIC TRACKING *)
+  val os_tick : os_state 'a -> os_state 'a
+
   (* PARSER INTERACTIONS *)
   val os_set_ps1 : os_state 'a -> symbolic_string -> os_state 'a
   val os_set_ps2 : os_state 'a -> symbolic_string -> os_state 'a
@@ -863,6 +889,9 @@ let wrap_syscall_fd msg fd os f = f (log_syscall (msg ^ "(" ^ stringFromNat fd ^
 
 (* Wrapped syscalls ***************************************************) 
  
+let tick os =
+  <| (os_tick os) with fuel = Maybe.map (fun n -> if n > 0 then n - 1 else 0) os.fuel |>
+
 let set_ps1 os = wrap_syscall "set_ps1" os os_set_ps1
 let set_ps2 os = wrap_syscall "set_ps2" os os_set_ps2
 
@@ -1223,12 +1252,11 @@ val redirect : forall 'a. OS 'a => os_state 'a -> expanded_redir ->
                os_state 'a * either string saved_fds
 let redirect os0 er =
   match er with
-  | ERFile ty wanted_fd [sfile] -> 
+  | ERFile ty wanted_fd sfile -> 
      match open_file_for_redir os0 ty sfile with
      | (os1, Left err) -> (os1, Left err)
      | (os1, Right new_fd) -> renumber_fd os1 CloseOrig new_fd wanted_fd
      end
-  | ERFile _ _ fs -> (os0, Left ("expected single file field, got: " ^ string_of_fields fs))
   | ERDup _ty _close_orig orig_fd Nothing ->
      (* we're meant to close orig_fd *)
      close_and_save_fd os0 orig_fd
@@ -1237,10 +1265,10 @@ let redirect os0 er =
         both resolve to the same dup2 call, since dup2 doesn't care
         about fd direction *)
      renumber_fd os0 close_orig wanted_fd orig_fd
-  | ERHeredoc _ty wanted_fd fs -> 
+  | ERHeredoc _ty wanted_fd ss -> 
      (* ty is irrelevant at this point---we used it to determine the
         kinds of expansion we'll go through *)
-     let (os1,_concretized,s) = concretize_fields os0 fs in
+     let (os1,_concretized,s) = concretize os0 ss in
      match open_heredoc os1 s with
      | Left err -> (os1, Left err)
      | Right (os2, new_fd) -> renumber_fd os2 CloseOrig new_fd wanted_fd
@@ -1389,6 +1417,8 @@ let checked_set_param x v os0 =
   then set_ps1 os2 v
   else if x = "PS2"
   then set_ps2 os2 v
+  else if x = "PATH"
+  then clear_hash os2
   else os2
 
 val set_param : forall 'a. OS 'a =>

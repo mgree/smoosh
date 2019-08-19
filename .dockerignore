@@ -110,6 +110,8 @@ src/command.ml
 src/signal_platform.lem
 src/signal_platform.ml
 src/signal.ml
+src/version.lem
+src/version.ml
 
 src/smoosh
 src/shtepper

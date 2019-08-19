@@ -4,8 +4,8 @@ FROM smoosh
 RUN sudo apt-get update
 RUN sudo apt-get install -y ruby-full ruby-bundler
 RUN sudo gem install -v 0.9.0 childprocess 
-RUN sudo gem install -v 2.0.4 sinatra
-RUN sudo gem install -v 2.0.4 sinatra-contrib
+RUN sudo gem install -v 2.0.5 sinatra
+RUN sudo gem install -v 2.0.5 sinatra-contrib
 RUN sudo gem install -v 1.7.2 thin
 
 ADD --chown=opam:opam web web

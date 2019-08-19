@@ -1,0 +1,68 @@
+Source LOC version.lem smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem shim.ml os.lem os_symbolic.lem system.ml os_system.lem smoosh.lem arith.lem pattern.lem path.lem fields.lem test.lem command.lem semantics.lem:
+      20 text files.
+classified 20 files      20 unique files.                              
+       0 files ignored.
+
+github.com/AlDanial/cloc v 1.82  T=0.07 s (293.5 files/s, 191364.7 lines/s)
+---------------------------------------------------------------------------------
+File                               blank        comment           code
+---------------------------------------------------------------------------------
+command.lem                          176            337           1959
+smoosh_prelude.lem                   287            140           1769
+semantics.lem                        104            276           1224
+os.lem                               206            127           1104
+shim.ml                               40             74            673
+arith.lem                             64              6            586
+system.ml                             64             34            497
+os_symbolic.lem                       89            105            489
+os_system.lem                         92             18            347
+pattern.lem                           41             54            310
+signal.lem                            14             10            296
+test.lem                               8              8            258
+smoosh_num.lem                        39             14            251
+shell.ml                              25             26            216
+fields.lem                            30             34            188
+shtepper.ml                           20             10             88
+path.lem                              11             10             79
+signal_platform.lem                    3              0             63
+smoosh.lem                             7              0             29
+version.lem                            3              0              7
+---------------------------------------------------------------------------------
+SUM:                                1323           1283          10433
+---------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+Lem                             16           1174           1139           8959
+OCaml                            4            149            144           1474
+-------------------------------------------------------------------------------
+SUM:                            20           1323           1283          10433
+-------------------------------------------------------------------------------
+
+Test LOC test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_evaluation.ml:
+       6 text files.
+classified 6 files       6 unique files.                              
+       0 files ignored.
+
+github.com/AlDanial/cloc v 1.82  T=0.02 s (326.4 files/s, 63597.9 lines/s)
+--------------------------------------------------------------------------------
+File                              blank        comment           code
+--------------------------------------------------------------------------------
+test_arith.ml                        70             11            243
+test_evaluation.ml                   50            220            166
+test_expansion.ml                    56             12            142
+test_prelude.ml                      22             38             74
+test_path.ml                         10              1             45
+runtest.ml                            1              0              8
+--------------------------------------------------------------------------------
+SUM:                                209            282            678
+--------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+OCaml                            6            209            282            678
+-------------------------------------------------------------------------------
+SUM:                             6            209            282            678
+-------------------------------------------------------------------------------

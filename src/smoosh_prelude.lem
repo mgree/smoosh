@@ -74,6 +74,19 @@ let rec collect_either l =
 val isInfixOf : forall 'a. Eq 'a => list 'a -> list 'a -> bool
 let isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
 
+val replace : forall 'a. Eq 'a => list 'a (* old *) -> list 'a (* new *) -> list 'a (* orig *) -> list 'a
+let rec replace l_old l_new l_orig =
+  if isPrefixOf l_old l_orig
+  then l_new ++ drop (length l_old) l_orig
+  else match l_orig with
+       | [] -> []
+       | x::l_orig' -> x::replace l_old l_new l_orig'
+       end
+
+val replace_string : string (* old *) -> string (* new *) -> string (* orig *) -> string
+let replace_string s_old s_new s_orig =
+  toString (replace (toCharList s_old) (toCharList s_new) (toCharList s_orig))
+
 val ltrim_newlines_cl : list char -> list char
 let rec ltrim_newlines_cl cl =
   match cl with
@@ -706,9 +719,8 @@ let all_sh_opts = sortBy (fun o1 o2 -> string_of_sh_opt o1 <= string_of_sh_opt o
 
 val unimplemented_sh_opts : list sh_opt
 let unimplemented_sh_opts = 
-  [ (* will not support these *)
-    Sh_earlyhash
-  ; Sh_vi
+  [ (* will not support *)
+    Sh_vi
   ]
 
 (**********************************************************************)
@@ -722,10 +734,6 @@ type substring_mode =
 type substring_side =
   Prefix
 | Suffix  
-
-type tilde_mode =
-    NoTilde
-  | YesTilde
 
 (**********************************************************************)
 (* Redirects **********************************************************)
@@ -951,17 +959,18 @@ and stmt =
 (* TODO 2018-08-24 refactor into redir 'a with appropriate params *)
 and redir = 
    | RFile of redir_type * nat * words
-   | RDup of dup_type * nat * maybe nat (* Nothing if we're just closing *)
+   | RDup of dup_type * nat * words
    | RHeredoc of heredoc_type * nat * words
 
 and expanding_redir =
    | XRFile of redir_type * nat * expansion_state
+   | XRDup of dup_type * nat * expansion_state
    | XRHeredoc of heredoc_type * nat * expansion_state
 
 and expanded_redir = 
-   | ERFile of redir_type * nat * fields
+   | ERFile of redir_type * nat * symbolic_string
    | ERDup of dup_type * orig_fd_action * nat * maybe nat
-   | ERHeredoc of heredoc_type * nat * fields
+   | ERHeredoc of heredoc_type * nat * symbolic_string
 
 and redir_state = list expanded_redir * maybe expanding_redir * list redir
 
@@ -1002,7 +1011,7 @@ and intermediate_fields = list tmp_field
 and expansion_state = 
     (* the constructor name indicates the *next* step to perform *)
     ExpStart of expansion_opts * words
-  | ExpExpand of expansion_opts * tilde_mode * expanded_words * words
+  | ExpExpand of expansion_opts * expanded_words * words
   | ExpSplit of expansion_opts (* partially ignored *)  * expanded_words
   | ExpPath of expansion_opts (* partially ignored *) * intermediate_fields
   | ExpQuote of expansion_opts (* ignored *) * intermediate_fields
@@ -1105,6 +1114,8 @@ and job_info = <|
     status: job_status
   |>
 
+and history = list (nat * stmt)
+
 and shell_state = <|
     rootpid: pid;
     outermost: bool; (* true in top-level shell; false in subshells *)
@@ -1139,7 +1150,8 @@ and shell_state = <|
     cwd: string;
     locale: locale;
     loop_nest: nat (* for tracking break/continue *);
-    history: list (nat * stmt)
+    history: history;
+    hashes: Map.map string (path * nat (* hit count *));
  |>
 
 val STDIN : fd
@@ -1543,6 +1555,9 @@ let rec try_avoid_fork stmt =
   | _ -> stmt
   end
 
+val unions : forall 'a. SetType 'a => list (set 'a) -> set 'a
+let unions ss = List.foldr Set.(union) Set.empty ss
+
 val expanded_redir_has_stdin_redir : expanded_redir -> bool
 let expanded_redir_has_stdin_redir er =
   match er with
@@ -1581,6 +1596,7 @@ val get_expanding_redir_state : expanding_redir -> expansion_state
 let get_expanding_redir_state er =
   match er with
   | XRFile _ _ es -> es
+  | XRDup _ _ es -> es
   | XRHeredoc _ _ es -> es
   end
 
@@ -1588,6 +1604,7 @@ val is_heredoc : expanding_redir -> bool
 let is_heredoc er =
   match er with
   | XRFile _ _ _ -> false
+  | XRDup _ _ _ -> false
   | XRHeredoc _ _ _ -> true
   end
 
@@ -1595,14 +1612,8 @@ val set_expanding_redir_state : expansion_state -> expanding_redir -> expanding_
 let set_expanding_redir_state es er =
   match er with
   | XRFile ty src _ -> XRFile ty src es
+  | XRDup ty src _ -> XRDup ty src es
   | XRHeredoc ty src _ -> XRHeredoc ty src es
-  end
-
-val expand_redir : expanding_redir -> fields -> expanded_redir
-let expand_redir er f =
-  match er with
-  | XRFile ty src _ -> ERFile ty src f
-  | XRHeredoc ty src _ -> ERHeredoc ty src f
   end
 
 val parse_source_for_dot : parse_source -> bool
@@ -1835,12 +1846,12 @@ and string_of_stmt c =
        concat " " (List.map string_of_case cs) ^ " esac"
   | Defun name cmd -> name ^ "() {\n" ^ string_of_stmt cmd ^ "\n}"
   | Call _loopnest _argv _f _body c -> string_of_stmt c (* TODO leaving stuff out *)
-  | EvalLoop _linno _ctx (ParseFile src _push) _i _tl -> "source " ^ src
+  | EvalLoop _linno _ctx (ParseFile _src _push) _i _tl -> ": EvalLoop" (* "source " ^ src *)
   | EvalLoop _linno _ctx (ParseString ParseEval cmd) _i _tl -> "eval '" ^ cmd ^ "'"
   | EvalLoop _linno _ctx (ParseString ParseTrap cmd) _i _tl -> "eval '" ^ cmd ^ "' # from trap"
   | EvalLoop _linno _ctx ParseSTDIN _i _tl -> ": EvalLoop"
-  | EvalLoopCmd _linno _ctx (ParseFile src _push) _i _tl c -> 
-     string_of_stmt c ^ " # in source " ^ src
+  | EvalLoopCmd _linno _ctx (ParseFile _src _push) _i _tl c -> 
+     string_of_stmt c (* ^ " # in source " ^ src *)
   | EvalLoopCmd _linno _ctx (ParseString ParseEval cmd) _i _tl c -> 
      string_of_stmt c ^ " # in eval '" ^ cmd ^ "'"
   | EvalLoopCmd _linno _ctx (ParseString ParseTrap cmd) _i _tl c -> 
@@ -1902,12 +1913,7 @@ and string_of_heredoc ty fd heredoc =
 and string_of_redir r = 
   match r with
   | RFile ty fd a    -> string_of_rfile ty fd ^ string_of_words a
-  | RDup ty fd tgt   -> 
-     string_of_rdup ty fd ^ 
-       match tgt with
-       | Nothing -> "-"
-       | Just fd_tgt -> stringFromNat fd_tgt
-       end
+  | RDup ty fd tgt   -> string_of_rdup ty fd ^ string_of_words tgt
   | RHeredoc ty fd a -> string_of_heredoc ty fd (string_of_words a)
   end 
 
@@ -1916,20 +1922,22 @@ and string_of_expanding_redir exp_redir =
   | Nothing -> ""
   | Just (XRFile ty fd exp_state) -> 
      string_of_rfile ty fd ^ string_of_expansion_state exp_state
+  | Just (XRDup ty fd exp_state) -> 
+     string_of_rdup ty fd ^ string_of_expansion_state exp_state
   | Just (XRHeredoc ty fd exp_state) ->
      string_of_heredoc ty fd (string_of_expansion_state exp_state)
   end
 
 and string_of_expanded_redir er =
   match er with
-  | ERFile ty fd a   ->  string_of_rfile ty fd ^ string_of_fields a
+  | ERFile ty fd a   ->  string_of_rfile ty fd ^ string_of_symbolic_string a
   | ERDup ty _close_orig fd tgt  -> 
      string_of_rdup ty fd ^ 
        match tgt with
        | Nothing -> "-"
        | Just fd_tgt -> stringFromNat fd_tgt
        end
-  | ERHeredoc ty fd a -> string_of_heredoc ty fd (string_of_fields a)
+  | ERHeredoc ty fd a -> string_of_heredoc ty fd (string_of_symbolic_string a)
   end 
 
 and string_of_expanded_redirs ers =
@@ -2041,7 +2049,7 @@ and string_of_substring side mode =
 and string_of_expansion_state exp_state =
   match exp_state with
   | ExpStart _opts w -> string_of_words w
-  | ExpExpand _opts _tm ew w -> string_of_expanded_words ew ^ string_of_words w
+  | ExpExpand _opts ew w -> string_of_expanded_words ew ^ string_of_words w
   | ExpSplit _opts ew -> string_of_expanded_words ew
   | ExpPath _opts ifs -> string_of_intermediate_fields ifs
   | ExpQuote _opts ifs -> string_of_intermediate_fields ifs
@@ -2152,6 +2160,142 @@ let rec split_equal var ss =
 val try_split_assign : symbolic_string -> string * maybe symbolic_string
 let try_split_assign ss = split_equal "" ss
 
+(* Redirect munging (depends on string converson) *********************)
+
+val try_extract_field : fields -> either string symbolic_string
+let try_extract_field f =
+  match f with
+  | [s] -> Right s
+  | [] -> Left "empty redirect target"
+  | _ -> Left ("redirect target wasn't a single field: '" ^ string_of_fields f ^ "'")
+  end
+
+val try_extract_dup_tgt : symbolic_string -> either string (maybe nat)
+let try_extract_dup_tgt ss =
+  if ss = [C #'-'] 
+  then Right Nothing
+  else match readNat (toCharList (string_of_symbolic_string ss)) with
+       | Left err -> Left ("invalid file descriptor: " ^ err)
+       | Right n -> Right (Just n)
+       end
+
+val try_expand_redir : expanding_redir -> fields -> either string expanded_redir
+let try_expand_redir er f =
+  match (er, try_extract_field f) with
+  | (_, Left err) -> Left err
+  | (XRFile ty src _   , Right ss) -> Right (ERFile ty src ss)
+  | (XRDup ty src _    , Right ss) -> 
+     match try_extract_dup_tgt ss with
+     | Left err -> Left err
+     | Right tgt -> Right (ERDup ty LeaveOrig src tgt)
+     end
+  | (XRHeredoc ty src _, Right ss) -> Right (ERHeredoc ty src ss)
+  end
+
+(* Command extraction (depends on string conversion) ******************)
+
+val try_command_name : forall 'a. ('a -> string) -> 'a -> set string
+let try_command_name conv cmds =
+  let str = conv cmds in
+  let cs = toCharList str in
+  let (first, _rest) = break_on_esc false (* not escapable *) #' ' cs in
+  if null first
+  then Set.empty
+  else Set.singleton (toString first)
+
+let try_command_words cmds =
+  match cmds with
+  | S cmd::_ -> cmd
+  | _ -> ""
+  end
+
+let try_command_expanded_words cmds =
+  match cmds with
+  | UsrS cmd::_ -> cmd
+  | ExpS cmd::_ -> cmd
+  | _ -> ""
+  end
+
+let try_command_intermediate_fields cmds =
+  match cmds with
+  | Field cmd::_ -> string_of_symbolic_string cmd
+  | QField cmd::_ -> string_of_symbolic_string cmd
+  | _ -> ""
+  end
+
+let try_command_fields cmds =
+  match cmds with
+  | [] -> ""
+  | cmd::_ -> string_of_symbolic_string cmd
+  end
+
+let try_command_expansion_state es =
+  match es with
+  | ExpStart _eo w -> try_command_words w
+  | ExpExpand _eo [] w -> try_command_words w
+  | ExpExpand _eo e _w -> try_command_expanded_words e
+  | ExpSplit _eo e -> try_command_expanded_words e
+  | ExpPath _eo i -> try_command_intermediate_fields i
+  | ExpQuote _eo i -> try_command_intermediate_fields i
+  | ExpError _ -> ""
+  | ExpDone f -> try_command_fields f
+  end
+
+val collect_command_names : stmt -> set string
+let rec collect_command_names c = 
+  match c with
+  | Command _assigns cmds _redirs _opts -> try_command_name try_command_words cmds
+  | CommandExpArgs _assigns cmds _redirs _opts -> try_command_name string_of_expansion_state cmds
+  | CommandExpRedirs _assigns cmds _redir_state _opts -> try_command_name try_command_fields cmds
+  | CommandExpAssign _assigns cmds _saved_fds _opts -> try_command_name try_command_fields cmds
+  | CommandReady _assigns cmd _args _saved_fds _opts -> Set.singleton (string_of_symbolic_string cmd)
+  | Pipe _mode cmds -> unions (map collect_command_names cmds)
+  | Redir cmd _redir_state -> collect_command_names cmd
+  | Background cmd _redir_state -> collect_command_names cmd
+  | Subshell cmd _redir_state -> collect_command_names cmd
+  | And cmd1 cmd2 -> Set.(union) (collect_command_names cmd1) (collect_command_names cmd2)
+  | Or cmd1 cmd2 -> Set.(union) (collect_command_names cmd1) (collect_command_names cmd2)
+  | Semi cmd1 cmd2 -> Set.(union) (collect_command_names cmd1) (collect_command_names cmd2)
+  | Not cmd -> collect_command_names cmd
+  | If c1 c2 c3 -> unions [collect_command_names c1;
+                           collect_command_names c2;
+                           collect_command_names c3]
+  | While c1 c2 -> Set.(union) (collect_command_names c1) (collect_command_names c2)
+  | WhileCond c cur body _saved_ec -> 
+     unions [collect_command_names c;
+             collect_command_names cur;
+             collect_command_names body]
+  | WhileRunning c body cur -> 
+     unions [collect_command_names c;
+             collect_command_names cur;
+             collect_command_names body]
+  | For _x _w c -> collect_command_names c
+  | ForExpArgs _x _exp_state body -> collect_command_names body
+  | ForExpanded _x _f body -> collect_command_names body
+  | ForRunning _x _f body cur -> 
+     Set.(union) (collect_command_names body) (collect_command_names cur)
+  | Case _w cs -> unions (map (fun (_pat, c) -> collect_command_names c) cs)
+  | CaseExpArg _exp cs -> unions (map (fun (_pat, c) -> collect_command_names c) cs)
+  | CaseMatch _s cs -> unions (map (fun (_pat, c) -> collect_command_names c) cs)
+  | CaseCheckMatch _s _exp c cs -> 
+     unions (map (fun (_pat, c) -> collect_command_names c) (([],c)::cs))
+  | Defun _name cmd -> collect_command_names cmd
+  | Call _loopnest _argv _f body c -> 
+     Set.(union) (collect_command_names body) (collect_command_names c)
+  | EvalLoop _linno _ctx _src _i _tl -> Set.empty
+  | EvalLoopCmd _linno _ctx _src _i _tl c -> collect_command_names c
+  | Break _n -> Set.empty
+  | Continue _n -> Set.empty
+  | Return -> Set.empty
+  | Exit -> Set.empty
+  | Exec cmd _cmd_argv0 _args _env _binsh -> Set.singleton (string_of_symbolic_string cmd)
+  | Wait _n _checked _steps _mode -> Set.empty
+  | Trapped _signal _ec c_handler c_cont -> 
+     Set.(union) (collect_command_names c_handler) (collect_command_names c_cont)
+  | Pushredir c _saved -> collect_command_names c
+  | Done -> Set.empty
+  end
+
 (**********************************************************************)
 (* DEFAULT SHELL STATE ************************************************)
 (**********************************************************************)
@@ -2192,5 +2336,6 @@ let default_shell_state = <|
       locale = lc_ambient;
       loop_nest = 0;
       history = [];
+      hashes = Map.empty;
   |>
 

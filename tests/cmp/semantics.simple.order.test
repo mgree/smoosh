@@ -1,0 +1,15 @@
+(set -o posix) >/dev/null 2>&1 && set -o posix
+(set -o posixlycorrect) >/dev/null 2>&1 && set -o posixlycorrect
+
+unset x
+[ -f redir ] && rm redir
+
+y=${x=assign} ${x=:} >${x=redir}
+echo $x
+
+
+unset x y
+y=${x=assign} >${x=redir}
+echo $x
+
+[ -f redir ] && rm redir

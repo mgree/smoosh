@@ -12,7 +12,7 @@ class SmooshWeb < Sinatra::Base
   end
 
   not_found do
-    'Error 404 - Page Not Found'
+    'Error 404 - Page not found'
   end
 
   error do
@@ -24,7 +24,7 @@ class SmooshWeb < Sinatra::Base
   end
 
   get '/shtepper' do
-    @title = " - Stepper"
+    @title = " - Shtepper"
     erb :shtepper
   end
 
@@ -41,9 +41,9 @@ class SmooshWeb < Sinatra::Base
 
     # create files with provided info
     shell  = File.new(File.join(d, "shell"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
-    env    = File.new(File.join(d, "env"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
+    env    = File.new(File.join(d, "env"),   File::CREAT|File::TRUNC|File::WRONLY, 0644)
     user   = File.new(File.join(d, "users"), File::CREAT|File::TRUNC|File::WRONLY, 0644)
-    log    = File.new(File.join(d, "log"),  File::CREAT|File::TRUNC|File::WRONLY, 0644)
+    log    = File.new(File.join(d, "log"),   File::CREAT|File::TRUNC|File::WRONLY, 0644)
 
     # write files
     shell.write script

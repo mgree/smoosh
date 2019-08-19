@@ -8,3 +8,6 @@
 [submodule "modernish"]
 	path = modernish
 	url = https://github.com/mgree/modernish
+[submodule "oil"]
+	path = oil
+	url = https://github.com/oilshell/oil
