@@ -1,5 +1,5 @@
-# start with a reasonable image. Debian 9 stretch is what's on the POSIX testing VM
-FROM ocaml/opam2:debian-9
+# start with a reasonable image
+FROM ocaml/opam2:debian-10
 
 # silence apt
 # TODO this still isn't silencing it :(
@@ -10,12 +10,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN sudo apt-get update
 
 # other shells we'll want
-RUN sudo apt-get install -y dash=0.5.8-2.4
-RUN sudo apt-get install -y --no-install-recommends bash=4.4-5
-RUN sudo apt-get install -y yash=2.43-1
-RUN sudo apt-get install -y zsh=5.3.1-4+b2 && echo 'emulate sh' >~/.zshrc
-RUN sudo apt-get install -y ksh=93u+20120801-3.1
-RUN sudo apt-get install -y mksh=54-2+b4
+RUN sudo apt-get install -y dash=0.5.10.2-5
+RUN sudo apt-get install -y --no-install-recommends bash=5.0-4
+RUN sudo apt-get install -y yash=2.48-1
+RUN sudo apt-get install -y zsh=5.7.1-1 && echo 'emulate sh' >~/.zshrc
+RUN sudo apt-get install -y ksh=93u+20120801-3.4
+RUN sudo apt-get install -y mksh=57-1
 
 # for OSH
 RUN sudo apt-get install -y python2.7 python python-dev time libreadline-dev
