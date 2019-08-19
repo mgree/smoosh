@@ -546,7 +546,7 @@ instance (OS symbolic)
     (* prepare_subshell/clear_traps_for_subshell already emptied traps
        nothing else to do with the handlers 
      *)
-    let (subsh,_handlers) = prepare_subshell os.sh in
+    let (subsh,_handlers) = prepare_subshell jc os.sh in
     let proc = Shell Proc_Running (try_avoid_fork stmt) subsh os.symbolic.sh_fds (Stepped false) no_signals in
     (* When a subshell is entered, traps that are not being ignored
        shall be set to the default actions, except in the case of a
