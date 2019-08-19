@@ -23,6 +23,9 @@
 - check opendir behavior
   id:20190723085552.GA24238@lt2.masqnet
 
+- check bg/fg behavior
+  id:20190807084015.GA402@lt2.masqnet
+
 - add other utilities to testing
 ```
 #   cd command echo false getopts kill printf pwd read sh test true wait
