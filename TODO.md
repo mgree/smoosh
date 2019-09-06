@@ -156,6 +156,10 @@
 
 ### Resolving unspec behavior
 
+* errexit
+
+I wonder how many scripts would break if you changed the semantics of errexit-disabling (EV_EXIT/CMD_IGNORE_RETURN/whatever) so that it only had effect on a syntactic command, not the entire dynamic extent of a command.
+
 * function defns must be compound commands
   `f() echo "$@"; f hi` vs `f() if true; then echo "$@"; fi; f hi`
   (but not in dash, zsh, ksh, ksh parser)
