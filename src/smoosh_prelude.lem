@@ -953,6 +953,7 @@ and stmt =
           * maybe nat (* Nothing = block; Just n = n steps *)
           * wait_mode
   | Trapped of signal * nat (* ec to restore *) * stmt (* current handler *) * stmt (* continuation *)
+  | CheckedExit of stmt
   | Pushredir of stmt * saved_fds
   | Done
 
@@ -1867,6 +1868,7 @@ and string_of_stmt c =
   | Trapped signal _ec c_handler c_cont -> 
      ": trap on " ^ string_of_signal signal ^ " ; " ^ string_of_stmt c_handler ^ " ; " ^
      ": end trap ; " ^ string_of_stmt c_cont
+  | CheckedExit c -> ": ignoring errexit ; " ^ string_of_stmt c ^ " ; : resuming errexit"
   | Pushredir s _saved -> string_of_stmt s (* TODO leaving stuff out *)
   | Done -> ": Done"
   end
@@ -2292,6 +2294,7 @@ let rec collect_command_names c =
   | Wait _n _checked _steps _mode -> Set.empty
   | Trapped _signal _ec c_handler c_cont -> 
      Set.(union) (collect_command_names c_handler) (collect_command_names c_cont)
+  | CheckedExit c -> collect_command_names c
   | Pushredir c _saved -> collect_command_names c
   | Done -> Set.empty
   end

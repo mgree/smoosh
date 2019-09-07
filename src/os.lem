@@ -896,7 +896,7 @@ let getpwnam os user = os_getpwnam (log_syscall ("getpwnam(" ^ user ^ ")") os) u
 
 let execve os cmd = 
   os_execve (log_syscall ("execve(" ^ string_of_symbolic_string cmd ^ ")") os) cmd
-let fork_and_subshell os = wrap_syscall "fork_and_subhell" os os_fork_and_subshell
+let fork_and_subshell os = wrap_syscall "fork_and_subshell" os os_fork_and_subshell
 let exit os = wrap_syscall "exit" os os_exit
 
 let waitpid step_fun os pid = 

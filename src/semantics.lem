@@ -998,14 +998,17 @@ and step_eval s0 checked stmt =
  
   (* SUBSHELL *****************************************************************)
   | Subshell stmt' ((_, Nothing, []) as redir_state) ->
+     let base_c = Redir stmt' redir_state in
+     let checked_c = if checked_exit checked then CheckedExit base_c else base_c in
      let (s1,pid) = 
-       fork_and_subshell s0 (Redir stmt' redir_state)
+       fork_and_subshell s0 checked_c
          FG Nothing (* no pgid *) true (* job control possible? *)
      in
      check_traps
        (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
         s1, 
         Wait pid checked Nothing WaitInternal)
+
   | Subshell stmt' redir_state ->
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->
@@ -1473,7 +1476,7 @@ and step_eval s0 checked stmt =
            else Done)
      end            
 
-  (* EXEC *********************************************************************)
+  (* TRAPPED ******************************************************************)
   | Trapped signal old_ec c_handler c_cont ->
      if is_terminating_control c_handler
      then 
@@ -1490,6 +1493,17 @@ and step_eval s0 checked stmt =
        (XSNested (XSTrap signal "") step,
         s1,
         Trapped signal old_ec c_handler' c_cont)
+
+  (* CHECKEDEXIT **************************************************************)
+
+  | CheckedExit c ->
+     if is_terminating_control c
+     then check_traps (XSSubshell "", s0, c)
+     else
+       let (step, s1, c') = step_eval s0 Checked c in
+       (XSNested (XSSubshell "disable errexit") step, 
+        s1, 
+        CheckedExit c')
 
   (* PUSHREDIR ****************************************************************)
   | Pushredir c saved_fds ->

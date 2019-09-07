@@ -376,7 +376,7 @@ function renderStmt(info, elt, stmt) {
                   'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
                   'Defun', 'Call', 'EvalLoop', 'EvalLoopCmd',
                   'Break', 'Continue', 'Return', 
-                  'Exec', 'Wait', 'Trapped', 
+                  'Exec', 'Wait', 'Trapped', 'CheckedExit'
                   'Pushredir', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
 
@@ -854,6 +854,19 @@ function renderStmt(info, elt, stmt) {
 
       var cont = $('<span></span>').addClass('command continuation').appendTo(elt);
       renderStmt(info, cont, stmt['cont']);
+
+      break;
+
+    case 'CheckedExit':
+       // | CheckedExit c ->
+       //    Assoc [tag "CheckedExit";
+       //           ("c", json_of_stmt c)]
+
+      var cmd = $('<span></span>').addClass('command control checked').appendTo(elt);
+      renderStmt(info, cmd, stmt['c']);
+
+      var comment = $('<span></span>').addClass('comment').appendTo(cmd);
+      comment.append('errexit checking disabled');
 
       break;
 

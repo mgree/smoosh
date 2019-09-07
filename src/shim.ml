@@ -575,6 +575,9 @@ let rec json_of_stmt = function
      Assoc [tag "Pushredir"; 
             ("c", json_of_stmt c);
             ("saved_fds", json_of_saved_fds saved_fds)]
+  | CheckedExit c ->
+     Assoc [tag "CheckedExit";
+            ("c", json_of_stmt c)]
   | Exit -> Assoc [tag "Exit"]
   | Done -> Assoc [tag "Done"]
 and obj_lr name l r = Assoc [tag name; ("l", json_of_stmt l); ("r", json_of_stmt r)]
