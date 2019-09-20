@@ -780,7 +780,8 @@ OR
      (* dump env *)
      Right (safe_write_stdout "set" (printable_shell_env s0) s0, Done, true)
   | [[C #'-']] ->
-     (* See Assertion 105 in section 3.14.11 of standard P1003.3.2/D8.
+     (* OVERFIT
+        See Assertion 105 in section 3.14.11 of standard P1003.3.2/D8.
 
         Technically, this behavior is unspecified... but this is what
         the testers want, I guess?  *)

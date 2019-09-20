@@ -740,7 +740,8 @@ and step_eval s0 checked stmt =
         (* write the to our outer local scope *)
         match force_local_param s1 x (symbolic_string_of_fields f) with
         | Left err -> 
-           (* PENDING CONFIRMATION 2019-06-07 
+           (* OVERFIT
+              PENDING CONFIRMATION 2019-06-07 
               we should always exit 
             *)
            let special_or_assign =
