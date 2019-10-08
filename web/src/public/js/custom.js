@@ -376,7 +376,7 @@ function renderStmt(info, elt, stmt) {
                   'Case', 'CaseExpArg', 'CaseMatch', 'CaseCheckMatch',
                   'Defun', 'Call', 'EvalLoop', 'EvalLoopCmd',
                   'Break', 'Continue', 'Return', 
-                  'Exec', 'Wait', 'Trapped', 'CheckedExit'
+                  'Exec', 'Wait', 'Trapped', 'CheckedExit',
                   'Pushredir', 'Exit', 'Done'].includes(stmt['tag']), 
                  'got weird statement tag ' + stmt['tag']);
 
@@ -1859,7 +1859,6 @@ function renderEvaluationStep(info, step) {
           tag = 'Process step';
       }
 
-      debugger;
       renderMessage(info, tag, step);
 
       break;
