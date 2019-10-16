@@ -51,10 +51,25 @@ To test by hand, there are three sets of relevant tests: the libdash tests (in `
 
 ```ShellSession
 $ docker run -it smoosh-test
-... # TODO
-$ make -C libdash/test test
-$ make -C src/ test
-$ make -C tests test
+opam@XXXXXXXXXXXX:~$ make -C libdash/test test
+opam@XXXXXXXXXXXX:~$ make -C src/ test
+opam@XXXXXXXXXXXX:~$ make -C tests test
+```
+
+#### Running tests on another shell
+
+You can run the system tests on any shell by setting `TEST_SHELL`. Some shells may not terminate on all tests.
+
+```ShellSession
+opam@XXXXXXXXXXXX:~$ TEST_SHELL=dash make -C tests
+...
+```
+
+To get more detail on test failures, you should set the `TEST_DEBUG` variable, e.g.:
+
+```ShellSession
+opam@XXXXXXXXXXXX:~$ TEST_DEBUG=1 TEST_SHELL=dash make -C tests
+...
 ```
 
 ### Using the Shtepper
@@ -159,3 +174,19 @@ $ make -C tests
 ......................
 shell_tests.sh: 162/162 tests passed
 ```
+
+# POPL 2020 Artifact Evaluation
+
+What can be reproduced from the Smoosh paper?
+
+  - You should be able to build Smoosh on any computer that supports Docker.
+
+  - The built Smoosh should pass all of its unit and system tests.
+
+  - You should be able to run the Smoosh system tests on other shells. Due to rolling releases, your environment may have slightly different shell versions (which may then pass a different number of tests).
+
+What can not be reproduced from the Smoosh paper?
+
+  - The POSIX test suite cannot be distributed, so we cannot reproduce those tests.
+  
+  - As of 2019-10-16, I have not been able to get Modernish to run inside of a Docker container.
