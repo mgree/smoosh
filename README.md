@@ -4,26 +4,45 @@ Smoosh (the Symbolic, Mechanized, Observable, Operational SHell) is a formalizat
 
 Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OCaml, using [libdash](https://github.com/mgree/libdash) to parse shell code.
 
-# Fetch the submodules
+# Installation
 
-- The best way to clone this repository is via `git clone --recurse-submodules https://github.com/mgree/smoosh`. 
-- If you didn't use `--recursive` or `--recurse-submodules`, before trying anything, run: `git submodule update --init --recursive`
+There are two ways to install Smoosh: in a Docker container or natively. Because Smoosh depends on many parts and specific versions of some libraries, it is much easier to install via Docker.
 
-If you don't load the git submodules, the libdash and Lem references won't resolve properly---the directories will be empty!
+## Via Docker (recommended)
 
-Whenever you pull, remember to run `git submodule update` to make sure that the submodules are at the correct versions.
+To build via Docker, you merely need to fetch the Smoosh repo and its submodules. The `build.sh` script in the base of the repo will invoke the appropriate Docker commands.
 
-# How to build and test it
+```ShellSession
+$ git clone --recurse-submodules https://github.com/mgree/smoosh.git
+Cloning into 'smoosh'...
+... [lots of fetching] ...
+Submodule path 'lem': checked out 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+Submodule path 'libdash': checked out 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'
+Submodule path 'modernish': checked out 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
+Submodule path 'oil': checked out 'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww'
+$ cd smoosh
+$ ./build.sh
+... [long docker build] ...
+Successfully tagged smoosh:latest
+... [tests build] ...
+Successfully tagged smoosh-test:latest
+... [tests run] ...
+========================================================================
 
-- Run: `./build.sh`
+smoosh v0.1 (build YYYY-MM-DD_HH:MM)
 
-## Building in more detail
+ALL TESTS PASSED
+... [more docker builds] ...
+Successfully tagged smoosh-web:latest
+```
 
-- Run: `docker build -t smoosh .`
+If the build process was successful, there are now three tagged Docker images, which can be run interactively via `docker run -it [image tag]`. The three images are:
 
-To build by hand, you should more or less follow the steps in the Dockerfile, adapting to your system. (For example, on OS X, you'll probably want to install directly to `/usr/local`.)
+  - `smoosh`, a Docker environment with Smoosh installed as `/bin/smoosh`
+  - `smoosh-test`, an extension of the `smoosh` image with unit and system tests
+  - `smoosh-web`, an extension of the `smoosh` image with a web-based interface to the Shtepper
 
-## Testing in more detail
+### Running tests
 
 - To run the test suite after building, run: `docker build -t smoosh-test -f Dockerfile.test . && docker run smoosh-test`
 - To explore the built image, run: `docker run -it smoosh`
@@ -38,8 +57,27 @@ make -C tests test
 
 You can do so by running `docker run -it smoosh` to get an interactive environment.
 
-# How to use the web interface
+### Using the Shtepper
 
 - After building the `smoosh` image, build the web image: `docker build -t smoosh-web -f Dockerfile.web .`
 - To run the web image `docker run -p 80:2080 --name smoosh-web -t smoosh-web` and go to [http://localhost/](http://localhost/).
 
+## Local installation (requires manual installation of dependencies)
+
+To install Smoosh locally, you will need to manually configure your
+system with the dependencies listed in the `Dockerfile`. You will need:
+
+  - A C toolchain
+  - Autoconf/autotools, libtool, pkg-config, libffi, and libgmp
+  - OPAM
+
+```ShellSession
+$ git clone --recurse-submodules https://github.com/mgree/smoosh.git
+Cloning into 'smoosh'...
+... [lots of fetching] ...
+Submodule path 'lem': checked out 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+Submodule path 'libdash': checked out 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'
+Submodule path 'modernish': checked out 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
+Submodule path 'oil': checked out 'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww'
+$ cd smoosh
+```
