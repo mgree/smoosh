@@ -49,13 +49,13 @@ If the build process was successful, there are now three tagged Docker images, w
 
 To test by hand, there are three sets of relevant tests: the libdash tests (in `libdash/test`), the unit tests for symbolic smoosh (in `src`), and the shell test suite (in `tests`). All three directories have `Makefile`s with appropriate `test` targets, so you can test both by running the following:
 
+```ShellSession
+$ docker run -it smoosh-test
+... # TODO
+$ make -C libdash/test test
+$ make -C src/ test
+$ make -C tests test
 ```
-make -C libdash/test test
-make -C src/ test
-make -C tests test
-```
-
-You can do so by running `docker run -it smoosh` to get an interactive environment.
 
 ### Using the Shtepper
 
@@ -80,4 +80,5 @@ Submodule path 'libdash': checked out 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'
 Submodule path 'modernish': checked out 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
 Submodule path 'oil': checked out 'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww'
 $ cd smoosh
+$ # TODO full directions
 ```
