@@ -6,7 +6,36 @@ Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OC
 
 # Installation
 
-There are two ways to install Smoosh: in a Docker container or natively. Because Smoosh depends on many parts and specific versions of some libraries, it is much easier to install via Docker.
+There are two ways to work with Smoosh: in a Vagrant VM, in a Docker
+container, or natively. Because Smoosh depends on many parts and
+specific versions of some libraries, it is much easier to install via
+a VM or Docker.
+
+## Building Smoosh in a Vagrant VM
+
+In a system with Vagrant, you should be able to download the Smoosh VM
+image from the Vagrant Cloud service (~1.3GB):
+
+```ShellSession
+~$ mkdir smoosh; cd smoosh
+~/smoosh$ vagrant init mgree/smoosh --box-version 0.1.0
+~/smoosh$ vagrant up
+Bringing machine 'default' up with 'virtualbox' provider...
+==> default: Box 'mgree/smoosh' could not be found. Attempting to find and install...
+    default: Box Provider: virtualbox
+    default: Box Version: 0.1.0
+==> default: Loading metadata for box 'mgree/smoosh'
+    default: URL: https://vagrantcloud.com/mgree/smoosh
+==> default: Adding box 'mgree/smoosh' (v0.1.0) for provider: virtualbox
+    default: Downloading: https://vagrantcloud.com/mgree/boxes/smoosh/versions/0.1.0/providers/virtualbox.box
+...
+~/smoosh$ vagrant ssh
+vagrant@debian9:~$ cd smoosh
+vagrant@debian9:~/smoosh$
+```
+
+You are now in a directory where you can run tests. The `smoosh`
+executable should be on your path in any case.
 
 ## Building Smoosh in Docker
 
@@ -69,23 +98,6 @@ Listening on 0.0.0.0:2080, CTRL+C to stop
 ```
 
 You can then navigate to [http://localhost/](http://localhost/) in your web browser of choice. The Shtepper should work in any web browser, but has only undergone extensive testing in Firefox.
-
-## Building Smoosh in a Vagrant VM
-
-In a system with Vagrant, you should be able to download the Smoosh VM
-image from the Vagrant Cloud service:
-
-```ShellSession
-$ vagrant init mgree/smoosh --box-version 0.1.0
-$ vagrant up
-...
-$ vagrant ssh
-vagrant@debian9:~$ cd smoosh
-vagrant@debian9:~/smoosh$
-```
-
-You are now in a directory where you can run tests. The `smoosh`
-executable should be on your path in any case.
 
 ## Building Smoosh locally (requires manual installation of dependencies)
 
