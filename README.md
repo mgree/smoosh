@@ -78,7 +78,10 @@ The [Shtepper](http://shell.cs.pomona.edu/shtepper) is a web-based visualization
 
 ```ShellSession
 $ docker run -p 80:2080 --name smoosh-web -t smoosh-web
-... # TODO
+Thin web server (v1.7.2 codename Bachmanity)
+Maximum connections set to 1024
+Listening on 0.0.0.0:2080, CTRL+C to stop
+...
 ```
 
 You can then navigate to [http://localhost/](http://localhost/) in your web browser of choice. The Shtepper should work in any web browser, but has only undergone extensive testing in Firefox.
@@ -94,24 +97,20 @@ system with the dependencies listed in the `Dockerfile`. In particular:
 
 ```ShellSession
 $ sudo apt-get install -y autoconf autotools-dev libtool pkg-config libffi-dev libgmp-dev
-... # TODO
+...
 $ sudo apt-get install -y opam
-... # TODO
+...
 $ opam init
-... # TODO
-$ opam switch 4.07
-... # TODO
+...
+$ opam switch 4.07.0
+...
 $ eval `opam config env`
 $ opam install ocamlfind ocamlbuild
-... # TODO
+...
 $ opam pin add ctypes 0.11.5
-... # TODO
-$ opam install ctypes-foreign
-... # TODO
-$ opam install num
-... # TODO
-$ opam install extunix
-... # TODO
+...
+$ opam install ctypes-foreign num extunix
+...
 $ git clone --recurse-submodules https://github.com/mgree/smoosh.git
 Cloning into 'smoosh'...
 ... [lots of fetching] ...
@@ -121,16 +120,16 @@ Submodule path 'modernish': checked out 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
 Submodule path 'oil': checked out 'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww'
 $ cd smoosh
 $ (cd lem/ocaml-lib; make install_dependencies)
-... # TODO
+...
 $ (cd lem; make; make install)
-... # TODO
+...
 $ (cd libdash; ./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu && make)
-... # TODO
+...
 $ (cd libdash; sudo make install)
-... # TODO
+...
 $ (cd libdash/ocaml; make && make install)
 $ make -C src all all.byte
-... # TODO
+...
 ```
 
 There are now three executables in `smoosh/src`: the Smoosh shell binary, `smoosh`; the Shtepper binary, `shtepper`; and a unit test runner, `runtest`.

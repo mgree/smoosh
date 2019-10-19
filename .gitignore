@@ -5,6 +5,6 @@
 .Spotlight*
 .Trash*
 *[Tt]humbs.db
-
 posix
 ocamlprof.dump
+\#*
