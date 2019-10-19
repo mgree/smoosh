@@ -60,6 +60,8 @@ tick() {
 }
 
 failed() {
+    failed_tests="$failed_tests${failed_tests+ }$1"
+
     if debugging
     then
         msg "$1 failed"
@@ -102,6 +104,7 @@ mkdir -p ${TEST_LOGDIR}/shell
 
 count=0
 passed=0
+failed_tests=""
 
 # clear out other application FDs
 exec 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&-
@@ -198,6 +201,10 @@ then
 fi
 
 printf "${TEST_SCRIPT}: %d/%d tests passed\n" ${passed} ${count}
+if [ "${failed_tests}" ]
+then
+    printf "${TEST_SCRIPT} failing tests: ${failed_tests}\n"
+fi
 
 # set exit code
 [ "${passed}" -eq "${count}" ]
