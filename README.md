@@ -8,7 +8,7 @@ Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OC
 
 There are two ways to install Smoosh: in a Docker container or natively. Because Smoosh depends on many parts and specific versions of some libraries, it is much easier to install via Docker.
 
-## Via Docker (recommended)
+## Building Smoosh in Docker
 
 To build via Docker, you merely need to fetch the Smoosh repo and its submodules. The `build.sh` script in the base of the repo will invoke the appropriate Docker commands.
 
@@ -56,22 +56,6 @@ opam@XXXXXXXXXXXX:~$ make -C src/ test
 opam@XXXXXXXXXXXX:~$ make -C tests test
 ```
 
-#### Running tests on another shell
-
-You can run the system tests on any shell by setting `TEST_SHELL`. Some shells may not terminate on all tests.
-
-```ShellSession
-opam@XXXXXXXXXXXX:~$ TEST_SHELL=dash make -C tests
-...
-```
-
-To get more detail on test failures, you should set the `TEST_DEBUG` variable, e.g.:
-
-```ShellSession
-opam@XXXXXXXXXXXX:~$ TEST_DEBUG=1 TEST_SHELL=dash make -C tests
-...
-```
-
 ### Using the Shtepper
 
 The [Shtepper](http://shell.cs.pomona.edu/shtepper) is a web-based visualization tool for symbolically running POSIX shell scripts. While available online, you can also run a local version of the Shtepper using the `smoosh-web` Docker image. To start the local Shtepper, run:
@@ -86,7 +70,22 @@ Listening on 0.0.0.0:2080, CTRL+C to stop
 
 You can then navigate to [http://localhost/](http://localhost/) in your web browser of choice. The Shtepper should work in any web browser, but has only undergone extensive testing in Firefox.
 
-## Local installation (requires manual installation of dependencies)
+## Building Smoosh in a Vagrant VM
+
+In a system with Vagrant, run `vagrant up` to generate an image.
+
+```ShellSession
+$ vagrant up
+...
+$ vagrant ssh
+vagrant@debian9:~$ cd smoosh
+vagrant@debian9:~/smoosh$
+```
+
+You are now in a directory where you can run tests. The `smoosh`
+executable should be on your path in any case.
+
+## Building Smoosh locally (requires manual installation of dependencies)
 
 To install Smoosh locally, you will need to manually configure your
 system with the dependencies listed in the `Dockerfile`. In particular:
@@ -134,14 +133,55 @@ $ make -C src all all.byte
 
 There are now three executables in `smoosh/src`: the Smoosh shell binary, `smoosh`; the Shtepper binary, `shtepper`; and a unit test runner, `runtest`.
 
-### Running tests
+# Running tests
 
-With the Smoosh binaries built, there are two Smoosh test suites you can run. The unit tests are run directly via a binary, `smoosh/src/runtest`:
+However you've installed Smoosh, you can run the tests by going to the
+appropriate Smoosh directory (the home directory in Docker; `~/smoosh`
+in a Vagrant VM). There are three sets of local Smoosh tests: libdash
+parser tests, unit tests, and system tests. You can run them in one go
+as follows:
 
 ```ShellSession
-$ pwd
-[... some path ...]/smoosh
-$ make -C src test
+vagrant@debian9:~/smoosh$ make -C libdash/test test && make -C src test && make -C tests
+make: Entering directory '/home/vagrant/smoosh/libdash/test'
+ocamlfind ocamlopt -g -package dash,ctypes,ctypes.foreign -linkpkg test.ml -o test.native
+ocamlfind ocamlcp -p a -package dash,ctypes,ctypes.foreign -linkpkg test.ml -o test.byte
+TESTING test.native
+tests/braces_amp.sh OK
+tests/builtin.trap.exitcode.test OK
+tests/diverge.sh OK
+tests/empty_case OK
+tests/escaping OK
+tests/for_spaces.sh OK
+tests/grab_submissions.sh OK
+tests/grade.sh OK
+tests/redir_indirect OK
+tests/run_grader.sh OK
+tests/run_lda.sh OK
+tests/send_emails.sh OK
+tests/syntax OK
+tests/test.sh OK
+tests/tilde_arith OK
+tests/timeout3 OK
+TESTING test.byte
+tests/braces_amp.sh OK
+tests/builtin.trap.exitcode.test OK
+tests/diverge.sh OK
+tests/empty_case OK
+tests/escaping OK
+tests/for_spaces.sh OK
+tests/grab_submissions.sh OK
+tests/grade.sh OK
+tests/redir_indirect OK
+tests/run_grader.sh OK
+tests/run_lda.sh OK
+tests/send_emails.sh OK
+tests/syntax OK
+tests/test.sh OK
+tests/tilde_arith OK
+tests/timeout3 OK
+make: Leaving directory '/home/vagrant/smoosh/libdash/test'
+make: Entering directory '/home/vagrant/smoosh/src'
 ./runtest
 
 === Initializing Dash parser...
@@ -159,20 +199,60 @@ $ make -C src test
 
 === Running arithmetic tests...
 === ...ran 253 arithmetic tests with 0 failures.
-```
 
-You can run the system tests using the `Makefile` in the `smoosh/tests` directory. These system tests are shell scripts paired with expected STDOUT, STDERR, and exit statuses.
-
-```ShellSession
-$ pwd
-[... some path ...]/smoosh
-$ make -C tests
+make: Leaving directory '/home/vagrant/smoosh/src'
+make: Entering directory '/home/vagrant/smoosh/tests'
 == Running shell tests ===============================================
 ......................................................................
 ......................................................................
 ......................
 shell_tests.sh: 162/162 tests passed
+make: Leaving directory '/home/vagrant/smoosh/tests'
 ```
+
+The unit tests are run directly via a binary, `smoosh/src/runtest`;
+the system tests use the `Makefile` in the `smoosh/tests`
+directory. These system tests are shell scripts paired with expected
+STDOUT, STDERR, and exit statuses. 
+
+## Running tests on another shell
+
+You can run the system tests on any shell by setting `TEST_SHELL`. Some shells may not terminate on all tests.
+
+```ShellSession
+vagrant@debian9:~/smoosh$ TEST_SHELL=dash make -C tests
+...
+```
+
+To get more detail on test failures, you should set the `TEST_DEBUG` variable, e.g.:
+
+```ShellSession
+vagrant@debian9:~/smoosh$ TEST_DEBUG=1 TEST_SHELL=dash make -C tests
+...
+```
+
+## Running Modernish's tests/shell diagnostic
+
+To run the Modernish tests, you must go to `smoosh/modernish` and
+simulate an install as follows:
+
+```ShellSession
+vagrant@debian9:~/smoosh/modernish$ yes n | ./install.sh -s smoosh
+Relaunching install.sh with /home/mgree/.local/bin/smoosh...
+* Modernish version 0.15.2-dev, now running on /home/mgree/.local/bin/smoosh.
+* This shell identifies itself as smoosh version 0.1.
+  Modernish detected the following bugs, quirks and/or extra features on it:
+   LOCALVARS TRAPPRSUBSH BUG_MULTIBYTE BUG_HDOCMASK
+* Running modernish test suite on /home/mgree/.local/bin/smoosh ...
+* lib/modernish/tst/@sanitychecks.t 
+  002: ASCII chars and control char constants   - FAIL
+* WARNING: modernish has some bug(s) in combination with this shell.
+           Run 'modernish --test' after installation for more details.
+Are you happy with /home/mgree/.local/bin/smoosh as the default shell? (y/n) install.sh: Aborting.
+```
+
+NB that the HDOCMASK bug seems to appear only in Linux and not on
+macOS.
 
 # POPL 2020 Artifact Evaluation
 
@@ -186,6 +266,12 @@ What can be reproduced from the Smoosh paper?
 
 What can not be reproduced from the Smoosh paper?
 
-  - The POSIX test suite cannot be distributed, so we cannot reproduce those tests.
+  - The POSIX test suite cannot be distributed, so we cannot reproduce
+    those tests.
   
-  - As of 2019-10-16, I have not been able to get Modernish to run inside of a Docker container.
+  - As of 2019-10-19, I have not been able to get Modernish to run
+    correctly inside of a Docker container or Vagrant VM. In Docker I
+    get backtraces; in Vagrant I get strange output and slightly
+    different reporting for smoosh (`BUG_HDOCMASK` in addition to
+    `BUG_MULTIBYE`, most likely due to platform differences with
+    macOS).
