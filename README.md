@@ -72,9 +72,11 @@ You can then navigate to [http://localhost/](http://localhost/) in your web brow
 
 ## Building Smoosh in a Vagrant VM
 
-In a system with Vagrant, run `vagrant up` to generate an image.
+In a system with Vagrant, you should be able to download the Smoosh VM
+image from the Vagrant Cloud service:
 
 ```ShellSession
+$ vagrant init mgree/smoosh --box-version 0.1.0
 $ vagrant up
 ...
 $ vagrant ssh

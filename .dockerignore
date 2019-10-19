@@ -31,6 +31,9 @@ Dockerfile.web
 **/*.bak
 **/*.orig
 **/*.rej
+Vagrantfile
+.vagrant
+vagrant
 
 ################################################################################
 # libdash ignores
