@@ -283,9 +283,14 @@ What can not be reproduced from the Smoosh paper?
   - The POSIX test suite cannot be distributed, so we cannot reproduce
     those tests.
   
-  - As of 2019-10-19, I have not been able to get Modernish to run
-    correctly inside of a Docker container or Vagrant VM. In Docker I
-    get backtraces; in Vagrant I get strange output and slightly
-    different reporting for smoosh (`BUG_HDOCMASK` in addition to
-    `BUG_MULTIBYE`, most likely due to platform differences with
-    macOS).
+  - As of 2019-10-19, Modernish on Linux (whether native, in Docker,
+    or in a Vagrant VM) exposes a bug in Smoosh's interaction with the
+    dash parser. The manifestations are different: in Docker, Smoosh
+    crashes; natively or in a VM, some strange extra output appears
+    but the Modernish completes. Modernish _should_ still complete
+    without a problem on macOS, but I'm unable to test this (as my Mac
+    is not booting).
+    
+  - As of 2019-10-19, Modernish on Linux diagnoses two bugs:
+    `BUG_MULTIBYTE` as reported in the paper, but also
+    `BUG_HDOCMASK`. This last is due to platform differences.
