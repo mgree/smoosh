@@ -1,0 +1,25 @@
+========================================================================
+UNRESOLVED TEST
+Assertion #825 (A): LANG determines default locale
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #828 (A): LC_ALL overrides all other i18n variables
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #829 (A): When the environment variable LC_COLLATE is set to a valid value
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #830 (A): When the environment variable LC_CTYPE is set to a valid value
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+ 494 tests:
+ 418         passed
+   0         failed
+  31       untested
+   4     unresolved
+  40    unsupported
+   1     not in use
+   0   other status

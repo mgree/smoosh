@@ -298,8 +298,10 @@ What can be reproduced from the Smoosh paper?
 What can not be reproduced from the Smoosh paper?
 
   - The POSIX test suite cannot be distributed, so we cannot reproduce
-    those tests.
-  
+    those tests. We do, however, have permission to distribute the
+    resulting journals from running the test suite. Look in
+    `smoosh/posix-journals`.
+    
   - As of 2019-10-19, Modernish on Linux (whether native, in Docker,
     or in a Vagrant VM) exposes a bug in Smoosh's interaction with the
     dash parser. This bug wasn't poked when running on macOS.

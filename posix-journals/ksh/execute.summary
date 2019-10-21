@@ -1,0 +1,347 @@
+========================================================================
+FAILED TEST
+Assertion #357 (A): arthimetic expansion according to the rules for Arithmetic Precision and Operations
+Command failed: '([ $((b)) -eq 8 ])'
+========================================================================
+FAILED TEST
+Assertion #364 (A): IFS set to white space characters and a non white space character, test with zero or more IFS white space characters and  one or more of the other IFS characters delimit a field
+Standard output isn't the same as file 'sh5_364_3.eso'
+diff of "out.stdout" and "sh5_364_3.eso":
+*** out.stdout	Wed Jun 19 16:32:17 2019
+--- sh5_364_3.eso	Wed Jun 19 16:32:17 2019
+***************
+*** 1,2 ****
+--- 1,3 ----
+  [a]
+  [b]
++ []
+========================================================================
+FAILED TEST
+Assertion #413 (A): The redirection operator '<>word' causes the file whose name is
+Standard output isn't the same as file 'test.413.in'
+diff of "out.stdout" and "test.413.in":
+*** out.stdout	Wed Jun 19 16:32:29 2019
+--- test.413.in	Wed Jun 19 16:32:29 2019
+***************
+*** 0 ****
+--- 1,4 ----
++ line one
++ line two
++ line three
++ line four
+Expected exit code = 0; Received 1
+Command failed: 'cmp -s test.413.out test.413.exp'
+========================================================================
+FAILED TEST
+Assertion #453 (A): The standard output of each command in a pipeline except the last is connected to the standard input of the next command
+Command failed: '[ "$(cat sh8_453_out1.t)" = p ]'
+Command failed: '[ "$(cat sh8_453_in2.t)" = p ]'
+Command failed: '[ "$(cat sh8_453_out2.t)" = p ]'
+Command failed: '[ "$(cat sh8_453_in3.t)" = p ]'
+========================================================================
+FAILED TEST
+Assertion #491 (A): When no patterns in the pattern list matches the expansion of word, then the exit status is zero
+Expected exit code = 0; Received 99
+Standard output isn't empty
+Contents of out.stdout:
+pattern should not have matched
+========================================================================
+FAILED TEST
+Assertion #520 (A): SIGINT and SIGQUIT in an asynchronous list (without -m)
+Expected exit code = 0; Received 1
+Standard error isn't empty
+Contents of out.stderr:
+second subshell exit status was 0, expected >= 128
+Standard output isn't the same as file 'test.520.exp'
+diff of "out.stdout" and "test.520.exp":
+*** out.stdout	Wed Jun 19 16:33:36 2019
+--- test.520.exp	Wed Jun 19 16:33:31 2019
+***************
+*** 1 ****
+--- 1,2 ----
++ got SIGINT
+  sending SIGQUIT
+========================================================================
+FAILED TEST
+Assertion #546 (A): Within a bracket expression, a collating element or symbol 'c1'
+Expected exit code != 0; Received 0
+"match.546.x" was found in standard output
+========================================================================
+FAILED TEST
+Assertion #575 (A): A slash character in a pathname is matched by an explicit slash
+Standard output isn't the same as file 'test.575.exp'
+diff of "out.stdout" and "test.575.exp":
+*** out.stdout	Wed Jun 19 16:33:36 2019
+--- test.575.exp	Wed Jun 19 16:33:36 2019
+***************
+*** 1,4 ****
+  test.575.dir[/]match.575.file
+! test.575.d*[/]*.575.file
+! test.575.di?[/]*.575.file
+! test.575.di[qrs][/]*.575.file
+--- 1,4 ----
+  test.575.dir[/]match.575.file
+! test.575.dir[/]match.575.file
+! test.575.dir[/]match.575.file
+! test.575.dir[/]match.575.file
+========================================================================
+FAILED TEST
+Assertion #620 (A): Refer to general assertion GA234.
+Standard output isn't the same as file 'test.620.exp'
+diff of "out.stdout" and "test.620.exp":
+*** out.stdout	Wed Jun 19 16:33:38 2019
+--- test.620.exp	Wed Jun 19 16:33:38 2019
+***************
+*** 1,2 ****
+!
+  20
+--- 1,2 ----
+! 20
+  20
+========================================================================
+FAILED TEST
+Assertion #691 (A): When the shell is not executing interactively, then the 'set -u'
+testing simple $var expansion ...
+testing positional parameter expansion ...
+Expected exit code != 0; Received 0
+Standard output isn't empty
+Contents of out.stdout:
+
+Standard error is empty
+testing expansion inside another parameter expansion ...
+testing expansion inside an arithmetic expansion ...
+testing use without $ in an arithmetic expansion ...
+testing ${#var} expansion ...
+testing ${var%word} expansion ...
+testing ${var%%word} expansion ...
+testing ${var#word} expansion ...
+testing ${var##word} expansion ...
+testing $* and $@ expansion ...
+========================================================================
+FAILED TEST
+Assertion #712 (A): A call to 'trap -' sets each of the specified conditions to its default action
+testing ABRT (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 933: 52050: Abort
+testing BUS (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 933: 52053: Bus error
+testing FPE (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 933: 52056: Floating exception
+testing HUP (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 933: 52059: Hangup
+testing ILL (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 933: 52062: Illegal instruction
+testing PIPE (case 1) ...
+testing SEGV (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 933: 52068: Memory fault
+testing TERM (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 933: 52071: Terminated
+testing USR1 (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 933: 52074: User signal 1
+testing USR2 (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 933: 52077: User signal 2
+testing ABRT (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 984: 52080: Abort
+testing BUS (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 984: 52083: Bus error
+testing FPE (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 984: 52086: Floating exception
+testing HUP (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 984: 52089: Hangup
+testing ILL (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 984: 52092: Illegal instruction
+testing PIPE (case 2) ...
+testing SEGV (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 984: 52098: Memory fault
+testing TERM (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 984: 52101: Terminated
+testing USR1 (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 984: 52104: User signal 1
+testing USR2 (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+sh_12.ex[6608]: .: line 984: 52107: User signal 2
+testing INT (case 3) ...
+testing QUIT (case 3) ...
+========================================================================
+FAILED TEST
+Assertion #740 (A): set -u in an interactive shell when it tries to expand a parameter that is not set
+Standard output isn't the same as file 'test.740.exp'
+diff of "out.stdout" and "test.740.exp":
+*** out.stdout	Wed Jun 19 16:35:31 2019
+--- test.740.exp	Wed Jun 19 16:34:20 2019
+***************
+*** 1 ****
+--- 1,3 ----
+  start
++ thirdarg
++ end reached
+Command failed: 'test -s test.740.positional_parameter.err'
+Command failed: 'test -s test.740.expansion_inside_another.err'
+Command failed: 'test -s test.740.expansion_inside_arithmetic.err'
+Command failed: 'test -s test.740.use_without_dollar_in_arithmetic.err'
+Command failed: 'test -s test.740.hash_var_expansion.err'
+Command failed: 'test -s test.740.var_percent_word_expansion.err'
+Command failed: 'test -s test.740.var_2percent_word_expansion.err'
+Command failed: 'test -s test.740.var_hash_word_expansion.err'
+Command failed: 'test -s test.740.var_2hash_word_expansion.err'
+========================================================================
+FAILED TEST
+Assertion #742 (A): shift with 'n' greater than $# or invalid in non-interactive shell
+Expected exit code != 0; Received 0
+========================================================================
+FAILED TEST
+Assertion #750 (A): filename expansion with a '[' that does not introduce a bracket expression
+Output did not match either expected file
+Contents of out.stdout:
+test.dir.*[/test.file*
+test.dir.?[/test.file[AB]
+test.dir.[*X][/test.file?
+Contents of test.750.exp1:
+test.dir.*[/test.fileA
+test.dir.*[/test.fileB
+test.dir.?[/test.fileA
+test.dir.?[/test.fileB
+test.dir.[*X][/test.fileA
+test.dir.[*X][/test.fileB
+Contents of test.750.exp2:
+test.dir.*[/test.fileA
+test.dir.*[/test.fileB
+test.dir.?[/test.fileA
+test.dir.?[/test.fileB
+test.dir.X[/test.fileA
+test.dir.X[/test.fileB
+test.dir.[*X][/test.fileA
+test.dir.[*X][/test.fileB
+test.dir.*[/test.fileA
+test.dir.*[/test.fileB
+test.dir.?[/test.fileA
+test.dir.?[/test.fileB
+test.dir.X[/test.fileA
+test.dir.X[/test.fileB
+test.dir.*[/test.fileA
+test.dir.*[/test.fileB
+test.dir.X[/test.fileA
+test.dir.X[/test.fileB
+========================================================================
+FAILED TEST
+Assertion #756 (A): export error when a name cannot be exported
+Expected exit code = 0; Received 1
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #757 (A): export error when -p is specified and an error occurs
+Standard error is empty
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #758 (A): readonly error when a name cannot be marked readonly
+Expected exit code = 0; Received 1
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #759 (A): readonly error when -p is specified and an error occurs
+Standard error is empty
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #761 (A): set error when an error occurs
+Standard error is empty
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #762 (A): times error when an error occurs
+Expected exit code = 0; Received 3
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #763 (A): a non-interactive shell exits when certain types of error occur
+Expected exit code != 0; Received 0
+Standard output isn't empty
+Contents of out.stdout:
+did not exit
+"^[0-9]*[1-9][0-9]*$" wasn't found in standard output
+"exit" was found in standard output
+========================================================================
+FAILED TEST
+Assertion #764 (A): redirection error for a utility other than a special built-in
+Expected exit code = 0; Received 1
+"^[0-9]*[1-9][0-9]*$" wasn't found in standard output
+Expected exit code = 0; Received 1
+"^[0-9]*[1-9][0-9]*$" wasn't found in standard output
+Expected exit code = 0; Received 1
+"^[0-9]*[1-9][0-9]*$" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #767 (A): Variable assignments when the command name is a standard utility that is not a special built-in
+Expected exit code = 0; Received 2
+Standard output isn't empty
+Contents of out.stdout:
+command alias failed
+Expected exit code = 0; Received 1
+Standard output isn't empty
+Contents of out.stdout:
+command hash failed
+Expected exit code = 0; Received 1
+Expected exit code = 0; Received 2
+Standard output isn't empty
+Contents of out.stdout:
+command unalias failed
+========================================================================
+UNRESOLVED TEST
+Assertion #825 (A): LANG determines default locale
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #828 (A): LC_ALL overrides all other i18n variables
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #829 (A): When the environment variable LC_COLLATE is set to a valid value
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #830 (A): When the environment variable LC_CTYPE is set to a valid value
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+ 494 tests:
+ 395         passed
+  23         failed
+  31       untested
+   4     unresolved
+  40    unsupported
+   1     not in use
+   0   other status

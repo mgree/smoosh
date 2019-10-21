@@ -1,0 +1,32 @@
+0|3.8-lite 20:10:00 20190619|User: opam (1000) TCC Start, Command line: tcc -bp vsc posix_shell
+5|Linux 9bb4868c357d 4.9.125-linuxkit #1 SMP Fri Sep 7 08:20:28 UTC 2018 x86_64|System Information
+20|/home/opam/posix/tet3.8/vsc/tetbuild.cfg 0|Config Start
+30||TET_OUTPUT_CAPTURE=False
+30||TET_EXPAND_CONF_VARS=true
+30||TET_BUILD_TOOL=sh
+30||TET_BUILD_FILE=/home/opam/posix/tet3.8/vsc/Bin/buildtool
+30||TET_API_COMPLIANT=True
+30||TET_PASS_TC_NAME=False
+30||TET_VERSION=3.8-lite
+40||Config End
+110|0 /tset/POSIX.shell/shell/sh_04.ex 20:10:00|Build Start, scenario ref 1-0
+130|0 0 20:10:02|Build End, scenario ref 1-0
+110|1 /tset/POSIX.shell/shell/sh_05.ex 20:10:02|Build Start, scenario ref 2-0
+130|1 0 20:10:04|Build End, scenario ref 2-0
+110|2 /tset/POSIX.shell/shell/sh_06.ex 20:10:04|Build Start, scenario ref 3-0
+130|2 0 20:10:06|Build End, scenario ref 3-0
+110|3 /tset/POSIX.shell/shell/sh_07.ex 20:10:06|Build Start, scenario ref 4-0
+130|3 0 20:10:08|Build End, scenario ref 4-0
+110|4 /tset/POSIX.shell/shell/sh_08.ex 20:10:08|Build Start, scenario ref 5-0
+130|4 0 20:10:10|Build End, scenario ref 5-0
+110|5 /tset/POSIX.shell/shell/sh_09.ex 20:10:10|Build Start, scenario ref 6-0
+130|5 0 20:10:12|Build End, scenario ref 6-0
+110|6 /tset/POSIX.shell/shell/sh_10.ex 20:10:12|Build Start, scenario ref 7-0
+130|6 0 20:10:14|Build End, scenario ref 7-0
+110|7 /tset/POSIX.shell/shell/sh_11.ex 20:10:14|Build Start, scenario ref 8-0
+130|7 0 20:10:16|Build End, scenario ref 8-0
+110|8 /tset/POSIX.shell/shell/sh_12.ex 20:10:16|Build Start, scenario ref 9-0
+130|8 0 20:10:18|Build End, scenario ref 9-0
+110|9 /tset/POSIX.shell/shell/sh_13.ex 20:10:18|Build Start, scenario ref 10-0
+130|9 0 20:10:20|Build End, scenario ref 10-0
+900|20:10:20|TCC End

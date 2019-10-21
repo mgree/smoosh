@@ -1,0 +1,485 @@
+========================================================================
+FAILED TEST
+Assertion #297 (A): special parameter '*' expansion without field splitting
+"$*" with IFS=": "
+"$*" with unset IFS
+"$*" with empty IFS
+var=$* with IFS=": "
+var=$* with unset IFS
+var=$* with empty IFS
+case $* in with IFS=": "
+case $* in with unset IFS
+case $* in with empty IFS
+${unsetvar:-"$*"} with IFS=":"
+${unsetvar:-"$*"} with unset IFS
+${unsetvar:-"$*"} with empty IFS
+"${setvar+$*}" with IFS=": "
+"${setvar+$*}" with unset IFS
+"${setvar+$*}" with empty IFS
+${var=$*} with IFS=": "
+${var=$*} with unset IFS
+${var=$*} with empty IFS
+Standard output isn't the same as file 'sh5_297_3.eso'
+diff of "out.stdout" and "sh5_297_3.eso":
+*** out.stdout	Wed Jun 19 17:55:30 2019
+--- sh5_297_3.eso	Wed Jun 19 17:55:30 2019
+***************
+*** 1,2 ****
+! <t	 e
+       n>
+--- 1,2 ----
+! <1t w  o3456789t	 e
+       n>
+========================================================================
+FAILED TEST
+Assertion #311 (A): IFS set to a non-null value other than space, tab, and newline, each character delimits a word
+Standard output isn't the same as file 'sh5_311.eso'
+diff of "out.stdout" and "sh5_311.eso":
+*** out.stdout	Wed Jun 19 17:55:34 2019
+--- sh5_311.eso	Wed Jun 19 17:55:34 2019
+***************
+*** 1 ****
+!  a   b   c
+--- 1 ----
+!   a   b   c
+========================================================================
+FAILED TEST
+Assertion #352 (A): All characters within the parentheses of the command substitution expression constitute the command
+Standard output isn't the same as file 'sh_352.eso'
+diff of "out.stdout" and "sh_352.eso":
+*** out.stdout	Wed Jun 19 17:55:37 2019
+--- sh_352.eso	Wed Jun 19 17:55:37 2019
+***************
+*** 21,27 ****
+  sh_352.19
+  sh_352.20 2
+  sh_352.21 bcd abc
+! sh_352.22 0
+  sh_352.23
+  sh_352.26
+  sh_352.27 ) ) )
+--- 21,27 ----
+  sh_352.19
+  sh_352.20 2
+  sh_352.21 bcd abc
+! sh_352.22 99
+  sh_352.23
+  sh_352.26
+  sh_352.27 ) ) )
+========================================================================
+FAILED TEST
+Assertion #357 (A): arthimetic expansion according to the rules for Arithmetic Precision and Operations
+Command failed: '([ $((010)) -eq 8 ])'
+Command failed: '([ $((-020)) -eq -16 ])'
+Command failed: '([ $((+0111)) -eq 73 ])'
+Command failed: '([ $((b)) -eq 8 ])'
+Command failed: '([ $((b)) -eq -16 ])'
+Command failed: '([ $((b)) -eq 73 ])'
+========================================================================
+FAILED TEST
+Assertion #364 (A): IFS set to white space characters and a non white space character, test with zero or more IFS white space characters and  one or more of the other IFS characters delimit a field
+Standard output isn't the same as file 'sh5_364_4.eso'
+diff of "out.stdout" and "sh5_364_4.eso":
+*** out.stdout	Wed Jun 19 17:55:38 2019
+--- sh5_364_4.eso	Wed Jun 19 17:55:38 2019
+***************
+*** 1,5 ****
+  []
+  []
+- []
+  [a]
+  [b]
+--- 1,4 ----
+Standard output isn't the same as file 'sh5_364_2.eso'
+diff of "out.stdout" and "sh5_364_2.eso":
+*** out.stdout	Wed Jun 19 17:55:38 2019
+--- sh5_364_2.eso	Wed Jun 19 17:55:38 2019
+***************
+*** 1,4 ****
+  [a]
+  []
+- []
+  [b]
+--- 1,3 ----
+Standard output isn't the same as file 'sh5_364_4.eso'
+diff of "out.stdout" and "sh5_364_4.eso":
+*** out.stdout	Wed Jun 19 17:55:38 2019
+--- sh5_364_4.eso	Wed Jun 19 17:55:38 2019
+***************
+*** 1,5 ****
+  []
+  []
+- []
+  [a]
+  [b]
+--- 1,4 ----
+========================================================================
+FAILED TEST
+Assertion #422 (A): When a variable assignment error occurs and the requested command is not
+"got this far" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #429 (A): When a command has terminated on receipt of a signal, then the
+Exit value was 0.
+========================================================================
+FAILED TEST
+Assertion #440 (A): When no command name is generated but command substitution
+Standard output isn't the same as file 'test.440.eso'
+diff of "out.stdout" and "test.440.eso":
+*** out.stdout	Wed Jun 19 17:55:56 2019
+--- test.440.eso	Wed Jun 19 17:55:56 2019
+***************
+*** 1 ****
+! 0
+--- 1 ----
+! 123
+========================================================================
+FAILED TEST
+Assertion #517 (A): When a word expansion or redirection error occurs during a call to a
+Expected exit code != 0; Received 0
+Standard output isn't empty
+Contents of out.stdout:
+after-function
+========================================================================
+FAILED TEST
+Assertion #538 (A): A right bracket represents itself in a bracket expression when one
+Standard output isn't the same as file 'test.538.exp'
+diff of "out.stdout" and "test.538.exp":
+*** out.stdout	Wed Jun 19 17:56:47 2019
+--- test.538.exp	Wed Jun 19 17:56:47 2019
+***************
+*** 1,4 ****
+  match.538.]
+  match.538.x
+! match.538.[[.].]]
+! match.538.[[:alpha:]]
+--- 1,4 ----
+  match.538.]
+  match.538.x
+! match.538.]
+! match.538.x
+========================================================================
+FAILED TEST
+Assertion #539 (A): Within a bracket expression, an expression within '[. .]' is treated
+Standard output isn't the same as file 'test.539.exp'
+diff of "out.stdout" and "test.539.exp":
+*** out.stdout	Wed Jun 19 17:56:47 2019
+--- test.539.exp	Wed Jun 19 17:56:47 2019
+***************
+*** 1 ****
+! match.539.[[.x.]-z]
+--- 1 ----
+! match.539.x
+========================================================================
+FAILED TEST
+Assertion #543 (A): Within a bracket expression, when a collating element is a member
+Standard output isn't the same as file 'test.543.exp'
+diff of "out.stdout" and "test.543.exp":
+*** out.stdout	Wed Jun 19 17:56:47 2019
+--- test.543.exp	Wed Jun 19 17:56:47 2019
+***************
+*** 1 ****
+! match.543.[[=x=]]
+--- 1 ----
+! match.543.x
+========================================================================
+FAILED TEST
+Assertion #544 (A): Within a bracket expression, one of the following character class
+Standard output isn't the same as file 'test.544.exp'
+diff of "out.stdout" and "test.544.exp":
+*** out.stdout	Wed Jun 19 17:56:47 2019
+--- test.544.exp	Wed Jun 19 17:56:47 2019
+***************
+*** 1 ****
+! match.544.[[:alpha:]]
+--- 1 ----
+! match.544.x
+========================================================================
+FAILED TEST
+Assertion #548 (A): Within a bracket expression,the hyphen character is treated as
+Standard output isn't the same as file 'test.548.exp'
+diff of "out.stdout" and "test.548.exp":
+*** out.stdout	Wed Jun 19 17:56:47 2019
+--- test.548.exp	Wed Jun 19 17:56:47 2019
+***************
+*** 2,5 ****
+  match.548.x
+  match.548.-
+  match.548.-
+! match.548.[[.-.]]
+--- 2,5 ----
+  match.548.x
+  match.548.-
+  match.548.-
+! match.548.-
+========================================================================
+FAILED TEST
+Assertion #575 (A): A slash character in a pathname is matched by an explicit slash
+Standard output isn't the same as file 'test.575.exp'
+diff of "out.stdout" and "test.575.exp":
+*** out.stdout	Wed Jun 19 17:56:47 2019
+--- test.575.exp	Wed Jun 19 17:56:47 2019
+***************
+*** 1,4 ****
+  test.575.dir[/]match.575.file
+! test.575.d*[/]*.575.file
+! test.575.di?[/]*.575.file
+! test.575.di[qrs][/]*.575.file
+--- 1,4 ----
+  test.575.dir[/]match.575.file
+! test.575.dir[/]match.575.file
+! test.575.dir[/]match.575.file
+! test.575.dir[/]match.575.file
+========================================================================
+FAILED TEST
+Assertion #597 (A): When a shell application is not executing a 'for', 'while' or 'until'
+Standard error isn't empty
+Contents of out.stderr:
+test.597.sh[1]: break: can't break
+========================================================================
+FAILED TEST
+Assertion #599 (A): When a shell application is executing 'm' enclosing loops, then a
+Standard error isn't empty
+Contents of out.stderr:
+test.599.sh2[10]: break: can only break 2 level(s)
+test.599.sh2[25]: break: can only break 2 level(s)
+test.599.sh2[40]: break: can only break 2 level(s)
+========================================================================
+FAILED TEST
+Assertion #601 (A): A variable assignment specified with a special built-in command
+Standard error isn't empty
+Contents of out.stderr:
+test.601.sh[2]: break: can't break
+========================================================================
+FAILED TEST
+Assertion #608 (A): A variable assignment specified with a special built-in command
+Standard error isn't empty
+Contents of out.stderr:
+test.608.sh[2]: continue: can't continue
+========================================================================
+FAILED TEST
+Assertion #691 (A): When the shell is not executing interactively, then the 'set -u'
+testing simple $var expansion ...
+testing positional parameter expansion ...
+testing expansion inside another parameter expansion ...
+testing expansion inside an arithmetic expansion ...
+testing use without $ in an arithmetic expansion ...
+Expected exit code != 0; Received 0
+Standard output isn't empty
+Contents of out.stdout:
+1
+Standard error is empty
+testing ${#var} expansion ...
+testing ${var%word} expansion ...
+testing ${var%%word} expansion ...
+testing ${var#word} expansion ...
+testing ${var##word} expansion ...
+testing $* and $@ expansion ...
+========================================================================
+FAILED TEST
+Assertion #709 (A): shift with 'n' greater than $# or (for some test modes) invalid
+Expected exit code = 0; Received 1
+Standard error isn't empty
+Contents of out.stderr:
+expect_after: unexpected timeout
+Expected exit code = 0; Received 1
+Standard error isn't empty
+Contents of out.stderr:
+expect_after: unexpected timeout
+========================================================================
+FAILED TEST
+Assertion #712 (A): A call to 'trap -' sets each of the specified conditions to its default action
+testing ABRT (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+Aborted
+testing BUS (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+Bus error
+testing FPE (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+Floating point exception
+testing HUP (case 1) ...
+testing ILL (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+Illegal instruction
+testing PIPE (case 1) ...
+testing SEGV (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+Segmentation fault
+testing TERM (case 1) ...
+testing USR1 (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+User defined signal 1
+testing USR2 (case 1) ...
+Standard error isn't empty
+Contents of out.stderr:
+User defined signal 2
+testing ABRT (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+Aborted
+testing BUS (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+Bus error
+testing FPE (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+Floating point exception
+testing HUP (case 2) ...
+testing ILL (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+Illegal instruction
+testing PIPE (case 2) ...
+testing SEGV (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+Segmentation fault
+testing TERM (case 2) ...
+testing USR1 (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+User defined signal 1
+testing USR2 (case 2) ...
+Standard error isn't empty
+Contents of out.stderr:
+User defined signal 2
+testing INT (case 3) ...
+Command failed: '[ 0 -ge 128 ]'
+testing QUIT (case 3) ...
+Command failed: '[ 0 -ge 128 ]'
+========================================================================
+FAILED TEST
+Assertion #718 (A): When the condition specifies a signal name without the SIG prefix
+Expected exit code = 0; Received 1
+Standard error isn't empty
+Contents of out.stderr:
+expect_after: unexpected timeout
+Command failed: '[ -f tmp_718_1.tch ]'
+========================================================================
+FAILED TEST
+Assertion #740 (A): set -u in an interactive shell when it tries to expand a parameter that is not set
+Standard output isn't the same as file 'test.740.exp'
+diff of "out.stdout" and "test.740.exp":
+*** out.stdout	Wed Jun 19 17:58:05 2019
+--- test.740.exp	Wed Jun 19 17:57:34 2019
+***************
+*** 1,5 ****
+  start
+- 1
+- use without $ inside arithmetic: exit status 0
+  thirdarg
+  end reached
+--- 1,3 ----
+========================================================================
+FAILED TEST
+Assertion #742 (A): shift with 'n' greater than $# or invalid in non-interactive shell
+Expected exit code != 0; Received 0
+========================================================================
+FAILED TEST
+Assertion #743 (A): A call to 'trap' with no operands causes a list of commands
+Standard output isn't the same as file 'test.743.exp'
+diff of "out.stdout" and "test.743.exp":
+*** out.stdout	Wed Jun 19 17:58:05 2019
+--- test.743.exp	Wed Jun 19 17:58:05 2019
+***************
+*** 1,2 ****
+--- 1,5 ----
++ trap -- exitaction EXIT
+  trap --  HUP
++ trap -- intquitaction INT
++ trap -- intquitaction QUIT
+  trap --  TERM
+========================================================================
+FAILED TEST
+Assertion #755 (A): exit in a subshell environment
+Standard output isn't the same as file 'test.755.exp'
+diff of "out.stdout" and "test.755.exp":
+*** out.stdout	Wed Jun 19 17:58:06 2019
+--- test.755.exp	Wed Jun 19 17:58:06 2019
+***************
+*** 1,3 ****
+  23
+! 0
+  67
+--- 1,3 ----
+  23
+! 45
+  67
+========================================================================
+FAILED TEST
+Assertion #756 (A): export error when a name cannot be exported
+Expected exit code = 0; Received 2
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #757 (A): export error when -p is specified and an error occurs
+Standard error is empty
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #758 (A): readonly error when a name cannot be marked readonly
+Expected exit code = 0; Received 2
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #759 (A): readonly error when -p is specified and an error occurs
+Standard error is empty
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #761 (A): set error when an error occurs
+Standard error is empty
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #762 (A): times error when an error occurs
+Standard error is empty
+"exitstatus [^0]" wasn't found in standard output
+========================================================================
+FAILED TEST
+Assertion #763 (A): a non-interactive shell exits when certain types of error occur
+Expected exit code != 0; Received 0
+Standard output isn't empty
+Contents of out.stdout:
+shell did not exit
+"^[0-9]*[1-9][0-9]*$" wasn't found in standard output
+"exit" was found in standard output
+========================================================================
+FAILED TEST
+Assertion #767 (A): Variable assignments when the command name is a standard utility that is not a special built-in
+Standard output isn't empty
+Contents of out.stdout:
+wait failed
+========================================================================
+UNRESOLVED TEST
+Assertion #825 (A): LANG determines default locale
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #828 (A): LC_ALL overrides all other i18n variables
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #829 (A): When the environment variable LC_COLLATE is set to a valid value
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #830 (A): When the environment variable LC_CTYPE is set to a valid value
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+ 494 tests:
+ 383         passed
+  35         failed
+  31       untested
+   4     unresolved
+  40    unsupported
+   1     not in use
+   0   other status

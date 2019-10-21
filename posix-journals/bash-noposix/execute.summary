@@ -1,0 +1,233 @@
+========================================================================
+FAILED TEST
+Assertion #293 (B): assignment of a variable to a non-null and null value and the unset of variable
+Expected exit code != 0; Received 0
+Standard output isn't empty
+Contents of out.stdout:
+    sh5_293_var=1;
+    set | grep "sh5_293_var=" > $CT_STDOUT 2> $CT_STDERR;
+========================================================================
+FAILED TEST
+Assertion #296 (A): special parameter '*' expansion with field splitting
+$* with default IFS
+$* with unset IFS
+Standard output isn't the same as file 'sh5_296_1.eso'
+diff of "out.stdout" and "sh5_296_1.eso":
+*** out.stdout	Wed Jun 19 18:25:54 2019
+--- sh5_296_1.eso	Wed Jun 19 18:25:54 2019
+***************
+*** 9,15 ****
+  <7>
+  <8>
+  <9>
+! <t	>
+! <e
+! >
+  <n>
+--- 9,14 ----
+  <7>
+  <8>
+  <9>
+! <t>
+! <e>
+  <n>
+$* with empty IFS
+begin$*end with default IFS
+begin$*end with unset IFS
+Standard output isn't the same as file 'sh5_296_3.eso'
+diff of "out.stdout" and "sh5_296_3.eso":
+*** out.stdout	Wed Jun 19 18:25:54 2019
+--- sh5_296_3.eso	Wed Jun 19 18:25:54 2019
+***************
+*** 9,15 ****
+  <7>
+  <8>
+  <9>
+! <t	>
+! <e
+! >
+  <nend>
+--- 9,14 ----
+  <7>
+  <8>
+  <9>
+! <t>
+! <e>
+  <nend>
+begin$*end with empty IFS
+${unsetvar:-$*} with default IFS
+${unsetvar:-$*} with unset IFS
+${unsetvar:-$*} with empty IFS
+Expected exit code = 10; Received 1
+Standard output isn't the same as file 'sh5_296_2.eso'
+diff of "out.stdout" and "sh5_296_2.eso":
+*** out.stdout	Wed Jun 19 18:25:54 2019
+--- sh5_296_2.eso	Wed Jun 19 18:25:54 2019
+***************
+*** 1,2 ****
+! <1t w  o3456789t	 e
+       n>
+--- 1,11 ----
+! <1>
+! <t w  o>
+! <3>
+! <4>
+! <5>
+! <6>
+! <7>
+! <8>
+! <9>
+! <t	 e
+       n>
+${setvar+$*} with default IFS
+${setvar+$*} with unset IFS
+${setvar+$*} with empty IFS
+Expected exit code = 10; Received 1
+Standard output isn't the same as file 'sh5_296_2.eso'
+diff of "out.stdout" and "sh5_296_2.eso":
+*** out.stdout	Wed Jun 19 18:25:54 2019
+--- sh5_296_2.eso	Wed Jun 19 18:25:54 2019
+***************
+*** 1,2 ****
+! <1t w  o3456789t	 e
+       n>
+--- 1,11 ----
+! <1>
+! <t w  o>
+! <3>
+! <4>
+! <5>
+! <6>
+! <7>
+! <8>
+! <9>
+! <t	 e
+       n>
+empty fields with default IFS
+empty fields with unset IFS
+empty fields with empty IFS
+========================================================================
+FAILED TEST
+Assertion #297 (A): special parameter '*' expansion without field splitting
+"$*" with IFS=": "
+"$*" with unset IFS
+"$*" with empty IFS
+var=$* with IFS=": "
+var=$* with unset IFS
+Standard output isn't the same as file 'sh5_297_2.eso'
+diff of "out.stdout" and "sh5_297_2.eso":
+*** out.stdout	Wed Jun 19 18:25:54 2019
+--- sh5_297_2.eso	Wed Jun 19 18:25:54 2019
+***************
+*** 1,2 ****
+! <1 t w o 3 4 5 6 7 8 9 t	 e
+!  n>
+--- 1,2 ----
+! <1 t w  o 3 4 5 6 7 8 9 t	 e
+!      n>
+var=$* with empty IFS
+case $* in with IFS=": "
+case $* in with unset IFS
+case did not match expected value
+case $* in with empty IFS
+${unsetvar:-"$*"} with IFS=":"
+${unsetvar:-"$*"} with unset IFS
+${unsetvar:-"$*"} with empty IFS
+"${setvar+$*}" with IFS=": "
+"${setvar+$*}" with unset IFS
+"${setvar+$*}" with empty IFS
+${var=$*} with IFS=": "
+${var=$*} with unset IFS
+Standard output isn't the same as file 'sh5_297_2.eso'
+diff of "out.stdout" and "sh5_297_2.eso":
+*** out.stdout	Wed Jun 19 18:25:54 2019
+--- sh5_297_2.eso	Wed Jun 19 18:25:54 2019
+***************
+*** 1,2 ****
+! <1 t w o 3 4 5 6 7 8 9 t	 e
+!  n>
+--- 1,2 ----
+! <1 t w  o 3 4 5 6 7 8 9 t	 e
+!      n>
+${var=$*} with empty IFS
+========================================================================
+UNRESOLVED TEST
+Assertion #448 (A): When the search for command name using the PATH environment variable
+awk did not place a full path in ARGV[0] when executed as /usr/bin/awk
+========================================================================
+FAILED TEST
+Assertion #450 (A): When the command name contains slashes, then the command is
+Standard output isn't the same as file 'test.450.exp'
+diff of "out.stdout" and "test.450.exp":
+*** out.stdout	Wed Jun 19 18:26:19 2019
+--- test.450.exp	Wed Jun 19 18:26:19 2019
+***************
+*** 1 ****
+! awk
+--- 1 ----
+! /usr/bin/awk
+========================================================================
+FAILED TEST
+Assertion #474 (A): Variable assignments and built-in commands that affect the environment do not remain in effect after the (list) finishes
+Expected exit code = 1; Received 0
+Standard output isn't empty
+Contents of out.stdout:
+    ( var1=string1;
+        SetResult $TET_UNRESOLVED "Command failed: '(var1=string1;export var2=string2)'";
+    set | grep var1 > $CT_STDOUT 2> $CT_STDERR;
+        var1=string1;
+    set | grep var1 > $CT_STDOUT 2> $CT_STDERR;
+========================================================================
+FAILED TEST
+Assertion #520 (A): SIGINT and SIGQUIT in an asynchronous list (without -m)
+Expected exit code = 0; Received 1
+Standard error isn't empty
+Contents of out.stderr:
+sleep exit status was 130, expected 0
+Standard output isn't the same as file 'test.520.exp'
+diff of "out.stdout" and "test.520.exp":
+*** out.stdout	Wed Jun 19 18:27:04 2019
+--- test.520.exp	Wed Jun 19 18:27:04 2019
+***************
+*** 0 ****
+--- 1,2 ----
++ got SIGINT
++ sending SIGQUIT
+========================================================================
+FAILED TEST
+Assertion #711 (A): Refer to general assertion GA234.
+Assignment did not survive call to shift.
+========================================================================
+FAILED TEST
+Assertion #763 (A): a non-interactive shell exits when certain types of error occur
+Expected exit code != 0; Received 0
+Standard output isn't empty
+Contents of out.stdout:
+did not exit
+"^[0-9]*[1-9][0-9]*$" wasn't found in standard output
+"exit" was found in standard output
+========================================================================
+UNRESOLVED TEST
+Assertion #825 (A): LANG determines default locale
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #828 (A): LC_ALL overrides all other i18n variables
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #829 (A): When the environment variable LC_COLLATE is set to a valid value
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+UNRESOLVED TEST
+Assertion #830 (A): When the environment variable LC_CTYPE is set to a valid value
+Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+========================================================================
+ 494 tests:
+ 409         passed
+   8         failed
+  31       untested
+   5     unresolved
+  40    unsupported
+   1     not in use
+   0   other status

@@ -1,0 +1,3274 @@
+0|3.8-lite 18:31:56 20190619|User: opam (1000) TCC Start, Command line: tcc -ep vsc posix_shell
+5|Linux e55f8d487b02 4.9.125-linuxkit #1 SMP Fri Sep 7 08:20:28 UTC 2018 x86_64|System Information
+20|/home/opam/posix/tet3.8/vsc/tetexec.cfg 1|Config Start
+30||TET_OUTPUT_CAPTURE=False
+30||TET_EXEC_TOOL=sh
+30||TET_DONT_REPORT_MISSING_ICS=True
+30||PCTS_NAME_MAX=2048
+30||PCTS_PATH_MAX=4096
+30||PCTS_LINK_MAX=256
+30||VSC_WINK=2
+30||VSC_NAP=10
+30||VSC_SNOOZE=30
+30||VSC_EXPECT_SUPPORT=TRUE
+30||VSC_ESC=033
+30||VSC_END_OF_FILE=004
+30||VSC_BS=010
+30||VSC_KILL=025
+30||VSC_NL=012
+30||VSC_LNEXT=026
+30||VSC_STOP=032
+30||VSC_REDRAW=014
+30||VSC_INTR=003
+30||VSC_CTLW=027
+30||VSC_CTLP=020
+30||VSC_LARGEFILE_OPTS=
+30||VSC_PAX_BIG_FILE_SUPPORT=TRUE
+30||VSC_POSIX_VERSION=200809
+30||VSC_XOPEN_VERSION=0
+30||VSC_CC=c99
+30||VSC_OPER=Michael Greenberg
+30||VSC_ORG=Pomona College
+30||VSC_ADDR1=Department of Computer Science
+30||VSC_ADDR2=185 E. 6th St.
+30||VSC_ADDR3=Claremont, CA 91711
+30||VSC_ADDR4=USA
+30||VSC_ADDR5=
+30||VSC_SYS=Smoosh 0.1
+30||VSC_TESTER=opam
+30||VSC_TESTER_UID=1000
+30||VSC_GRP_NAME_1=opam
+30||VSC_GRP_NAME_2=vsc2000
+30||VSC_NON_MEMBER_GRP=vsc2001
+30||VSC_NON_MEMBER_GID=2001
+30||VSC_NAMELESS_UID=2003
+30||VSC_NAMELESS_GID=2004
+30||VSC_GRP_ID_1=1000
+30||VSC_GRP_ID_2=2000
+30||POSIX1_SUPPORT=TRUE
+30||VSC_XPG_SW_DEV=
+30||VSC_ILP32_OFF32_SUPPORT=undefined
+30||VSC_ILP32_OFFBIG_SUPPORT=undefined
+30||VSC_LP64_OFF64_SUPPORT=TRUE
+30||VSC_LPBIG_OFFBIG_SUPPORT=undefined
+30||VSC_DEFAULT_C89_PROG_ENV=LP64_OFF64
+30||VSC_XOPEN_RT=undefined
+30||VSC_XOPEN_RTT=undefined
+30||VSC_XPG_LEGACY=undefined
+30||VSC_DATE_CAN_SET=undefined
+30||VSC_NONENGLISH_LOCALE=undefined
+30||VSC_NONENGLISH_YESSTR=
+30||VSC_LOCALEDEF_OUTPUT_FTYPE=undefined
+30||VSC_LOCALE_NAME=undefined
+30||VSC_CHARMAP_FILE=undefined
+30||VSC_LOCALEDEF_FILE=undefined
+30||VSC_TRAP_NUMERIC_SIGS=TRUE
+30||VSC_IPC_KEY=undefined
+30||VSC_OTHER_UID=2000
+30||VSC_OTHER_GID=2001
+30||VSC_UID0=2000
+30||VSC_UID1=2001
+30||VSC_UID2=2002
+30||VSC_GID0=2001
+30||VSC_GID1=2002
+30||VSC_GID2=2003
+30||VSC_OTHER_USER_NAME=vsc2000
+30||VSC_OTHER_USER_UID=2000
+30||VSC_ASA_1=\f
+30||VSC_ASA_P=\b
+30||VSC_DOT_O_FILE=/home/opam/posix/tet3.8/vsc/Lib/Data/POSIX/tcm.o
+30||VSC_EXE_FILE=/home/opam/posix/tet3.8/vsc/Lib/Data/POSIX/tcc
+30||VSC_FORT77_DLD=none
+30||VSC_TALKNAME=vsc2000
+30||VSC_PS_SUPPORT=TRUE
+30||VSC_PRINTF_FLOAT_SUPPORT=undefined
+30||VSC_AWK_ATOF=TRUE
+30||VSC_AWK_NUMBER_HEX=TRUE
+30||VSC_TERMIOS_SUPPORT=TRUE
+30||VSC_BYTE_SIZE=8
+30||VSC_FLT_RADIX_POWER_OF_2=TRUE
+30||VSC_NAN_NCHARSEQ=undefined
+30||VSC_LPDEST=na
+30||VSC_LPNODEST=nope
+30||VSC_LPSTAT=
+30||VSC_CANCEL=
+30||VSC_UULOG=undefined
+30||VSC_UUNAME=undefined
+30||VSC_UUPICK=undefined
+30||VSC_UUTO=undefined
+30||VSC_LP_MFLAG_SUPPORT=TRUE
+30||VSC_LP_OFLAG_SUPPORT=TRUE
+30||VSC_LP_TFLAG_SUPPORT=TRUE
+30||VSC_LP_WFLAG_SUPPORT=TRUE
+30||VSC_UUX_JFLAG_SUPPORT=unsupported
+30||VSC_UUSTAT_QFLAG_SUPPORT=unsupported
+30||VSC_UUSTAT_RFLAG_SUPPORT=unsupported
+30||VSC_MAIL_USER=opam
+30||VSC_MAIL_FILE=opam
+30||VSC_CHRDEV=undefined
+30||VSC_BLKDEV=undefined
+30||VSC_TEST_SUITE_FS=undefined
+30||VSC_TEST_SUITE_MOUNT_POINT=undefined
+30||VSC_OTHER_FS=/home/opam/posix/rw
+30||VSC_RO_FS=/home/opam/posix/ro
+30||VSC_LFS_MAX_FILE_SIZE=8589934592
+30||VSC_LFS_FS=undefined
+30||VSC_CHR_DEV_FILE=undefined
+30||VSC_BLK_DEV_FILE=undefined
+30||VSC_STREAM_DEV=undefined
+30||VSC_SXAF=Y
+30||VSC_MV_X_FS=TRUE
+30||VSC_LN_X_FS=undefined
+30||VSC_LINK_DIR_SUPPORT=undefined
+30||VSC_WPERM_TO_MV_DIR=TRUE
+30||VSC_NO_MV_FILE_IN_USE=undefined
+30||VSC_IDS_ON_SYMLINKS=TRUE
+30||VSC_NO_SYMLINKS_DIR=undefined
+30||VSC_LINK_MAX=127
+30||VSC_DU_SZ=1024
+30||VSC_LS_BLOCK_SIZE=1024
+30||VSC_ICONV_FROM=ASCII
+30||VSC_ICONV_TO=ASCII
+30||VSC_ICONV_FROMFILE=/home/opam/posix/tet3.8/vsc/Lib/Data/POSIX/README.md
+30||VSC_AT_ALLOWDENY_DIR=/usr/lib/cron
+30||VSC_CRON_ALLOWDENY_DIR=/usr/lib/cron
+30||_L_PUBDIR=
+30||_L_SYS=
+30||_R_PUBDIR=
+30||_R_SYS=
+30||_R_SYS2=
+30||M_SPOOL_FILE=
+30||VSC_UUCP_CFLAG_SUPPORT=
+30||VSC_UUCP_FFLAG_SUPPORT=
+30||VSC_UUCP_JFLAG_SUPPORT=
+30||VSC_UUCP_NFLAG_SUPPORT=
+30||VSC_UUCP_RFLAG_SUPPORT=
+30||VSC_UUCP_NOSUCH_SYS=
+30||VSC_UUCP_XFER_DELAY=
+30||VSC_SPACE=SPACE
+30||TET_API_COMPLIANT=True
+30||TET_PASS_TC_NAME=False
+30||TET_VERSION=3.8-lite
+40||Config End
+10|0 /tset/POSIX.shell/shell/sh_04.ex 18:31:56|TC Start, scenario ref 1-0, ICs: {1-1000}
+15|0 3.8 37|TCM Start
+400|0 249 1 18:31:56|IC Start
+200|0 1 18:31:56|TP Start
+520|0 1 21773 1 1|Assertion #249 (A): name=word ; assigns word to name
+220|0 1 0 18:31:56|PASS
+410|0 249 1 18:31:56|IC End
+400|0 250 1 18:31:56|IC Start
+200|0 2 18:31:56|TP Start
+520|0 2 21773 1 1|Assertion #250 (A): when name doesnot exist than name is created
+520|0 2 21773 2 1|Expected exit code = 0; Received 1
+220|0 2 1 18:31:56|FAIL
+410|0 250 1 18:31:56|IC End
+400|0 251 1 18:31:56|IC Start
+200|0 3 18:31:56|TP Start
+520|0 3 21773 1 1|Assertion #251 (A): when word is not specified;then name is given a null value
+220|0 3 0 18:31:56|PASS
+410|0 251 1 18:31:56|IC End
+400|0 252 1 18:31:56|IC Start
+200|0 4 18:31:56|TP Start
+520|0 4 21773 1 1|Assertion #252 (A): char retains it literal meaning wh/ preceeded by a backslash
+220|0 4 0 18:31:57|PASS
+410|0 252 1 18:31:57|IC End
+400|0 253 1 18:31:57|IC Start
+200|0 5 18:31:57|TP Start
+520|0 5 21773 1 1|Assertion #253 (A): backslash char before <nl> indicates continuation
+220|0 5 0 18:31:57|PASS
+410|0 253 1 18:31:57|IC End
+400|0 254 1 18:31:57|IC Start
+200|0 6 18:31:57|TP Start
+520|0 6 21773 1 1|Assertion #254 (A): continuation marks (<bslash><nl>) are removed B4 tokenization
+220|0 6 0 18:31:57|PASS
+410|0 254 1 18:31:57|IC End
+400|0 255 1 18:31:57|IC Start
+200|0 7 18:31:57|TP Start
+520|0 7 21773 1 1|Assertion #255 (A): Test of GA35 - sh can handle lines of at least LINE_MAX characters
+220|0 7 0 18:31:57|PASS
+410|0 255 1 18:31:57|IC End
+400|0 256 1 18:31:57|IC Start
+200|0 8 18:31:57|TP Start
+520|0 8 21773 1 1|Assertion #256 (A): characters in single quotes retain their literal meaning
+220|0 8 0 18:31:57|PASS
+410|0 256 1 18:31:57|IC End
+400|0 257 1 18:31:57|IC Start
+200|0 9 18:31:57|TP Start
+520|0 9 21773 1 1|Assertion #257 (A): characters in double quotes retain their literal meaning
+220|0 9 0 18:31:57|PASS
+410|0 257 1 18:31:57|IC End
+400|0 258 1 18:31:57|IC Start
+200|0 10 18:31:57|TP Start
+520|0 10 21773 1 1|Assertion #258 (A): special characters in double quotes can be backslash escaped
+220|0 10 0 18:31:57|PASS
+410|0 258 1 18:31:57|IC End
+400|0 259 1 18:31:57|IC Start
+200|0 11 18:31:57|TP Start
+520|0 11 21773 1 1|Assertion #259 (A): a dollar-sign char in double quotes; signifies a variable
+220|0 11 0 18:31:57|PASS
+410|0 259 1 18:31:57|IC End
+400|0 260 1 18:31:57|IC Start
+200|0 12 18:31:57|TP Start
+520|0 12 21773 1 1|Assertion #260 (A): characters inside double quotes and  are expanded
+220|0 12 0 18:31:57|PASS
+410|0 260 1 18:31:57|IC End
+400|0 261 1 18:31:57|IC Start
+200|0 13 18:31:57|TP Start
+520|0 13 21773 1 1|Assertion #261 (A): must have matching double qoutes wh/ inside dollar-sign braces 
+220|0 13 0 18:31:57|PASS
+410|0 261 1 18:31:57|IC End
+400|0 262 1 18:31:57|IC Start
+200|0 14 18:31:57|TP Start
+520|0 14 21773 1 1|Assertion #262 (A): must have matching single qoutes wh/ inside dollar-sign braces 
+220|0 14 0 18:31:57|PASS
+410|0 262 1 18:31:57|IC End
+400|0 263 1 18:31:57|IC Start
+200|0 15 18:31:57|TP Start
+520|0 15 21773 1 1|Assertion #263 (A): backslash escaped braces inside dollar-sign braces are retained
+220|0 15 0 18:31:57|PASS
+410|0 263 1 18:31:57|IC End
+400|0 264 1 18:31:57|IC Start
+200|0 16 18:31:57|TP Start
+520|0 16 21773 1 1|Assertion #264 (A): backslash not followed by a special char; retains its meaning
+220|0 16 0 18:31:57|PASS
+410|0 264 1 18:31:57|IC End
+400|0 265 1 18:31:57|IC Start
+200|0 17 18:31:57|TP Start
+520|0 17 21773 1 1|Assertion #265 (A): chars twixt backquotes r commands & replaced by their output
+220|0 17 0 18:31:57|PASS
+410|0 265 1 18:31:57|IC End
+400|0 266 1 18:31:57|IC Start
+200|0 18 18:31:57|TP Start
+520|0 18 21773 1 1|Assertion #266 (A): maxline plus 1 test
+220|0 18 0 18:31:57|PASS
+410|0 266 1 18:31:57|IC End
+400|0 267 1 18:31:57|IC Start
+200|0 19 18:31:57|TP Start
+520|0 19 21773 1 1|Assertion #267 (A): tokens are delimited when end of input is recognized
+220|0 19 0 18:31:57|PASS
+410|0 267 1 18:31:57|IC End
+400|0 268 1 18:31:57|IC Start
+200|0 20 18:31:57|TP Start
+520|0 20 21773 1 1|Assertion #268 (A): blank line test 
+220|0 20 0 18:31:57|PASS
+410|0 268 1 18:31:57|IC End
+400|0 269 1 18:31:57|IC Start
+200|0 21 18:31:57|TP Start
+520|0 21 21773 1 1|Assertion #269 (A): NOT IMPLEMENTED-tested by #1 of section 3.3; assertion 266
+520|0 21 21773 2 1|This assertion was covered in TESTID=266
+220|0 21 5 18:31:57|UNTESTED
+410|0 269 1 18:31:57|IC End
+400|0 270 1 18:31:57|IC Start
+200|0 22 18:31:57|TP Start
+520|0 22 21773 1 1|Assertion #270 (A): Assertion 270
+220|0 22 0 18:31:57|PASS
+410|0 270 1 18:31:57|IC End
+400|0 271 1 18:31:57|IC Start
+200|0 23 18:31:57|TP Start
+520|0 23 21773 1 1|Assertion #271 (B): a quoted string can hold special characters
+220|0 23 0 18:31:57|PASS
+410|0 271 1 18:31:57|IC End
+400|0 272 1 18:31:57|IC Start
+200|0 24 18:31:57|TP Start
+520|0 24 21773 1 1|Assertion #272 (A): quoted strings can contain the whole char set & do expansions
+220|0 24 0 18:31:57|PASS
+410|0 272 1 18:31:57|IC End
+400|0 273 1 18:31:57|IC Start
+200|0 25 18:31:57|TP Start
+520|0 25 21773 1 1|Assertion #273 (A): using quotes inside a var expansion
+220|0 25 0 18:31:57|PASS
+410|0 273 1 18:31:57|IC End
+400|0 274 1 18:31:57|IC Start
+200|0 26 18:31:57|TP Start
+520|0 26 21773 1 1|Assertion #274 (A): a token is not delimited by the end of a quoted field
+220|0 26 0 18:31:57|PASS
+410|0 274 1 18:31:57|IC End
+400|0 275 1 18:31:57|IC Start
+200|0 27 18:31:57|TP Start
+520|0 27 21773 1 1|Assertion #275 (A): a token is NOT delimited by then end of substitution operator
+220|0 27 0 18:31:57|PASS
+410|0 275 1 18:31:57|IC End
+400|0 276 1 18:31:57|IC Start
+200|0 28 18:31:57|TP Start
+520|0 28 21773 1 1|Assertion #276 (A): Operator character not in operator delimits a token
+220|0 28 0 18:31:57|PASS
+410|0 276 1 18:31:57|IC End
+400|0 277 1 18:31:57|IC Start
+200|0 29 18:31:57|TP Start
+520|0 29 21773 1 1|Assertion #277 (A): an unquoted newline char delimits a token
+220|0 29 0 18:31:57|PASS
+410|0 277 1 18:31:57|IC End
+400|0 278 1 18:31:57|IC Start
+200|0 30 18:31:57|TP Start
+520|0 30 21773 1 1|Assertion #278 (A): an unquoted <sp> delimits a token and NOT part of next token
+220|0 30 0 18:31:57|PASS
+410|0 278 1 18:31:57|IC End
+400|0 279 1 18:31:57|IC Start
+200|0 31 18:31:57|TP Start
+520|0 31 21773 1 1|Assertion #279 (A): each word consists of the longest string that can be
+220|0 31 0 18:31:57|PASS
+410|0 279 1 18:31:57|IC End
+400|0 280 1 18:31:57|IC Start
+200|0 32 18:31:57|TP Start
+520|0 32 21773 1 1|Assertion #280 (A): comment test
+220|0 32 0 18:31:57|PASS
+410|0 280 1 18:31:57|IC End
+400|0 281 1 18:31:57|IC Start
+200|0 33 18:31:57|TP Start
+520|0 33 21773 1 1|Assertion #281 (A): here is document test
+220|0 33 0 18:31:57|PASS
+410|0 281 1 18:31:57|IC End
+400|0 282 1 18:31:57|IC Start
+200|0 34 18:31:57|TP Start
+520|0 34 21773 1 1|Assertion #282 (D): alias for reserved words
+520|0 34 21773 3 1|POSIX2_UPE is not supported
+220|0 34 4 18:31:57|UNSUPPORTED
+410|0 282 1 18:31:57|IC End
+400|0 283 1 18:31:57|IC Start
+200|0 35 18:31:57|TP Start
+520|0 35 21773 1 1|Assertion #283 (C): recursive alias
+520|0 35 21773 3 1|POSIX2_UPE is not supported
+220|0 35 4 18:31:57|UNSUPPORTED
+410|0 283 1 18:31:57|IC End
+400|0 284 1 18:31:57|IC Start
+200|0 36 18:31:57|TP Start
+520|0 36 21773 1 1|Assertion #284 (C): alias def ending in <sp> continues alias expansion w/ next word
+520|0 36 21773 3 1|POSIX2_UPE is not supported
+220|0 36 4 18:31:57|UNSUPPORTED
+410|0 284 1 18:31:57|IC End
+400|0 285 1 18:31:57|IC Start
+200|0 37 18:31:57|TP Start
+520|0 37 21773 1 1|Assertion #285 (C): NON-EXPORTED aliases work only in current shell
+520|0 37 21773 3 1|POSIX2_UPE is not supported
+220|0 37 4 18:31:57|UNSUPPORTED
+410|0 285 1 18:31:57|IC End
+80|0 0 18:31:58|TC End, scenario ref 1-0
+10|1 /tset/POSIX.shell/shell/sh_05.ex 18:31:58|TC Start, scenario ref 2-0, ICs: {1-1000}
+15|1 3.8 83|TCM Start
+400|1 286 1 18:31:59|IC Start
+200|1 1 18:31:59|TP Start
+520|1 1 22454 1 1|Assertion #286 (A): reserved word recognized as the first word
+220|1 1 0 18:31:59|PASS
+410|1 286 1 18:31:59|IC End
+400|1 287 1 18:31:59|IC Start
+200|1 2 18:31:59|TP Start
+520|1 2 22454 1 1|Assertion #287 (A): reserved words used as the first word after a reserved word other than case, for, or in
+220|1 2 5 18:31:59|UNTESTED
+410|1 287 1 18:31:59|IC End
+400|1 288 1 18:31:59|IC Start
+200|1 3 18:31:59|TP Start
+520|1 3 22454 1 1|Assertion #288 (A): reserved word used as the third word of a case or for command and is not quoted
+220|1 3 0 18:31:59|PASS
+410|1 288 1 18:31:59|IC End
+400|1 289 1 18:31:59|IC Start
+200|1 4 18:31:59|TP Start
+520|1 4 22454 1 1|Assertion #289 (A): quoted reserved word is not recognized as a reserved word
+220|1 4 0 18:31:59|PASS
+410|1 289 1 18:31:59|IC End
+400|1 290 1 18:31:59|IC Start
+200|1 5 18:31:59|TP Start
+520|1 5 22454 1 1|Assertion #290 (A): reserved word used other than as either the first word of a simple commands or the third word of a case or for command
+220|1 5 5 18:31:59|UNTESTED
+410|1 290 1 18:31:59|IC End
+400|1 291 1 18:31:59|IC Start
+200|1 6 18:31:59|TP Start
+520|1 6 22454 1 1|Assertion #291 (A): reserved words are only considered as reserved words when they are separate tokens on the input line
+220|1 6 5 18:31:59|UNTESTED
+410|1 291 1 18:31:59|IC End
+400|1 292 1 18:31:59|IC Start
+200|1 7 18:31:59|TP Start
+520|1 7 22454 1 1|Assertion #292 (A): reserved word in only has significance as the third word of a case or for command
+220|1 7 0 18:31:59|PASS
+410|1 292 1 18:31:59|IC End
+400|1 293 1 18:31:59|IC Start
+200|1 8 18:31:59|TP Start
+520|1 8 22454 1 1|Assertion #293 (B): assignment of a variable to a non-null and null value and the unset of variable
+220|1 8 0 18:31:59|PASS
+410|1 293 1 18:31:59|IC End
+400|1 294 1 18:31:59|IC Start
+200|1 9 18:31:59|TP Start
+520|1 9 22454 1 1|Assertion #294 (A): positional parameter set from an invoked shell or the special built-in set
+220|1 9 0 18:31:59|PASS
+410|1 294 1 18:31:59|IC End
+400|1 295 1 18:31:59|IC Start
+200|1 10 18:31:59|TP Start
+520|1 10 22454 1 1|Assertion #295 (A): positional parameter with more than one digit
+220|1 10 0 18:31:59|PASS
+410|1 295 1 18:31:59|IC End
+400|1 296 1 18:31:59|IC Start
+200|1 11 18:31:59|TP Start
+520|1 11 22454 1 1|Assertion #296 (A): special parameter '*' expansion with field splitting
+520|1 11 22454 2 1|$* with default IFS
+520|1 11 22454 2 2|$* with unset IFS
+520|1 11 22454 2 3|$* with empty IFS
+520|1 11 22454 2 4|Expected exit code = 10; Received 1
+520|1 11 22454 2 5|Standard output isn't the same as file 'sh5_296_2.eso'
+520|1 11 22454 2 6|diff of "out.stdout" and "sh5_296_2.eso":
+520|1 11 22454 2 7|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 11 22454 2 8|--- sh5_296_2.eso	Wed Jun 19 18:31:59 2019
+520|1 11 22454 2 9|***************
+520|1 11 22454 2 10|*** 1,2 ****
+520|1 11 22454 2 11|! <1t w  o3456789t	 e
+520|1 11 22454 2 12|       n>
+520|1 11 22454 2 13|--- 1,11 ----
+520|1 11 22454 2 14|! <1>
+520|1 11 22454 2 15|! <t w  o>
+520|1 11 22454 2 16|! <3>
+520|1 11 22454 2 17|! <4>
+520|1 11 22454 2 18|! <5>
+520|1 11 22454 2 19|! <6>
+520|1 11 22454 2 20|! <7>
+520|1 11 22454 2 21|! <8>
+520|1 11 22454 2 22|! <9>
+520|1 11 22454 2 23|! <t	 e
+520|1 11 22454 2 24|       n>
+520|1 11 22454 3 1|begin$*end with default IFS
+520|1 11 22454 3 2|begin$*end with unset IFS
+520|1 11 22454 3 3|begin$*end with empty IFS
+520|1 11 22454 3 4|Expected exit code = 10; Received 1
+520|1 11 22454 3 5|Standard output isn't the same as file 'sh5_296_4.eso'
+520|1 11 22454 3 6|diff of "out.stdout" and "sh5_296_4.eso":
+520|1 11 22454 3 7|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 11 22454 3 8|--- sh5_296_4.eso	Wed Jun 19 18:31:59 2019
+520|1 11 22454 3 9|***************
+520|1 11 22454 3 10|*** 1,2 ****
+520|1 11 22454 3 11|! <begin1t w  o3456789t	 e
+520|1 11 22454 3 12|       nend>
+520|1 11 22454 3 13|--- 1,11 ----
+520|1 11 22454 3 14|! <begin1>
+520|1 11 22454 3 15|! <t w  o>
+520|1 11 22454 3 16|! <3>
+520|1 11 22454 3 17|! <4>
+520|1 11 22454 3 18|! <5>
+520|1 11 22454 3 19|! <6>
+520|1 11 22454 3 20|! <7>
+520|1 11 22454 3 21|! <8>
+520|1 11 22454 3 22|! <9>
+520|1 11 22454 3 23|! <t	 e
+520|1 11 22454 3 24|       nend>
+520|1 11 22454 4 1|${unsetvar:-$*} with default IFS
+520|1 11 22454 4 2|${unsetvar:-$*} with unset IFS
+520|1 11 22454 4 3|${unsetvar:-$*} with empty IFS
+520|1 11 22454 4 4|Expected exit code = 10; Received 1
+520|1 11 22454 4 5|Standard output isn't the same as file 'sh5_296_2.eso'
+520|1 11 22454 4 6|diff of "out.stdout" and "sh5_296_2.eso":
+520|1 11 22454 4 7|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 11 22454 4 8|--- sh5_296_2.eso	Wed Jun 19 18:31:59 2019
+520|1 11 22454 4 9|***************
+520|1 11 22454 4 10|*** 1,2 ****
+520|1 11 22454 4 11|! <1t w  o3456789t	 e
+520|1 11 22454 4 12|       n>
+520|1 11 22454 4 13|--- 1,11 ----
+520|1 11 22454 4 14|! <1>
+520|1 11 22454 4 15|! <t w  o>
+520|1 11 22454 4 16|! <3>
+520|1 11 22454 4 17|! <4>
+520|1 11 22454 4 18|! <5>
+520|1 11 22454 4 19|! <6>
+520|1 11 22454 4 20|! <7>
+520|1 11 22454 4 21|! <8>
+520|1 11 22454 4 22|! <9>
+520|1 11 22454 4 23|! <t	 e
+520|1 11 22454 4 24|       n>
+520|1 11 22454 5 1|${setvar+$*} with default IFS
+520|1 11 22454 5 2|${setvar+$*} with unset IFS
+520|1 11 22454 5 3|${setvar+$*} with empty IFS
+520|1 11 22454 5 4|Expected exit code = 10; Received 1
+520|1 11 22454 5 5|Standard output isn't the same as file 'sh5_296_2.eso'
+520|1 11 22454 5 6|diff of "out.stdout" and "sh5_296_2.eso":
+520|1 11 22454 5 7|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 11 22454 5 8|--- sh5_296_2.eso	Wed Jun 19 18:31:59 2019
+520|1 11 22454 5 9|***************
+520|1 11 22454 5 10|*** 1,2 ****
+520|1 11 22454 5 11|! <1t w  o3456789t	 e
+520|1 11 22454 5 12|       n>
+520|1 11 22454 5 13|--- 1,11 ----
+520|1 11 22454 5 14|! <1>
+520|1 11 22454 5 15|! <t w  o>
+520|1 11 22454 5 16|! <3>
+520|1 11 22454 5 17|! <4>
+520|1 11 22454 5 18|! <5>
+520|1 11 22454 5 19|! <6>
+520|1 11 22454 5 20|! <7>
+520|1 11 22454 5 21|! <8>
+520|1 11 22454 5 22|! <9>
+520|1 11 22454 5 23|! <t	 e
+520|1 11 22454 5 24|       n>
+520|1 11 22454 6 1|empty fields with default IFS
+520|1 11 22454 6 2|empty fields with unset IFS
+520|1 11 22454 6 3|empty fields with empty IFS
+520|1 11 22454 6 4|Standard output isn't the same as file 'sh5_296_5.eso'
+520|1 11 22454 6 5|diff of "out.stdout" and "sh5_296_5.eso":
+520|1 11 22454 6 6|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 11 22454 6 7|--- sh5_296_5.eso	Wed Jun 19 18:31:59 2019
+520|1 11 22454 6 8|***************
+520|1 11 22454 6 9|*** 1 ****
+520|1 11 22454 6 10|! <abc>
+520|1 11 22454 6 11|--- 1,3 ----
+520|1 11 22454 6 12|! <a>
+520|1 11 22454 6 13|! <b>
+520|1 11 22454 6 14|! <c>
+220|1 11 1 18:31:59|FAIL
+410|1 296 1 18:31:59|IC End
+400|1 297 1 18:31:59|IC Start
+200|1 12 18:31:59|TP Start
+520|1 12 22454 1 1|Assertion #297 (A): special parameter '*' expansion without field splitting
+520|1 12 22454 2 1|"$*" with IFS=": "
+520|1 12 22454 2 2|"$*" with unset IFS
+520|1 12 22454 3 1|"$*" with empty IFS
+520|1 12 22454 4 1|var=$* with IFS=": "
+520|1 12 22454 4 2|var=$* with unset IFS
+520|1 12 22454 4 3|var=$* with empty IFS
+520|1 12 22454 5 1|case $* in with IFS=": "
+520|1 12 22454 5 2|case $* in with unset IFS
+520|1 12 22454 5 3|case $* in with empty IFS
+520|1 12 22454 6 1|${unsetvar:-"$*"} with IFS=":"
+520|1 12 22454 6 2|${unsetvar:-"$*"} with unset IFS
+520|1 12 22454 6 3|${unsetvar:-"$*"} with empty IFS
+520|1 12 22454 7 1|"${setvar+$*}" with IFS=": "
+520|1 12 22454 7 2|"${setvar+$*}" with unset IFS
+520|1 12 22454 7 3|"${setvar+$*}" with empty IFS
+520|1 12 22454 8 1|${var=$*} with IFS=": "
+520|1 12 22454 8 2|${var=$*} with unset IFS
+520|1 12 22454 8 3|${var=$*} with empty IFS
+220|1 12 0 18:31:59|PASS
+410|1 297 1 18:31:59|IC End
+400|1 298 1 18:31:59|IC Start
+200|1 13 18:31:59|TP Start
+520|1 13 22454 1 1|Assertion #298 (A): special parameter '@' expansion with field splitting
+520|1 13 22454 2 1|$@ with default IFS
+520|1 13 22454 2 2|$@ with unset IFS
+520|1 13 22454 2 3|$@ with empty IFS
+520|1 13 22454 2 4|Expected exit code = 10; Received 1
+520|1 13 22454 2 5|Standard output isn't the same as file 'sh5_298_2.eso'
+520|1 13 22454 2 6|diff of "out.stdout" and "sh5_298_2.eso":
+520|1 13 22454 2 7|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 13 22454 2 8|--- sh5_298_2.eso	Wed Jun 19 18:31:59 2019
+520|1 13 22454 2 9|***************
+520|1 13 22454 2 10|*** 1,2 ****
+520|1 13 22454 2 11|! <1t w  o3456789t	 e
+520|1 13 22454 2 12|       n>
+520|1 13 22454 2 13|--- 1,11 ----
+520|1 13 22454 2 14|! <1>
+520|1 13 22454 2 15|! <t w  o>
+520|1 13 22454 2 16|! <3>
+520|1 13 22454 2 17|! <4>
+520|1 13 22454 2 18|! <5>
+520|1 13 22454 2 19|! <6>
+520|1 13 22454 2 20|! <7>
+520|1 13 22454 2 21|! <8>
+520|1 13 22454 2 22|! <9>
+520|1 13 22454 2 23|! <t	 e
+520|1 13 22454 2 24|       n>
+520|1 13 22454 3 1|begin$@end with default IFS
+520|1 13 22454 3 2|begin$@end with unset IFS
+520|1 13 22454 3 3|begin$@end with empty IFS
+520|1 13 22454 3 4|Expected exit code = 10; Received 1
+520|1 13 22454 3 5|Standard output isn't the same as file 'sh5_298_4.eso'
+520|1 13 22454 3 6|diff of "out.stdout" and "sh5_298_4.eso":
+520|1 13 22454 3 7|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 13 22454 3 8|--- sh5_298_4.eso	Wed Jun 19 18:31:59 2019
+520|1 13 22454 3 9|***************
+520|1 13 22454 3 10|*** 1,2 ****
+520|1 13 22454 3 11|! <begin1t w  o3456789t	 e
+520|1 13 22454 3 12|       nend>
+520|1 13 22454 3 13|--- 1,11 ----
+520|1 13 22454 3 14|! <begin1>
+520|1 13 22454 3 15|! <t w  o>
+520|1 13 22454 3 16|! <3>
+520|1 13 22454 3 17|! <4>
+520|1 13 22454 3 18|! <5>
+520|1 13 22454 3 19|! <6>
+520|1 13 22454 3 20|! <7>
+520|1 13 22454 3 21|! <8>
+520|1 13 22454 3 22|! <9>
+520|1 13 22454 3 23|! <t	 e
+520|1 13 22454 3 24|       nend>
+520|1 13 22454 4 1|${unsetvar:-$@} with default IFS
+520|1 13 22454 4 2|${unsetvar:-$@} with unset IFS
+520|1 13 22454 4 3|${unsetvar:-$@} with empty IFS
+520|1 13 22454 4 4|Expected exit code = 10; Received 1
+520|1 13 22454 4 5|Standard output isn't the same as file 'sh5_298_2.eso'
+520|1 13 22454 4 6|diff of "out.stdout" and "sh5_298_2.eso":
+520|1 13 22454 4 7|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 13 22454 4 8|--- sh5_298_2.eso	Wed Jun 19 18:31:59 2019
+520|1 13 22454 4 9|***************
+520|1 13 22454 4 10|*** 1,2 ****
+520|1 13 22454 4 11|! <1t w  o3456789t	 e
+520|1 13 22454 4 12|       n>
+520|1 13 22454 4 13|--- 1,11 ----
+520|1 13 22454 4 14|! <1>
+520|1 13 22454 4 15|! <t w  o>
+520|1 13 22454 4 16|! <3>
+520|1 13 22454 4 17|! <4>
+520|1 13 22454 4 18|! <5>
+520|1 13 22454 4 19|! <6>
+520|1 13 22454 4 20|! <7>
+520|1 13 22454 4 21|! <8>
+520|1 13 22454 4 22|! <9>
+520|1 13 22454 4 23|! <t	 e
+520|1 13 22454 4 24|       n>
+520|1 13 22454 5 1|${setvar+$@} with default IFS
+520|1 13 22454 5 2|${setvar+$@} with unset IFS
+520|1 13 22454 5 3|${setvar+$@} with empty IFS
+520|1 13 22454 5 4|Expected exit code = 10; Received 1
+520|1 13 22454 5 5|Standard output isn't the same as file 'sh5_298_2.eso'
+520|1 13 22454 5 6|diff of "out.stdout" and "sh5_298_2.eso":
+520|1 13 22454 5 7|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 13 22454 5 8|--- sh5_298_2.eso	Wed Jun 19 18:31:59 2019
+520|1 13 22454 5 9|***************
+520|1 13 22454 5 10|*** 1,2 ****
+520|1 13 22454 5 11|! <1t w  o3456789t	 e
+520|1 13 22454 5 12|       n>
+520|1 13 22454 5 13|--- 1,11 ----
+520|1 13 22454 5 14|! <1>
+520|1 13 22454 5 15|! <t w  o>
+520|1 13 22454 5 16|! <3>
+520|1 13 22454 5 17|! <4>
+520|1 13 22454 5 18|! <5>
+520|1 13 22454 5 19|! <6>
+520|1 13 22454 5 20|! <7>
+520|1 13 22454 5 21|! <8>
+520|1 13 22454 5 22|! <9>
+520|1 13 22454 5 23|! <t	 e
+520|1 13 22454 5 24|       n>
+520|1 13 22454 6 1|empty fields with default IFS
+520|1 13 22454 6 2|empty fields with unset IFS
+520|1 13 22454 6 3|empty fields with empty IFS
+520|1 13 22454 6 4|Standard output isn't the same as file 'sh5_298_5.eso'
+520|1 13 22454 6 5|diff of "out.stdout" and "sh5_298_5.eso":
+520|1 13 22454 6 6|*** out.stdout	Wed Jun 19 18:31:59 2019
+520|1 13 22454 6 7|--- sh5_298_5.eso	Wed Jun 19 18:31:59 2019
+520|1 13 22454 6 8|***************
+520|1 13 22454 6 9|*** 1 ****
+520|1 13 22454 6 10|! <abc>
+520|1 13 22454 6 11|--- 1,3 ----
+520|1 13 22454 6 12|! <a>
+520|1 13 22454 6 13|! <b>
+520|1 13 22454 6 14|! <c>
+220|1 13 1 18:31:59|FAIL
+410|1 298 1 18:31:59|IC End
+400|1 299 1 18:31:59|IC Start
+200|1 14 18:31:59|TP Start
+520|1 14 22454 1 1|Assertion #299 (A): special parameter '@' expansion within double quotes
+220|1 14 0 18:31:59|PASS
+410|1 299 1 18:31:59|IC End
+400|1 300 1 18:31:59|IC Start
+200|1 15 18:31:59|TP Start
+520|1 15 22454 1 1|Assertion #300 (A): special parameter @ within double quotes when no positional parameters are defined
+220|1 15 0 18:31:59|PASS
+410|1 300 1 18:31:59|IC End
+400|1 301 1 18:31:59|IC Start
+200|1 16 18:31:59|TP Start
+520|1 16 22454 1 1|Assertion #301 (A): special parameter # expands to decimal number of positiontal parameters
+220|1 16 0 18:31:59|PASS
+410|1 301 1 18:31:59|IC End
+400|1 302 1 18:31:59|IC Start
+200|1 17 18:31:59|TP Start
+520|1 17 22454 1 1|Assertion #302 (A): positional parameter '0' expands to exit status of last pipeline command
+220|1 17 0 18:31:59|PASS
+410|1 302 1 18:31:59|IC End
+400|1 303 1 18:31:59|IC Start
+200|1 18 18:31:59|TP Start
+520|1 18 22454 1 1|Assertion #303 (A): special variable - expands to the current option flags
+220|1 18 0 18:31:59|PASS
+410|1 303 1 18:31:59|IC End
+400|1 304 1 18:31:59|IC Start
+200|1 19 18:31:59|TP Start
+520|1 19 22454 1 1|Assertion #304 (A): special parameter $ returns process id of calling process
+220|1 19 0 18:31:59|PASS
+410|1 304 1 18:31:59|IC End
+400|1 305 1 18:31:59|IC Start
+200|1 20 18:31:59|TP Start
+520|1 20 22454 1 1|Assertion #305 (A): When invoked within a subshell, special parameter $ returns process id of calling process
+220|1 20 0 18:31:59|PASS
+410|1 305 1 18:31:59|IC End
+400|1 306 1 18:31:59|IC Start
+200|1 21 18:31:59|TP Start
+520|1 21 22454 1 1|Assertion #306 (A): special parameter ! returns process ID of background process
+220|1 21 0 18:32:01|PASS
+410|1 306 1 18:32:01|IC End
+400|1 307 1 18:32:01|IC Start
+200|1 22 18:32:01|TP Start
+520|1 22 22454 1 1|Assertion #307 (A): special parameter ! returns process ID of background process
+220|1 22 0 18:32:03|PASS
+410|1 307 1 18:32:03|IC End
+400|1 308 1 18:32:03|IC Start
+200|1 23 18:32:03|TP Start
+520|1 23 22454 1 1|Assertion #308 (A): special parameter 0 expands to the name of the calling shell or shell script
+220|1 23 0 18:32:03|PASS
+410|1 308 1 18:32:03|IC End
+400|1 309 1 18:32:03|IC Start
+200|1 24 18:32:03|TP Start
+520|1 24 22454 1 1|Assertion #309 (A): environment of calling process passed to shell or shell script
+220|1 24 0 18:32:03|PASS
+410|1 309 1 18:32:03|IC End
+400|1 310 1 18:32:03|IC Start
+200|1 25 18:32:03|TP Start
+520|1 25 22454 1 1|Assertion #310 (A): When a variable is inititalized from the environment, then the shell marks this variable for export
+220|1 25 0 18:32:03|PASS
+410|1 310 1 18:32:03|IC End
+400|1 311 1 18:32:03|IC Start
+200|1 26 18:32:04|TP Start
+520|1 26 22454 1 1|Assertion #311 (A): IFS set to a non-null value other than space, tab, and newline, each character delimits a word
+220|1 26 0 18:32:04|PASS
+410|1 311 1 18:32:04|IC End
+400|1 312 1 18:32:04|IC Start
+200|1 27 18:32:04|TP Start
+520|1 27 22454 1 1|Assertion #312 (B): LC_CTYPE is changed after the shell has started
+520|1 27 22454 2 1|Not portably testable
+220|1 27 5 18:32:04|UNTESTED
+410|1 312 1 18:32:04|IC End
+400|1 313 1 18:32:04|IC Start
+200|1 28 18:32:04|TP Start
+520|1 28 22454 1 1|Assertion #313 (A): tilde expansion, parameter expansion, command expansion, arithmetic expansion or quote removal occur within a single word, then the result of the expansion is a single word
+220|1 28 0 18:32:04|PASS
+410|1 313 1 18:32:04|IC End
+400|1 314 1 18:32:04|IC Start
+200|1 29 18:32:04|TP Start
+520|1 29 22454 1 1|Assertion #314 (A): word expansion precedence
+220|1 29 5 18:32:04|UNTESTED
+410|1 314 1 18:32:04|IC End
+400|1 315 1 18:32:04|IC Start
+200|1 30 18:32:04|TP Start
+520|1 30 22454 1 1|Assertion #315 (A): Word expansion occurs in the same shell environment as that in which the command is executed.
+220|1 30 5 18:32:04|UNTESTED
+410|1 315 1 18:32:04|IC End
+400|1 316 1 18:32:04|IC Start
+200|1 31 18:32:04|TP Start
+520|1 31 22454 1 1|Assertion #316 (A): expansion of word results in one or more empty fields, then these empty fields are removed
+220|1 31 5 18:32:04|UNTESTED
+410|1 316 1 18:32:04|IC End
+400|1 317 1 18:32:04|IC Start
+200|1 32 18:32:04|TP Start
+520|1 32 22454 1 1|Assertion #317 (A): tilde expansion with slash
+220|1 32 0 18:32:04|PASS
+410|1 317 1 18:32:04|IC End
+400|1 318 1 18:32:04|IC Start
+200|1 33 18:32:04|TP Start
+520|1 33 22454 1 1|Assertion #318 (A): tilde expansion without slash
+220|1 33 0 18:32:04|PASS
+410|1 318 1 18:32:04|IC End
+400|1 319 1 18:32:04|IC Start
+200|1 34 18:32:04|TP Start
+520|1 34 22454 1 1|Assertion #319 (A): tilde expansion with unquoted equal sign and slash
+220|1 34 0 18:32:04|PASS
+410|1 319 1 18:32:04|IC End
+400|1 320 1 18:32:04|IC Start
+200|1 35 18:32:04|TP Start
+520|1 35 22454 1 1|Assertion #320 (A): tilde expansion with unquoted equal sign and no slash
+220|1 35 0 18:32:04|PASS
+410|1 320 1 18:32:04|IC End
+400|1 321 1 18:32:04|IC Start
+200|1 36 18:32:04|TP Start
+520|1 36 22454 1 1|Assertion #321 (A): tilde expansion with unquoted colon, :, and slash
+220|1 36 0 18:32:04|PASS
+410|1 321 1 18:32:04|IC End
+400|1 322 1 18:32:04|IC Start
+200|1 37 18:32:04|TP Start
+520|1 37 22454 1 1|Assertion #322 (A): tilde expansion with unquoted colon, :, and no slash
+220|1 37 0 18:32:04|PASS
+410|1 322 1 18:32:04|IC End
+400|1 323 1 18:32:04|IC Start
+200|1 38 18:32:04|TP Start
+520|1 38 22454 1 1|Assertion #323 (A): tilde expansion with login name null and the HOME variable is set
+220|1 38 0 18:32:04|PASS
+410|1 323 1 18:32:04|IC End
+400|1 324 1 18:32:04|IC Start
+200|1 39 18:32:04|TP Start
+520|1 39 22454 1 1|Assertion #324 (A): Parameter expansion delimiting
+220|1 39 0 18:32:04|PASS
+410|1 324 1 18:32:04|IC End
+400|1 325 1 18:32:04|IC Start
+200|1 40 18:32:04|TP Start
+520|1 40 22454 1 1|Assertion #325 (A): The value of the named parameter is substituted for the expression 
+220|1 40 0 18:32:04|PASS
+410|1 325 1 18:32:04|IC End
+400|1 326 1 18:32:04|IC Start
+200|1 41 18:32:04|TP Start
+520|1 41 22454 1 1|Assertion #326 (A): numeric positional parameters
+220|1 41 0 18:32:04|PASS
+410|1 326 1 18:32:04|IC End
+400|1 327 1 18:32:04|IC Start
+200|1 42 18:32:04|TP Start
+520|1 42 22454 1 1|Assertion #327 (A): parameter expansion with longest variable name
+220|1 42 0 18:32:04|PASS
+410|1 327 1 18:32:04|IC End
+400|1 328 1 18:32:04|IC Start
+200|1 43 18:32:04|TP Start
+520|1 43 22454 1 1|Assertion #328 (A): parameter expansion within double quotes excludes field splitting and pathname expansion
+220|1 43 0 18:32:04|PASS
+410|1 328 1 18:32:04|IC End
+400|1 329 1 18:32:04|IC Start
+200|1 44 18:32:04|TP Start
+520|1 44 22454 1 1|Assertion #329 (A): Parameter expansion delimits by closing brace skipping quoted strings and command subsitutions
+220|1 44 0 18:32:04|PASS
+410|1 329 1 18:32:04|IC End
+400|1 330 1 18:32:04|IC Start
+200|1 45 18:32:04|TP Start
+520|1 45 22454 1 1|Assertion #330 (A): Parameter expansion for default values using :- with an unset and null variable
+220|1 45 0 18:32:04|PASS
+410|1 330 1 18:32:04|IC End
+400|1 331 1 18:32:04|IC Start
+200|1 46 18:32:04|TP Start
+520|1 46 22454 1 1|Assertion #331 (A): Parameter expansion form for default values using :- with an non-null variable
+220|1 46 0 18:32:04|PASS
+410|1 331 1 18:32:04|IC End
+400|1 332 1 18:32:04|IC Start
+200|1 47 18:32:04|TP Start
+520|1 47 22454 1 1|Assertion #332 (A): Parameter expansion form for the assignment default value using := with an unset and null variable
+220|1 47 0 18:32:04|PASS
+410|1 332 1 18:32:04|IC End
+400|1 333 1 18:32:04|IC Start
+200|1 48 18:32:04|TP Start
+520|1 48 22454 1 1|Assertion #333 (A): Parameter expansion form for the assignment of a value using := with an non-null parameter
+220|1 48 0 18:32:04|PASS
+410|1 333 1 18:32:04|IC End
+400|1 334 1 18:32:04|IC Start
+200|1 49 18:32:04|TP Start
+520|1 49 22454 1 1|Assertion #334 (A): Parameter expansion form for indicate error using :? with an unset and null variable
+220|1 49 0 18:32:04|PASS
+410|1 334 1 18:32:04|IC End
+400|1 335 1 18:32:04|IC Start
+200|1 50 18:32:04|TP Start
+520|1 50 22454 1 1|Assertion #335 (A): Parameter expansion form to indicate error using :?  with no word present with an unset or null variable
+220|1 50 0 18:32:04|PASS
+410|1 335 1 18:32:04|IC End
+400|1 336 1 18:32:04|IC Start
+200|1 51 18:32:04|TP Start
+520|1 51 22454 1 1|Assertion #336 (A): parameter expansion form for error indication using :? with a non-null parameter
+220|1 51 0 18:32:04|PASS
+410|1 336 1 18:32:04|IC End
+400|1 337 1 18:32:04|IC Start
+200|1 52 18:32:04|TP Start
+520|1 52 22454 1 1|Assertion #337 (A): Parameter expansion form for an alternate value using :+ with a set variable
+220|1 52 0 18:32:04|PASS
+410|1 337 1 18:32:04|IC End
+400|1 338 1 18:32:04|IC Start
+200|1 53 18:32:04|TP Start
+520|1 53 22454 1 1|Assertion #338 (A): Parameter expansion form for alternate value using :+  with an unset and null parameter
+220|1 53 0 18:32:04|PASS
+410|1 338 1 18:32:04|IC End
+400|1 339 1 18:32:04|IC Start
+200|1 54 18:32:04|TP Start
+520|1 54 22454 1 1|Assertion #339 (A): Parameter expansion form for default values using - with no colon with an unset variable
+220|1 54 0 18:32:04|PASS
+410|1 339 1 18:32:04|IC End
+400|1 340 1 18:32:04|IC Start
+200|1 55 18:32:04|TP Start
+520|1 55 22454 1 1|Assertion #340 (A): Parameter expansion form for default values using - without a colon with an non-null and null variable
+220|1 55 0 18:32:04|PASS
+410|1 340 1 18:32:04|IC End
+400|1 341 1 18:32:04|IC Start
+200|1 56 18:32:04|TP Start
+520|1 56 22454 1 1|Assertion #341 (A): Parameter expansion for for the assignment of a value using = without a colon with an unset variable
+220|1 56 0 18:32:04|PASS
+410|1 341 1 18:32:04|IC End
+400|1 342 1 18:32:04|IC Start
+200|1 57 18:32:04|TP Start
+520|1 57 22454 1 1|Assertion #342 (A): Parameter expansion form for assignment of a value using = without a colon with an non-null parameter
+220|1 57 0 18:32:04|PASS
+410|1 342 1 18:32:04|IC End
+400|1 343 1 18:32:04|IC Start
+200|1 58 18:32:04|TP Start
+520|1 58 22454 1 1|Assertion #343 (A): Parameter expansion form for indicate error using ? without a colon with an unset variable
+220|1 58 0 18:32:04|PASS
+410|1 343 1 18:32:04|IC End
+400|1 344 1 18:32:04|IC Start
+200|1 59 18:32:04|TP Start
+520|1 59 22454 1 1|Assertion #344 (A): Parameter expansion form to indicate error using ? with a colon with no word present with an unset variable
+220|1 59 0 18:32:04|PASS
+410|1 344 1 18:32:04|IC End
+400|1 345 1 18:32:04|IC Start
+200|1 60 18:32:04|TP Start
+520|1 60 22454 1 1|Assertion #345 (A): Parameter expansion form for error indication using :? with an non-null and null parameter
+220|1 60 0 18:32:04|PASS
+410|1 345 1 18:32:04|IC End
+400|1 346 1 18:32:04|IC Start
+200|1 61 18:32:04|TP Start
+520|1 61 22454 1 1|Assertion #346 (A): Parameter expansion for for an alternate value using + without a colon and with a null and non-null variable
+220|1 61 0 18:32:04|PASS
+410|1 346 1 18:32:04|IC End
+400|1 347 1 18:32:04|IC Start
+200|1 62 18:32:04|TP Start
+520|1 62 22454 1 1|Assertion #347 (A): Parameter expansion form for alternate value using a + without a colon with an unset variable
+220|1 62 0 18:32:04|PASS
+410|1 347 1 18:32:04|IC End
+400|1 348 1 18:32:04|IC Start
+200|1 63 18:32:04|TP Start
+520|1 63 22454 1 1|Assertion #348 (A): parameter length expression expansion
+220|1 63 0 18:32:04|PASS
+410|1 348 1 18:32:04|IC End
+400|1 349 1 18:32:04|IC Start
+200|1 64 18:32:04|TP Start
+520|1 64 22454 1 1|Assertion #349 (A): standard output minus the trailing newlines of expression in command substitution using parentheses is substituted for expression
+220|1 64 0 18:32:04|PASS
+410|1 349 1 18:32:04|IC End
+400|1 350 1 18:32:04|IC Start
+200|1 65 18:32:04|TP Start
+520|1 65 22454 1 1|Assertion #350 (A): standard output minus the trailing newlines of expression in command substitution using backquotes is substituted for expression
+220|1 65 0 18:32:04|PASS
+410|1 350 1 18:32:04|IC End
+400|1 351 1 18:32:04|IC Start
+200|1 66 18:32:04|TP Start
+520|1 66 22454 1 1|Assertion #351 (A): command substitution with backslash of \, $, and backquote
+520|1 66 22454 2 1|TEST: '$'
+520|1 66 22454 2 2|TEST: '`'
+520|1 66 22454 2 3|TEST: '\'
+520|1 66 22454 2 4|TEST: 'a'
+520|1 66 22454 2 5|TEST: 'b'
+520|1 66 22454 2 6|TEST: 'c'
+520|1 66 22454 2 7|TEST: 'd'
+520|1 66 22454 2 8|TEST: 'e'
+520|1 66 22454 2 9|TEST: 'f'
+520|1 66 22454 2 10|TEST: 'g'
+520|1 66 22454 2 11|TEST: 'h'
+520|1 66 22454 2 12|TEST: 'i'
+520|1 66 22454 2 13|TEST: 'j'
+520|1 66 22454 2 14|TEST: 'k'
+520|1 66 22454 2 15|TEST: 'l'
+520|1 66 22454 2 16|TEST: 'm'
+520|1 66 22454 2 17|TEST: 'n'
+520|1 66 22454 2 18|TEST: 'o'
+520|1 66 22454 2 19|TEST: 'p'
+520|1 66 22454 2 20|TEST: 'q'
+520|1 66 22454 2 21|TEST: 'r'
+520|1 66 22454 2 22|TEST: 's'
+520|1 66 22454 2 23|TEST: 't'
+520|1 66 22454 2 24|TEST: 'u'
+520|1 66 22454 2 25|TEST: 'v'
+520|1 66 22454 2 26|TEST: 'w'
+520|1 66 22454 2 27|TEST: 'x'
+520|1 66 22454 2 28|TEST: 'y'
+520|1 66 22454 2 29|TEST: 'z'
+520|1 66 22454 2 30|TEST: 'A'
+520|1 66 22454 2 31|TEST: 'B'
+520|1 66 22454 2 32|TEST: 'C'
+520|1 66 22454 2 33|TEST: 'D'
+520|1 66 22454 2 34|TEST: 'E'
+520|1 66 22454 2 35|TEST: 'F'
+520|1 66 22454 2 36|TEST: 'G'
+520|1 66 22454 2 37|TEST: 'H'
+520|1 66 22454 2 38|TEST: 'I'
+520|1 66 22454 2 39|TEST: 'J'
+520|1 66 22454 2 40|TEST: 'K'
+520|1 66 22454 2 41|TEST: 'L'
+520|1 66 22454 2 42|TEST: 'M'
+520|1 66 22454 2 43|TEST: 'N'
+520|1 66 22454 2 44|TEST: 'O'
+520|1 66 22454 2 45|TEST: 'P'
+520|1 66 22454 2 46|TEST: 'Q'
+520|1 66 22454 2 47|TEST: 'R'
+520|1 66 22454 2 48|TEST: 'S'
+520|1 66 22454 2 49|TEST: 'T'
+520|1 66 22454 2 50|TEST: 'U'
+520|1 66 22454 2 51|TEST: 'V'
+520|1 66 22454 2 52|TEST: 'W'
+520|1 66 22454 2 53|TEST: 'X'
+520|1 66 22454 2 54|TEST: 'Y'
+520|1 66 22454 2 55|TEST: 'Z'
+520|1 66 22454 2 56|TEST: '0'
+520|1 66 22454 2 57|TEST: '1'
+520|1 66 22454 2 58|TEST: '2'
+520|1 66 22454 2 59|TEST: '3'
+520|1 66 22454 2 60|TEST: '4'
+520|1 66 22454 2 61|TEST: '5'
+520|1 66 22454 2 62|TEST: '6'
+520|1 66 22454 2 63|TEST: '7'
+520|1 66 22454 2 64|TEST: '8'
+520|1 66 22454 2 65|TEST: '9'
+520|1 66 22454 2 66|TEST: '!'
+520|1 66 22454 2 67|TEST: '"'
+520|1 66 22454 2 68|TEST: '#'
+520|1 66 22454 2 69|TEST: '%'
+520|1 66 22454 2 70|TEST: '&'
+520|1 66 22454 2 71|TEST: '''
+520|1 66 22454 2 72|TEST: '('
+520|1 66 22454 2 73|TEST: ')'
+520|1 66 22454 2 74|TEST: '*'
+520|1 66 22454 2 75|TEST: '+'
+520|1 66 22454 2 76|TEST: ','
+520|1 66 22454 2 77|TEST: '-'
+520|1 66 22454 2 78|TEST: '.'
+520|1 66 22454 2 79|TEST: '/'
+520|1 66 22454 2 80|TEST: ':'
+520|1 66 22454 2 81|TEST: ';'
+520|1 66 22454 2 82|TEST: '<'
+520|1 66 22454 2 83|TEST: '='
+520|1 66 22454 2 84|TEST: '>'
+520|1 66 22454 2 85|TEST: '?'
+520|1 66 22454 2 86|TEST: '@'
+520|1 66 22454 2 87|TEST: '['
+520|1 66 22454 2 88|TEST: ']'
+520|1 66 22454 2 89|TEST: '^'
+520|1 66 22454 2 90|TEST: '_'
+520|1 66 22454 2 91|TEST: '{'
+520|1 66 22454 2 92|TEST: '|'
+520|1 66 22454 2 93|TEST: '}'
+520|1 66 22454 2 94|TEST: '~'
+520|1 66 22454 2 95|TEST: ' '
+220|1 66 0 18:32:05|PASS
+410|1 351 1 18:32:05|IC End
+400|1 352 1 18:32:05|IC Start
+200|1 67 18:32:05|TP Start
+520|1 67 22454 1 1|Assertion #352 (A): All characters within the parentheses of the command substitution expression constitute the command
+520|1 67 22454 2 1|Standard output isn't the same as file 'sh_352.eso'
+520|1 67 22454 2 2|diff of "out.stdout" and "sh_352.eso":
+520|1 67 22454 2 3|*** out.stdout	Wed Jun 19 18:32:05 2019
+520|1 67 22454 2 4|--- sh_352.eso	Wed Jun 19 18:32:05 2019
+520|1 67 22454 2 5|***************
+520|1 67 22454 2 6|*** 21,27 ****
+520|1 67 22454 2 7|  sh_352.19
+520|1 67 22454 2 8|  sh_352.20 2
+520|1 67 22454 2 9|  sh_352.21 bcd abc
+520|1 67 22454 2 10|! sh_352.22 0
+520|1 67 22454 2 11|  sh_352.23
+520|1 67 22454 2 12|  sh_352.26
+520|1 67 22454 2 13|  sh_352.27 ) ) )
+520|1 67 22454 2 14|--- 21,27 ----
+520|1 67 22454 2 15|  sh_352.19
+520|1 67 22454 2 16|  sh_352.20 2
+520|1 67 22454 2 17|  sh_352.21 bcd abc
+520|1 67 22454 2 18|! sh_352.22 99
+520|1 67 22454 2 19|  sh_352.23
+520|1 67 22454 2 20|  sh_352.26
+520|1 67 22454 2 21|  sh_352.27 ) ) )
+220|1 67 1 18:32:05|FAIL
+410|1 352 1 18:32:05|IC End
+400|1 353 1 18:32:05|IC Start
+200|1 68 18:32:05|TP Start
+520|1 68 22454 1 1|Assertion #353 (A): Command substitution nesting
+220|1 68 0 18:32:05|PASS
+410|1 353 1 18:32:05|IC End
+400|1 354 1 18:32:05|IC Start
+200|1 69 18:32:05|TP Start
+520|1 69 22454 1 1|Assertion #354 (A): resultant expression from command substitution does not perform tilde expansion, parameter expansion, command substitution, or arithmetic expansion
+220|1 69 0 18:32:05|PASS
+410|1 354 1 18:32:05|IC End
+400|1 355 1 18:32:05|IC Start
+200|1 70 18:32:05|TP Start
+520|1 70 22454 1 1|Assertion #355 (A): no field splitting or pathname expansion occurs when command substitution occurs within double-quotes
+220|1 70 0 18:32:05|PASS
+410|1 355 1 18:32:05|IC End
+400|1 356 1 18:32:05|IC Start
+200|1 71 18:32:05|TP Start
+520|1 71 22454 1 1|Assertion #356 (A): arithmetic expression with parameter expansion, command subtitution and quote removal
+220|1 71 0 18:32:05|PASS
+410|1 356 1 18:32:05|IC End
+400|1 357 1 18:32:05|IC Start
+200|1 72 18:32:05|TP Start
+520|1 72 22454 1 1|Assertion #357 (A): arthimetic expansion according to the rules for Arithmetic Precision and Operations
+520|1 72 22454 2 1|Command failed: '([ $((b)) -eq 8 ])'
+520|1 72 22454 2 2|Command failed: '([ $((c)) -eq 16 ])'
+520|1 72 22454 2 3|Command failed: '([ $((b)) -eq -16 ])'
+520|1 72 22454 2 4|Command failed: '([ $((c)) -eq -32 ])'
+520|1 72 22454 2 5|Command failed: '([ $((b)) -eq 73 ])'
+520|1 72 22454 2 6|Command failed: '([ $((c)) -eq 273 ])'
+220|1 72 1 18:32:05|FAIL
+410|1 357 1 18:32:05|IC End
+400|1 358 1 18:32:05|IC Start
+200|1 73 18:32:05|TP Start
+520|1 73 22454 1 1|Assertion #358 (A): invalid expression results in standard error output
+220|1 73 0 18:32:05|PASS
+410|1 358 1 18:32:05|IC End
+400|1 359 1 18:32:05|IC Start
+200|1 74 18:32:05|TP Start
+520|1 74 22454 1 1|Assertion #359 (A): field splitting with parameter expansion, command substitution, and arithmetic expansion, enclosed within double quotes and without
+220|1 74 0 18:32:05|PASS
+410|1 359 1 18:32:05|IC End
+400|1 360 1 18:32:05|IC Start
+200|1 75 18:32:05|TP Start
+520|1 75 22454 1 1|Assertion #360 (A): IFS set to space, tab, and newline, test delimiting and ignore of beginning and trailing sequences
+220|1 75 0 18:32:05|PASS
+410|1 360 1 18:32:05|IC End
+400|1 361 1 18:32:05|IC Start
+200|1 76 18:32:05|TP Start
+520|1 76 22454 1 1|Assertion #361 (A): IFS unset, test delimiting and ignore of beginning and trailing sequences
+220|1 76 0 18:32:05|PASS
+410|1 361 1 18:32:05|IC End
+400|1 362 1 18:32:05|IC Start
+200|1 77 18:32:05|TP Start
+520|1 77 22454 1 1|Assertion #362 (A): IFS null, no field spiltting occur
+220|1 77 0 18:32:05|PASS
+410|1 362 1 18:32:05|IC End
+400|1 363 1 18:32:05|IC Start
+200|1 78 18:32:05|TP Start
+520|1 78 22454 1 1|Assertion #363 (A): IFS set to space, tab, and colon, beginning and trailing sequence of IFS characters are ignored
+220|1 78 0 18:32:05|PASS
+410|1 363 1 18:32:05|IC End
+400|1 364 1 18:32:05|IC Start
+200|1 79 18:32:05|TP Start
+520|1 79 22454 1 1|Assertion #364 (A): IFS set to white space characters and a non white space character, test with zero or more IFS white space characters and  one or more of the other IFS characters delimit a field
+220|1 79 0 18:32:05|PASS
+410|1 364 1 18:32:05|IC End
+400|1 365 1 18:32:05|IC Start
+200|1 80 18:32:05|TP Start
+520|1 80 22454 1 1|Assertion #365 (A): IFS set to white space and non-white space characters, one or more IFS white space characters without an occurrence of one of the other IFS characters delimit a field
+220|1 80 0 18:32:05|PASS
+410|1 365 1 18:32:05|IC End
+400|1 366 1 18:32:05|IC Start
+200|1 81 18:32:05|TP Start
+520|1 81 22454 1 1|Assertion #366 (A): field splitting conforms to the algorithm used for filename expansion (see0 Patterns used for Filename Expansion POSIX.2 {9} 3.13.3
+220|1 81 5 18:32:05|UNTESTED
+410|1 366 1 18:32:05|IC End
+400|1 367 1 18:32:05|IC Start
+200|1 82 18:32:05|TP Start
+520|1 82 22454 1 1|Assertion #367 (A): turn off pathname expansion with set -f
+220|1 82 0 18:32:05|PASS
+410|1 367 1 18:32:05|IC End
+400|1 368 1 18:32:05|IC Start
+200|1 83 18:32:05|TP Start
+520|1 83 22454 1 1|Assertion #368 (A): quote removal of backslash of \, ', and double quote
+220|1 83 0 18:32:05|PASS
+410|1 368 1 18:32:05|IC End
+80|1 0 18:32:06|TC End, scenario ref 2-0
+10|2 /tset/POSIX.shell/shell/sh_06.ex 18:32:06|TC Start, scenario ref 3-0, ICs: {1-1000}
+15|2 3.8 46|TCM Start
+400|2 369 1 18:32:07|IC Start
+200|2 1 18:32:07|TP Start
+520|2 1 24218 1 1|Assertion #369 (A): When the file descriptor number is quoted, then it is not recognized
+220|2 1 0 18:32:07|PASS
+410|2 369 1 18:32:07|IC End
+400|2 370 1 18:32:07|IC Start
+200|2 2 18:32:07|TP Start
+520|2 2 24218 1 1|Assertion #370 (A): When the redirection operator is quoted, then it is not recognized
+220|2 2 0 18:32:07|PASS
+410|2 370 1 18:32:07|IC End
+400|2 371 1 18:32:07|IC Start
+200|2 3 18:32:07|TP Start
+520|2 3 24218 1 1|Assertion #371 (A): None of the elements '[n]', 'redir-op' and 'word' of a redirection 
+220|2 3 0 18:32:07|PASS
+410|2 371 1 18:32:07|IC End
+400|2 372 1 18:32:07|IC Start
+200|2 4 18:32:07|TP Start
+520|2 4 24218 1 1|Assertion #372 (A): The implementation supports the use of file descriptors 0 through 9
+220|2 4 0 18:32:07|PASS
+410|2 372 1 18:32:07|IC End
+400|2 373 1 18:32:07|IC Start
+200|2 5 18:32:07|TP Start
+520|2 5 24218 1 1|Assertion #373 (A): The redirection operator can be preceeded by one or more digits
+220|2 5 0 18:32:07|PASS
+410|2 373 1 18:32:07|IC End
+400|2 374 1 18:32:07|IC Start
+200|2 6 18:32:07|TP Start
+520|2 6 24218 1 1|Assertion #374 (A): When the redirection operator is << or <<-, then the word
+220|2 6 0 18:32:07|PASS
+410|2 374 1 18:32:07|IC End
+400|2 375 1 18:32:07|IC Start
+200|2 7 18:32:07|TP Start
+520|2 7 24218 1 1|Assertion #375 (A): When the redirection operator is neither << or <<-, then the word
+220|2 7 0 18:32:07|PASS
+410|2 375 1 18:32:07|IC End
+400|2 376 1 18:32:07|IC Start
+200|2 8 18:32:07|TP Start
+520|2 8 24218 1 1|Assertion #376 (A): When the redirection operator is neither << nor <<-, and the shell
+220|2 8 0 18:32:07|PASS
+410|2 376 1 18:32:07|IC End
+400|2 377 1 18:32:07|IC Start
+200|2 9 18:32:07|TP Start
+520|2 9 24218 1 1|Assertion #377 (A): When more than one redirection operator is specified with a command
+220|2 9 0 18:32:07|PASS
+410|2 377 1 18:32:07|IC End
+400|2 378 1 18:32:07|IC Start
+200|2 10 18:32:07|TP Start
+520|2 10 24218 1 1|Assertion #378 (A): Test of GA10 - cat.create.out creates files with correct attributes.
+220|2 10 0 18:32:07|PASS
+410|2 378 1 18:32:07|IC End
+400|2 379 1 18:32:07|IC Start
+200|2 11 18:32:07|TP Start
+520|2 11 24218 1 1|Assertion #379 (A): Test of GA11 - the utility recreates files with correct attributes.
+220|2 11 0 18:32:17|PASS
+410|2 379 1 18:32:17|IC End
+400|2 380 1 18:32:17|IC Start
+200|2 12 18:32:17|TP Start
+520|2 12 24218 1 1|Assertion #380 (A): The redirection specification '[n]<word' causes the file whose name
+220|2 12 0 18:32:17|PASS
+410|2 380 1 18:32:17|IC End
+400|2 381 1 18:32:17|IC Start
+200|2 13 18:32:17|TP Start
+520|2 13 24218 1 1|Assertion #381 (A): The redirection specification '<word' causes the file whose name 
+220|2 13 0 18:32:17|PASS
+410|2 381 1 18:32:17|IC End
+400|2 382 1 18:32:17|IC Start
+200|2 14 18:32:17|TP Start
+520|2 14 24218 1 1|Assertion #382 (A): When the file whose name results from the expansion of 'word' does
+220|2 14 0 18:32:17|PASS
+410|2 382 1 18:32:17|IC End
+400|2 383 1 18:32:17|IC Start
+200|2 15 18:32:17|TP Start
+520|2 15 24218 1 1|Assertion #383 (A): When the file whose name results from the expansion of 'word'
+220|2 15 0 18:32:17|PASS
+410|2 383 1 18:32:17|IC End
+400|2 384 1 18:32:17|IC Start
+200|2 16 18:32:17|TP Start
+520|2 16 24218 1 1|Assertion #384 (A): When the file whose name results from the expansion of 'word' does not
+220|2 16 0 18:32:17|PASS
+410|2 384 1 18:32:17|IC End
+400|2 385 1 18:32:17|IC Start
+200|2 17 18:32:17|TP Start
+520|2 17 24218 1 1|Assertion #385 (A): When the file whose name results from the expansion of 'word' currently
+220|2 17 0 18:32:17|PASS
+410|2 385 1 18:32:17|IC End
+400|2 386 1 18:32:17|IC Start
+200|2 18 18:32:17|TP Start
+520|2 18 24218 1 1|Assertion #386 (A): When the optional file descriptor designation [n] is omitted, then
+220|2 18 0 18:32:17|PASS
+410|2 386 1 18:32:17|IC End
+400|2 387 1 18:32:17|IC Start
+200|2 19 18:32:17|TP Start
+520|2 19 24218 1 1|Assertion #387 (A): When the 'noclobber' option is not set and the file whose name results
+220|2 19 0 18:32:17|PASS
+410|2 387 1 18:32:17|IC End
+400|2 388 1 18:32:17|IC Start
+200|2 20 18:32:17|TP Start
+520|2 20 24218 1 1|Assertion #388 (A): The redirection specification '[n]>>word' causes the file whose
+220|2 20 0 18:32:17|PASS
+410|2 388 1 18:32:17|IC End
+400|2 389 1 18:32:17|IC Start
+200|2 21 18:32:17|TP Start
+520|2 21 24218 1 1|Assertion #389 (A): When the file whose name results from the expansion of 'word' in an
+220|2 21 0 18:32:17|PASS
+410|2 389 1 18:32:17|IC End
+400|2 390 1 18:32:17|IC Start
+200|2 22 18:32:17|TP Start
+520|2 22 24218 1 1|Assertion #390 (A): When the file whose name results from the expansion of 'word' in
+220|2 22 0 18:32:17|PASS
+410|2 390 1 18:32:17|IC End
+400|2 391 1 18:32:17|IC Start
+200|2 23 18:32:17|TP Start
+520|2 23 24218 1 1|Assertion #391 (A): The redirection operator << introduces the text of a here-document
+220|2 23 0 18:32:17|PASS
+410|2 391 1 18:32:17|IC End
+400|2 392 1 18:32:17|IC Start
+200|2 24 18:32:17|TP Start
+520|2 24 24218 1 1|Assertion #392 (A): The redirection operator <<- introduces the text of a here-document
+220|2 24 0 18:32:17|PASS
+410|2 392 1 18:32:17|IC End
+400|2 393 1 18:32:17|IC Start
+200|2 25 18:32:17|TP Start
+520|2 25 24218 1 1|Assertion #393 (A): The redirection specification '[n]<<word' or '[n]<<-word' introduces
+220|2 25 0 18:32:17|PASS
+410|2 393 1 18:32:17|IC End
+400|2 394 1 18:32:17|IC Start
+200|2 26 18:32:17|TP Start
+520|2 26 24218 1 1|Assertion #394 (A): The here-document begins after the newline character following 'word'
+220|2 26 0 18:32:17|PASS
+410|2 394 1 18:32:17|IC End
+400|2 395 1 18:32:17|IC Start
+200|2 27 18:32:17|TP Start
+520|2 27 24218 1 1|Assertion #395 (A): When any part of 'word' is quoted, then the delimiter is formed
+220|2 27 0 18:32:17|PASS
+410|2 395 1 18:32:17|IC End
+400|2 396 1 18:32:17|IC Start
+200|2 28 18:32:17|TP Start
+520|2 28 24218 1 1|Assertion #396 (A): When any part of 'word' is quoted, then the lines of the 
+220|2 28 0 18:32:17|PASS
+410|2 396 1 18:32:17|IC End
+400|2 397 1 18:32:17|IC Start
+200|2 29 18:32:17|TP Start
+520|2 29 24218 1 1|Assertion #397 (A): When no part of 'word' is quoted, then the delimiter is the
+220|2 29 0 18:32:17|PASS
+410|2 397 1 18:32:17|IC End
+400|2 398 1 18:32:17|IC Start
+200|2 30 18:32:17|TP Start
+520|2 30 24218 1 1|Assertion #398 (A): When no part of 'word' is quoted, then the lines of the 
+220|2 30 0 18:32:17|PASS
+410|2 398 1 18:32:17|IC End
+400|2 399 1 18:32:17|IC Start
+200|2 31 18:32:17|TP Start
+520|2 31 24218 1 1|Assertion #399 (A): When no part of 'word' is quoted, then a backslash retains its
+220|2 31 0 18:32:17|PASS
+410|2 399 1 18:32:17|IC End
+400|2 400 1 18:32:17|IC Start
+200|2 32 18:32:17|TP Start
+520|2 32 24218 1 1|Assertion #400 (A): The double-quote character is not treated specially within
+220|2 32 0 18:32:17|PASS
+410|2 400 1 18:32:17|IC End
+400|2 401 1 18:32:17|IC Start
+200|2 33 18:32:17|TP Start
+520|2 33 24218 1 1|Assertion #401 (A): When more than one << or <<- operator is specified on a line
+220|2 33 0 18:32:17|PASS
+410|2 401 1 18:32:17|IC End
+400|2 402 1 18:32:17|IC Start
+200|2 34 18:32:17|TP Start
+520|2 34 24218 1 1|Assertion #402 (A): When 'word' evaluates to one or more digits, then the redirection
+220|2 34 0 18:32:17|PASS
+410|2 402 1 18:32:17|IC End
+400|2 403 1 18:32:17|IC Start
+200|2 35 18:32:17|TP Start
+520|2 35 24218 1 1|Assertion #403 (A): When 'word' evaluates to one or more digits, then the redirection 
+220|2 35 0 18:32:17|PASS
+410|2 403 1 18:32:17|IC End
+400|2 404 1 18:32:17|IC Start
+200|2 36 18:32:17|TP Start
+520|2 36 24218 1 1|Assertion #404 (A): When 'word' evalates to one or more digits that do not represent
+220|2 36 0 18:32:17|PASS
+410|2 404 1 18:32:17|IC End
+400|2 405 1 18:32:17|IC Start
+200|2 37 18:32:17|TP Start
+520|2 37 24218 1 1|Assertion #405 (A): When 'word' evluates to '-', then the redirection operator 
+220|2 37 0 18:32:17|PASS
+410|2 405 1 18:32:17|IC End
+400|2 406 1 18:32:17|IC Start
+200|2 38 18:32:17|TP Start
+520|2 38 24218 1 1|Assertion #406 (A): When 'word' evaluates to '-', then the redirection operator 
+220|2 38 0 18:32:17|PASS
+410|2 406 1 18:32:17|IC End
+400|2 407 1 18:32:17|IC Start
+200|2 39 18:32:17|TP Start
+520|2 39 24218 1 1|Assertion #407 (A): When 'word' evaluates to one or more digits, then the redirection
+220|2 39 0 18:32:17|PASS
+410|2 407 1 18:32:17|IC End
+400|2 408 1 18:32:17|IC Start
+200|2 40 18:32:17|TP Start
+520|2 40 24218 1 1|Assertion #408 (A): When 'word' evaluates to one or more digits, then the redirection 
+220|2 40 0 18:32:18|PASS
+410|2 408 1 18:32:18|IC End
+400|2 409 1 18:32:18|IC Start
+200|2 41 18:32:18|TP Start
+520|2 41 24218 1 1|Assertion #409 (A): When 'word' evaluates to one or more digits that do not represent
+220|2 41 0 18:32:18|PASS
+410|2 409 1 18:32:18|IC End
+400|2 410 1 18:32:18|IC Start
+200|2 42 18:32:18|TP Start
+520|2 42 24218 1 1|Assertion #410 (A): When 'word' evaluates to '-', then the redirection operator 
+220|2 42 0 18:32:18|PASS
+410|2 410 1 18:32:18|IC End
+400|2 411 1 18:32:18|IC Start
+200|2 43 18:32:18|TP Start
+520|2 43 24218 1 1|Assertion #411 (A): When 'word' evaluates to '-', then the redirection operator 
+220|2 43 0 18:32:18|PASS
+410|2 411 1 18:32:18|IC End
+400|2 412 1 18:32:18|IC Start
+200|2 44 18:32:18|TP Start
+520|2 44 24218 1 1|Assertion #412 (A): The redirection operator 'n<>word' causes the file whose name is 
+220|2 44 0 18:32:18|PASS
+410|2 412 1 18:32:18|IC End
+400|2 413 1 18:32:18|IC Start
+200|2 45 18:32:18|TP Start
+520|2 45 24218 1 1|Assertion #413 (A): The redirection operator '<>word' causes the file whose name is 
+220|2 45 0 18:32:18|PASS
+410|2 413 1 18:32:18|IC End
+400|2 414 1 18:32:18|IC Start
+200|2 46 18:32:18|TP Start
+520|2 46 24218 1 1|Assertion #414 (A): When the file whose name is the expansion of 'word' does not exist
+220|2 46 0 18:32:18|PASS
+410|2 414 1 18:32:18|IC End
+80|2 0 18:32:19|TC End, scenario ref 3-0
+10|3 /tset/POSIX.shell/shell/sh_07.ex 18:32:19|TC Start, scenario ref 4-0, ICs: {1-1000}
+15|3 3.8 38|TCM Start
+400|3 415 1 18:32:20|IC Start
+200|3 1 18:32:20|TP Start
+520|3 1 25131 1 1|Assertion #415 (A): When a shell language syntax error occurs and the requested command
+220|3 1 0 18:32:20|PASS
+410|3 415 1 18:32:20|IC End
+400|3 416 1 18:32:20|IC Start
+200|3 2 18:32:20|TP Start
+520|3 2 25131 1 1|Assertion #416 (A): When a shell language syntax error occurs and the requested command
+220|3 2 0 18:32:20|PASS
+410|3 416 1 18:32:20|IC End
+400|3 417 1 18:32:20|IC Start
+200|3 3 18:32:20|TP Start
+520|3 3 25131 1 1|Assertion #417 (B): When a utility syntax error (option or operand error) occurs and the
+220|3 3 0 18:32:20|PASS
+410|3 417 1 18:32:20|IC End
+400|3 418 1 18:32:20|IC Start
+200|3 4 18:32:20|TP Start
+520|3 4 25131 1 1|Assertion #418 (A): When a utility syntax error (option or operand error) occurs and the
+220|3 4 0 18:32:20|PASS
+410|3 418 1 18:32:20|IC End
+400|3 419 1 18:32:20|IC Start
+200|3 5 18:32:20|TP Start
+520|3 5 25131 1 1|Assertion #419 (A): When a redirection error occurs and the requested command is a special 
+220|3 5 0 18:32:20|PASS
+410|3 419 1 18:32:20|IC End
+400|3 420 1 18:32:20|IC Start
+200|3 6 18:32:20|TP Start
+520|3 6 25131 1 1|Assertion #420 (A): When a redirection error occurs and the requested command is not a 
+220|3 6 0 18:32:20|PASS
+410|3 420 1 18:32:20|IC End
+400|3 421 1 18:32:20|IC Start
+200|3 7 18:32:20|TP Start
+520|3 7 25131 1 1|Assertion #421 (A): When a variable assignment error occurs and the requested command is 
+220|3 7 0 18:32:20|PASS
+410|3 421 1 18:32:20|IC End
+400|3 422 1 18:32:20|IC Start
+200|3 8 18:32:20|TP Start
+520|3 8 25131 1 1|Assertion #422 (A): When a variable assignment error occurs and the requested command is not
+220|3 8 0 18:32:20|PASS
+410|3 422 1 18:32:20|IC End
+400|3 423 1 18:32:20|IC Start
+200|3 9 18:32:20|TP Start
+520|3 9 25131 1 1|Assertion #423 (A): When an expansion  error occurs and the requested command is a 
+220|3 9 0 18:32:20|PASS
+410|3 423 1 18:32:20|IC End
+400|3 424 1 18:32:20|IC Start
+200|3 10 18:32:20|TP Start
+520|3 10 25131 1 1|Assertion #424 (A): When an expansion  error occurs and the requested command is not a 
+220|3 10 0 18:32:20|PASS
+410|3 424 1 18:32:20|IC End
+400|3 425 1 18:32:20|IC Start
+200|3 11 18:32:20|TP Start
+520|3 11 25131 1 1|Assertion #425 (A): When a 'dot' script is not found by the shell, then the shell writes
+220|3 11 0 18:32:20|PASS
+410|3 425 1 18:32:20|IC End
+400|3 426 1 18:32:20|IC Start
+200|3 12 18:32:20|TP Start
+520|3 12 25131 1 1|Assertion #426 (A): When a command is not found by the shell, then the exit status of
+220|3 12 0 18:32:20|PASS
+410|3 426 1 18:32:20|IC End
+400|3 427 1 18:32:20|IC Start
+200|3 13 18:32:20|TP Start
+520|3 13 25131 1 1|Assertion #427 (A): When a command is found by the shell but is not an executable
+220|3 13 0 18:32:20|PASS
+410|3 427 1 18:32:20|IC End
+400|3 428 1 18:32:20|IC Start
+200|3 14 18:32:20|TP Start
+520|3 14 25131 1 1|Assertion #428 (A): When reporting the exit status with a special parameter '?', then
+220|3 14 0 18:32:20|PASS
+410|3 428 1 18:32:20|IC End
+400|3 429 1 18:32:20|IC Start
+200|3 15 18:32:20|TP Start
+520|3 15 25131 1 1|Assertion #429 (A): When a command has terminated on receipt of a signal, then the
+220|3 15 0 18:32:22|PASS
+410|3 429 1 18:32:22|IC End
+400|3 430 1 18:32:22|IC Start
+200|3 16 18:32:22|TP Start
+520|3 16 25131 1 1|Assertion #430 (A): When a command fails during word expansion or redirection, then 
+220|3 16 0 18:32:22|PASS
+410|3 430 1 18:32:22|IC End
+400|3 431 1 18:32:22|IC Start
+200|3 17 18:32:22|TP Start
+520|3 17 25131 1 1|Assertion #431 (A): The exit status of a command is that of the last simple command 
+220|3 17 0 18:32:22|PASS
+410|3 431 1 18:32:22|IC End
+400|3 432 1 18:32:22|IC Start
+200|3 18 18:32:22|TP Start
+520|3 18 25131 1 1|Assertion #432 (B): There is no limit on the size of a shell command other than that 
+520|3 18 25131 2 1|No portable way to test.
+220|3 18 5 18:32:22|UNTESTED
+410|3 432 1 18:32:22|IC End
+400|3 433 1 18:32:22|IC Start
+200|3 19 18:32:22|TP Start
+520|3 19 25131 1 1|Assertion #433 (A): When a simple command is required to be executed, then the words
+220|3 19 0 18:32:22|PASS
+410|3 433 1 18:32:22|IC End
+400|3 434 1 18:32:22|IC Start
+200|3 20 18:32:22|TP Start
+520|3 20 25131 1 1|Assertion #434 (A): Each variable assignment is expanded for tilde expansion, parameter
+220|3 20 0 18:32:22|PASS
+410|3 434 1 18:32:22|IC End
+400|3 435 1 18:32:22|IC Start
+200|3 21 18:32:22|TP Start
+520|3 21 25131 1 1|Assertion #435 (A): When no command name results, then the variable assignments affect
+220|3 21 0 18:32:22|PASS
+410|3 435 1 18:32:22|IC End
+400|3 436 1 18:32:22|IC Start
+200|3 22 18:32:22|TP Start
+520|3 22 25131 1 1|Assertion #436 (A): When a command name results, then the variable assignments are
+220|3 22 0 18:32:23|PASS
+410|3 436 1 18:32:23|IC End
+400|3 437 1 18:32:23|IC Start
+200|3 23 18:32:23|TP Start
+520|3 23 25131 1 1|Assertion #437 (A): When a variable assignment attempts to assign a value to a readonly
+520|3 23 25131 2 1|Expected exit code != 0; Received 0
+520|3 23 25131 2 2|Standard output isn't empty
+520|3 23 25131 2 3|Contents of out.stdout:
+520|3 23 25131 2 4|Wed Jun 19 18:32:23 BST 2019
+220|3 23 1 18:32:23|FAIL
+410|3 437 1 18:32:23|IC End
+400|3 438 1 18:32:23|IC Start
+200|3 24 18:32:23|TP Start
+520|3 24 25131 1 1|Assertion #438 (A): When there is no command name, then the redirections are performed in
+220|3 24 0 18:32:23|PASS
+410|3 438 1 18:32:23|IC End
+400|3 439 1 18:32:23|IC Start
+200|3 25 18:32:23|TP Start
+520|3 25 25131 1 1|Assertion #439 (A): When a redirection fails in the current shell execution environment,
+220|3 25 0 18:32:23|PASS
+410|3 439 1 18:32:23|IC End
+400|3 440 1 18:32:23|IC Start
+200|3 26 18:32:23|TP Start
+520|3 26 25131 1 1|Assertion #440 (A): When no command name is generated but command substitution
+520|3 26 25131 2 1|Standard output isn't the same as file 'test.440.eso'
+520|3 26 25131 2 2|diff of "out.stdout" and "test.440.eso":
+520|3 26 25131 2 3|*** out.stdout	Wed Jun 19 18:32:23 2019
+520|3 26 25131 2 4|--- test.440.eso	Wed Jun 19 18:32:23 2019
+520|3 26 25131 2 5|***************
+520|3 26 25131 2 6|*** 1 ****
+520|3 26 25131 2 7|! 0
+520|3 26 25131 2 8|--- 1 ----
+520|3 26 25131 2 9|! 123
+220|3 26 1 18:32:23|FAIL
+410|3 440 1 18:32:23|IC End
+400|3 441 1 18:32:23|IC Start
+200|3 27 18:32:23|TP Start
+520|3 27 25131 1 1|Assertion #441 (A): When no command name is generated and no command substitution
+220|3 27 0 18:32:23|PASS
+410|3 441 1 18:32:23|IC End
+400|3 442 1 18:32:23|IC Start
+200|3 28 18:32:23|TP Start
+520|3 28 25131 1 1|Assertion #442 (A): When the command name matches the name of a special built-in,
+220|3 28 0 18:32:23|PASS
+410|3 442 1 18:32:23|IC End
+400|3 443 1 18:32:23|IC Start
+200|3 29 18:32:23|TP Start
+520|3 29 25131 1 1|Assertion #443 (A): When the command name does not contain any slashes, is not the 
+220|3 29 0 18:32:23|PASS
+410|3 443 1 18:32:23|IC End
+400|3 444 1 18:32:23|IC Start
+200|3 30 18:32:23|TP Start
+520|3 30 25131 1 1|Assertion #444 (A): When the command name does not contain any slashes and the command
+220|3 30 0 18:32:23|PASS
+410|3 444 1 18:32:23|IC End
+400|3 445 1 18:32:23|IC Start
+200|3 31 18:32:23|TP Start
+520|3 31 25131 1 1|Assertion #445 (B): If the implementation provides a utility as a built-in or a function 
+520|3 31 25131 2 1|No portable way to test.
+220|3 31 5 18:32:23|UNTESTED
+410|3 445 1 18:32:23|IC End
+400|3 446 1 18:32:23|IC Start
+200|3 32 18:32:23|TP Start
+520|3 32 25131 1 1|Assertion #446 (A): When the command name does not contain any slashes and does not
+220|3 32 0 18:32:23|PASS
+410|3 446 1 18:32:23|IC End
+400|3 447 1 18:32:23|IC Start
+200|3 33 18:32:23|TP Start
+520|3 33 25131 1 1|Assertion #447 (A): When the search for command name using the PATH environment variable
+220|3 33 0 18:32:23|PASS
+410|3 447 1 18:32:23|IC End
+400|3 448 1 18:32:23|IC Start
+200|3 34 18:32:23|TP Start
+520|3 34 25131 1 1|Assertion #448 (A): When the search for command name using the PATH environment variable
+520|3 34 25131 2 1|awk did not place a full path in ARGV[0] when executed as /usr/bin/awk
+220|3 34 2 18:32:23|UNRESOLVED
+410|3 448 1 18:32:23|IC End
+400|3 449 1 18:32:23|IC Start
+200|3 35 18:32:23|TP Start
+520|3 35 25131 1 1|Assertion #449 (A): When the search for command name using the PATH environment variable
+220|3 35 0 18:32:23|PASS
+410|3 449 1 18:32:23|IC End
+400|3 450 1 18:32:23|IC Start
+200|3 36 18:32:23|TP Start
+520|3 36 25131 1 1|Assertion #450 (A): When the command name contains slashes, then the command is
+520|3 36 25131 2 1|Standard output isn't the same as file 'test.450.exp'
+520|3 36 25131 2 2|diff of "out.stdout" and "test.450.exp":
+520|3 36 25131 2 3|*** out.stdout	Wed Jun 19 18:32:23 2019
+520|3 36 25131 2 4|--- test.450.exp	Wed Jun 19 18:32:23 2019
+520|3 36 25131 2 5|***************
+520|3 36 25131 2 6|*** 1 ****
+520|3 36 25131 2 7|! awk
+520|3 36 25131 2 8|--- 1 ----
+520|3 36 25131 2 9|! /usr/bin/awk
+220|3 36 1 18:32:23|FAIL
+410|3 450 1 18:32:23|IC End
+400|3 451 1 18:32:23|IC Start
+200|3 37 18:32:23|TP Start
+520|3 37 25131 1 1|Assertion #451 (A): When the command name contains slashes and the 'execve()' function
+220|3 37 0 18:32:23|PASS
+410|3 451 1 18:32:23|IC End
+400|3 452 1 18:32:23|IC Start
+200|3 38 18:32:23|TP Start
+520|3 38 25131 1 1|Assertion #452 (A): If the implementation remembers the location of utilities previously
+220|3 38 0 18:32:23|PASS
+410|3 452 1 18:32:23|IC End
+80|3 0 18:32:23|TC End, scenario ref 4-0
+10|4 /tset/POSIX.shell/shell/sh_08.ex 18:32:23|TC Start, scenario ref 5-0, ICs: {1-1000}
+15|4 3.8 53|TCM Start
+400|4 453 1 18:32:24|IC Start
+200|4 1 18:32:24|TP Start
+520|4 1 26177 1 1|Assertion #453 (A): The standard output of each command in a pipeline except the last is connected to the standard input of the next command
+220|4 1 0 18:32:24|PASS
+410|4 453 1 18:32:24|IC End
+400|4 454 1 18:32:24|IC Start
+200|4 2 18:32:24|TP Start
+520|4 2 26177 1 1|Assertion #454 (A): standard input, standard output or both of a command in a pipeline are assigned before any redirection
+220|4 2 0 18:32:24|PASS
+410|4 454 1 18:32:24|IC End
+400|4 455 1 18:32:24|IC Start
+200|4 3 18:32:24|TP Start
+520|4 3 26177 1 1|Assertion #455 (A): shell waits for the last command in a pipeline to complete
+220|4 3 0 18:32:34|PASS
+410|4 455 1 18:32:34|IC End
+400|4 456 1 18:32:34|IC Start
+200|4 4 18:32:34|TP Start
+520|4 4 26177 1 1|Assertion #456 (A): exit status of a pipeline is the exit status of the last command
+220|4 4 0 18:32:34|PASS
+410|4 456 1 18:32:34|IC End
+400|4 457 1 18:32:34|IC Start
+200|4 5 18:32:34|TP Start
+520|4 5 26177 1 1|Assertion #457 (A): exit status of a pipeline preceded by ! is the logical NOT if the exit status of the last command
+220|4 5 0 18:32:34|PASS
+410|4 457 1 18:32:34|IC End
+400|4 458 1 18:32:34|IC Start
+200|4 6 18:32:34|TP Start
+520|4 6 26177 1 1|Assertion #458 (A): The AND and OR operators have equal precedence and are evaluated by the shell beginning to end
+220|4 6 0 18:32:34|PASS
+410|4 458 1 18:32:34|IC End
+400|4 459 1 18:32:34|IC Start
+200|4 7 18:32:34|TP Start
+520|4 7 26177 1 1|Assertion #459 (A): Terminating & puts process in the background.
+220|4 7 0 18:32:34|PASS
+410|4 459 1 18:32:34|IC End
+400|4 460 1 18:32:34|IC Start
+200|4 8 18:32:34|TP Start
+520|4 8 26177 1 1|Assertion #460 (A): When ... then the standard input for an asynchronous list is redirected to a file which has the same properties as /dev/null
+520|4 8 26177 2 1|Standard output isn't empty
+520|4 8 26177 2 2|Contents of out.stdout:
+520|4 8 26177 2 3|This line should not be read
+520|4 8 26177 2 4|Command failed: 'test ! -s sh8_460.out'
+220|4 8 1 18:32:34|FAIL
+410|4 460 1 18:32:34|IC End
+400|4 461 1 18:32:34|IC Start
+200|4 9 18:32:34|TP Start
+520|4 9 26177 1 1|Assertion #461 (A): special parameter ! returns process ID of background process
+220|4 9 0 18:32:54|PASS
+410|4 461 1 18:32:54|IC End
+400|4 462 1 18:32:54|IC Start
+200|4 10 18:32:54|TP Start
+520|4 10 26177 1 1|Assertion #462 (A): process id availability from background processes
+220|4 10 0 18:33:04|PASS
+410|4 462 1 18:33:04|IC End
+400|4 463 1 18:33:04|IC Start
+200|4 11 18:33:04|TP Start
+520|4 11 26177 1 1|Assertion #463 (A): exit status from an asynchronouus list is zero
+220|4 11 0 18:33:04|PASS
+410|4 463 1 18:33:04|IC End
+400|4 464 1 18:33:04|IC Start
+200|4 12 18:33:04|TP Start
+520|4 12 26177 1 1|Assertion #464 (A): Commands in a sequential list (.i.e commands separated by a ;) are executed sequentially
+220|4 12 0 18:33:04|PASS
+410|4 464 1 18:33:04|IC End
+400|4 465 1 18:33:04|IC Start
+200|4 13 18:33:04|TP Start
+520|4 13 26177 1 1|Assertion #465 (A): The exit status of a sequential list is the exit status of the last command in the list
+220|4 13 0 18:33:04|PASS
+410|4 465 1 18:33:04|IC End
+400|4 466 1 18:33:04|IC Start
+200|4 14 18:33:04|TP Start
+520|4 14 26177 1 1|Assertion #466 (A): When a command in an AND list is executed and exits with an exit status of zero, then the next command is executed
+220|4 14 0 18:33:04|PASS
+410|4 466 1 18:33:04|IC End
+400|4 467 1 18:33:04|IC Start
+200|4 15 18:33:04|TP Start
+520|4 15 26177 1 1|Assertion #467 (A): 
+220|4 15 0 18:33:04|PASS
+410|4 467 1 18:33:04|IC End
+400|4 468 1 18:33:04|IC Start
+200|4 16 18:33:04|TP Start
+520|4 16 26177 1 1|Assertion #468 (A): The exit status of an AND list is the exit status of the last command that is executed
+220|4 16 0 18:33:04|PASS
+410|4 468 1 18:33:04|IC End
+400|4 469 1 18:33:04|IC Start
+200|4 17 18:33:04|TP Start
+520|4 17 26177 1 1|Assertion #469 (A): When a command in an OR list is executed and exits with a non-zero exit status, then the next command is executed
+220|4 17 0 18:33:04|PASS
+410|4 469 1 18:33:04|IC End
+400|4 470 1 18:33:04|IC Start
+200|4 18 18:33:04|TP Start
+520|4 18 26177 1 1|Assertion #470 (A): When a command in an OR list is executed and exits with a zero exit status, then no futher commands in the list are executed
+220|4 18 0 18:33:04|PASS
+410|4 470 1 18:33:04|IC End
+400|4 471 1 18:33:04|IC Start
+200|4 19 18:33:04|TP Start
+520|4 19 26177 1 1|Assertion #471 (A): The exit status of an AND list is the exit status of the last command that is executed
+220|4 19 0 18:33:04|PASS
+410|4 471 1 18:33:04|IC End
+400|4 472 1 18:33:04|IC Start
+200|4 20 18:33:04|TP Start
+520|4 20 26177 1 1|Assertion #472 (A): compound command contains redirections on the same line as the compound command terminator
+220|4 20 0 18:33:04|PASS
+410|4 472 1 18:33:04|IC End
+400|4 473 1 18:33:04|IC Start
+200|4 21 18:33:04|TP Start
+520|4 21 26177 1 1|Assertion #473 (A): compound list of the form (list) is executed in a subshell
+220|4 21 0 18:33:04|PASS
+410|4 473 1 18:33:04|IC End
+400|4 474 1 18:33:04|IC Start
+200|4 22 18:33:04|TP Start
+520|4 22 26177 1 1|Assertion #474 (A): Variable assignments and built-in commands that affect the environment do not remain in effect after the (list) finishes
+220|4 22 0 18:33:04|PASS
+410|4 474 1 18:33:04|IC End
+400|4 475 1 18:33:04|IC Start
+200|4 23 18:33:04|TP Start
+520|4 23 26177 1 1|Assertion #475 (A): A compound list in the form { list; } is executed in the curent process environment
+520|4 23 26177 2 1|Expected exit code = 0; Received 1
+520|4 23 26177 2 2|Standard output is empty
+220|4 23 1 18:33:04|FAIL
+410|4 475 1 18:33:04|IC End
+400|4 476 1 18:33:04|IC Start
+200|4 24 18:33:04|TP Start
+520|4 24 26177 1 1|Assertion #476 (A): he exit status of a grouping command is the exit status of the list
+220|4 24 0 18:33:04|PASS
+410|4 476 1 18:33:04|IC End
+400|4 477 1 18:33:04|IC Start
+200|4 25 18:33:04|TP Start
+520|4 25 26177 1 1|Assertion #477 (A): for loop executes a sequence of commands for each member in a group of item
+220|4 25 0 18:33:04|PASS
+410|4 477 1 18:33:04|IC End
+400|4 478 1 18:33:04|IC Start
+200|4 26 18:33:04|TP Start
+520|4 26 26177 1 1|Assertion #478 (A): commands executed in the for loop are delimited by the words do and done
+220|4 26 0 18:33:04|PASS
+410|4 478 1 18:33:04|IC End
+400|4 479 1 18:33:04|IC Start
+200|4 27 18:33:04|TP Start
+520|4 27 26177 1 1|Assertion #479 (A): The list of words following in is expanded to generate a list of words
+220|4 27 0 18:33:04|PASS
+410|4 479 1 18:33:04|IC End
+400|4 480 1 18:33:04|IC Start
+200|4 28 18:33:04|TP Start
+520|4 28 26177 1 1|Assertion #480 (A): When no list is given (.e. in word is ommitted), then the list is generated as 
+220|4 28 0 18:33:04|PASS
+410|4 480 1 18:33:04|IC End
+400|4 481 1 18:33:04|IC Start
+200|4 29 18:33:04|TP Start
+520|4 29 26177 1 1|Assertion #481 (A): exit status of a for command is the exit status of the last command that executes
+220|4 29 0 18:33:04|PASS
+410|4 481 1 18:33:04|IC End
+400|4 482 1 18:33:04|IC Start
+200|4 30 18:33:04|TP Start
+520|4 30 26177 1 1|Assertion #482 (A): When there are no items in the list, then the exit status is zero
+220|4 30 0 18:33:04|PASS
+410|4 482 1 18:33:04|IC End
+400|4 483 1 18:33:04|IC Start
+200|4 31 18:33:04|TP Start
+520|4 31 26177 1 1|Assertion #483 (A): The reserved word in denotes the beginning of the patterns to be matched
+220|4 31 0 18:33:04|PASS
+410|4 483 1 18:33:04|IC End
+400|4 484 1 18:33:04|IC Start
+200|4 32 18:33:04|TP Start
+520|4 32 26177 1 1|Assertion #484 (A): Multiple patterns with the same compound list are delimited by the | symbol
+220|4 32 0 18:33:04|PASS
+410|4 484 1 18:33:04|IC End
+400|4 485 1 18:33:04|IC Start
+200|4 33 18:33:04|TP Start
+520|4 33 26177 1 1|Assertion #485 (A): control operator ) terminates a list of patterns corresponding to a given action
+220|4 33 0 18:33:04|PASS
+410|4 485 1 18:33:04|IC End
+400|4 486 1 18:33:04|IC Start
+200|4 34 18:33:04|TP Start
+520|4 34 26177 1 1|Assertion #486 (A): compound list corresponding to any pattern except the last is terminated with ;;
+220|4 34 0 18:33:04|PASS
+410|4 486 1 18:33:04|IC End
+400|4 487 1 18:33:04|IC Start
+200|4 35 18:33:04|TP Start
+520|4 35 26177 1 1|Assertion #487 (A): case construct is terminated with the reserved word esac
+220|4 35 0 18:33:04|PASS
+410|4 487 1 18:33:04|IC End
+400|4 488 1 18:33:04|IC Start
+200|4 36 18:33:04|TP Start
+520|4 36 26177 1 1|Assertion #488 (A): case construct is terminated with the reserved word esac
+220|4 36 0 18:33:04|PASS
+410|4 488 1 18:33:04|IC End
+400|4 489 1 18:33:04|IC Start
+200|4 37 18:33:04|TP Start
+520|4 37 26177 1 1|Assertion #489 (A): Each pattern in a pattern list is expanded and compared against the expansion of word
+220|4 37 0 18:33:04|PASS
+410|4 489 1 18:33:04|IC End
+400|4 490 1 18:33:04|IC Start
+200|4 38 18:33:04|TP Start
+520|4 38 26177 1 1|Assertion #490 (A): Each pattern in a pattern list is expanded and compared against the expansion of word
+220|4 38 0 18:33:04|PASS
+410|4 490 1 18:33:04|IC End
+400|4 491 1 18:33:04|IC Start
+200|4 39 18:33:04|TP Start
+520|4 39 26177 1 1|Assertion #491 (A): When no patterns in the pattern list matches the expansion of word, then the exit status is zero
+220|4 39 0 18:33:04|PASS
+410|4 491 1 18:33:04|IC End
+400|4 492 1 18:33:04|IC Start
+200|4 40 18:33:04|TP Start
+520|4 40 26177 1 1|Assertion #492 (A): 
+220|4 40 0 18:33:05|PASS
+410|4 492 1 18:33:05|IC End
+400|4 493 1 18:33:05|IC Start
+200|4 41 18:33:05|TP Start
+520|4 41 26177 1 1|Assertion #493 (A): if command executes a compound-list and when the exit status of that compound-list is zero, executes a second compound-list associated with the correspoonding then
+220|4 41 0 18:33:05|PASS
+410|4 493 1 18:33:05|IC End
+400|4 494 1 18:33:05|IC Start
+200|4 42 18:33:05|TP Start
+520|4 42 26177 1 1|Assertion #494 (A): if command with non-zero status, and elif command with zero status
+220|4 42 0 18:33:05|PASS
+410|4 494 1 18:33:05|IC End
+400|4 495 1 18:33:05|IC Start
+200|4 43 18:33:05|TP Start
+520|4 43 26177 1 1|Assertion #495 (A): When none of the compound lists associated with either the if or subsequent elif commands evaluates to zero, then the else compound list is executed
+220|4 43 0 18:33:05|PASS
+410|4 495 1 18:33:05|IC End
+400|4 496 1 18:33:05|IC Start
+200|4 44 18:33:05|TP Start
+520|4 44 26177 1 1|Assertion #496 (A): The exit status of the if command is the exit status of the then or else compound list that was executed
+220|4 44 0 18:33:05|PASS
+410|4 496 1 18:33:05|IC End
+400|4 497 1 18:33:05|IC Start
+200|4 45 18:33:05|TP Start
+520|4 45 26177 1 1|Assertion #497 (A): When no then or else compound list is executed, then the exit status of the if command is zero
+220|4 45 0 18:33:05|PASS
+410|4 497 1 18:33:05|IC End
+400|4 498 1 18:33:05|IC Start
+200|4 46 18:33:05|TP Start
+520|4 46 26177 1 1|Assertion #498 (A): while compound-list is executed and exits with a zero exit status
+220|4 46 0 18:33:05|PASS
+410|4 498 1 18:33:05|IC End
+400|4 499 1 18:33:05|IC Start
+200|4 47 18:33:05|TP Start
+520|4 47 26177 1 1|Assertion #499 (A): while compound-list is executed and exits with a non-zero exit status
+220|4 47 0 18:33:05|PASS
+410|4 499 1 18:33:05|IC End
+400|4 500 1 18:33:05|IC Start
+200|4 48 18:33:05|TP Start
+520|4 48 26177 1 1|Assertion #500 (A): 
+220|4 48 0 18:33:05|PASS
+410|4 500 1 18:33:05|IC End
+400|4 501 1 18:33:05|IC Start
+200|4 49 18:33:05|TP Start
+520|4 49 26177 1 1|Assertion #501 (A): while compound-list is executed and exits with a non-zero exit status
+220|4 49 0 18:33:05|PASS
+410|4 501 1 18:33:05|IC End
+400|4 502 1 18:33:05|IC Start
+200|4 50 18:33:05|TP Start
+520|4 50 26177 1 1|Assertion #502 (A): until compound-list is executed and exits with a non-zero exit status
+220|4 50 0 18:33:05|PASS
+410|4 502 1 18:33:05|IC End
+400|4 503 1 18:33:05|IC Start
+200|4 51 18:33:05|TP Start
+520|4 51 26177 1 1|Assertion #503 (A): When the until compound-list is executed and exits with a zero status, then the command completes
+220|4 51 0 18:33:05|PASS
+410|4 503 1 18:33:05|IC End
+400|4 504 1 18:33:05|IC Start
+200|4 52 18:33:05|TP Start
+520|4 52 26177 1 1|Assertion #504 (A): When a do compound-list is executed from an until command, then the exit status of the until loop is the exit status of the last compound list executed
+220|4 52 0 18:33:05|PASS
+410|4 504 1 18:33:05|IC End
+400|4 505 1 18:33:05|IC Start
+200|4 53 18:33:05|TP Start
+520|4 53 26177 1 1|Assertion #505 (A): When no do compound-list is executed from a until command, then the exit status of the until loop is zero
+220|4 53 0 18:33:05|PASS
+410|4 505 1 18:33:05|IC End
+80|4 0 18:33:06|TC End, scenario ref 5-0
+10|5 /tset/POSIX.shell/shell/sh_09.ex 18:33:06|TC Start, scenario ref 6-0, ICs: {1-1000}
+15|5 3.8 56|TCM Start
+400|5 506 1 18:33:07|IC Start
+200|5 1 18:33:07|TP Start
+520|5 1 27093 1 1|Assertion #506 (B): A function name is a word comprised of the underscore, alphabetic 
+220|5 1 0 18:33:07|PASS
+410|5 506 1 18:33:07|IC End
+400|5 507 1 18:33:07|IC Start
+200|5 2 18:33:07|TP Start
+520|5 2 27093 1 1|Assertion #507 (A): Separate namespaces are maintained for functions and variables.
+220|5 2 0 18:33:07|PASS
+410|5 507 1 18:33:07|IC End
+400|5 508 1 18:33:07|IC Start
+200|5 3 18:33:07|TP Start
+520|5 3 27093 1 1|Assertion #508 (A): When a function is declared, none of the expansions and redirections are performed.
+220|5 3 0 18:33:07|PASS
+410|5 508 1 18:33:07|IC End
+400|5 509 1 18:33:07|IC Start
+200|5 4 18:33:07|TP Start
+520|5 4 27093 1 1|Assertion #509 (A): When the functionname is specified as the name of a simple command,
+520|5 4 27093 2 1|Testing brace compound-command with redirection
+520|5 4 27093 2 2|Testing subshell compound-command without redirection
+520|5 4 27093 2 3|Testing subshell compound-command with redirection
+520|5 4 27093 2 4|Testing for loop compound-command without redirection
+520|5 4 27093 2 5|Testing for loop compound-command with redirection
+520|5 4 27093 2 6|Testing case .. esac compound-command without redirection
+520|5 4 27093 2 7|Testing case .. esac compound-command with redirection
+520|5 4 27093 2 8|Testing if .. fi compound-command without redirection
+520|5 4 27093 2 9|Testing if .. fi compound-command with redirection
+520|5 4 27093 2 10|Testing while loop compound-command without redirection
+520|5 4 27093 2 11|Testing while loop compound-command with redirection
+520|5 4 27093 2 12|Testing until loop compound-command without redirection
+520|5 4 27093 2 13|Testing until loop compound-command with redirection
+220|5 4 0 18:33:07|PASS
+410|5 509 1 18:33:07|IC End
+400|5 510 1 18:33:07|IC Start
+200|5 5 18:33:07|TP Start
+520|5 5 27093 1 1|Assertion #510 (A): The operands to the command become the positional parameters for the
+220|5 5 0 18:33:07|PASS
+410|5 510 1 18:33:07|IC End
+400|5 511 1 18:33:07|IC Start
+200|5 6 18:33:07|TP Start
+520|5 6 27093 1 1|Assertion #511 (A): For the duration of the execution of the associated compound-command,
+220|5 6 0 18:33:07|PASS
+410|5 511 1 18:33:07|IC End
+400|5 512 1 18:33:07|IC Start
+200|5 7 18:33:07|TP Start
+520|5 7 27093 1 1|Assertion #512 (A): The positional parameter '0' is unchanged by the call to the function.
+220|5 7 0 18:33:07|PASS
+410|5 512 1 18:33:07|IC End
+400|5 513 1 18:33:07|IC Start
+200|5 8 18:33:07|TP Start
+520|5 8 27093 1 1|Assertion #513 (A): When the special built-in 'return' is executed in the compound-
+220|5 8 0 18:33:07|PASS
+410|5 513 1 18:33:07|IC End
+400|5 514 1 18:33:07|IC Start
+200|5 9 18:33:07|TP Start
+520|5 9 27093 1 1|Assertion #514 (A): When redirections are made within a function, then these redirections
+220|5 9 0 18:33:07|PASS
+410|5 514 1 18:33:07|IC End
+400|5 515 1 18:33:07|IC Start
+200|5 10 18:33:07|TP Start
+520|5 10 27093 1 1|Assertion #515 (A): When variable assignments are made within a function, then
+220|5 10 0 18:33:07|PASS
+410|5 515 1 18:33:07|IC End
+400|5 516 1 18:33:07|IC Start
+200|5 11 18:33:07|TP Start
+520|5 11 27093 1 1|Assertion #516 (A): When a function completes, the value of the positional parameters
+220|5 11 0 18:33:07|PASS
+410|5 516 1 18:33:07|IC End
+400|5 517 1 18:33:07|IC Start
+200|5 12 18:33:07|TP Start
+520|5 12 27093 1 1|Assertion #517 (A): When a word expansion or redirection error occurs during a call to a
+220|5 12 0 18:33:07|PASS
+410|5 517 1 18:33:07|IC End
+400|5 518 1 18:33:07|IC Start
+200|5 13 18:33:07|TP Start
+520|5 13 27093 1 1|Assertion #518 (A): A successful definition of a function results in an exit status 
+220|5 13 0 18:33:07|PASS
+410|5 518 1 18:33:07|IC End
+400|5 519 1 18:33:07|IC Start
+200|5 14 18:33:07|TP Start
+520|5 14 27093 1 1|Assertion #519 (A): When a function is invoked, then the exit status of the function
+220|5 14 0 18:33:07|PASS
+410|5 519 1 18:33:07|IC End
+400|5 520 1 18:33:07|IC Start
+200|5 15 18:33:07|TP Start
+520|5 15 27093 1 1|Assertion #520 (A): SIGINT and SIGQUIT in an asynchronous list (without -m)
+520|5 15 27093 2 1|Expected exit code = 0; Received 1
+520|5 15 27093 2 2|Standard error isn't empty
+520|5 15 27093 2 3|Contents of out.stderr:
+520|5 15 27093 2 4|second subshell exit status was 0, expected >= 128
+520|5 15 27093 2 5|Standard output isn't the same as file 'test.520.exp'
+520|5 15 27093 2 6|diff of "out.stdout" and "test.520.exp":
+520|5 15 27093 2 7|*** out.stdout	Wed Jun 19 18:33:12 2019
+520|5 15 27093 2 8|--- test.520.exp	Wed Jun 19 18:33:07 2019
+520|5 15 27093 2 9|***************
+520|5 15 27093 2 10|*** 1 ****
+520|5 15 27093 2 11|--- 1,2 ----
+520|5 15 27093 2 12|+ got SIGINT
+520|5 15 27093 2 13|  sending SIGQUIT
+220|5 15 1 18:33:12|FAIL
+410|5 520 1 18:33:12|IC End
+400|5 521 1 18:33:12|IC Start
+200|5 16 18:33:12|TP Start
+520|5 16 27093 1 1|Assertion #521 (A): When the command is not followed by '&', then all signals have
+520|5 16 27093 2 1|No portable way to test.
+220|5 16 5 18:33:12|UNTESTED
+410|5 521 1 18:33:12|IC End
+400|5 522 1 18:33:12|IC Start
+200|5 17 18:33:12|TP Start
+520|5 17 27093 1 1|Assertion #522 (A): When the shell is executing a foreground command and receives
+520|5 17 27093 2 1|No portable way to test.
+220|5 17 5 18:33:12|UNTESTED
+410|5 522 1 18:33:12|IC End
+400|5 523 1 18:33:12|IC Start
+200|5 18 18:33:12|TP Start
+520|5 18 27093 1 1|Assertion #523 (A): When the shell is waiting, by means of a call to 'wait' for an
+520|5 18 27093 2 1|No portable way to test.
+220|5 18 5 18:33:12|UNTESTED
+410|5 523 1 18:33:12|IC End
+400|5 524 1 18:33:12|IC Start
+200|5 19 18:33:12|TP Start
+520|5 19 27093 1 1|Assertion #524 (B): Unless specifically specified by the command, the environment of
+520|5 19 27093 2 1|No portable way to test.
+220|5 19 5 18:33:12|UNTESTED
+410|5 524 1 18:33:12|IC End
+400|5 525 1 18:33:12|IC Start
+200|5 20 18:33:12|TP Start
+520|5 20 27093 1 1|Assertion #525 (A): When a subshell is created, then the subshell environment is a 
+520|5 20 27093 2 1|No portable way to test.
+220|5 20 5 18:33:12|UNTESTED
+410|5 525 1 18:33:12|IC End
+400|5 526 1 18:33:12|IC Start
+200|5 21 18:33:12|TP Start
+520|5 21 27093 1 1|Assertion #526 (A): When a change is made to the subshell environment, then the
+220|5 21 0 18:33:12|PASS
+410|5 526 1 18:33:12|IC End
+400|5 527 1 18:33:12|IC Start
+200|5 22 18:33:12|TP Start
+520|5 22 27093 1 1|Assertion #527 (A): Command substitution is executed in a subshell environment.
+220|5 22 0 18:33:12|PASS
+410|5 527 1 18:33:12|IC End
+400|5 528 1 18:33:12|IC Start
+200|5 23 18:33:12|TP Start
+520|5 23 27093 1 1|Assertion #528 (A): Commands that are grouped with parentheses are executed in a
+220|5 23 0 18:33:12|PASS
+410|5 528 1 18:33:12|IC End
+400|5 529 1 18:33:12|IC Start
+200|5 24 18:33:12|TP Start
+520|5 24 27093 1 1|Assertion #529 (B): Each command of a multi-command pipe-line is executed in a 
+220|5 24 0 18:33:12|PASS
+410|5 529 1 18:33:12|IC End
+400|5 530 1 18:33:12|IC Start
+200|5 25 18:33:12|TP Start
+520|5 25 27093 1 1|Assertion #530 (A): All other commands, including the shell built-ins, are executed
+220|5 25 0 18:33:12|PASS
+410|5 530 1 18:33:12|IC End
+400|5 531 1 18:33:12|IC Start
+200|5 26 18:33:12|TP Start
+520|5 26 27093 1 1|Assertion #531 (A): When used in pattern matching, then any character in the supported
+220|5 26 0 18:33:12|PASS
+410|5 531 1 18:33:12|IC End
+400|5 532 1 18:33:12|IC Start
+200|5 27 18:33:12|TP Start
+520|5 27 27093 1 1|Assertion #532 (A): When used outside a bracket expression and immediately preceded by 
+220|5 27 0 18:33:12|PASS
+410|5 532 1 18:33:12|IC End
+400|5 533 1 18:33:12|IC Start
+200|5 28 18:33:12|TP Start
+520|5 28 27093 1 1|Assertion #533 (A): When used in a bracket expression, each of the characters '?',
+220|5 28 0 18:33:12|PASS
+410|5 533 1 18:33:12|IC End
+400|5 534 1 18:33:12|IC Start
+200|5 29 18:33:12|TP Start
+520|5 29 27093 1 1|Assertion #534 (A): When used outside a bracket expression, an unquoted '?' is a 
+220|5 29 0 18:33:12|PASS
+410|5 534 1 18:33:12|IC End
+400|5 535 1 18:33:12|IC Start
+200|5 30 18:33:12|TP Start
+520|5 30 27093 1 1|Assertion #535 (A): A 'bracket expression' matches a single collating element.
+220|5 30 0 18:33:12|PASS
+410|5 535 1 18:33:12|IC End
+400|5 536 1 18:33:12|IC Start
+200|5 31 18:33:12|TP Start
+520|5 31 27093 1 1|Assertion #536 (A): Within a bracket expression not starting with an exclamation mark
+220|5 31 0 18:33:12|PASS
+410|5 536 1 18:33:12|IC End
+400|5 537 1 18:33:12|IC Start
+200|5 32 18:33:12|TP Start
+520|5 32 27093 1 1|Assertion #537 (A): Within a bracket expression starting with an exclamation mark
+220|5 32 0 18:33:12|PASS
+410|5 537 1 18:33:12|IC End
+400|5 538 1 18:33:12|IC Start
+200|5 33 18:33:12|TP Start
+520|5 33 27093 1 1|Assertion #538 (A): A right bracket represents itself in a bracket expression when one
+220|5 33 0 18:33:12|PASS
+410|5 538 1 18:33:12|IC End
+400|5 539 1 18:33:12|IC Start
+200|5 34 18:33:12|TP Start
+520|5 34 27093 1 1|Assertion #539 (A): Within a bracket expression, an expression within '[. .]' is treated
+220|5 34 0 18:33:12|PASS
+410|5 539 1 18:33:12|IC End
+400|5 540 1 18:33:12|IC Start
+200|5 35 18:33:12|TP Start
+520|5 35 27093 1 1|Assertion #540 (A): Within a bracket expression, an expression within '[. .]' that is not
+520|5 35 27093 2 1|No portable way to test.
+220|5 35 5 18:33:12|UNTESTED
+410|5 540 1 18:33:12|IC End
+400|5 541 1 18:33:12|IC Start
+200|5 36 18:33:12|TP Start
+520|5 36 27093 1 1|Assertion #541 (A): Within a bracket expression, an expression within '[. .]' that is a
+520|5 36 27093 2 1|No portable way to test.
+220|5 36 5 18:33:12|UNTESTED
+410|5 541 1 18:33:12|IC End
+400|5 542 1 18:33:12|IC Start
+200|5 37 18:33:12|TP Start
+520|5 37 27093 1 1|Assertion #542 (A): Within a bracket expression, when a collating element is a member 
+520|5 37 27093 2 1|No portable way to test.
+220|5 37 5 18:33:12|UNTESTED
+410|5 542 1 18:33:12|IC End
+400|5 543 1 18:33:12|IC Start
+200|5 38 18:33:12|TP Start
+520|5 38 27093 1 1|Assertion #543 (A): Within a bracket expression, when a collating element is a member
+220|5 38 0 18:33:12|PASS
+410|5 543 1 18:33:12|IC End
+400|5 544 1 18:33:12|IC Start
+200|5 39 18:33:12|TP Start
+520|5 39 27093 1 1|Assertion #544 (A): Within a bracket expression, one of the following character class
+220|5 39 0 18:33:12|PASS
+410|5 544 1 18:33:12|IC End
+400|5 545 1 18:33:12|IC Start
+200|5 40 18:33:12|TP Start
+520|5 40 27093 1 1|Assertion #545 (A): Within a bracket expression, a collating element or symbol 'c1'
+220|5 40 0 18:33:12|PASS
+410|5 545 1 18:33:12|IC End
+400|5 546 1 18:33:12|IC Start
+200|5 41 18:33:12|TP Start
+520|5 41 27093 1 1|Assertion #546 (A): Within a bracket expression, a collating element or symbol 'c1'
+220|5 41 0 18:33:12|PASS
+410|5 546 1 18:33:12|IC End
+400|5 547 1 18:33:12|IC Start
+200|5 42 18:33:12|TP Start
+520|5 42 27093 1 1|Assertion #547 (A): When a bracket expression contains 2 or more consecutive range
+220|5 42 0 18:33:12|PASS
+410|5 547 1 18:33:12|IC End
+400|5 548 1 18:33:12|IC Start
+200|5 43 18:33:12|TP Start
+520|5 43 27093 1 1|Assertion #548 (A): Within a bracket expression,the hyphen character is treated as
+220|5 43 0 18:33:12|PASS
+410|5 548 1 18:33:12|IC End
+400|5 549 1 18:33:12|IC Start
+200|5 44 18:33:12|TP Start
+520|5 44 27093 1 1|Assertion #549 (A): When pattern matchine is used and shell quote removal is not
+220|5 44 0 18:33:12|PASS
+410|5 549 1 18:33:12|IC End
+400|5 550 1 18:33:12|IC Start
+200|5 45 18:33:12|TP Start
+520|5 45 27093 1 1|Assertion #550 (A): When the '<backslash>' character is used to quote characters,
+220|5 45 0 18:33:12|PASS
+410|5 550 1 18:33:12|IC End
+400|5 569 1 18:33:13|IC Start
+200|5 46 18:33:13|TP Start
+520|5 46 27093 1 1|Assertion #569 (A): The '*' character is a pattern that matches any string including the
+220|5 46 0 18:33:13|PASS
+410|5 569 1 18:33:13|IC End
+400|5 570 1 18:33:13|IC Start
+200|5 47 18:33:13|TP Start
+520|5 47 27093 1 1|Assertion #570 (A): The concatenation of patterns which each match a single character
+220|5 47 0 18:33:13|PASS
+410|5 570 1 18:33:13|IC End
+400|5 571 1 18:33:13|IC Start
+200|5 48 18:33:13|TP Start
+520|5 48 27093 1 1|Assertion #571 (A): When a pattern contains one or more '*'s concatenated with one or 
+220|5 48 0 18:33:13|PASS
+410|5 571 1 18:33:13|IC End
+400|5 575 1 18:33:13|IC Start
+200|5 49 18:33:13|TP Start
+520|5 49 27093 1 1|Assertion #575 (A): A slash character in a pathname is matched by an explicit slash
+220|5 49 0 18:33:13|PASS
+410|5 575 1 18:33:13|IC End
+400|5 576 1 18:33:13|IC Start
+200|5 50 18:33:13|TP Start
+520|5 50 27093 1 1|Assertion #576 (A): When a pathname contains a slash character, then that slash
+220|5 50 0 18:33:13|PASS
+410|5 576 1 18:33:13|IC End
+400|5 577 1 18:33:13|IC Start
+200|5 51 18:33:13|TP Start
+520|5 51 27093 1 1|Assertion #577 (A): When a pathname contains a slash character, than that slash 
+220|5 51 0 18:33:13|PASS
+410|5 577 1 18:33:13|IC End
+400|5 578 1 18:33:13|IC Start
+200|5 52 18:33:13|TP Start
+520|5 52 27093 1 1|Assertion #578 (A): When a filename begins with a period, then the period is only
+220|5 52 0 18:33:13|PASS
+410|5 578 1 18:33:13|IC End
+400|5 579 1 18:33:13|IC Start
+200|5 53 18:33:13|TP Start
+520|5 53 27093 1 1|Assertion #579 (A): When a filename begins with a period, then the period is not matched
+220|5 53 0 18:33:13|PASS
+410|5 579 1 18:33:13|IC End
+400|5 580 1 18:33:13|IC Start
+200|5 54 18:33:13|TP Start
+520|5 54 27093 1 1|Assertion #580 (A): When a filename begins with a period, then the period is not matched
+220|5 54 0 18:33:13|PASS
+410|5 580 1 18:33:13|IC End
+400|5 581 1 18:33:13|IC Start
+200|5 55 18:33:13|TP Start
+520|5 55 27093 1 1|Assertion #581 (A): When the specified pattern matches one or more existing filenames 
+220|5 55 0 18:33:13|PASS
+410|5 581 1 18:33:13|IC End
+400|5 582 1 18:33:13|IC Start
+200|5 56 18:33:13|TP Start
+520|5 56 27093 1 1|Assertion #582 (A): When the specified pattern contains an invalid bracket expression,
+220|5 56 0 18:33:13|PASS
+410|5 582 1 18:33:13|IC End
+80|5 0 18:33:13|TC End, scenario ref 6-0
+10|6 /tset/POSIX.shell/shell/sh_10.ex 18:33:13|TC Start, scenario ref 7-0, ICs: {1-1000}
+15|6 3.8 61|TCM Start
+400|6 591 1 18:33:14|IC Start
+200|6 1 18:33:14|TP Start
+520|6 1 27932 1 1|Assertion #591 (B): Each of the special built-in commands is supported.
+520|6 1 27932 2 1|Incorrect assertion; to be withdrawn.
+220|6 1 5 18:33:14|UNTESTED
+410|6 591 1 18:33:14|IC End
+400|6 592 1 18:33:14|IC Start
+200|6 2 18:33:14|TP Start
+520|6 2 27932 1 1|Assertion #592 (B): The output of each of the special built-in commands is written to
+520|6 2 27932 2 1|Incorrect assertion; to be withdrawn.
+220|6 2 5 18:33:14|UNTESTED
+410|6 592 1 18:33:14|IC End
+400|6 593 1 18:33:14|IC Start
+200|6 3 18:33:14|TP Start
+520|6 3 27932 1 1|Assertion #593 (B): Each of the special built-in commands supports input/output
+520|6 3 27932 2 1|Incorrect assertion; to be withdrawn.
+220|6 3 5 18:33:14|UNTESTED
+410|6 593 1 18:33:14|IC End
+400|6 594 1 18:33:14|IC Start
+200|6 4 18:33:14|TP Start
+520|6 4 27932 1 1|Assertion #594 (B): A syntax error in a regular built-in command does not cause the
+520|6 4 27932 2 1|No portable test; no guaranteed regular built-in     utilities exist.
+220|6 4 5 18:33:14|UNTESTED
+410|6 594 1 18:33:14|IC End
+400|6 596 1 18:33:14|IC Start
+200|6 5 18:33:14|TP Start
+520|6 5 27932 1 1|Assertion #596 (A): When a shell application is executing a 'for', 'while' or 'until'
+220|6 5 0 18:33:14|PASS
+410|6 596 1 18:33:14|IC End
+400|6 597 1 18:33:14|IC Start
+200|6 6 18:33:14|TP Start
+520|6 6 27932 1 1|Assertion #597 (A): When a shell application is not executing a 'for', 'while' or 'until'
+520|6 6 27932 2 1|Expected exit code = 0; Received 2
+520|6 6 27932 2 2|Standard error isn't empty
+520|6 6 27932 2 3|Contents of out.stderr:
+520|6 6 27932 2 4|break: not in a loop
+520|6 6 27932 2 5|Standard output isn't the same as file 'test.597.exp'
+520|6 6 27932 2 6|diff of "out.stdout" and "test.597.exp":
+520|6 6 27932 2 7|*** out.stdout	Wed Jun 19 18:33:14 2019
+520|6 6 27932 2 8|--- test.597.exp	Wed Jun 19 18:33:14 2019
+520|6 6 27932 2 9|***************
+520|6 6 27932 2 10|*** 0 ****
+520|6 6 27932 2 11|--- 1 ----
+520|6 6 27932 2 12|+ value
+220|6 6 1 18:33:14|FAIL
+410|6 597 1 18:33:14|IC End
+400|6 598 1 18:33:14|IC Start
+200|6 7 18:33:14|TP Start
+520|6 7 27932 1 1|Assertion #598 (A): When a shell application is executing 'm' enclosing loops, then a
+220|6 7 0 18:33:14|PASS
+410|6 598 1 18:33:14|IC End
+400|6 599 1 18:33:14|IC Start
+200|6 8 18:33:14|TP Start
+520|6 8 27932 1 1|Assertion #599 (A): When a shell application is executing 'm' enclosing loops, then a
+220|6 8 0 18:33:14|PASS
+410|6 599 1 18:33:14|IC End
+400|6 600 1 18:33:14|IC Start
+200|6 9 18:33:14|TP Start
+520|6 9 27932 1 1|Assertion #600 (A): The exit value from a call to 'break' is zero when the optional argument 'n' is an unsigned decimal integer greater than or equal to one.
+520|6 9 27932 2 1|Expected exit code = 0; Received 2
+520|6 9 27932 2 2|Contents of out.stderr:
+520|6 9 27932 2 3|break: not in a loop
+520|6 9 27932 2 4|Expected exit code = 0; Received 2
+520|6 9 27932 2 5|Contents of out.stderr:
+520|6 9 27932 2 6|break: not in a loop
+220|6 9 1 18:33:14|FAIL
+410|6 600 1 18:33:14|IC End
+400|6 601 1 18:33:14|IC Start
+200|6 10 18:33:14|TP Start
+520|6 10 27932 1 1|Assertion #601 (A): A variable assignment specified with a special built-in command
+520|6 10 27932 2 1|Expected exit code = 0; Received 2
+520|6 10 27932 2 2|Standard error isn't empty
+520|6 10 27932 2 3|Contents of out.stderr:
+520|6 10 27932 2 4|break: not in a loop
+520|6 10 27932 2 5|Standard output isn't the same as file 'test.601.exp'
+520|6 10 27932 2 6|diff of "out.stdout" and "test.601.exp":
+520|6 10 27932 2 7|*** out.stdout	Wed Jun 19 18:33:14 2019
+520|6 10 27932 2 8|--- test.601.exp	Wed Jun 19 18:33:14 2019
+520|6 10 27932 2 9|***************
+520|6 10 27932 2 10|*** 0 ****
+520|6 10 27932 2 11|--- 1 ----
+520|6 10 27932 2 12|+ 20
+220|6 10 1 18:33:14|FAIL
+410|6 601 1 18:33:14|IC End
+400|6 602 1 18:33:14|IC Start
+200|6 11 18:33:14|TP Start
+520|6 11 27932 1 1|Assertion #602 (A): The colon (:) command causes the expansion of any command arguments
+220|6 11 0 18:33:14|PASS
+410|6 602 1 18:33:14|IC End
+400|6 603 1 18:33:14|IC Start
+200|6 12 18:33:14|TP Start
+520|6 12 27932 1 1|Assertion #603 (A): A variable assignment specified with a special built-in command
+220|6 12 0 18:33:14|PASS
+410|6 603 1 18:33:14|IC End
+400|6 604 1 18:33:14|IC Start
+200|6 13 18:33:14|TP Start
+520|6 13 27932 1 1|Assertion #604 (A): When a shell application is executing a 'for', 'while' or 'until' loop,
+220|6 13 0 18:33:14|PASS
+410|6 604 1 18:33:14|IC End
+400|6 605 1 18:33:14|IC Start
+200|6 14 18:33:14|TP Start
+520|6 14 27932 1 1|Assertion #605 (A): When a shell application is executing 'm' enclosing loops, then a
+220|6 14 0 18:33:14|PASS
+410|6 605 1 18:33:14|IC End
+400|6 606 1 18:33:14|IC Start
+200|6 15 18:33:14|TP Start
+520|6 15 27932 1 1|Assertion #606 (A): When a shell application is executing 'm' enclosing loops, then a
+220|6 15 0 18:33:14|PASS
+410|6 606 1 18:33:14|IC End
+400|6 607 1 18:33:14|IC Start
+200|6 16 18:33:14|TP Start
+520|6 16 27932 1 1|Assertion #607 (A): The exit value from a call to 'continue' is zero when the optional argument 'n' is an unsigned decimal integer greater than or equal to one.
+520|6 16 27932 2 1|Expected exit code = 0; Received 2
+520|6 16 27932 2 2|Contents of out.stderr:
+520|6 16 27932 2 3|continue: not in a loop
+520|6 16 27932 2 4|Expected exit code = 0; Received 2
+520|6 16 27932 2 5|Contents of out.stderr:
+520|6 16 27932 2 6|continue: not in a loop
+220|6 16 1 18:33:14|FAIL
+410|6 607 1 18:33:14|IC End
+400|6 608 1 18:33:14|IC Start
+200|6 17 18:33:14|TP Start
+520|6 17 27932 1 1|Assertion #608 (A): A variable assignment specified with a special built-in command
+520|6 17 27932 2 1|Expected exit code = 0; Received 2
+520|6 17 27932 2 2|Standard error isn't empty
+520|6 17 27932 2 3|Contents of out.stderr:
+520|6 17 27932 2 4|continue: not in a loop
+520|6 17 27932 2 5|Standard output isn't the same as file 'test.608.exp'
+520|6 17 27932 2 6|diff of "out.stdout" and "test.608.exp":
+520|6 17 27932 2 7|*** out.stdout	Wed Jun 19 18:33:14 2019
+520|6 17 27932 2 8|--- test.608.exp	Wed Jun 19 18:33:14 2019
+520|6 17 27932 2 9|***************
+520|6 17 27932 2 10|*** 0 ****
+520|6 17 27932 2 11|--- 1 ----
+520|6 17 27932 2 12|+ 20
+220|6 17 1 18:33:14|FAIL
+410|6 608 1 18:33:14|IC End
+400|6 609 1 18:33:14|IC Start
+200|6 18 18:33:14|TP Start
+520|6 18 27932 1 1|Assertion #609 (A): When a call is made to '. file' from a shell application, then the
+220|6 18 0 18:33:14|PASS
+410|6 609 1 18:33:14|IC End
+400|6 610 1 18:33:14|IC Start
+200|6 19 18:33:14|TP Start
+520|6 19 27932 1 1|Assertion #610 (A): When the specified 'file' does not contain a slash, then the shell
+220|6 19 0 18:33:14|PASS
+410|6 610 1 18:33:14|IC End
+400|6 611 1 18:33:14|IC Start
+200|6 20 18:33:14|TP Start
+520|6 20 27932 1 1|Assertion #611 (A): When the search path specified by PATH is used to locate the file,
+220|6 20 0 18:33:14|PASS
+410|6 611 1 18:33:14|IC End
+400|6 612 1 18:33:14|IC Start
+200|6 21 18:33:14|TP Start
+520|6 21 27932 1 1|Assertion #612 (A): When no readable filename that matches 'file' is found using the 
+220|6 21 0 18:33:14|PASS
+410|6 612 1 18:33:14|IC End
+400|6 613 1 18:33:14|IC Start
+200|6 22 18:33:14|TP Start
+520|6 22 27932 1 1|Assertion #613 (A): When a command is executed from a call to '. file', then the exit
+220|6 22 0 18:33:14|PASS
+410|6 613 1 18:33:14|IC End
+400|6 614 1 18:33:14|IC Start
+200|6 23 18:33:14|TP Start
+520|6 23 27932 1 1|Assertion #614 (A): When no command is executed from a call to '. file', then the exit
+220|6 23 0 18:33:14|PASS
+410|6 614 1 18:33:14|IC End
+400|6 615 1 18:33:14|IC Start
+200|6 24 18:33:14|TP Start
+520|6 24 27932 1 1|Assertion #615 (A): Refer to general assertion GA234.
+220|6 24 0 18:33:14|PASS
+410|6 615 1 18:33:14|IC End
+400|6 616 1 18:33:14|IC Start
+200|6 25 18:33:14|TP Start
+520|6 25 27932 1 1|Assertion #616 (A): The 'eval' command constructs a command by concatenating its 
+220|6 25 0 18:33:14|PASS
+410|6 616 1 18:33:14|IC End
+400|6 617 1 18:33:14|IC Start
+200|6 26 18:33:14|TP Start
+520|6 26 27932 1 1|Assertion #617 (A): The command constructed by a call to 'eval' is read and executed
+220|6 26 0 18:33:14|PASS
+410|6 617 1 18:33:14|IC End
+400|6 618 1 18:33:14|IC Start
+200|6 27 18:33:14|TP Start
+520|6 27 27932 1 1|Assertion #618 (A): When the call to 'eval' has no arguments or all arguments evaluate
+220|6 27 0 18:33:14|PASS
+410|6 618 1 18:33:14|IC End
+400|6 619 1 18:33:14|IC Start
+200|6 28 18:33:14|TP Start
+520|6 28 27932 1 1|Assertion #619 (A): When the call to eval generated one or more arguments, then the exit
+220|6 28 0 18:33:14|PASS
+410|6 619 1 18:33:14|IC End
+400|6 620 1 18:33:14|IC Start
+200|6 29 18:33:14|TP Start
+520|6 29 27932 1 1|Assertion #620 (A): Refer to general assertion GA234.
+220|6 29 0 18:33:14|PASS
+410|6 620 1 18:33:14|IC End
+400|6 621 1 18:33:14|IC Start
+200|6 30 18:33:14|TP Start
+520|6 30 27932 1 1|Assertion #621 (A): The 'exec' command opens, closes, and copies file descriptors as
+220|6 30 0 18:33:14|PASS
+410|6 621 1 18:33:14|IC End
+400|6 622 1 18:33:14|IC Start
+200|6 31 18:33:14|TP Start
+520|6 31 27932 1 1|Assertion #622 (A): When 'exec command' is called, then 'command' replaces the shell
+220|6 31 0 18:33:14|PASS
+410|6 622 1 18:33:14|IC End
+400|6 623 1 18:33:14|IC Start
+200|6 32 18:33:14|TP Start
+520|6 32 27932 1 1|Assertion #623 (A): When 'exec command arguments' is called, then 'command' replaces
+220|6 32 0 18:33:14|PASS
+410|6 623 1 18:33:14|IC End
+400|6 624 1 18:33:14|IC Start
+200|6 33 18:33:14|TP Start
+520|6 33 27932 1 1|Assertion #624 (A): When redirections are specified, then they affect the current shell
+220|6 33 0 18:33:14|PASS
+410|6 624 1 18:33:14|IC End
+400|6 625 1 18:33:14|IC Start
+200|6 34 18:33:14|TP Start
+520|6 34 27932 1 1|Assertion #625 (A): When 'command' is specified and is an executable utility, then
+220|6 34 0 18:33:14|PASS
+410|6 625 1 18:33:14|IC End
+400|6 626 1 18:33:14|IC Start
+200|6 35 18:33:14|TP Start
+520|6 35 27932 1 1|Assertion #626 (A): When 'command' is not found, then the invoking shell exits with a
+220|6 35 0 18:33:14|PASS
+410|6 626 1 18:33:14|IC End
+400|6 627 1 18:33:14|IC Start
+200|6 36 18:33:14|TP Start
+520|6 36 27932 1 1|Assertion #627 (A): When 'command' is found but is not an executable utility, then the
+220|6 36 0 18:33:14|PASS
+410|6 627 1 18:33:14|IC End
+400|6 628 1 18:33:14|IC Start
+200|6 37 18:33:14|TP Start
+520|6 37 27932 1 1|Assertion #628 (A): When a redirection error occurs from a call to 'exec', then the 
+220|6 37 0 18:33:14|PASS
+410|6 628 1 18:33:14|IC End
+400|6 629 1 18:33:14|IC Start
+200|6 38 18:33:14|TP Start
+520|6 38 27932 1 1|Assertion #629 (A): When 'command' is not specified, then 'exec' returns with an exit 
+220|6 38 0 18:33:14|PASS
+410|6 629 1 18:33:14|IC End
+400|6 630 1 18:33:14|IC Start
+200|6 39 18:33:14|TP Start
+520|6 39 27932 1 1|Assertion #630 (A): Refer to general assertion GA234.
+220|6 39 0 18:33:14|PASS
+410|6 630 1 18:33:14|IC End
+400|6 631 1 18:33:14|IC Start
+200|6 40 18:33:14|TP Start
+520|6 40 27932 1 1|Assertion #631 (A): When 'n' is a value between 0 and 127, then a call to 'exit n'
+220|6 40 0 18:33:15|PASS
+410|6 631 1 18:33:15|IC End
+400|6 632 1 18:33:15|IC Start
+200|6 41 18:33:15|TP Start
+520|6 41 27932 1 1|Assertion #632 (A): When the shell has previously executed a command, then a call to
+220|6 41 0 18:33:15|PASS
+410|6 632 1 18:33:15|IC End
+400|6 633 1 18:33:15|IC Start
+200|6 42 18:33:15|TP Start
+520|6 42 27932 1 1|Assertion #633 (A): When the shell has not previously executed a command, then a call
+220|6 42 0 18:33:15|PASS
+410|6 633 1 18:33:15|IC End
+400|6 634 1 18:33:15|IC Start
+200|6 43 18:33:15|TP Start
+520|6 43 27932 1 1|Assertion #634 (A): Wen a trap on EXIT is set, then a call to 'exit' from outside
+220|6 43 0 18:33:15|PASS
+410|6 634 1 18:33:15|IC End
+400|6 635 1 18:33:15|IC Start
+200|6 44 18:33:15|TP Start
+520|6 44 27932 1 1|Assertion #635 (A): When a trap on EXIT is set, then a call to exit from within the
+220|6 44 0 18:33:15|PASS
+410|6 635 1 18:33:15|IC End
+400|6 636 1 18:33:15|IC Start
+200|6 45 18:33:15|TP Start
+520|6 45 27932 1 1|Assertion #636 (A): Refer to general assertion GA234.
+220|6 45 0 18:33:15|PASS
+410|6 636 1 18:33:15|IC End
+400|6 637 1 18:33:15|IC Start
+200|6 46 18:33:15|TP Start
+520|6 46 27932 1 1|Assertion #637 (A): A call to 'export' causes the variables corresponding to 'names'
+220|6 46 0 18:33:15|PASS
+410|6 637 1 18:33:15|IC End
+400|6 638 1 18:33:15|IC Start
+200|6 47 18:33:15|TP Start
+520|6 47 27932 1 1|Assertion #638 (A): When the '-p' option is specified, then a call to 'export' writes 
+220|6 47 0 18:33:15|PASS
+410|6 638 1 18:33:15|IC End
+400|6 639 1 18:33:15|IC Start
+200|6 48 18:33:15|TP Start
+520|6 48 27932 1 1|Assertion #639 (A): Refer to general assertion GA28.
+220|6 48 0 18:33:15|PASS
+410|6 639 1 18:33:15|IC End
+400|6 640 1 18:33:15|IC Start
+200|6 49 18:33:15|TP Start
+520|6 49 27932 1 1|Assertion #640 (A): The exit status of the 'export' command is zero.
+220|6 49 0 18:33:15|PASS
+410|6 640 1 18:33:15|IC End
+400|6 641 1 18:33:15|IC Start
+200|6 50 18:33:15|TP Start
+520|6 50 27932 1 1|Assertion #641 (A): Refer to general assertion GA233.
+220|6 50 0 18:33:15|PASS
+410|6 641 1 18:33:15|IC End
+400|6 642 1 18:33:15|IC Start
+200|6 51 18:33:15|TP Start
+520|6 51 27932 1 1|Assertion #642 (A): Refer to general assertion GA234.
+220|6 51 0 18:33:15|PASS
+410|6 642 1 18:33:15|IC End
+400|6 643 1 18:33:15|IC Start
+200|6 52 18:33:15|TP Start
+520|6 52 27932 1 1|Assertion #643 (A): A call to 'readonly' causes the specified 'names' to be given
+220|6 52 0 18:33:15|PASS
+410|6 643 1 18:33:15|IC End
+400|6 644 1 18:33:15|IC Start
+200|6 53 18:33:15|TP Start
+520|6 53 27932 1 1|Assertion #644 (A): When the '-p' option is specified, then a call to 'readonly' writes 
+220|6 53 0 18:33:15|PASS
+410|6 644 1 18:33:15|IC End
+400|6 645 1 18:33:15|IC Start
+200|6 54 18:33:15|TP Start
+520|6 54 27932 1 1|Assertion #645 (A): Refer to general assertion GA28.
+220|6 54 0 18:33:15|PASS
+410|6 645 1 18:33:15|IC End
+400|6 646 1 18:33:15|IC Start
+200|6 55 18:33:15|TP Start
+520|6 55 27932 1 1|Assertion #646 (A): The exit status of the 'readonly' command is zero.
+220|6 55 0 18:33:15|PASS
+410|6 646 1 18:33:15|IC End
+400|6 647 1 18:33:15|IC Start
+200|6 56 18:33:15|TP Start
+520|6 56 27932 1 1|Assertion #647 (A): Refer to general assertion GA233.
+220|6 56 0 18:33:15|PASS
+410|6 647 1 18:33:15|IC End
+400|6 648 1 18:33:15|IC Start
+200|6 57 18:33:15|TP Start
+520|6 57 27932 1 1|Assertion #648 (A): Refer to general assertion GA234.
+220|6 57 0 18:33:15|PASS
+410|6 648 1 18:33:15|IC End
+400|6 649 1 18:33:15|IC Start
+200|6 58 18:33:15|TP Start
+520|6 58 27932 1 1|Assertion #649 (A): When the shell is executing a function or dot script, then the 'return'
+220|6 58 0 18:33:15|PASS
+410|6 649 1 18:33:15|IC End
+400|6 650 1 18:33:15|IC Start
+200|6 59 18:33:15|TP Start
+520|6 59 27932 1 1|Assertion #650 (A): When the shell is executing a function or dot script, then the 
+220|6 59 0 18:33:15|PASS
+410|6 650 1 18:33:15|IC End
+400|6 651 1 18:33:15|IC Start
+200|6 60 18:33:15|TP Start
+520|6 60 27932 1 1|Assertion #651 (A): When a 'return' is executed from within a trap action and 'n' is
+220|6 60 0 18:33:15|PASS
+410|6 651 1 18:33:15|IC End
+400|6 652 1 18:33:15|IC Start
+200|6 61 18:33:15|TP Start
+520|6 61 27932 1 1|Assertion #652 (A): Refer to general assertion GA234.
+220|6 61 0 18:33:15|PASS
+410|6 652 1 18:33:15|IC End
+80|6 0 18:33:16|TC End, scenario ref 7-0
+10|7 /tset/POSIX.shell/shell/sh_11.ex 18:33:16|TC Start, scenario ref 8-0, ICs: {1-1000}
+15|7 3.8 53|TCM Start
+400|7 653 1 18:33:17|IC Start
+200|7 1 18:33:17|TP Start
+520|7 1 28941 1 1|Assertion #653 (A): When 'set' is called with no options or arguments, then a list of
+220|7 1 0 18:33:17|PASS
+410|7 653 1 18:33:17|IC End
+400|7 654 1 18:33:17|IC Start
+200|7 2 18:33:17|TP Start
+520|7 2 28941 1 1|Assertion #654 (A): When 'set' is called with no options or arguments, then the format 
+220|7 2 0 18:33:17|PASS
+410|7 654 1 18:33:17|IC End
+400|7 655 1 18:33:17|IC Start
+200|7 3 18:33:17|TP Start
+520|7 3 28941 1 1|Assertion #655 (A): A call to 'set [-options]' causes the specified 'options' to be 
+220|7 3 0 18:33:17|PASS
+410|7 655 1 18:33:17|IC End
+400|7 656 1 18:33:17|IC Start
+200|7 4 18:33:17|TP Start
+520|7 4 28941 1 1|Assertion #656 (A): A call to 'set [+options]' causes the specified 'options' to be 
+220|7 4 0 18:33:17|PASS
+410|7 656 1 18:33:17|IC End
+400|7 657 1 18:33:17|IC Start
+200|7 5 18:33:17|TP Start
+520|7 5 28941 1 1|Assertion #657 (A): The 'set -a' option causes the export attribute to be set for each
+220|7 5 0 18:33:17|PASS
+410|7 657 1 18:33:17|IC End
+400|7 658 1 18:33:17|IC Start
+200|7 6 18:33:17|TP Start
+520|7 6 28941 1 1|Assertion #658 (C): The 'set -o allexport' option is equivalent to the 'set -a' option.
+520|7 6 28941 3 1|POSIX2_UPE is not supported
+220|7 6 4 18:33:17|UNSUPPORTED
+410|7 658 1 18:33:17|IC End
+400|7 659 1 18:33:17|IC Start
+200|7 7 18:33:17|TP Start
+520|7 7 28941 1 1|Assertion #659 (C): The 'set -b' option causes the shell to notify the user 
+520|7 7 28941 3 1|POSIX2_UPE is not supported
+220|7 7 4 18:33:17|UNSUPPORTED
+410|7 659 1 18:33:17|IC End
+400|7 660 1 18:33:17|IC Start
+200|7 8 18:33:17|TP Start
+520|7 8 28941 1 1|Assertion #660 (C): The character '+' in the <current> field of the notification
+520|7 8 28941 3 1|POSIX2_UPE is not supported
+220|7 8 4 18:33:17|UNSUPPORTED
+410|7 660 1 18:33:17|IC End
+400|7 661 1 18:33:17|IC Start
+200|7 9 18:33:17|TP Start
+520|7 9 28941 1 1|Assertion #661 (C): The character '-' in the <current> field of the notification message
+520|7 9 28941 3 1|POSIX2_UPE is not supported
+220|7 9 4 18:33:17|UNSUPPORTED
+410|7 661 1 18:33:17|IC End
+400|7 662 1 18:33:17|IC Start
+200|7 10 18:33:17|TP Start
+520|7 10 28941 1 1|Assertion #662 (C): The character '<space>' in the <current> field of the notification
+520|7 10 28941 3 1|POSIX2_UPE is not supported
+220|7 10 4 18:33:17|UNSUPPORTED
+410|7 662 1 18:33:17|IC End
+400|7 663 1 18:33:17|IC Start
+200|7 11 18:33:17|TP Start
+520|7 11 28941 1 1|Assertion #663 (C): The character '+' in the '<current> field of the notification
+520|7 11 28941 3 1|POSIX2_UPE is not supported
+220|7 11 4 18:33:17|UNSUPPORTED
+410|7 663 1 18:33:17|IC End
+400|7 664 1 18:33:17|IC Start
+200|7 12 18:33:17|TP Start
+520|7 12 28941 1 1|Assertion #664 (C): The character '-' in the <current> field of the notification
+520|7 12 28941 3 1|POSIX2_UPE is not supported
+220|7 12 4 18:33:17|UNSUPPORTED
+410|7 664 1 18:33:17|IC End
+400|7 665 1 18:33:17|IC Start
+200|7 13 18:33:17|TP Start
+520|7 13 28941 1 1|Assertion #665 (D): When there is a suspended job, then the current job is identified
+520|7 13 28941 3 1|POSIX2_UPE is not supported
+220|7 13 4 18:33:17|UNSUPPORTED
+410|7 665 1 18:33:17|IC End
+400|7 666 1 18:33:17|IC Start
+200|7 14 18:33:17|TP Start
+520|7 14 28941 1 1|Assertion #666 (C): When there are at least two suspended jobs, then both the current
+520|7 14 28941 3 1|POSIX2_UPE is not supported
+220|7 14 4 18:33:17|UNSUPPORTED
+410|7 666 1 18:33:17|IC End
+400|7 667 1 18:33:17|IC Start
+200|7 15 18:33:17|TP Start
+520|7 15 28941 1 1|Assertion #667 (D): the 'set -b' option is not enabled by default.
+520|7 15 28941 2 1|No portable test.
+220|7 15 5 18:33:17|UNTESTED
+410|7 667 1 18:33:17|IC End
+400|7 668 1 18:33:17|IC Start
+200|7 16 18:33:17|TP Start
+520|7 16 28941 1 1|Assertion #668 (C): The 'set -o verbose' option is equivalent to the 'set -b' option.
+520|7 16 28941 3 1|POSIX2_UPE is not supported
+220|7 16 4 18:33:17|UNSUPPORTED
+410|7 668 1 18:33:17|IC End
+400|7 669 1 18:33:17|IC Start
+200|7 17 18:33:17|TP Start
+520|7 17 28941 1 1|Assertion #669 (A): The 'set -C' option prevents existing files from being overwritten
+220|7 17 0 18:33:17|PASS
+410|7 669 1 18:33:17|IC End
+400|7 670 1 18:33:17|IC Start
+200|7 18 18:33:17|TP Start
+520|7 18 28941 1 1|Assertion #670 (C): The 'set -o clobber' option is equivalent to the 'set -C' option.
+520|7 18 28941 3 1|POSIX2_UPE is not supported
+220|7 18 4 18:33:17|UNSUPPORTED
+410|7 670 1 18:33:17|IC End
+400|7 671 1 18:33:17|IC Start
+200|7 19 18:33:17|TP Start
+520|7 19 28941 1 1|Assertion #671 (A): The 'set -e' option causes the shell to immediately exit when ...
+220|7 19 0 18:33:17|PASS
+410|7 671 1 18:33:17|IC End
+400|7 672 1 18:33:17|IC Start
+200|7 20 18:33:17|TP Start
+520|7 20 28941 1 1|Assertion #672 (C): The 'set -o errexit' option is equivalent to the 'set -e' option.
+520|7 20 28941 3 1|POSIX2_UPE is not supported
+220|7 20 4 18:33:17|UNSUPPORTED
+410|7 672 1 18:33:17|IC End
+400|7 673 1 18:33:17|IC Start
+200|7 21 18:33:17|TP Start
+520|7 21 28941 1 1|Assertion #673 (A): The 'set -f' option causes the shell to disable pathname expansion.
+220|7 21 0 18:33:17|PASS
+410|7 673 1 18:33:17|IC End
+400|7 674 1 18:33:17|IC Start
+200|7 22 18:33:17|TP Start
+520|7 22 28941 1 1|Assertion #674 (C): The 'set -o noglob' option is equivalent to the 'set -f' option.
+520|7 22 28941 3 1|POSIX2_UPE is not supported
+220|7 22 4 18:33:17|UNSUPPORTED
+410|7 674 1 18:33:17|IC End
+400|7 675 1 18:33:17|IC Start
+200|7 23 18:33:17|TP Start
+520|7 23 28941 1 1|Assertion #675 (D): When the 'set -m' or the 'set -o monitor' option is specified,
+520|7 23 28941 3 1|POSIX2_UPE is not supported
+220|7 23 4 18:33:17|UNSUPPORTED
+410|7 675 1 18:33:17|IC End
+400|7 676 1 18:33:17|IC Start
+200|7 24 18:33:17|TP Start
+520|7 24 28941 1 1|Assertion #676 (C): When the background job completes or changes status, before the
+520|7 24 28941 3 1|POSIX2_UPE is not supported
+220|7 24 4 18:33:17|UNSUPPORTED
+410|7 676 1 18:33:17|IC End
+400|7 677 1 18:33:17|IC Start
+200|7 25 18:33:17|TP Start
+520|7 25 28941 1 1|Assertion #677 (C): When the POSIX locale is specified and a background job changes
+520|7 25 28941 3 1|POSIX2_UPE is not supported
+220|7 25 4 18:33:17|UNSUPPORTED
+410|7 677 1 18:33:17|IC End
+400|7 678 1 18:33:17|IC Start
+200|7 26 18:33:17|TP Start
+520|7 26 28941 1 1|Assertion #678 (C): When the POSIX locale is specified and a background job exits with
+520|7 26 28941 3 1|POSIX2_UPE is not supported
+220|7 26 4 18:33:17|UNSUPPORTED
+410|7 678 1 18:33:17|IC End
+400|7 679 1 18:33:17|IC Start
+200|7 27 18:33:17|TP Start
+520|7 27 28941 1 1|Assertion #679 (C): When the POSIX locale is specified and a background job exits 
+520|7 27 28941 3 1|POSIX2_UPE is not supported
+220|7 27 4 18:33:17|UNSUPPORTED
+410|7 679 1 18:33:17|IC End
+400|7 680 1 18:33:17|IC Start
+200|7 28 18:33:17|TP Start
+520|7 28 28941 1 1|Assertion #680 (C): When the POSIX locale is specified and a background job is
+520|7 28 28941 3 1|POSIX2_UPE is not supported
+220|7 28 4 18:33:17|UNSUPPORTED
+410|7 680 1 18:33:17|IC End
+400|7 681 1 18:33:17|IC Start
+200|7 29 18:33:17|TP Start
+520|7 29 28941 1 1|Assertion #681 (C): When the POSIX locale is specified and a background job is
+520|7 29 28941 3 1|POSIX2_UPE is not supported
+220|7 29 4 18:33:17|UNSUPPORTED
+410|7 681 1 18:33:17|IC End
+400|7 682 1 18:33:17|IC Start
+200|7 30 18:33:17|TP Start
+520|7 30 28941 1 1|Assertion #682 (C): When the POSIX locale is specified and a background job is
+520|7 30 28941 3 1|POSIX2_UPE is not supported
+220|7 30 4 18:33:17|UNSUPPORTED
+410|7 682 1 18:33:17|IC End
+400|7 683 1 18:33:17|IC Start
+200|7 31 18:33:17|TP Start
+520|7 31 28941 1 1|Assertion #683 (C): If the User Portability Utilities Option is supported:
+520|7 31 28941 3 1|POSIX2_UPE is not supported
+220|7 31 4 18:33:17|UNSUPPORTED
+410|7 683 1 18:33:17|IC End
+400|7 684 1 18:33:17|IC Start
+200|7 32 18:33:17|TP Start
+520|7 32 28941 1 1|Assertion #684 (C): When the POSIX locale is specified and a background job is
+520|7 32 28941 3 1|POSIX2_UPE is not supported
+220|7 32 4 18:33:17|UNSUPPORTED
+410|7 684 1 18:33:17|IC End
+400|7 685 1 18:33:17|IC Start
+200|7 33 18:33:17|TP Start
+520|7 33 28941 1 1|Assertion #685 (C): The 'set -m' option is enabled by default for interactive shells.
+520|7 33 28941 3 1|POSIX2_UPE is not supported
+220|7 33 4 18:33:17|UNSUPPORTED
+410|7 685 1 18:33:17|IC End
+400|7 686 1 18:33:17|IC Start
+200|7 34 18:33:17|TP Start
+520|7 34 28941 1 1|Assertion #686 (C): When the background job completes or changes status and the
+520|7 34 28941 3 1|POSIX2_UPE is not supported
+220|7 34 4 18:33:17|UNSUPPORTED
+410|7 686 1 18:33:17|IC End
+400|7 687 1 18:33:17|IC Start
+200|7 35 18:33:17|TP Start
+520|7 35 28941 1 1|Assertion #687 (A): The 'set -n' command causes the shell to read commands but not to
+220|7 35 0 18:33:17|PASS
+410|7 687 1 18:33:17|IC End
+400|7 688 1 18:33:17|IC Start
+200|7 36 18:33:17|TP Start
+520|7 36 28941 1 1|Assertion #688 (C): The 'set -o noexec' option is equivalent to the 'set -n' option.
+520|7 36 28941 3 1|POSIX2_UPE is not supported
+220|7 36 4 18:33:17|UNSUPPORTED
+410|7 688 1 18:33:17|IC End
+400|7 689 1 18:33:17|IC Start
+200|7 37 18:33:17|TP Start
+520|7 37 28941 1 1|Assertion #689 (C): When the 'set -o vi' option is specified, then the shell allows
+520|7 37 28941 3 1|POSIX2_UPE is not supported
+220|7 37 4 18:33:17|UNSUPPORTED
+410|7 689 1 18:33:17|IC End
+400|7 690 1 18:33:17|IC Start
+200|7 38 18:33:17|TP Start
+520|7 38 28941 1 1|Assertion #690 (C): When the shell editing 'vi' mode is enabled, any other shell
+520|7 38 28941 3 1|POSIX2_UPE is not supported
+220|7 38 4 18:33:17|UNSUPPORTED
+410|7 690 1 18:33:17|IC End
+400|7 691 1 18:33:17|IC Start
+200|7 39 18:33:17|TP Start
+520|7 39 28941 1 1|Assertion #691 (A): When the shell is not executing interactively, then the 'set -u'
+520|7 39 28941 2 1|testing simple $var expansion ...
+520|7 39 28941 2 2|testing positional parameter expansion ...
+520|7 39 28941 2 3|testing expansion inside another parameter expansion ...
+520|7 39 28941 2 4|testing expansion inside an arithmetic expansion ...
+520|7 39 28941 2 5|testing use without $ in an arithmetic expansion ...
+520|7 39 28941 2 6|Expected exit code != 0; Received 0
+520|7 39 28941 2 7|Standard output isn't empty
+520|7 39 28941 2 8|Contents of out.stdout:
+520|7 39 28941 2 9|1
+520|7 39 28941 2 10|Standard error is empty
+520|7 39 28941 2 11|testing ${#var} expansion ...
+520|7 39 28941 2 12|testing ${var%word} expansion ...
+520|7 39 28941 2 13|testing ${var%%word} expansion ...
+520|7 39 28941 2 14|testing ${var#word} expansion ...
+520|7 39 28941 2 15|testing ${var##word} expansion ...
+520|7 39 28941 2 16|testing $* and $@ expansion ...
+220|7 39 1 18:33:17|FAIL
+410|7 691 1 18:33:17|IC End
+400|7 692 1 18:33:17|IC Start
+200|7 40 18:33:17|TP Start
+520|7 40 28941 1 1|Assertion #692 (C): The 'set -o nounset' option is equivalent to the 'set -u' option.
+520|7 40 28941 3 1|POSIX2_UPE is not supported
+220|7 40 4 18:33:17|UNSUPPORTED
+410|7 692 1 18:33:17|IC End
+400|7 693 1 18:33:17|IC Start
+200|7 41 18:33:17|TP Start
+520|7 41 28941 1 1|Assertion #693 (A): The 'set -v' command causes the shell to write its input to 
+220|7 41 0 18:33:17|PASS
+410|7 693 1 18:33:17|IC End
+400|7 694 1 18:33:17|IC Start
+200|7 42 18:33:17|TP Start
+520|7 42 28941 1 1|Assertion #694 (A): The 
+220|7 42 0 18:33:17|PASS
+410|7 694 1 18:33:17|IC End
+400|7 695 1 18:33:17|IC Start
+200|7 43 18:33:17|TP Start
+520|7 43 28941 1 1|Assertion #695 (A): The default value for all of the shell options is disabled.
+520|7 43 28941 2 1|This is a limited test of this assertion.
+220|7 43 0 18:33:17|PASS
+410|7 695 1 18:33:17|IC End
+400|7 696 1 18:33:17|IC Start
+200|7 44 18:33:17|TP Start
+520|7 44 28941 1 1|Assertion #696 (A): The positional parameters are unset before any new values are assigned
+220|7 44 0 18:33:17|PASS
+410|7 696 1 18:33:17|IC End
+400|7 697 1 18:33:17|IC Start
+200|7 45 18:33:17|TP Start
+520|7 45 28941 1 1|Assertion #697 (A): When 'set' is called with a list of 'arguments', then the
+220|7 45 0 18:33:17|PASS
+410|7 697 1 18:33:17|IC End
+400|7 698 1 18:33:17|IC Start
+200|7 46 18:33:17|TP Start
+520|7 46 28941 1 1|Assertion #698 (A): A call to 'set --' unsets the current list of positional parameters
+220|7 46 0 18:33:17|PASS
+410|7 698 1 18:33:17|IC End
+400|7 699 1 18:33:17|IC Start
+200|7 47 18:33:17|TP Start
+520|7 47 28941 1 1|Assertion #699 (A): When the 'set' command is called with the single argument '-',
+520|7 47 28941 2 1|Command failed: '[ $(grep 'echo hello' out.stderr | wc -l) -eq 0 ]'
+220|7 47 1 18:33:17|FAIL
+410|7 699 1 18:33:17|IC End
+400|7 700 1 18:33:17|IC Start
+200|7 48 18:33:17|TP Start
+520|7 48 28941 1 1|Assertion #700 (A): When the 'set' command is called with the first argument '-',
+520|7 48 28941 2 1|No test when VSC_POSIX_VERSION = 200809 and VSC_XOPEN_VERSION = 0
+220|7 48 3 18:33:17|NOTINUSE
+410|7 700 1 18:33:17|IC End
+400|7 701 1 18:33:17|IC Start
+200|7 49 18:33:17|TP Start
+520|7 49 28941 1 1|Assertion #701 (D): WHen the 'set -o ignoreeof' option is specified, then an
+520|7 49 28941 3 1|POSIX2_UPE is not supported
+220|7 49 4 18:33:17|UNSUPPORTED
+410|7 701 1 18:33:17|IC End
+400|7 702 1 18:33:17|IC Start
+200|7 50 18:33:17|TP Start
+520|7 50 28941 1 1|Assertion #702 (C): The 'set -o xtrace' option is equivalent to the 'set -x' option.
+520|7 50 28941 3 1|POSIX2_UPE is not supported
+220|7 50 4 18:33:17|UNSUPPORTED
+410|7 702 1 18:33:17|IC End
+400|7 703 1 18:33:17|IC Start
+200|7 51 18:33:17|TP Start
+520|7 51 28941 1 1|Assertion #703 (A): The exit status of the 'set' command is zero.
+220|7 51 0 18:33:17|PASS
+410|7 703 1 18:33:17|IC End
+400|7 704 1 18:33:17|IC Start
+200|7 52 18:33:17|TP Start
+520|7 52 28941 1 1|Assertion #704 (A): Each of the special built-in commands supports input/output
+220|7 52 0 18:33:17|PASS
+410|7 704 1 18:33:18|IC End
+400|7 705 1 18:33:18|IC Start
+200|7 53 18:33:18|TP Start
+520|7 53 28941 1 1|Assertion #705 (A): A variable assignment specified with a special built-in command
+220|7 53 0 18:33:18|PASS
+410|7 705 1 18:33:18|IC End
+80|7 0 18:33:18|TC End, scenario ref 8-0
+10|8 /tset/POSIX.shell/shell/sh_12.ex 18:33:18|TC Start, scenario ref 9-0, ICs: {1-1000}
+15|8 3.8 62|TCM Start
+400|8 706 1 18:33:19|IC Start
+200|8 1 18:33:19|TP Start
+520|8 1 29658 1 1|Assertion #706 (A): A call to 'shift n' shifts the positional parametesr such that
+220|8 1 0 18:33:19|PASS
+410|8 706 1 18:33:19|IC End
+400|8 707 1 18:33:19|IC Start
+200|8 2 18:33:19|TP Start
+520|8 2 29658 1 1|Assertion #707 (A): A call to 'shift' with no arguments is equivalent to a call to
+220|8 2 0 18:33:19|PASS
+410|8 707 1 18:33:19|IC End
+400|8 708 1 18:33:19|IC Start
+200|8 3 18:33:19|TP Start
+520|8 3 29658 1 1|Assertion #708 (A): A call to 'shift 0' does ot change the setting of the positional
+220|8 3 0 18:33:19|PASS
+410|8 708 1 18:33:19|IC End
+400|8 709 1 18:33:19|IC Start
+200|8 4 18:33:19|TP Start
+520|8 4 29658 1 1|Assertion #709 (A): shift with 'n' greater than $# or (for some test modes) invalid
+520|8 4 29658 4 1|Expected exit code = 0; Received 1
+520|8 4 29658 4 2|Standard error isn't empty
+520|8 4 29658 4 3|Contents of out.stderr:
+520|8 4 29658 4 4|expect_after: unexpected timeout
+520|8 4 29658 4 5|Expected exit code = 0; Received 1
+520|8 4 29658 4 6|Standard error isn't empty
+520|8 4 29658 4 7|Contents of out.stderr:
+520|8 4 29658 4 8|expect_after: unexpected timeout
+220|8 4 1 18:33:39|FAIL
+410|8 709 1 18:33:39|IC End
+400|8 710 1 18:33:39|IC Start
+200|8 5 18:33:39|TP Start
+520|8 5 29658 1 1|Assertion #710 (A): When 'n' is less than or equal to the value of the special parameter
+220|8 5 0 18:33:39|PASS
+410|8 710 1 18:33:39|IC End
+400|8 711 1 18:33:39|IC Start
+200|8 6 18:33:39|TP Start
+520|8 6 29658 1 1|Assertion #711 (A): Refer to general assertion GA234.
+220|8 6 0 18:33:39|PASS
+410|8 711 1 18:33:39|IC End
+400|8 712 1 18:33:39|IC Start
+200|8 7 18:33:39|TP Start
+520|8 7 29658 1 1|Assertion #712 (A): A call to 'trap -' sets each of the specified conditions to its default action
+520|8 7 29658 2 1|testing ABRT (case 1) ...
+520|8 7 29658 2 2|testing BUS (case 1) ...
+520|8 7 29658 2 3|testing FPE (case 1) ...
+520|8 7 29658 2 4|testing HUP (case 1) ...
+520|8 7 29658 2 5|testing ILL (case 1) ...
+520|8 7 29658 2 6|testing PIPE (case 1) ...
+520|8 7 29658 2 7|testing SEGV (case 1) ...
+520|8 7 29658 2 8|testing TERM (case 1) ...
+520|8 7 29658 2 9|testing USR1 (case 1) ...
+520|8 7 29658 2 10|testing USR2 (case 1) ...
+520|8 7 29658 2 11|testing ABRT (case 2) ...
+520|8 7 29658 2 12|testing BUS (case 2) ...
+520|8 7 29658 2 13|testing FPE (case 2) ...
+520|8 7 29658 2 14|testing HUP (case 2) ...
+520|8 7 29658 2 15|testing ILL (case 2) ...
+520|8 7 29658 2 16|testing PIPE (case 2) ...
+520|8 7 29658 2 17|testing SEGV (case 2) ...
+520|8 7 29658 2 18|testing TERM (case 2) ...
+520|8 7 29658 2 19|testing USR1 (case 2) ...
+520|8 7 29658 2 20|testing USR2 (case 2) ...
+520|8 7 29658 2 21|testing INT (case 3) ...
+520|8 7 29658 2 22|testing QUIT (case 3) ...
+220|8 7 0 18:33:43|PASS
+410|8 712 1 18:33:43|IC End
+400|8 713 1 18:33:43|IC Start
+200|8 8 18:33:43|TP Start
+520|8 8 29658 1 1|Assertion #713 (B): A call to 'trap' with a null action sets each of the specified 
+520|8 8 29658 2 1|No portable test.
+220|8 8 5 18:33:43|UNTESTED
+410|8 713 1 18:33:43|IC End
+400|8 714 1 18:33:43|IC Start
+200|8 9 18:33:43|TP Start
+520|8 9 29658 1 1|Assertion #714 (B): When action is either '-' or null, then a call to 'trap action'
+520|8 9 29658 2 1|No portable test.
+220|8 9 5 18:33:43|UNTESTED
+410|8 714 1 18:33:43|IC End
+400|8 715 1 18:33:43|IC Start
+200|8 10 18:33:43|TP Start
+520|8 10 29658 1 1|Assertion #715 (B): When a 'trap' is invoked, then the value of the special parameter 
+520|8 10 29658 2 1|No portable test.
+220|8 10 5 18:33:43|UNTESTED
+410|8 715 1 18:33:43|IC End
+400|8 716 1 18:33:43|IC Start
+200|8 11 18:33:43|TP Start
+520|8 11 29658 1 1|Assertion #716 (A): When the condition is either EXIT or '0', then the requested action is
+220|8 11 0 18:33:43|PASS
+410|8 716 1 18:33:43|IC End
+400|8 717 1 18:33:43|IC Start
+200|8 12 18:33:43|TP Start
+520|8 12 29658 1 1|Assertion #717 (A): When a trap on EXIT is invoked, then the environment in which the 
+220|8 12 0 18:33:43|PASS
+410|8 717 1 18:33:43|IC End
+400|8 718 1 18:33:43|IC Start
+200|8 13 18:33:43|TP Start
+520|8 13 29658 1 1|Assertion #718 (A): When the condition specifies a signal name without the SIG prefix
+520|8 13 29658 2 1|Expected exit code = 0; Received 1
+520|8 13 29658 2 2|Standard error isn't empty
+520|8 13 29658 2 3|Contents of out.stderr:
+520|8 13 29658 2 4|expect_after: unexpected timeout
+520|8 13 29658 2 5|Command failed: '[ -f tmp_718_1.tch ]'
+220|8 13 1 18:33:54|FAIL
+410|8 718 1 18:33:54|IC End
+400|8 719 1 18:33:54|IC Start
+200|8 14 18:33:54|TP Start
+520|8 14 29658 1 1|Assertion #719 (B): The 
+520|8 14 29658 2 1|No portable test.
+220|8 14 5 18:33:54|UNTESTED
+410|8 719 1 18:33:54|IC End
+400|8 720 1 18:33:54|IC Start
+200|8 15 18:33:54|TP Start
+520|8 15 29658 1 1|Assertion #720 (B): Signals that are set to be ignored on entry to the shell cannot be
+520|8 15 29658 2 1|No portable way to control signals ignored on entry.
+220|8 15 5 18:33:54|UNTESTED
+410|8 720 1 18:33:54|IC End
+400|8 721 1 18:33:54|IC Start
+200|8 16 18:33:54|TP Start
+520|8 16 29658 1 1|Assertion #721 (B): A call to 'trap' with no operands causes a list of commands
+520|8 16 29658 2 1|No portable way to test.
+220|8 16 5 18:33:54|UNTESTED
+410|8 721 1 18:33:54|IC End
+400|8 722 1 18:33:54|IC Start
+200|8 17 18:33:54|TP Start
+520|8 17 29658 1 1|Assertion #722 (C): If the implementation supports numeric signal numbers, then the
+520|8 17 29658 4 1|Standard error isn't empty
+520|8 17 29658 4 2|Contents of out.stderr:
+520|8 17 29658 4 3|trap: SIGKILL cannot be trapped
+520|8 17 29658 4 4|trap: SIGKILL cannot be trapped
+520|8 17 29658 4 5|Standard error isn't empty
+520|8 17 29658 4 6|Contents of out.stderr:
+520|8 17 29658 4 7|trap: SIGKILL cannot be trapped
+520|8 17 29658 4 8|trap: SIGKILL cannot be trapped
+520|8 17 29658 4 9|trap: SIGKILL cannot be trapped
+220|8 17 1 18:33:54|FAIL
+410|8 722 1 18:33:54|IC End
+400|8 723 1 18:33:54|IC Start
+200|8 18 18:33:54|TP Start
+520|8 18 29658 1 1|Assertion #723 (A): When the trap name or number is valid, then a call to the 
+220|8 18 0 18:33:54|PASS
+410|8 723 1 18:33:54|IC End
+400|8 724 1 18:33:54|IC Start
+200|8 19 18:33:54|TP Start
+520|8 19 29658 1 1|Assertion #724 (A): When the trap name or number is invalid, then a call to the 'trap'
+220|8 19 0 18:33:54|PASS
+410|8 724 1 18:33:54|IC End
+400|8 725 1 18:33:54|IC Start
+200|8 20 18:33:54|TP Start
+520|8 20 29658 1 1|Assertion #725 (A): Refer to GA233.
+220|8 20 0 18:33:54|PASS
+410|8 725 1 18:33:54|IC End
+400|8 726 1 18:33:54|IC Start
+200|8 21 18:33:54|TP Start
+520|8 21 29658 1 1|Assertion #726 (A): Refer to general assertion GA234.
+220|8 21 0 18:33:54|PASS
+410|8 726 1 18:33:54|IC End
+400|8 727 1 18:33:54|IC Start
+200|8 22 18:33:54|TP Start
+520|8 22 29658 1 1|Assertion #727 (A): A call to 'unset name' causes each of the named variables to be
+220|8 22 0 18:33:54|PASS
+410|8 727 1 18:33:54|IC End
+400|8 728 1 18:33:54|IC Start
+200|8 23 18:33:54|TP Start
+520|8 23 29658 1 1|Assertion #728 (A): When 'name' is a readonly variable, then a call to 'unset name'
+220|8 23 0 18:33:54|PASS
+410|8 728 1 18:33:54|IC End
+400|8 729 1 18:33:54|IC Start
+200|8 24 18:33:54|TP Start
+520|8 24 29658 1 1|Assertion #729 (A): When the '-f' option is specified and 'name' refers to a function,
+220|8 24 0 18:33:54|PASS
+410|8 729 1 18:33:54|IC End
+400|8 730 1 18:33:54|IC Start
+200|8 25 18:33:54|TP Start
+520|8 25 29658 1 1|Assertion #730 (A): When the '-v' option is specified and 'name' referes to a variable,
+220|8 25 0 18:33:54|PASS
+410|8 730 1 18:33:54|IC End
+400|8 731 1 18:33:54|IC Start
+200|8 26 18:33:54|TP Start
+520|8 26 29658 1 1|Assertion #731 (A): When all the 'name'd variables are 'unset', then the exit status
+220|8 26 0 18:33:54|PASS
+410|8 731 1 18:33:54|IC End
+400|8 732 1 18:33:54|IC Start
+200|8 27 18:33:54|TP Start
+520|8 27 29658 1 1|Assertion #732 (A): When one or more 'name'd variables cannot be 'unset', then the
+220|8 27 0 18:33:54|PASS
+410|8 732 1 18:33:54|IC End
+400|8 733 1 18:33:54|IC Start
+200|8 28 18:33:54|TP Start
+520|8 28 29658 1 1|Assertion #733 (A): Refer to general assertion GA234.
+220|8 28 0 18:33:54|PASS
+410|8 733 1 18:33:54|IC End
+400|8 734 1 18:33:54|IC Start
+200|8 29 18:33:54|TP Start
+520|8 29 29658 1 1|Assertion #734 (A): GA28 for trap
+220|8 29 0 18:33:54|PASS
+410|8 734 1 18:33:54|IC End
+400|8 735 1 18:33:54|IC Start
+200|8 30 18:33:54|TP Start
+520|8 30 29658 1 1|Assertion #735 (C): When an expansion begins with $(( the shell parses it as an arithmetic expansion in preference to a command substitution.
+220|8 30 0 18:33:54|PASS
+410|8 735 1 18:33:54|IC End
+400|8 736 1 18:33:54|IC Start
+200|8 31 18:33:54|TP Start
+520|8 31 29658 1 1|Assertion #736 (C): When an expansion beginning with $(( can be parsed as an incomplete arithmetic expansion or as a command substitution ...
+220|8 31 0 18:33:54|PASS
+410|8 736 1 18:33:54|IC End
+400|8 737 1 18:33:54|IC Start
+200|8 32 18:33:54|TP Start
+520|8 32 29658 1 1|Assertion #737 (A): dot command in an interactive shell when no readable file is found
+220|8 32 0 18:33:54|PASS
+410|8 737 1 18:33:54|IC End
+400|8 738 1 18:33:54|IC Start
+200|8 33 18:33:54|TP Start
+520|8 33 29658 1 1|Assertion #738 (A): dot command in an interactive shell when commands in the file can not be parsed
+220|8 33 0 18:33:54|PASS
+410|8 738 1 18:33:54|IC End
+400|8 739 1 18:33:54|IC Start
+200|8 34 18:33:54|TP Start
+520|8 34 29658 1 1|Assertion #739 (A): eval command in an interactive shell when commands can not be parsed
+220|8 34 0 18:33:54|PASS
+410|8 739 1 18:33:54|IC End
+400|8 740 1 18:33:54|IC Start
+200|8 35 18:33:54|TP Start
+520|8 35 29658 1 1|Assertion #740 (A): set -u in an interactive shell when it tries to expand a parameter that is not set
+520|8 35 29658 4 1|Standard output isn't the same as file 'test.740.exp'
+520|8 35 29658 4 2|diff of "out.stdout" and "test.740.exp":
+520|8 35 29658 4 3|*** out.stdout	Wed Jun 19 18:34:25 2019
+520|8 35 29658 4 4|--- test.740.exp	Wed Jun 19 18:33:54 2019
+520|8 35 29658 4 5|***************
+520|8 35 29658 4 6|*** 1,5 ****
+520|8 35 29658 4 7|  start
+520|8 35 29658 4 8|- 1
+520|8 35 29658 4 9|- use without $ inside arithmetic: exit status 0
+520|8 35 29658 4 10|  thirdarg
+520|8 35 29658 4 11|  end reached
+520|8 35 29658 4 12|--- 1,3 ----
+520|8 35 29658 4 13|Command failed: 'test -s test.740.use_without_dollar_in_arithmetic.err'
+220|8 35 1 18:34:26|FAIL
+410|8 740 1 18:34:26|IC End
+400|8 741 1 18:34:26|IC Start
+200|8 36 18:34:26|TP Start
+520|8 36 29658 1 1|Assertion #741 (C): set -o nounset in an interactive shell when it tries to expand a parameter that is not set
+520|8 36 29658 3 1|POSIX2_UPE is not supported
+220|8 36 4 18:34:26|UNSUPPORTED
+410|8 741 1 18:34:26|IC End
+400|8 742 1 18:34:26|IC Start
+200|8 37 18:34:26|TP Start
+520|8 37 29658 1 1|Assertion #742 (A): shift with 'n' greater than $# or invalid in non-interactive shell
+220|8 37 0 18:34:26|PASS
+410|8 742 1 18:34:26|IC End
+400|8 743 1 18:34:26|IC Start
+200|8 38 18:34:26|TP Start
+520|8 38 29658 1 1|Assertion #743 (A): A call to 'trap' with no operands causes a list of commands
+220|8 38 0 18:34:26|PASS
+410|8 743 1 18:34:26|IC End
+400|8 744 1 18:34:26|IC Start
+200|8 39 18:34:26|TP Start
+520|8 39 29658 1 1|Assertion #744 (A): ${parameter%}, ${parameter%%}, ${parameter#}, and ${parameter##} expand to same as ${parameter}
+220|8 39 0 18:34:26|PASS
+410|8 744 1 18:34:26|IC End
+400|8 745 1 18:34:26|IC Start
+200|8 40 18:34:26|TP Start
+520|8 40 29658 1 1|Assertion #745 (A): unset IFS behaves as normal for an unset variable
+220|8 40 0 18:34:26|PASS
+410|8 745 1 18:34:26|IC End
+400|8 746 1 18:34:26|IC Start
+200|8 41 18:34:26|TP Start
+520|8 41 29658 1 1|Assertion #746 (C): IFS is not inherited, it is always set to <space><tab><newline>
+220|8 41 0 18:34:26|PASS
+410|8 746 1 18:34:26|IC End
+400|8 747 1 18:34:26|IC Start
+200|8 42 18:34:26|TP Start
+520|8 42 29658 1 1|Assertion #747 (C): PS2 processing when an interactive shell reads a here-document
+520|8 42 29658 3 1|POSIX2_UPE is not supported
+220|8 42 4 18:34:26|UNSUPPORTED
+410|8 747 1 18:34:26|IC End
+400|8 748 1 18:34:26|IC Start
+200|8 43 18:34:26|TP Start
+520|8 43 29658 1 1|Assertion #748 (A): shell command consisting entirely of assignments and redirections
+220|8 43 0 18:34:26|PASS
+410|8 748 1 18:34:26|IC End
+400|8 749 1 18:34:26|IC Start
+200|8 44 18:34:26|TP Start
+520|8 44 29658 1 1|Assertion #749 (A): result of tilde expansion is treated as if it is quoted
+220|8 44 0 18:34:26|PASS
+410|8 749 1 18:34:26|IC End
+400|8 750 1 18:34:26|IC Start
+200|8 45 18:34:26|TP Start
+520|8 45 29658 1 1|Assertion #750 (A): filename expansion with a '[' that does not introduce a bracket expression
+220|8 45 0 18:34:26|PASS
+410|8 750 1 18:34:26|IC End
+400|8 751 1 18:34:26|IC Start
+200|8 46 18:34:26|TP Start
+520|8 46 29658 1 1|Assertion #751 (C): When -m is in effect then the standard input for an asynchronous list is inherited from the shell
+520|8 46 29658 3 1|POSIX2_UPE is not supported
+220|8 46 4 18:34:26|UNSUPPORTED
+410|8 751 1 18:34:26|IC End
+400|8 752 1 18:34:26|IC Start
+200|8 47 18:34:26|TP Start
+520|8 47 29658 1 1|Assertion #752 (A): When a TOKEN contains an unquoted '=' character that is part of an embedded ...
+220|8 47 0 18:34:26|PASS
+410|8 752 1 18:34:26|IC End
+400|8 753 1 18:34:26|IC Start
+200|8 48 18:34:26|TP Start
+520|8 48 29658 1 1|Assertion #753 (A): When a TOKEN does not contain any unquoted '=' characters ...
+220|8 48 0 18:34:26|PASS
+410|8 753 1 18:34:26|IC End
+400|8 754 1 18:34:26|IC Start
+200|8 49 18:34:26|TP Start
+520|8 49 29658 1 1|Assertion #754 (C): Inherited signal actions when -m is in effect
+520|8 49 29658 3 1|POSIX2_UPE is not supported
+220|8 49 4 18:34:26|UNSUPPORTED
+410|8 754 1 18:34:26|IC End
+400|8 755 1 18:34:26|IC Start
+200|8 50 18:34:26|TP Start
+520|8 50 29658 1 1|Assertion #755 (A): exit in a subshell environment
+520|8 50 29658 2 1|Standard output isn't the same as file 'test.755.exp'
+520|8 50 29658 2 2|diff of "out.stdout" and "test.755.exp":
+520|8 50 29658 2 3|*** out.stdout	Wed Jun 19 18:34:26 2019
+520|8 50 29658 2 4|--- test.755.exp	Wed Jun 19 18:34:26 2019
+520|8 50 29658 2 5|***************
+520|8 50 29658 2 6|*** 1,3 ****
+520|8 50 29658 2 7|  23
+520|8 50 29658 2 8|! 0
+520|8 50 29658 2 9|  67
+520|8 50 29658 2 10|--- 1,3 ----
+520|8 50 29658 2 11|  23
+520|8 50 29658 2 12|! 45
+520|8 50 29658 2 13|  67
+220|8 50 1 18:34:26|FAIL
+410|8 755 1 18:34:26|IC End
+400|8 756 1 18:34:26|IC Start
+200|8 51 18:34:26|TP Start
+520|8 51 29658 1 1|Assertion #756 (A): export error when a name cannot be exported
+220|8 51 0 18:34:26|PASS
+410|8 756 1 18:34:26|IC End
+400|8 757 1 18:34:26|IC Start
+200|8 52 18:34:26|TP Start
+520|8 52 29658 1 1|Assertion #757 (A): export error when -p is specified and an error occurs
+220|8 52 0 18:34:28|PASS
+410|8 757 1 18:34:28|IC End
+400|8 758 1 18:34:28|IC Start
+200|8 53 18:34:28|TP Start
+520|8 53 29658 1 1|Assertion #758 (A): readonly error when a name cannot be marked readonly
+220|8 53 0 18:34:28|PASS
+410|8 758 1 18:34:28|IC End
+400|8 759 1 18:34:28|IC Start
+200|8 54 18:34:28|TP Start
+520|8 54 29658 1 1|Assertion #759 (A): readonly error when -p is specified and an error occurs
+220|8 54 0 18:34:30|PASS
+410|8 759 1 18:34:30|IC End
+400|8 760 1 18:34:30|IC Start
+200|8 55 18:34:30|TP Start
+520|8 55 29658 1 1|Assertion #760 (A): set error when an invalid option is specified
+220|8 55 0 18:34:30|PASS
+410|8 760 1 18:34:30|IC End
+400|8 761 1 18:34:30|IC Start
+200|8 56 18:34:30|TP Start
+520|8 56 29658 1 1|Assertion #761 (A): set error when an error occurs
+220|8 56 0 18:34:32|PASS
+410|8 761 1 18:34:32|IC End
+400|8 762 1 18:34:32|IC Start
+200|8 57 18:34:32|TP Start
+520|8 57 29658 1 1|Assertion #762 (A): times error when an error occurs
+220|8 57 0 18:34:34|PASS
+410|8 762 1 18:34:34|IC End
+400|8 763 1 18:34:34|IC Start
+200|8 58 18:34:34|TP Start
+520|8 58 29658 1 1|Assertion #763 (A): a non-interactive shell exits when certain types of error occur
+220|8 58 0 18:34:34|PASS
+410|8 763 1 18:34:34|IC End
+400|8 764 1 18:34:34|IC Start
+200|8 59 18:34:34|TP Start
+520|8 59 29658 1 1|Assertion #764 (A): redirection error for a utility other than a special built-in
+220|8 59 0 18:34:34|PASS
+410|8 764 1 18:34:34|IC End
+400|8 765 1 18:34:34|IC Start
+200|8 60 18:34:34|TP Start
+520|8 60 29658 1 1|Assertion #765 (A): redirection error for a compound command or a function, or command-not-found error
+220|8 60 0 18:34:34|PASS
+410|8 765 1 18:34:34|IC End
+400|8 766 1 18:34:34|IC Start
+200|8 61 18:34:34|TP Start
+520|8 61 29658 1 1|Assertion #766 (C): an interactive shell does not exit when certain types of error occur
+520|8 61 29658 3 1|POSIX2_UPE is not supported
+220|8 61 4 18:34:34|UNSUPPORTED
+410|8 766 1 18:34:34|IC End
+400|8 767 1 18:34:34|IC Start
+200|8 62 18:34:34|TP Start
+520|8 62 29658 1 1|Assertion #767 (A): Variable assignments when the command name is a standard utility that is not a special built-in
+220|8 62 0 18:34:35|PASS
+410|8 767 1 18:34:35|IC End
+80|8 0 18:34:40|TC End, scenario ref 9-0
+10|9 /tset/POSIX.shell/shell/sh_13.ex 18:34:40|TC Start, scenario ref 10-0, ICs: {1-1000}
+15|9 3.8 5|TCM Start
+400|9 825 1 18:34:40|IC Start
+200|9 1 18:34:40|TP Start
+520|9 1 31301 1 1|Assertion #825 (A): LANG determines default locale
+520|9 1 31301 2 1|Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+220|9 1 2 18:34:40|UNRESOLVED
+410|9 825 1 18:34:40|IC End
+400|9 828 1 18:34:40|IC Start
+200|9 2 18:34:40|TP Start
+520|9 2 31301 1 1|Assertion #828 (A): LC_ALL overrides all other i18n variables
+520|9 2 31301 2 1|Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+220|9 2 2 18:34:40|UNRESOLVED
+410|9 828 1 18:34:40|IC End
+400|9 829 1 18:34:40|IC Start
+200|9 3 18:34:40|TP Start
+520|9 3 31301 1 1|Assertion #829 (A): When the environment variable LC_COLLATE is set to a valid value
+520|9 3 31301 2 1|Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+220|9 3 2 18:34:40|UNRESOLVED
+410|9 829 1 18:34:40|IC End
+400|9 830 1 18:34:40|IC Start
+200|9 4 18:34:40|TP Start
+520|9 4 31301 1 1|Assertion #830 (A): When the environment variable LC_CTYPE is set to a valid value
+520|9 4 31301 2 1|Parameter VSC_NONENGLISH_LOCALE is set to "undefined" but the localedef utility is supported
+220|9 4 2 18:34:40|UNRESOLVED
+410|9 830 1 18:34:40|IC End
+400|9 831 1 18:34:40|IC Start
+200|9 5 18:34:40|TP Start
+520|9 5 31301 1 1|Assertion #831 (B): When the environment variable LC_MESSAGES is set to a valid value
+520|9 5 31301 2 1|No portable test for this assertion.
+220|9 5 5 18:34:40|UNTESTED
+410|9 831 1 18:34:40|IC End
+80|9 0 18:34:41|TC End, scenario ref 10-0
+900|18:34:41|TCC End
