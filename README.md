@@ -71,7 +71,7 @@ If the build process was successful, there are now three tagged Docker images, w
   - `smoosh-test`, an extension of the `smoosh` image with unit and system tests
   - `smoosh-web`, an extension of the `smoosh` image with a web-based interface to the Shtepper
 
-### Running tests
+### Running tests using the Docker image
 
 - To run the test suite after building, run: `docker build -t smoosh-test -f Dockerfile.test . && docker run smoosh-test`
 - To explore the built image, run: `docker run -it smoosh`
@@ -231,6 +231,20 @@ STDOUT, STDERR, and exit statuses.
 
 ## Running tests on another shell
 
+Both the Docker image and Vagrant VM will have other shells
+installed. The versions are nearly the same as those mentioned in the
+paper, but may have changed slightly due to rolling releases. (Numbers
+may therefore differ slightly.)
+
+|:----|:----------------|
+|Shell|Version          |
+|dash |0.5.8-2.4        |
+|bash |4.4-5            |
+|yash |2.43-1           |
+|zsh  |5.3.1-4+b3       |
+|ksh  |93u+20120801-3.1 |
+|mksh |54-2+b4          |
+
 You can run the system tests on any shell by setting `TEST_SHELL`. Some shells may not terminate on all tests.
 
 ```ShellSession
@@ -256,6 +270,7 @@ Relaunching install.sh with /home/mgree/.local/bin/smoosh...
 * Modernish version 0.15.2-dev, now running on /home/mgree/.local/bin/smoosh.
 * This shell identifies itself as smoosh version 0.1.
   Modernish detected the following bugs, quirks and/or extra features on it:
+... [weird noise on native Linux/VM; crash in Docker] ...
    LOCALVARS TRAPPRSUBSH BUG_MULTIBYTE BUG_HDOCMASK
 * Running modernish test suite on /home/mgree/.local/bin/smoosh ...
 * lib/modernish/tst/@sanitychecks.t 
@@ -264,6 +279,8 @@ Relaunching install.sh with /home/mgree/.local/bin/smoosh...
            Run 'modernish --test' after installation for more details.
 Are you happy with /home/mgree/.local/bin/smoosh as the default shell? (y/n) install.sh: Aborting.
 ```
+
+To test another shell, run `yes n | smoosh/modernish/install.sh -s [shell name]`.
 
 NB that the HDOCMASK bug seems to appear only in Linux and not on
 macOS.
@@ -285,11 +302,13 @@ What can not be reproduced from the Smoosh paper?
   
   - As of 2019-10-19, Modernish on Linux (whether native, in Docker,
     or in a Vagrant VM) exposes a bug in Smoosh's interaction with the
-    dash parser. The manifestations are different: in Docker, Smoosh
-    crashes; natively or in a VM, some strange extra output appears
-    but the Modernish completes. Modernish _should_ still complete
-    without a problem on macOS, but I'm unable to test this (as my Mac
-    is not booting).
+    dash parser. This bug wasn't poked when running on macOS.
+    
+    The manifestations are different: in Docker, Smoosh crashes;
+    natively or in a VM, some strange extra output appears but the
+    Modernish completes. Modernish _should_ still complete without a
+    problem on macOS, but I'm unable to test this (as my Mac is not
+    booting).
     
   - As of 2019-10-19, Modernish on Linux diagnoses two bugs:
     `BUG_MULTIBYTE` as reported in the paper, but also
