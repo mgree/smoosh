@@ -302,13 +302,13 @@ What can not be reproduced from the Smoosh paper?
     resulting journals from running the test suite. Look in
     `smoosh/posix-journals`.
     
-  - As of 2019-10-21, Modernish on Linux (whether native, in Docker,
-    or in a Vagrant VM) exposes a bug in Smoosh's interaction with the
-    dash parser. This bug wasn't poked when running on macOS.
+  - As of 2019-10-21, Modernish under virtualization (whether in
+    Docker or in a Vagrant VM) exposes a bug in Smoosh's interaction
+    with the dash parser. This bug wasn't poked when running on macOS.
     
     The manifestations are different: in Docker, Smoosh crashes with a
-    'broken DEFPATH' error; natively or in a VM, some backtraces
-    appear but the Modernish completes.
+    'broken DEFPATH' error; in a VM, some backtraces appear but the
+    Modernish completes.
     
     Modernish _should_ still complete without a problem on macOS, but
     I'm unable to test this (as my Mac is not booting).
