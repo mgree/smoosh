@@ -38,6 +38,10 @@ LEMLIB="/home/vagrant/smoosh/lem/library"
 export LEMLIB
 
 cat >>~/.profile <<EOF
+
+unset LS_COLORS # breakage w/Modernish
+unset GCC_COLORS
+
 PATH="/home/vagrant/smoosh/lem/bin:${PATH}"
 LEMLIB="/home/vagrant/smoosh/lem/library"
 export LEMLIB
