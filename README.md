@@ -271,7 +271,7 @@ Relaunching install.sh with /home/mgree/.local/bin/smoosh...
 * This shell identifies itself as smoosh version 0.1.
   Modernish detected the following bugs, quirks and/or extra features on it:
 ... [weird noise on native Linux/VM; crash in Docker] ...
-   LOCALVARS TRAPPRSUBSH BUG_MULTIBYTE BUG_HDOCMASK
+   LOCALVARS TRAPPRSUBSH BUG_MULTIBYTE
 * Running modernish test suite on /home/mgree/.local/bin/smoosh ...
 * lib/modernish/tst/@sanitychecks.t 
   002: ASCII chars and control char constants   - FAIL
@@ -309,7 +309,3 @@ What can not be reproduced from the Smoosh paper?
     Modernish completes. Modernish _should_ still complete without a
     problem on macOS, but I'm unable to test this (as my Mac is not
     booting).
-    
-  - As of 2019-10-19, Modernish on Linux diagnoses two bugs:
-    `BUG_MULTIBYTE` as reported in the paper, but also
-    `BUG_HDOCMASK`. This last is due to platform differences.
