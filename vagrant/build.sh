@@ -30,6 +30,7 @@ opam install ctypes ctypes-foreign num extunix
 cd smoosh
 
 # set up lem
+(cd lem; make clean) # clear things out in case local repo has been built
 (cd lem/ocaml-lib; make install_dependencies)
 (cd lem; make; make install)
 PATH="/home/vagrant/smoosh/lem/bin:${PATH}"
@@ -44,12 +45,12 @@ EOF
 
 # build libdash, expose shared object
 (cd libdash; ./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu)
-(cd libdash; make && sudo make install)
+(cd libdash; make clean && make && sudo make install)
 # build ocaml bindings
 (cd libdash/ocaml; make && make install)
 
 # build smoosh
-(cd src; make all)
+(cd src; make clean && make all)
 
 # install smoosh
 sudo cp src/smoosh /bin/smoosh

@@ -27,7 +27,7 @@ apt-get install -y mksh=54-2+b4
 
 # system support for libdash; libgmp for zarith for lem
 apt-get install -y autoconf autotools-dev libtool pkg-config libffi-dev libgmp-dev
-apt-get install -y opam
+apt-get install -y bc opam
 
 echo "************************************************************************"
 echo "* BUILDING SMOOSH ******************************************************"
