@@ -2184,6 +2184,7 @@ let try_extract_dup_tgt ss =
 val try_expand_redir : expanding_redir -> fields -> either string expanded_redir
 let try_expand_redir er f =
   match (er, try_extract_field f) with
+  | (XRHeredoc ty src _, _) -> Right (ERHeredoc ty src (symbolic_string_of_fields f))
   | (_, Left err) -> Left err
   | (XRFile ty src _   , Right ss) -> Right (ERFile ty src ss)
   | (XRDup ty src _    , Right ss) -> 
@@ -2191,7 +2192,6 @@ let try_expand_redir er f =
      | Left err -> Left err
      | Right tgt -> Right (ERDup ty LeaveOrig src tgt)
      end
-  | (XRHeredoc ty src _, Right ss) -> Right (ERHeredoc ty src ss)
   end
 
 (* Command extraction (depends on string conversion) ******************)
