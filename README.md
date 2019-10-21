@@ -308,7 +308,8 @@ What can not be reproduced from the Smoosh paper?
     
     The manifestations are different: in Docker, Smoosh crashes with a
     'broken DEFPATH' error; in a VM, some backtraces appear but the
-    Modernish completes.
+    Modernish diagnostic completes with the correct output (just
+    `BUG_MULTIBYTE`).
     
     Modernish _should_ still complete without a problem on macOS, but
     I'm unable to test this (as my Mac is not booting).
