@@ -18,16 +18,16 @@ image from the Vagrant Cloud service (~1.3GB):
 
 ```ShellSession
 ~$ mkdir smoosh; cd smoosh
-~/smoosh$ vagrant init mgree/smoosh --box-version 0.1.0
+~/smoosh$ vagrant init mgree/smoosh --box-version 0.1.1
 ~/smoosh$ vagrant up
 Bringing machine 'default' up with 'virtualbox' provider...
 ==> default: Box 'mgree/smoosh' could not be found. Attempting to find and install...
     default: Box Provider: virtualbox
-    default: Box Version: 0.1.0
+    default: Box Version: 0.1.1
 ==> default: Loading metadata for box 'mgree/smoosh'
     default: URL: https://vagrantcloud.com/mgree/smoosh
-==> default: Adding box 'mgree/smoosh' (v0.1.0) for provider: virtualbox
-    default: Downloading: https://vagrantcloud.com/mgree/boxes/smoosh/versions/0.1.0/providers/virtualbox.box
+==> default: Adding box 'mgree/smoosh' (v0.1.1) for provider: virtualbox
+    default: Downloading: https://vagrantcloud.com/mgree/boxes/smoosh/versions/0.1.1/providers/virtualbox.box
 ...
 ~/smoosh$ vagrant ssh
 vagrant@debian9:~$ cd smoosh
