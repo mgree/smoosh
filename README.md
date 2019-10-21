@@ -236,8 +236,8 @@ installed. The versions are nearly the same as those mentioned in the
 paper, but may have changed slightly due to rolling releases. (Numbers
 may therefore differ slightly.)
 
-|:----|:----------------|
 |Shell|Version          |
+|:----|:----------------|
 |dash |0.5.8-2.4        |
 |bash |4.4-5            |
 |yash |2.43-1           |
