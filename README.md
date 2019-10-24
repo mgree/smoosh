@@ -65,11 +65,10 @@ ALL TESTS PASSED
 Successfully tagged smoosh-web:latest
 ```
 
-If the build process was successful, there are now three tagged Docker images, which can be run interactively via `docker run -it [image tag]`. The three images are:
+If the build process was successful, there are now two tagged Docker images, which can be run interactively via `docker run -it [image tag]`. The two images are:
 
   - `smoosh`, a Docker environment with Smoosh installed as `/bin/smoosh`
   - `smoosh-test`, an extension of the `smoosh` image with unit and system tests
-  - `smoosh-web`, an extension of the `smoosh` image with a web-based interface to the Shtepper
 
 ### Running tests using the Docker image
 
@@ -87,9 +86,11 @@ opam@XXXXXXXXXXXX:~$ make -C tests test
 
 ### Using the Shtepper
 
-The [Shtepper](http://shell.cs.pomona.edu/shtepper) is a web-based visualization tool for symbolically running POSIX shell scripts. While available online, you can also run a local version of the Shtepper using the `smoosh-web` Docker image. To start the local Shtepper, run:
+The [Shtepper](http://shell.cs.pomona.edu/shtepper) is a web-based visualization tool for symbolically running POSIX shell scripts. While available online, you can also run a local version of the Shtepper using the `smoosh-web` Docker image. To start the local Shtepper, you must build the web interface first. Run, from the `smoosh` repo root:
 
 ```ShellSession
+$ docker build -t smoosh-web -f Dockerfile.web .
+...
 $ docker run -p 80:2080 --name smoosh-web -t smoosh-web
 Thin web server (v1.7.2 codename Bachmanity)
 Maximum connections set to 1024
