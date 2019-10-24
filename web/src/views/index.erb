@@ -85,11 +85,29 @@
       <div class="item">
         <i class="file alternate icon"></i>
         <div class="content">
-          <a class="header" href="http://www.cs.pomona.edu/~michael/papers/dsldi2018_sub.pdf">
+          <a class="header" href="http://www.cs.pomona.edu/~michael/papers/smoosh_sub2020.pdf">
+            Executable formal semantics for the POSIX shell
+          </a>
+          <div class="meta">
+            Michael Greenberg and Austin Blatt, POPL 2020.
+          </div>
+          <div class="description">
+            Smoosh's debut paper, describing the semantics and implementation in detail. Includes comparisons to other shells and discussion of the POSIX standard.
+          </div>
+        </div>
+      </div>
+      
+      <div class="item">
+        <i class="file alternate icon"></i>
+        <div class="content">
+          <a class="header" href="http://www.cs.pomona.edu/~michael/papers/dsldi2018.pdf">
             The POSIX shell is an interactive DSL for concurrency
           </a>
+          <div class="meta">
+            Michael Greenberg, DSLDI 2018.
+          </div>
           <div class="description">
-            Michael Greenberg, DSLDI 2018. An argument for understanding the shell as a DSL for managing concurrent tasks; the first demo of the Smoosh shtepper.
+            An argument for understanding the shell as a DSL for managing concurrent tasks; the first demo of the Smoosh shtepper.
           </div>
         </div>
       </div>
@@ -100,8 +118,11 @@
           <a class="header" href="http://www.cs.pomona.edu/~michael/papers/px2018.pdf">
             Word expansion supports POSIX shell interactivity
           </a>
+          <div class="meta">
+            Michael Greenberg, PX/2018.
+          </div>
           <div class="description">
-            Michael Greenberg, PX/2018. An argument about how the shell's use of word expansion dovetails with the shell's interactivity.
+            An argument about how the shell's use of word expansion dovetails with the shell's interactivity.
           </div>
         </div>
       </div>
@@ -112,8 +133,11 @@
           <a class="header" href="http://www.cs.pomona.edu/~michael/papers/obt2017.pdf">
             Understanding the POSIX Shell as a Programming Language
           </a>
+          <div class="meta">
+            Michael Greenberg, OBT 2017.
+          </div>
           <div class="description">
-            Michael Greenberg, OBT 2017. The initial proposal of the Smoosh project.
+            The initial proposal of the Smoosh project.
           </div>
         </div>
       </div>
@@ -123,12 +147,22 @@
 
   <div class="ui segment">
     <h2 class="ui header">Cite Smoosh</h2>
-    <p>No paper has yet been published on Smoosh's semantics. To cite Smoosh as an artifact, please use:
+    <p>To cite Smoosh as a semantics, please use:
+<pre><code class="bibtex">
+@inproceedings{Greenberg20Smoosh,
+  title = {Executable formal semantics for the POSIX shell},
+  author = { Michael Greenberg and Austin J. Blatt },
+  year = 2020,
+  booktitle = {POPL},
+}
+</code></pre>
+    </p>
+    <p>To cite Smoosh as an artifact or project, please use:
 <pre><code class="bibtex">
 @misc{Smoosh,
   title = {Smoosh: the Symbolic, Mechanized, Observable, Operational Shell},
   author = { Michael Greenberg },
-  year = 2019,
+  year = 2020,
   url = {https://github.com/mgree/smoosh},
   note = {Current version: 0.1}
 }
