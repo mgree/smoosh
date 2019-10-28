@@ -246,7 +246,7 @@ may therefore differ slightly.)
 |ksh  |93u+20120801-3.1 |
 |mksh |54-2+b4          |
 
-You can run the system tests on any shell by setting `TEST_SHELL`. Some shells may not terminate on all tests.
+You can run the system tests on any shell by setting `TEST_SHELL`. Some shells may not terminate on all tests; you may need to run `make clean` while changing tests.
 
 ```ShellSession
 vagrant@debian9:~/smoosh$ TEST_SHELL=dash make -C tests
