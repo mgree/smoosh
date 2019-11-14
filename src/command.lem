@@ -529,25 +529,27 @@ let log_null_argv_unspec s0 name argv =
   then log_trace Trace_unspec (name ^ " invoked with no arguments; pretending we got -p") s0
   else s0
 
-let builtin_export s0 argv _env = 
+let builtin_export s0 argv _env =
+  let s1 = exit_with 0 s0 in
   let (opts,argv') = getopts [#'p'] argv in
   if elem #'p' opts || null argv'
   then (* print out current export vars *)
-    let s1 = log_null_argv_unspec s0 "export" argv in
-    let vars = Set_extra.toOrderedList (Map.domain (exported_vars s1)) in
-    Right (show_varlist s1 "export" vars, Done, true)
+    let s2 = log_null_argv_unspec s1 "export" argv in
+    let vars = Set_extra.toOrderedList (Map.domain (exported_vars s2)) in
+    Right (show_varlist s2 "export" vars, Done, true)
   else (* mark export and possibly set *)
-    update_varlist s0 "export" set_exported argv'
+    update_varlist s1 "export" set_exported argv'
 
-let builtin_readonly s0 argv _env = 
+let builtin_readonly s0 argv _env =
+  let s1 = exit_with 0 s0 in
   let (opts,argv') = getopts [#'p'] argv in
   if elem #'p' opts || null argv'
   then (* print out current readonly vars *)
-    let s1 = log_null_argv_unspec s0 "readonly" argv in
-    let vars = Set_extra.toOrderedList (Map.domain (readonly_vars s1)) in
-    Right (show_varlist s1 "readonly" vars, Done, true)
+    let s2 = log_null_argv_unspec s1 "readonly" argv in
+    let vars = Set_extra.toOrderedList (Map.domain (readonly_vars s2)) in
+    Right (show_varlist s2 "readonly" vars, Done, true)
   else (* mark readonly and possibly set *)
-    update_varlist s0 "readonly" set_readonly argv'
+    update_varlist s1 "readonly" set_readonly argv'
 
 let rec add_locals os env args =
   match args with
@@ -576,7 +578,8 @@ let rec add_locals os env args =
 
 let builtin_local s0 argv _env =
   let s1 = 
-    log_trace Trace_unspec "local is unspecified; treated here as a special-builtin" s0
+    log_trace Trace_unspec "local is unspecified; treated here as a special-builtin"
+      (exit_with 0 s0)
   in
   let (opts,argv') = getopts [#'p'] argv in
   if elem #'p' opts || null argv'
@@ -596,10 +599,11 @@ let builtin_local s0 argv _env =
        end
     end
 
-let builtin_times s0 _argv _env = 
-  let (utime, stime, cutime, cstime) = times s0 in
+let builtin_times s0 _argv _env =
+  let s1 = exit_with 0 s0 in
+  let (utime, stime, cutime, cstime) = times s1 in
   Right (safe_write_stdout "times" 
-           (utime ^ " " ^ stime ^ "\n" ^ cutime ^ " " ^ cstime ^ "\n") s0, 
+           (utime ^ " " ^ stime ^ "\n" ^ cutime ^ " " ^ cstime ^ "\n") s1,
          Done,
          true)
 
@@ -775,27 +779,28 @@ OR
      set -o
 OR
      set +o *)
+  let s1 = exit_with 0 s0 in
   match argv with
   | [] ->
      (* dump env *)
-     Right (safe_write_stdout "set" (printable_shell_env s0) s0, Done, true)
+     Right (safe_write_stdout "set" (printable_shell_env s1) s1, Done, true)
   | [[C #'-']] ->
      (* OVERFIT
         See Assertion 105 in section 3.14.11 of standard P1003.3.2/D8.
 
         Technically, this behavior is unspecified... but this is what
         the testers want, I guess?  *)
-     Right (unset_sh_opt (unset_sh_opt s0 Sh_xtrace) Sh_verbose, Done, true)
+     Right (unset_sh_opt (unset_sh_opt s1 Sh_xtrace) Sh_verbose, Done, true)
   | [[C #'-'; C #'o']] -> 
      (* print in human readable format; following dash *)
-     set_showopts s0 
+     set_showopts s1
        (fun os (opt,is_set) ->
          let msg = pad_right (string_of_sh_opt opt) string_of_sh_opt_max_len ^
                    "\t" ^ if is_set then "on" else "off" in
          safe_write_stdout "set" (msg ^ "\n") os)
   | [[C #'+'; C #'o']] -> 
      (* print in shell readable format *)
-     set_showopts s0 
+     set_showopts s1
        (fun os (opt,is_set) ->
          match char_of_sh_opt opt with
          | Nothing -> os
@@ -812,17 +817,17 @@ OR
            exit when set is given a bad option. The standard doesn't
            say that it's an error, it does say we'll set the
            ec. Weird. *)
-        Right (fail_with "set: illegal option" s0, Done, true)
+        Right (fail_with "set: illegal option" s1, Done, true)
      | Just ((on,off),params,set_param) ->
-        let s1 = foldr (fun opt os -> set_sh_opt os opt) s0 on in
-        let s2 = foldr (fun opt os -> unset_sh_opt os opt) s1 off in
+        let s2 = foldr (fun opt os -> set_sh_opt os opt) s1 on in
+        let s3 = foldr (fun opt os -> unset_sh_opt os opt) s2 off in
         (* only update params when they've been given *)
-        let s3 = 
+        let s4 =
           if set_param
-          then set_function_params s2.sh.loop_nest (* keep the same *) params s2 
-          else s2
+          then set_function_params s3.sh.loop_nest (* keep the same *) params s3
+          else s3
         in
-        Right (s3, Done, true) 
+        Right (s4, Done, true)
      end
   end
 
@@ -872,8 +877,8 @@ let rec builtin_trap s0 argv _env =
   (* if we're running a nontrivial command, forget about any supershell traps *)
   let s1 =
     if null argv
-    then s0
-    else clear_supershell_traps s0
+    then (exit_with 0 s0)
+    else clear_supershell_traps (exit_with 0 s0)
   in
   match strip_double_dash argv with
   | [] -> 
@@ -977,8 +982,8 @@ let resolve_path_mode s0 mode =
 let builtin_pwd s0 argv _env =
   let (opts,_argv') = getopts [#'L';#'P'] argv in
   let mode = path_mode opts in
-  let (s1,pwd) = resolve_path_mode s0 mode in
-  Right (exit_with 0 (safe_write_stdout "pwd" (pwd ^ "\n") s1), Done)
+  let (s1,pwd) = resolve_path_mode (exit_with 0 s0) mode in
+  Right (safe_write_stdout "pwd" (pwd ^ "\n") s1, Done)
 
 let rec write_many_stdout f s0 =
   let (s1,_,s) = concretize_fields s0 f in
@@ -990,9 +995,9 @@ let builtin_echo s0 argv _env =
     | [C #'-'; C #'n']::argv' -> ("", argv')
     | _ -> ("\n", argv)
     end in
-  let s1 = write_many_stdout ss s0 in
+  let s1 = write_many_stdout ss (exit_with 0 s0) in
   let s2 = safe_write_stdout "echo" terminator s1 in
-  Right (exit_with 0 s2, Done)
+  Right (s2, Done)
 
 let do_cd s0 mode dir =   
   let (curpath,need_print) =
@@ -1113,22 +1118,23 @@ let builtin_cd s0 argv _env =
    subject of an assignment. If the remembered location fails for a
    subsequent invocation, the shell shall repeat the search to find
    the new location for the utility, if any. *)
-let builtin_hash s0 argv _env = 
+let builtin_hash s0 argv _env =
+  let s1 = exit_with 0 s0 in
   match argv with
   | [] -> 
      let msg =
-       if Map.null s0.sh.hashes 
+       if Map.null s1.sh.hashes
        then "No commands hashed."
        else
          let show (_cmd,(path,hits)) = 
            pad_left (stringFromNat hits) 4 ^ "\t" ^ path
          in
          let header = "hits\tcommand\n" in
-         header ^ concat "\n" (map show (Map_extra.toList s0.sh.hashes))
+         header ^ concat "\n" (map show (Map_extra.toList s1.sh.hashes))
      in
-     Right (safe_write_stdout "hash" (msg ^ "\n") s0, Done)
-  | [C #'-'; C #'r']::_ -> Right (clear_hash s0, Done)
-  | _ -> Right (s0, Done)
+     Right (safe_write_stdout "hash" (msg ^ "\n") s1, Done)
+  | [C #'-'; C #'r']::_ -> Right (clear_hash s1, Done)
+  | _ -> Right (s1, Done)
   end
 
 type command_type = 
@@ -1200,13 +1206,15 @@ let human_readable_command_type ct s_name =
   (string_of_symbolic_string s_name) ^ msg ^ "\n"
 
 (* technically part of XSI, but useful *)
-let rec builtin_type s0 argv _env = 
+let rec builtin_type s0 argv _env =
+  let s1 = exit_with 0 s0 in
   match argv with
-  | [] -> Right (s0, Done)
+  | [] -> Right (s1, Done)
   | cmd::argv' ->
-     let (s1, ct) = command_type_symbolic s0 (get_path s0) cmd in
+     let (s2, ct) = command_type_symbolic s1 (get_path s1) cmd in
      let msg = human_readable_command_type ct cmd in
-     builtin_type (safe_write_stdout "type" msg s1) argv' _env
+     let s3 = safe_write_stdout "type" msg s2 in
+     if s3.sh.exit_code = 0 then builtin_type s3 argv' _env else Right (s3, Done)
   end
 
 type command_path = CPAmbient | CPDefault
@@ -1254,7 +1262,7 @@ let builtin_command s0 argv env =
   let (opts,argv') = getopts [#'p';#'v';#'V'] argv in
   let (mode, path) = command_mode opts in
   match (mode,argv') with
-  | (CMRun, []) -> Right (s0, Done)
+  | (CMRun, []) -> Right (exit_with 0 s0, Done)
   | (CMRun, cmd::args) -> 
      Right (s0, 
             CommandReady (assigns_of_env env) cmd args []
@@ -1347,7 +1355,7 @@ let builtin_umask s0 argv _env =
             mode creation mask.  *)
          string_of_perms (invert_perms umask)
        else octal_string_of_perms umask in
-     Right (exit_with 0 (safe_write_stdout "umask" (umask_str ^ "\n") s0), Done)
+     Right (safe_write_stdout "umask" (umask_str ^ "\n") (exit_with 0 s0), Done)
   | smask::_ ->
      match try_concrete smask with
      | Nothing -> Left (s0, "can't set symbolic mask")
@@ -1406,7 +1414,7 @@ let rec add_aliases s0 args =
        | Nothing -> Left (s0, name ^ " not found")
        | Just mapping ->
           let s1 = show_alias s0 (name,mapping) in
-          add_aliases s1 args'
+          if s1.sh.exit_code = 0 then add_aliases s1 args' else Right (s1, Done)
        end
     end
   end
@@ -1415,8 +1423,8 @@ let builtin_alias s0 argv _env =
   match argv with
   | [] -> 
      let aliases = Set_extra.toList (Map.toSet s0.sh.aliases) in
-     let s1 = foldl show_alias s0 aliases in
-     Right (exit_with 0 s1, Done)
+     let s1 = foldl show_alias (exit_with 0 s0) aliases in
+     Right (s1, Done)
   | _ -> add_aliases s0 argv
   end
 
@@ -1428,7 +1436,7 @@ let rec remove_aliases s0 names =
      | Nothing -> 
         let s1 = safe_write_stderr ("unalias: can't remove symbolic alias '" ^ 
                                     string_of_symbolic_string sname ^ "'") s0 in
-        remove_aliases s1 names'
+        if s1.sh.exit_code = 0 then remove_aliases s1 names' else Right (s1, Done)
      | Just name ->
         let s1 = 
           if Map.member name s0.sh.aliases
@@ -1502,7 +1510,7 @@ let rec show_job_specs mode cur_prev specs s0 =
      | Left msg -> Left (s0, msg)
      | Right job -> 
         let s1 = show_job mode cur_prev job s0 in
-        show_job_specs mode cur_prev specs' s1
+        if s1.sh.exit_code = 0 then show_job_specs mode cur_prev specs' s1 else Right (s1, Done)
      end
   end
 
@@ -2021,8 +2029,8 @@ let builtin_kill s0 argv _env =
             all_signals 
         in
         let names = List.map string_of_signal sorted_signals in
-        let s1 = safe_write_stdout "kill" (concat "\n" names ^ "\n") s0 in
-        Right (exit_with 0 s1, Done)
+        let s1 = safe_write_stdout "kill" (concat "\n" names ^ "\n") (exit_with 0 s0) in
+        Right (s1, Done)
      | [ss_num] -> 
         let s_num = string_of_symbolic_string ss_num in 
         match readNat (toCharList s_num) with
@@ -2035,8 +2043,8 @@ let builtin_kill s0 argv _env =
               let ec_text = if was_retval then " (from " ^ s_num ^ ")" else "" in
               Left (s0, stringFromNat signum ^ ec_text ^ " is not a valid signal number")
            | Just signal -> 
-              let s1 = safe_write_stdout "kill" (string_of_signal signal ^ "\n") s0 in
-              Right (exit_with 0 s1, Done)
+              let s1 = safe_write_stdout "kill" (string_of_signal signal ^ "\n") (exit_with 0 s0) in
+              Right (s1, Done)
            end
         end
      | _ -> Left (s0, usage_msg)
@@ -2290,7 +2298,7 @@ let builtin_bg os0 argv _env =
   end
 
 let builtin_help os0 argv _env =
-  let show_list ls os = exit_with 0 (safe_write_stdout "help" (String.concat "\n" ls ^ "\n") os) in
+  let show_list ls os = (safe_write_stdout "help" (String.concat "\n" ls ^ "\n") (exit_with 0 os)) in
   match argv with
   | [] -> 
      let usage =
@@ -2310,8 +2318,8 @@ let builtin_help os0 argv _env =
         let os2 = safe_write_stdout "help" "implemented builtins:\n" os1 in
         Right (show_list builtin_names os2, Done)
      | "version" -> 
-        let os2 = safe_write_stdout "help" smoosh_info os1 in
-        Right (exit_with 0 os2, Done)
+        let os2 = safe_write_stdout "help" smoosh_info (exit_with 0 os1) in
+        Right (os2, Done)
      | "steps" ->
         let steps = List.reverseMap string_of_evaluation_step (extract_trace os1) in
         Right (show_list steps os1, Done)
@@ -2379,8 +2387,8 @@ Try `man yash' for details.
      let numwidth = stringLength (stringFromNat maxnum) in
      let show (num,c) = pad_left (stringFromNat num) numwidth ^ "\t" ^ string_of_stmt c in
      let msgs = List.reverseMap show s0.sh.history in
-     let s1 = safe_write_stdout "history" (concat "\n" msgs ^ "\n") s0 in
-     Right (exit_with 0 s1, Done)
+     let s1 = safe_write_stdout "history" (concat "\n" msgs ^ "\n") (exit_with 0 s0) in
+     Right (s1, Done)
   | [[C #'-'; C #'c']] ->
      Right (exit_with 0 <| s0 with sh = <| s0.sh with history = [] |> |>, Done)
   | argv' -> Left (s0, "unimplemented option: " ^ string_of_fields argv')

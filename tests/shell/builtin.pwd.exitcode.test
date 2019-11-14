@@ -1,0 +1,3 @@
+# Make sure that pwd sets its exitcode.
+false
+pwd >/dev/null 2>/dev/null && echo OK
