@@ -28,9 +28,19 @@ val split_fields : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermed
 val clean_fields : intermediate_fields -> intermediate_fields
 val skip_field_splitting : expanded_words -> intermediate_fields
 val field_splitting : forall 'a. OS 'a => os_state 'a -> expanded_words -> intermediate_fields  
-  
-let is_ws c = elem c (toCharList " \n\t")
-           
+
+let default_ifs = toCharList " \t\n"
+
+let is_ws c = elem c default_ifs
+
+let non_empty_word ifs w =
+  match w with
+  | ExpS(s) ->
+      not (all (fun c -> is_ws c && elem c ifs) (toCharList s))
+  | _ ->
+      true
+  end
+
 let rec collect_non_ifs ifs ls =
   match ls with
   | [] -> ([], [])
@@ -110,21 +120,31 @@ let rec skip_field_splitting w =
   | EWSym sym::ws -> Field [Sym sym]::skip_field_splitting ws
   end
 
+let rec remove_leading_separators exp_words =
+  match exp_words with
+  | UsrF::ws -> remove_leading_separators ws
+  | _ -> exp_words
+  end
+
+let prepare_words ifs exp_words =
+  let ws = filter (non_empty_word ifs) exp_words in
+  remove_leading_separators ws
+
 let split_fields s0 exp_words =
   let ifs = lookup_string_param s0 "IFS" in
   match ifs with
-  | Nothing -> split_word (toCharList " \n\t") ([], exp_words)
+  | Nothing -> split_word default_ifs ([], (prepare_words default_ifs exp_words))
   | Just fs -> 
      match try_concrete fs with
      | Nothing -> 
         (* TODO 2018-08-29 unsoundly using default IFS. symbolic IFS
            is basically impossible. should record this
            unsoundness. *)
-        split_word (toCharList " \n\t") ([], exp_words)
+        split_word default_ifs ([], (prepare_words default_ifs exp_words))
      | Just "" -> 
         (* If the value of IFS is null, no field splitting shall be performed. *)
         skip_field_splitting exp_words
-     | Just s -> split_word (toCharList s) ([], exp_words)
+     | Just s -> split_word (toCharList s) ([], (prepare_words (toCharList s) exp_words))
      end
   end
 
