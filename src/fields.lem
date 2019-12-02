@@ -33,14 +33,6 @@ let default_ifs = toCharList " \t\n"
 
 let is_ws c = elem c default_ifs
 
-let non_empty_word ifs w =
-  match w with
-  | ExpS(s) ->
-      not (all (fun c -> is_ws c && elem c ifs) (toCharList s))
-  | _ ->
-      true
-  end
-
 let rec collect_non_ifs ifs ls =
   match ls with
   | [] -> ([], [])
@@ -61,6 +53,12 @@ let rec split_expstring ifs clst =
            (Field (symbolic_string_of_char_list (c::cc)))::(split_expstring ifs cs1)
   end
 
+let rec consume_separators p a =
+  match p with
+  | UsrF::wrds -> consume_separators wrds (WFS::a)
+  | _ -> (p, a)
+  end
+
 let rec split_word ifs p =
   match p with
   | (f, []) -> f
@@ -68,7 +66,8 @@ let rec split_word ifs p =
   | (f, UsrF::wrds) -> split_word ifs (f ++ [FS], wrds)
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_expstring ifs (toCharList s) in
-      split_word ifs (f ++ new_fields, wrds)
+      let (wrds', separators) = consume_separators wrds [] in
+      split_word ifs (f ++ new_fields ++ separators, wrds')
   | (f, UsrS(s)::wrds) -> split_word ifs (f ++ [Field (symbolic_string_of_string s)], wrds)
   | (f, At(fs)::wrds) -> split_word ifs (f ++ map Field fs, wrds)
   | (f, DQuo(ss)::wrds) -> split_word ifs (f ++ [QField ss], wrds)
@@ -120,31 +119,21 @@ let rec skip_field_splitting w =
   | EWSym sym::ws -> Field [Sym sym]::skip_field_splitting ws
   end
 
-let rec remove_leading_separators exp_words =
-  match exp_words with
-  | UsrF::ws -> remove_leading_separators ws
-  | _ -> exp_words
-  end
-
-let prepare_words ifs exp_words =
-  let ws = filter (non_empty_word ifs) exp_words in
-  remove_leading_separators ws
-
 let split_fields s0 exp_words =
   let ifs = lookup_string_param s0 "IFS" in
   match ifs with
-  | Nothing -> split_word default_ifs ([], (prepare_words default_ifs exp_words))
+  | Nothing -> split_word default_ifs ([], exp_words)
   | Just fs -> 
      match try_concrete fs with
      | Nothing -> 
         (* TODO 2018-08-29 unsoundly using default IFS. symbolic IFS
            is basically impossible. should record this
            unsoundness. *)
-        split_word default_ifs ([], (prepare_words default_ifs exp_words))
+        split_word default_ifs ([], exp_words)
      | Just "" -> 
         (* If the value of IFS is null, no field splitting shall be performed. *)
         skip_field_splitting exp_words
-     | Just s -> split_word (toCharList s) ([], (prepare_words (toCharList s) exp_words))
+     | Just s -> split_word (toCharList s) ([], exp_words)
      end
   end
 

@@ -1,0 +1,12 @@
+arg_len() {
+    echo "$#"
+}
+
+IFS=":"
+FOO=":"
+
+[ "$(arg_len $FOO)" -eq 1 ] && echo OK 1
+[ "$(arg_len $FOO $FOO)" -eq 2 ] && echo OK 2a
+[ "$(arg_len $FOO$FOO)" -eq 2 ] && echo OK 2b
+[ "$(arg_len $FOO $FOO $FOO)" -eq 3 ] && echo OK 3a
+[ "$(arg_len $FOO$FOO$FOO)" -eq 3 ] && echo OK 3b
