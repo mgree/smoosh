@@ -1,0 +1,9 @@
+arg_len() {
+    echo $#
+}
+
+trap 'rm -r foo' EXIT
+
+mkdir foo
+touch foo/a foo/b foo/c
+[ "$(arg_len foo//*)" -eq 3 ] && echo OK

@@ -51,6 +51,7 @@ let match_pattern_file_list os lc dir pat =
 val match_dir : forall 'a. OS 'a => os_state 'a -> path -> locale -> string -> set (string * file path)
 let match_dir os dir lc name =
   match name with
+  | "" -> Set.singleton ("", Dir dir)
   | "." -> Set.singleton (".", Dir dir)
   | ".." -> Set.singleton ("..", Dir (dotdot dir))
   | _ -> match_pattern_file_list os lc dir name
