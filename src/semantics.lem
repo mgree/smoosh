@@ -1351,8 +1351,8 @@ and step_eval s0 checked stmt =
                (s2, Done)
            in
            (XSEval linno src "done", s3, c)
-        | ParseError -> 
-           let s3 = exit_with 2 s2 in
+        | ParseError s ->
+           let s3 = exit_with 2 (if s = "" then s2 else (write_stderr s s2)) in
            let c' =
              if is_interactive_mode interactive && is_toplevel shell_level 
              then EvalLoop linno ctx src interactive shell_level

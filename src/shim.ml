@@ -2,7 +2,9 @@ open Ctypes
 open Foreign
 open Dash
 open Smoosh_prelude
-   
+
+exception ParseException of string
+
 let skip = Command ([],[],[], default_cmd_opts )
 
 let var_type vstype w = 
@@ -209,6 +211,7 @@ and parse_arg ?tilde_ok:(tilde_ok=false) ~assign:(assign:bool)
      | _,[] -> failwith "Expected '=' terminating variable name, found EOF"
      in
      arg_char assign v s bqlist stack
+  | '\130'::_, _ -> raise (ParseException "bad substitution")
   (* CTLENDVAR *)
   | '\131'::s,`CTLVar::stack' -> [],s,bqlist,stack'
   | '\131'::_,`CTLAri::_ -> failwith "Saw CTLENDVAR before CTLENDARI"
@@ -390,11 +393,14 @@ let parse_next i m_smark : parse_result =
   let res =
     match Dash.parse_next ~interactive:(is_interactive_mode i) () with
     | Done -> ParseDone
-    | Error -> ParseError 
+    | Error -> ParseError ""
     | Null -> ParseNull
-    | Parsed n -> 
-       let c = of_node n in
-       ParseStmt c
+    | Parsed n ->
+       try
+         let c = of_node n in
+         ParseStmt c
+       with ParseException s ->
+         ParseError (Printf.sprintf "%s: %s\n" (Filename.basename Sys.executable_name) s)
   in
   Dash.pop_stack stackmark;
   res

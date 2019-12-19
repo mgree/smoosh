@@ -19,10 +19,10 @@ declare ocaml target_rep function parse_next_internal = `Shim.parse_next`
 val parse_next : forall 'a. OS 'a => os_state 'a -> interactivity_mode -> maybe stackmark -> os_state 'a * parse_result
 let parse_next s0 interactive stackmark =
   match parse_next_internal interactive stackmark with
-  | ParseDone   -> (s0,ParseDone)
-  | ParseError  -> (s0,ParseError)
-  | ParseNull   -> (s0,ParseNull)
-  | ParseStmt c ->
+  | ParseDone    -> (s0,ParseDone)
+  | ParseError s -> (s0,ParseError s)
+  | ParseNull    -> (s0,ParseNull)
+  | ParseStmt  c ->
      let s1 = 
        if Set.member Sh_verbose s0.sh.opts
        then safe_write_stderr (string_of_stmt c ^ "\n") s0

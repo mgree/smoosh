@@ -1058,7 +1058,7 @@ and evaluation_step =
 
 and parse_result =
   | ParseDone
-  | ParseError
+  | ParseError of string
   | ParseNull
   | ParseStmt of stmt
 
