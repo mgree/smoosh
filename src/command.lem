@@ -1166,7 +1166,7 @@ let command_type s0 path cmd =
           else let (s1, m_path) = resolve_command_name_in_path s0 path cmd in
                (s1, 
                 match m_path with
-                | Just executable -> CmdPath executable
+                | Just executable -> if file_exists s1 executable then CmdPath executable else CmdNotFound
                 | Nothing -> CmdNotFound
                 end)
        end
