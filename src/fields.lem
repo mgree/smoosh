@@ -48,14 +48,14 @@ let rec split_expstring ifs clst =
    | [] -> []
    | c::cs ->
       if elem c ifs
-      then (if is_ws c then WFS else FS)::split_expstring ifs cs
+      then (if is_ws c then WFS [c] else FS [c])::split_expstring ifs cs
       else let (cc, cs1) = collect_non_ifs ifs cs in 
            (Field (symbolic_string_of_char_list (c::cc)))::(split_expstring ifs cs1)
   end
 
 let rec consume_separators p a =
   match p with
-  | UsrF::wrds -> consume_separators wrds (WFS::a)
+  | UsrF::wrds -> consume_separators wrds (WFS []::a)
   | _ -> (p, a)
   end
 
@@ -63,7 +63,7 @@ let rec split_word ifs p =
   match p with
   | (f, []) -> f
   | (f, UsrF::UsrF::wrds) -> split_word ifs (f, UsrF::wrds)
-  | (f, UsrF::wrds) -> split_word ifs (f ++ [FS], wrds)
+  | (f, UsrF::wrds) -> split_word ifs (f ++ [FS []], wrds)
   | (f, ExpS(s)::wrds) ->
       let new_fields = split_expstring ifs (toCharList s) in
       let (wrds', separators) = consume_separators wrds [] in
@@ -111,11 +111,11 @@ let rec skip_field_splitting w =
        these are distinct from empty fields, which ought to have `UsrS
      ""` or `ExpS ""` or `DQuo ...` in them.  *)
   | UsrF::UsrF::ws -> skip_field_splitting (UsrF::ws)
-  | UsrF::ws -> FS::skip_field_splitting ws
+  | UsrF::ws -> FS []::skip_field_splitting ws
   | UsrS s::ws -> Field (symbolic_string_of_string s)::skip_field_splitting ws
   | ExpS s::ws -> Field (symbolic_string_of_string s)::skip_field_splitting ws
   | DQuo s::ws -> QField s::skip_field_splitting ws
-  | At fs::ws -> intersperse FS (List.map QField fs) ++ skip_field_splitting ws
+  | At fs::ws -> intersperse (FS []) (List.map QField fs) ++ skip_field_splitting ws
   | EWSym sym::ws -> Field [Sym sym]::skip_field_splitting ws
   end
 
@@ -140,28 +140,28 @@ let split_fields s0 exp_words =
 let rec combine_fields f =
   match f with
   | [] -> []
-  | [WFS] -> [] (* Remove trailing field separators *)
-  | (WFS::WFS::rst) -> combine_fields (WFS::rst) (* Combine adjacent whitespace separators *)
-  | (WFS::FS::rst) -> combine_fields (FS::rst)
-  | (FS::WFS::rst) -> combine_fields (FS::rst)
+  | [WFS _] -> [] (* Remove trailing field separators *)
+  | (WFS f::WFS s::rst) -> combine_fields (WFS (f ++ s)::rst) (* Combine adjacent whitespace separators *)
+  | (WFS f::FS s::rst) -> combine_fields (FS (f ++ s)::rst)
+  | (FS f::WFS s::rst) -> combine_fields (FS (f ++ s)::rst)
   | (Field(s1)::Field(s2)::rst) -> combine_fields (Field(s1 ++ s2)::rst)
   | (QField(s1)::QField(s2)::rst) -> combine_fields (QField(s1 ++ s2)::rst)
   | (QField(s1)::Field(s2)::rst) -> combine_fields (Field((escape_patterns s1) ++ s2)::rst)
   | (Field(s1)::QField(s2)::rst) -> combine_fields (Field(s1 ++ (escape_patterns s2))::rst)
-  | (WFS::rst) -> FS::(combine_fields rst)
+  | (WFS f::rst) -> FS f::(combine_fields rst)
   | (f::rst) -> f::(combine_fields rst)
   end
 
 let rec clean_fields f =
   match f with
-  | (WFS::rst) -> clean_fields rst
+  | (WFS _::rst) -> clean_fields rst
   | _ -> combine_fields f
   end
 
 let debug_tmp_field tf =
   match tf with
-  | WFS -> "WFS"
-  | FS -> "FS"
+  | WFS c -> "WFS(" ^ toString c ^ ")"
+  | FS  c -> "FS(" ^ toString c ^ ")"
   | Field s -> "Field(" ^ string_of_symbolic_string s ^ ")"
   | QField s -> "QField(" ^ string_of_symbolic_string s ^ ")"
   end
@@ -179,7 +179,7 @@ let rec insert_field_separators fs =
   match fs with
   | [] -> []
   | [f] -> [Field (symbolic_string_of_string f)]
-  | f::fs' -> Field (symbolic_string_of_string f)::FS::insert_field_separators fs'
+  | f::fs' -> Field (symbolic_string_of_string f)::FS []::insert_field_separators fs'
   end
 
 val pathname_expansion : forall 'a. OS 'a => os_state 'a -> intermediate_fields -> intermediate_fields
@@ -225,8 +225,10 @@ let rec pathname_expansion s0 f =
  *)
 
 val remove_quotes : intermediate_fields -> intermediate_fields
-val to_fields : intermediate_fields -> fields
-val finalize_fields : intermediate_fields -> fields
+val to_single_field : list (symbolic_string * symbolic_string) -> symbolic_string
+val to_fields : list (symbolic_string * symbolic_string) -> maybe nat -> fields
+val normalize_fields : intermediate_fields -> list (symbolic_string * symbolic_string)
+val finalize_fields : intermediate_fields -> maybe nat -> fields
 val quote_removal : intermediate_fields -> fields
 
 let rec remove_quotes f =
@@ -236,26 +238,35 @@ let rec remove_quotes f =
   | f :: rst -> f::remove_quotes rst
   end
 
-let rec to_fields f =
-  match f with
-  | []            -> []
-  | Field fs::rst -> fs::(to_fields rst)
-  | FS::FS::rst   -> (symbolic_string_of_string "")::(to_fields (FS::rst))
-  | FS::rst       -> to_fields rst
-  (* TODO 2017-12-01 Preferably we need an AST that doesn't have WFS or QField's at this point, or lem failure *)
-  | WFS::_        -> 
-     Assert_extra.failwith "broken invariant in to_fields: didn't expect WFS"
-  | QField _::_   -> 
-     Assert_extra.failwith "broken invariant in to_fields: didn't expect QField"
+let rec to_single_field f =
+  let extract (f, s) = f ++ s in
+  concatMap extract f
+
+let rec to_fields f l =
+  match l with
+  | Just 1 -> [to_single_field f]
+  | _ ->
+     match f with
+     | [] -> []
+     | (f, _)::rst -> f::to_fields rst (bind l (fun n -> Just (n - 1)))
+     end
   end
 
-let rec finalize_fields f =
-  match f with
-  | (FS::rst) -> symbolic_string_of_string ""::finalize_fields rst
-  | _ -> to_fields f
+let rec normalize_fields fs =
+  let ssocl = symbolic_string_of_char_list in
+  match fs with
+  | [] -> []
+  | Field f::FS x::rst -> (f, ssocl x)::normalize_fields rst
+  | FS x::rst -> (ssocl [], ssocl x)::normalize_fields rst
+  | Field f::rst -> (f, ssocl [])::normalize_fields rst
+  | WFS _::_ -> Assert_extra.failwith "broken invariant in normalize_fields: didn't expect WFS"
+  | QField _::_ -> Assert_extra.failwith "broken invariant in normalize_fields: didn't expect QField"
   end
+
+let rec finalize_fields f l =
+  to_fields (normalize_fields f) l
 
 let quote_removal f =
   let no_quotes = combine_fields (remove_quotes f) in
-  finalize_fields no_quotes
+  finalize_fields no_quotes Nothing
 

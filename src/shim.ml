@@ -721,8 +721,8 @@ and list_of_symbolic_string = function
      String (implode cs)::list_of_symbolic_string s'
   | Sym sym::s' -> json_of_symbolic sym::list_of_symbolic_string s'
 and json_of_tmp_field = function
-  | WFS -> Assoc [tag "WFS"]
-  | FS -> Assoc [tag "FS"]
+  | WFS cl -> Assoc [tag "WFS"; ("s", String (implode cl))]
+  | FS  cl -> Assoc [tag "FS"; ("s", String (implode cl))]
   | Field s -> Assoc [tag "Field"; ("s", json_of_symbolic_string s)]
   | QField s -> Assoc [tag "QField"; ("s", json_of_symbolic_string s)]
 and json_of_intermediate_fields fs = List (List.map json_of_tmp_field fs)

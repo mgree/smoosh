@@ -1,0 +1,21 @@
+echo 1
+IFS=':' read foo <<EOF
+:::
+EOF
+echo $foo
+
+echo 2
+IFS=':' read foo bar baz <<EOF
+:2:
+EOF
+echo $foo
+echo $bar
+echo $baz
+
+echo 3
+IFS=':' read foo bar baz <<EOF
+:2::::::::::
+EOF
+echo $foo
+echo $bar
+echo $baz

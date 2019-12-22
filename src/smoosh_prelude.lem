@@ -1002,8 +1002,8 @@ and symbolic_string = list symbolic_char
 and fields = list (symbolic_string)
 
 and tmp_field =
-    WFS
-  | FS
+    WFS of list char
+  | FS of list char
   | Field of symbolic_string
   | QField of symbolic_string
 
@@ -1379,8 +1379,8 @@ let unescape_pattern = unescape_chars pattern_escs
 val unescape_tmp_field : tmp_field -> tmp_field
 let unescape_tmp_field tf =
   match tf with
-  | WFS -> WFS
-  | FS -> FS
+  | WFS _ -> tf
+  | FS  _ -> tf
   | Field ss -> Field (unescape_pattern ss)
   | QField ss -> QField ss
   end
@@ -1391,8 +1391,8 @@ let unescape_intermediate_fields = List.map unescape_tmp_field
 val unescape_heredoc_field : tmp_field -> tmp_field
 let unescape_heredoc_field tf =
   match tf with
-  | WFS -> WFS
-  | FS -> FS
+  | WFS _ -> tf
+  | FS  _ -> tf
   | Field ss -> Field (unescape_chars heredoc_escs ss)
   | QField ss -> QField (unescape_chars heredoc_escs ss)
   end
@@ -1427,8 +1427,8 @@ val symbolic_string_of_intermediate_fields : intermediate_fields -> symbolic_str
 let rec symbolic_string_of_intermediate_fields ifs =
   match ifs with
   | [] -> []
-  | FS::ifs' -> C #' '::symbolic_string_of_intermediate_fields ifs'
-  | WFS::ifs' -> C #' '::symbolic_string_of_intermediate_fields ifs'
+  | FS  _::ifs' -> C #' '::symbolic_string_of_intermediate_fields ifs'
+  | WFS _::ifs' -> C #' '::symbolic_string_of_intermediate_fields ifs'
   | Field s::ifs' -> s ++ symbolic_string_of_intermediate_fields ifs'
   | QField s::ifs' -> [C #'\"'] ++ s ++ [C #'\"'] ++ 
                         symbolic_string_of_intermediate_fields ifs'
@@ -1955,8 +1955,8 @@ and string_of_redir_state (ers, exp_redir, rs) =
 
 and string_of_tmp_field tf =
   match tf with
-  | WFS -> " "
-  | FS -> " "
+  | WFS cl -> if cl = [] then " " else toString cl
+  | FS  cl -> if cl = [] then " " else toString cl
   | Field s -> string_of_symbolic_string s
   | QField s -> "\"" ^ string_of_symbolic_string s ^ "\""
   end
