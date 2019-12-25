@@ -117,7 +117,8 @@ val resolve_command_name : forall 'a. OS 'a =>
                            os_state 'a -> string -> os_state 'a * maybe string
 
 let resolve_command_name_in_path s0 path prog =
-  if elem #'/' (toCharList prog)
+  let progl = toCharList prog in
+  if elem #'/' progl
   then 
     (* If the command name contains at least one <slash>, the shell
        shall execute the utility in a separate utility environment
@@ -126,7 +127,11 @@ let resolve_command_name_in_path s0 path prog =
        and arg0 arguments set to the command name, and the remaining
        execl() arguments set to the command arguments (if any) and the
        null terminator. *)
-    (s0, Just prog)
+    (s0, Just (match progl with
+               | #'/'::_ -> prog
+               (* return with an absolute pathname for command -v *)
+               | _ -> (physical_cwd s0) ^ "/" ^ prog
+               end))
   else
     let (s1, hashed) = hash_lookup s0 (command_path_ok s0) prog in
     match hashed with
