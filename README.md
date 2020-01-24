@@ -6,8 +6,8 @@ Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OC
 
 # Installation
 
-There are two ways to work with Smoosh: in a Vagrant VM, in a Docker
-container, or natively. Because Smoosh depends on many parts and
+There are two ways to work with Smoosh: virtually (in a Vagrant VM or in a Docker
+container) or natively. Because Smoosh depends on many parts and
 specific versions of some libraries, it is much easier to install via
 a VM or Docker.
 

@@ -178,13 +178,22 @@ function renderExpandedRedir(info, elt, redir) {
 
 function stmtSimple(info, elt, stmt, fAssign, fArgs) {
       const assignsExp = $('<span></span>').addClass('simple-assigns').appendTo(elt);
+      let first = true;
       for (const assign of stmt['assigns']) {
         const a = $('<span></span>').addClass('assign').appendTo(assignsExp);
+
+        if (!first) {
+            a.append(fieldSep);
+        } else {
+            first = false;
+        }
+
         $('<span></span>').addClass('variable').append(assign['var']).appendTo(a);
 
         a.append('=');
 
         const v = $('<span></span>').addClass('variable').appendTo(a);
+
         fAssign(info, v, assign['value']);
       }
 
@@ -1220,10 +1229,10 @@ function renderFormat(info, elt, format) {
       //                                      ("w", json_of_words w)]
 
       var fmt = $('<span></span>').addClass('param-format').appendTo(elt);
-      fmt.append(renderSubstring(control['side'], control['mode']));
+      fmt.append(renderSubstring(format['side'], format['mode']));
 
       var w = $('<span></span>').appendTo(elt);
-      renderWords(w, control['w']);
+      renderWords(info, w, format['w']);
 
       break;
 
