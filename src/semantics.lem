@@ -357,20 +357,24 @@ let rec expand_control s0 split q k =
     | Backtick c ->
        (* create a pipe *)
        let (s1, fd_read, fd_write) = pipe s0 in
-       let cmd = 
-         (* set up redirects [skipping expansion] *)
-         (with_redirs c [ERDup ToFD CloseOrig STDOUT (Just fd_write);
-                         ERDup ToFD CloseOrig fd_read Nothing])
+       let redirs = [ERDup ToFD CloseOrig STDOUT (Just fd_write);
+                     ERDup ToFD CloseOrig fd_read Nothing]
        in
-       let (s2, pid) = 
-         fork_and_subshell s1 cmd 
-           FG Nothing (* no pgid *) false (* no job control *) 
-       in
-       let s3 = close_fd s2 fd_write in
-       Right (ESCommand "initializing subshell", 
-              s3,
-              [], 
-              [K (LBacktick c pid fd_read)])
+       match do_redirs s1 redirs with
+       | (s2, Left _) ->
+          Left (ESCommand "failed to set up subshell", s2, [])
+       | (s2, Right saved_fds) ->
+          let (s3, pid) =
+            fork_and_subshell s2 c
+              FG Nothing (* no pgid *) false (* no job control *)
+          in
+          let s4 = restore_fds s3 saved_fds in
+          let s5 = close_fd s4 fd_write in
+          Right (ESCommand "initializing subshell",
+                 s5,
+                 [],
+                 [K (LBacktick c pid fd_read)])
+       end
     | LBacktick corig pid fd_read ->
         match read_all_fd step_eval s0 fd_read with
         | (s1, Left step) ->
