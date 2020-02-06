@@ -14,7 +14,6 @@ let () =
 ;;
 EOF
 
-
 # make sure we have ocamlfind and ocamlbuild
 opam install ocamlfind ocamlbuild
 
@@ -26,6 +25,8 @@ opam install ctypes ctypes-foreign num extunix
 # cd oil; ./configure; build/dev.sh minimal
 # sed -i 's#REPO_ROOT=.*#REPO_ROOT=/home/opam/oil#' /home/opam/oil/bin/osh
 # sudo ln -sf /home/opam/oil/bin/osh /usr/local/bin/osh
+
+cp -R smoosh.orig smoosh
 
 cd smoosh
 
