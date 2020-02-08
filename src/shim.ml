@@ -380,7 +380,12 @@ let parse_init src =
          None
        with Unix.Unix_error(_,_,_) -> bad_file file "unreadable"
 
-let parse_done m_ss =
+let parse_done m_ss m_smark =
+  begin
+    match m_smark with
+    | None -> ()
+    | Some ms -> Dash.pop_stack ms
+  end;
   Dash.popfile ();
   begin
     match m_ss with
@@ -388,7 +393,7 @@ let parse_done m_ss =
     | Some ss -> Dash.free_stack_string ss
   end
 
-let parse_next i m_smark : parse_result =
+let parse_next i : parse_result =
   let stackmark = Dash.init_stack () in
   let res =
     match Dash.parse_next ~interactive:(is_interactive_mode i) () with
