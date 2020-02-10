@@ -15,7 +15,7 @@ export DEBIAN_FRONTEND
 apt-get update
 
 # convenience
-apt-get install emacs24-nox
+apt-get install -y emacs24-nox
 
 # POSIX test suite commands
 apt-get install -y --no-install-recommends expect
