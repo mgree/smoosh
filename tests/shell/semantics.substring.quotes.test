@@ -1,0 +1,4 @@
+FOO="a?b"
+[ "${FOO#*"?"}" = b ] && echo OK1
+FOO="abc"
+[ "${FOO#"${FOO%???}"}" = "$FOO" ] && echo OK2

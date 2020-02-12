@@ -330,7 +330,7 @@ let rec expand_control s0 split q k =
        | Left err -> Left err
        end
     | LMatch str side mode f [] -> 
-       let sympat = symbolic_string_of_expanded_words false (* lowkey for pattern... but don't munge quotes *) f in
+       let sympat = symbolic_string_of_expanded_words true f in
        let symstr = symbolic_string_of_fields str in
        let (s1,_concretized,pat) = concretize s0 sympat in
        let matched = try_match_substring s1.sh.locale side mode pat symstr in
@@ -338,7 +338,7 @@ let rec expand_control s0 split q k =
               s1, [], 
               words_of_symbolic_string matched)
     | LMatch s side mode f w ->
-       match expand_words s0 NoSplit q GeneratedString ([], w) with
+       match expand_words s0 NoSplit Unquoted GeneratedString ([], w) with
        | Right (step, s1, f1, w1) -> 
           Right (ESNested (ESParam "match") step, 
                  s1, [], [K (LMatch s side mode (f ++ f1) w1)])
