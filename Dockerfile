@@ -65,12 +65,8 @@ ENV LEMLIB="/home/opam/lem/library"
 # we do this as late as possible so we don't have to redo the slow stuff above
 ADD --chown=opam:opam libdash libdash
 
-# build libdash, expose shared object
-RUN cd libdash; ./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu
-RUN cd libdash; make
-RUN cd libdash; sudo make install
-# build ocaml bindings
-RUN cd libdash/ocaml; opam config exec -- make && opam config exec -- make install
+# build and install
+RUN cd libdash; opam install .
 
 # copy in repo files for smoosh to the WORKDIR
 
