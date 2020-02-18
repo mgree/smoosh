@@ -18,6 +18,7 @@ Dockerfile.test
 Dockerfile.web
 .git
 .gitmodules
+**/.git
 **/.gitignore
 **/*~
 **/.#*
