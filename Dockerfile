@@ -66,7 +66,7 @@ ENV LEMLIB="/home/opam/lem/library"
 ADD --chown=opam:opam libdash libdash
 
 # build and install
-RUN cd libdash; ls -al; opam pin add .
+RUN cd libdash; opam pin add .
 
 # copy in repo files for smoosh to the WORKDIR
 
