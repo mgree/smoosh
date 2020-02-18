@@ -66,7 +66,7 @@ ENV LEMLIB="/home/opam/lem/library"
 ADD --chown=opam:opam libdash libdash
 
 # build and install
-RUN cd libdash; opam install --working-dir --skip-updates .
+RUN cd libdash; opam pin install --working-dir --skip-updates .
 
 # copy in repo files for smoosh to the WORKDIR
 
