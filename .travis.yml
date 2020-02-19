@@ -7,6 +7,7 @@ services:
 
 before_install:
   - docker pull ocaml/opam2:debian-9
+  - make -C src bump version.lem
   - docker build -t smoosh .
 
 script:
