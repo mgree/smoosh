@@ -106,7 +106,7 @@ To install Smoosh locally, you will need to manually configure your
 system with the dependencies listed in the `Dockerfile`. In particular:
 
   - A C toolchain
-  - Autoconf/autotools, libtool, pkg-config, libffi, and libgmp
+  - Autoconf/autotools, libtool, pkg-config, libffi, and libgmp (on macOS, you'll want `libtoolize` to invoke `glibtoolize`, e.g., run `brew install libtool; ln -sf $(which glibtoolize) /usr/local/bin/libtoolize`)
   - OPAM
 
 ```ShellSession
@@ -137,11 +137,8 @@ $ (cd lem/ocaml-lib; make install_dependencies)
 ...
 $ (cd lem; make; make install)
 ...
-$ (cd libdash; ./autogen.sh && ./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu && make)
+$ (cd libdash; opam pin add .)
 ...
-$ (cd libdash; sudo make install)
-...
-$ (cd libdash/ocaml; make && make install)
 $ make -C src all all.byte
 ...
 ```
