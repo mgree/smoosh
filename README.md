@@ -48,7 +48,6 @@ Cloning into 'smoosh'...
 Submodule path 'lem': checked out 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 Submodule path 'libdash': checked out 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'
 Submodule path 'modernish': checked out 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
-Submodule path 'oil': checked out 'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww'
 $ cd smoosh
 $ ./build.sh
 ... [long docker build] ...

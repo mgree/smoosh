@@ -14,6 +14,7 @@
 
 - add bosh
   http://schilytools.sourceforge.net/bosh.html
+- add oil
 
 ### Implementation TODO
 

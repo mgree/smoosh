@@ -47,12 +47,6 @@ RUN opam install extunix
 
 WORKDIR /home/opam
 
-# build Oil... (disabled due to buggy libc test)
-# ADD --chown=opam:opam oil oil
-# RUN cd oil; ./configure; build/dev.sh minimal
-# RUN sed -i 's#REPO_ROOT=.*#REPO_ROOT=/home/opam/oil#' /home/opam/oil/bin/osh
-# RUN sudo ln -sf /home/opam/oil/bin/osh /usr/local/bin/osh
-
 # set up lem
 ADD --chown=opam:opam lem lem
 RUN cd lem/ocaml-lib; opam config exec -- make install_dependencies
