@@ -136,6 +136,7 @@ Thanks to [@idkjs](https://github.com/idkjs) for documenting a [macOS build](htt
 ```ShellSession
 $ brew install autoconf libtool pkg-config libffi opam
 $ opam init
+$ opam switch 4.07.0
 $ eval `opam config env`
 $ opam install ocamlfind ocamlbuild
 $ opam pin add ctypes 0.11.5
