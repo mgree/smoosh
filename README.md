@@ -106,44 +106,46 @@ To install Smoosh locally, you will need to manually configure your
 system with the dependencies listed in the `Dockerfile`. In particular:
 
   - A C toolchain
-  - Autoconf/autotools, libtool, pkg-config, libffi, and libgmp (on macOS, you'll want `libtoolize` to invoke `glibtoolize`, e.g., run `brew install libtool; ln -sf $(which glibtoolize) /usr/local/bin/libtoolize`)
+  - Autoconf/autotools, libtool, pkg-config, libffi, and libgmp (on macOS, this may be called `glibtoolize`, e.g., run `brew install libtool)
   - OPAM
+
+On Linux, you can more or less crib from the [`Dockerfile`](https://github.com/mgree/smoosh/blob/master/Dockerfile). Here's a sample Linux session.
 
 ```ShellSession
 $ sudo apt-get install -y autoconf autotools-dev libtool pkg-config libffi-dev libgmp-dev
-...
 $ sudo apt-get install -y opam
-...
 $ opam init
-...
 $ opam switch 4.07.0
-...
 $ eval `opam config env`
 $ opam install ocamlfind ocamlbuild
-...
 $ opam pin add ctypes 0.11.5
-...
 $ opam install ctypes-foreign num extunix
-...
 $ git clone --recurse-submodules https://github.com/mgree/smoosh.git
-Cloning into 'smoosh'...
-... [lots of fetching] ...
-Submodule path 'lem': checked out 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-Submodule path 'libdash': checked out 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'
-Submodule path 'modernish': checked out 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
-Submodule path 'oil': checked out 'wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww'
 $ cd smoosh
 $ (cd lem/ocaml-lib; make install_dependencies)
-...
 $ (cd lem; make; make install)
-...
+$ export LEMLIB=$(pwd)/lem/library
 $ (cd libdash; opam pin add .)
-...
 $ make -C src all all.byte
-...
 ```
 
 There are now three executables in `smoosh/src`: the Smoosh shell binary, `smoosh`; the Shtepper binary, `shtepper`; and a unit test runner, `runtest`.
+
+Thanks to @idkjs for documenting a [macOS build](https://github.com/idkjs/smoosh-macOS). Here's a summary of the entire process:
+
+```ShellSession
+$ brew install autoconf libtool pkg-config libffi opam
+$ opam init
+$ eval `opam config env`
+$ opam install ocamlfind ocamlbuild
+$ opam pin add ctypes 0.11.5
+$ opam install ctypes-foreign num extunix
+$ git clone --recurse-submodules https://github.com/mgree/smoosh.git
+$ (cd lem/ocaml-lib && make install_dependencies && make && make install)
+$ export LEMLIB=$(pwd)/lem/library
+$ (cd libdash && opam pin add .)
+$ make -C src all all.byte
+```
 
 # Running tests
 
