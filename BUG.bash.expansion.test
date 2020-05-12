@@ -1,0 +1,9 @@
+set --
+y=Y
+sp=' '
+x=$sp${y+X}$*$sp
+if [ "$x" = ' X ' ]; then
+    echo ok
+else
+    echo looks like a bug [$x]
+fi

@@ -1,0 +1,17 @@
+# from https://github.com/oilshell/oil/issues/706#issuecomment-615100131
+
+# bash 4.3..5.0 bug
+
+f1() {
+  local v=local
+  unset -v v # this is local-scope unset
+  echo "$v"
+}
+
+v=global
+v=tempenv f1
+
+# Results:
+#   Bash 2.05b-4.2    outputs "v: (unset)"
+#   Bash 4.3-5.0      outputs "v: global"
+#   Bash devel branch outputs "v: (unset)"
