@@ -60,6 +60,8 @@
 
 ### Known bugs/issues to investigate
 
+- tests from https://github.com/oilshell/oil/issues/706#issuecomment-615100131
+
 - `string_of_fields` pretty printing
   put single quotes around fields that have WS in them
 
