@@ -109,7 +109,7 @@ system with the dependencies listed in the `Dockerfile`. In particular:
   - Autoconf/autotools, libtool, pkg-config, libffi, and libgmp (on macOS, this may be called `glibtoolize`, e.g., run `brew install libtool)
   - OPAM
 
-On Linux, you can more or less crib from the [`Dockerfile`](https://github.com/mgree/smoosh/blob/master/Dockerfile). Here's a sample Linux session.
+On Linux, you can more or less crib from the [`Dockerfile`](https://github.com/mgree/smoosh/blob/master/Dockerfile). Here's a sample Linux session:
 
 ```ShellSession
 $ sudo apt-get install -y autoconf autotools-dev libtool pkg-config libffi-dev libgmp-dev
@@ -122,16 +122,16 @@ $ opam pin add ctypes 0.11.5
 $ opam install ctypes-foreign num extunix
 $ git clone --recurse-submodules https://github.com/mgree/smoosh.git
 $ cd smoosh
-$ (cd lem/ocaml-lib; make install_dependencies)
-$ (cd lem; make; make install)
+$ (cd lem/ocaml-lib && make install_dependencies)
+$ (cd lem && make && make install)
 $ export LEMLIB=$(pwd)/lem/library
-$ (cd libdash; opam pin add .)
+$ (cd libdash && opam pin add .)
 $ make -C src all all.byte
 ```
 
 There are now three executables in `smoosh/src`: the Smoosh shell binary, `smoosh`; the Shtepper binary, `shtepper`; and a unit test runner, `runtest`.
 
-Thanks to @idkjs for documenting a [macOS build](https://github.com/idkjs/smoosh-macOS). Here's a summary of the entire process:
+Thanks to [@idkjs](https://github.com/idkjs) for documenting a [macOS build](https://github.com/idkjs/smoosh-macOS). Here's a sample macOS session:
 
 ```ShellSession
 $ brew install autoconf libtool pkg-config libffi opam
@@ -141,7 +141,9 @@ $ opam install ocamlfind ocamlbuild
 $ opam pin add ctypes 0.11.5
 $ opam install ctypes-foreign num extunix
 $ git clone --recurse-submodules https://github.com/mgree/smoosh.git
+$ cd smoosh
 $ (cd lem/ocaml-lib && make install_dependencies && make && make install)
+$ (cd lem && make && make install)
 $ export LEMLIB=$(pwd)/lem/library
 $ (cd libdash && opam pin add .)
 $ make -C src all all.byte
