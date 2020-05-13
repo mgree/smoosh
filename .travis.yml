@@ -1,15 +1,73 @@
-os: linux
+dist: xenial
 
 language: generic
 
-services:
-  - docker
+matrix:
+  include:
+  - os: osx
+    osx_image: xcode11.3
+    env: OCAML_VERSION=4.09
+  - os: freebsd
+    env: OCAML_VERSION=4.09
+  - os: linux
+    env: OCAML_VERSION=4.09 INSTALL_LOCAL=1
+  - os: linux
+    env: OCAML_VERSION=4.11.0+trunk OCAML_BETA=enable
+  allow_failures:
+  - os: freebsd
+    env: OCAML_VERSION=4.09
+
+
+cache:
+  directories:
+    - $HOME/.opam
+    - $HOME/.rvm
+
+addons:
+  apt:
+    packages:
+      - autoconf
+      - autotools-dev
+      - libtool
+      - pkg-config
+      - libffi-dev
+      - ruby-full
+      - ruby-bundler
+  homebrew:
+    packages:
+      - autoconf
+      - automake
+      - libtool
+      - pkg-config
+      - libffi
+      - ruby
+      - ruby-build
 
 before_install:
-  - docker pull ocaml/opam2:debian-9
-  - make -C src bump version.lem
-  - docker build -t smoosh .
+  # INSTALL WEB SERVER DEPS
+  - gem install -v 0.9.0 childprocess 
+  - gem install -v 2.0.5 sinatra
+  - gem install -v 2.0.5 sinatra-contrib
+  - gem install -v 1.7.2 thin
 
+  # INSTALL OPAM
+  - test -e .travis-ocaml.sh || wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-ocaml.sh
+  - bash -ex .travis-ocaml.sh  
+
+  - opam install ocamlfind ocamlbuild libdash num extunix lem
+
+  - make -C src bump version.lem  
+
+install:
+  # BUILD SMOOSH
+  - make -C src all all.byte
+  
 script:
-  - docker build -t smoosh-test -f Dockerfile.test .
-  - docker build -t smoosh-web -f Dockerfile.web .
+  # TEST SMOOSH
+  - make -C src/ test
+  - TEST_DEBUG=1 make -C tests/ test
+
+  # TEST WEB SERVER
+  - (cd web; bundle install; sh src/mk_config.sh >src/config.yml; mkdir submissions)
+  - (cd web; bundle exec rackup -o 0.0.0.0 -p 2080)
+  - curl --fail --data-ascii @web/test.post http://localhost:2080/stepper
