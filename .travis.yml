@@ -54,12 +54,17 @@ before_install:
   - test -e .travis-ocaml.sh || wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-ocaml.sh
   - bash -ex .travis-ocaml.sh  
 
-  - opam install ocamlfind ocamlbuild libdash num extunix lem
+  # INSTALL DEPS
+  - opam install ocamlfind ocamlbuild libdash num extunix
 
-  - make -C src bump version.lem  
+  # INSTALL lem
+  - (cd lem/ocaml-lib; make install_dependencies)
+  - make -C lem
+  - make -C lem install
 
 install:
   # BUILD SMOOSH
+  - make -C src bump version.lem  
   - make -C src all all.byte
   
 script:
