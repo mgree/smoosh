@@ -1,0 +1,74 @@
+# Check if builtin commands properly set their exit codes.
+
+high_exit() {
+    return 42
+}
+
+# break, continue, exit, return and newgrp are not tested.
+COMMANDS=": shift unset export readonly local times eval source exec
+set trap true false pwd echo cd hash type command umask alias unalias
+wait jobs read test [ printf kill getopts fg bg help history fc
+ulimit"
+
+# Check if every command sets the exit code for itself.
+echo Leaking commands:
+for command in $COMMANDS; do
+    high_exit
+    rc=$($command </dev/null >/dev/null 2>/dev/null; echo $?)
+    if [ -z $rc ]; then
+        # Skip if for some reason the subshell failed.
+        continue
+    elif [ $rc -eq 42 ]; then
+        echo $command
+    fi
+done
+
+# Check if any command lies about its failure.
+echo Silently failing commands:
+for command in $COMMANDS; do
+    has_output=$($command </dev/null 2>&1 | wc -c)
+    if [ $has_output -eq 0 ]; then
+        continue
+    fi
+    true
+    rc=$($command </dev/null >/dev/full 2>/dev/full; echo $?)
+    if [ -z $rc ]; then
+        continue
+    elif [ $rc -eq 0 ]; then
+        echo $command
+    fi
+done
+
+# More involved cases.
+export FOO=1
+readonly FOO
+alias foo=bar
+alias baz=qux
+while read command; do
+    true
+    rc=$($command </dev/null >/dev/full 2>/dev/full; echo $?)
+    if [ -z $rc ]; then
+        continue
+    elif [ $rc -eq 0 ]; then
+        echo $command
+    fi
+done <<EOF
+export -p
+readonly -p
+type echo
+command -p ''
+command -v echo
+command -V echo
+alias
+alias foo
+alias foo baz
+alias bar
+printf "foo"
+kill -l
+kill -l 1
+kill -l 2 3
+help builtins
+help version
+help trace
+help spec
+EOF

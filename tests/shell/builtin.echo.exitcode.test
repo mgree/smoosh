@@ -1,0 +1,3 @@
+# Make sure that echo properly sets its exitcode.
+echo >/dev/null && echo OK
+echo >/dev/full || echo OK
