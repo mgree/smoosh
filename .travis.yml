@@ -60,7 +60,8 @@ before_install:
   - opam install -y ocamlfind ocamlbuild libdash num extunix
 
   # INSTALL lem
-  - (cd lem/ocaml-lib; make install_dependencies)
+  - make -C lem/ocaml-lib/dependencies zarith
+  - make -C lem/ocaml-lib install_dependencies
   - make -C lem
   - make -C lem install
 
