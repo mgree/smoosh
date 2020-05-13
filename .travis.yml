@@ -62,13 +62,13 @@ before_install:
   # INSTALL lem
   - make -C lem/ocaml-lib/dependencies
   - sudo make -C lem/ocaml-lib/dependencies install
-  - make -C lem
-  - make -C lem install
+  - opam exec -- make -C lem
+  - sudo make -C lem install
 
 install:
   # BUILD SMOOSH
   - make -C src bump version.lem  
-  - make -C src all all.byte
+  - opam exec -- make -C src all all.byte
   
 script:
   # TEST SMOOSH
