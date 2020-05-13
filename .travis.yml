@@ -10,6 +10,8 @@ matrix:
   - os: freebsd
     env: OCAML_VERSION=4.09
   - os: linux
+    env: OCAML_VERSION=4.09
+  - os: linux
     env: OCAML_VERSION=4.09 INSTALL_LOCAL=1
   - os: linux
     env: OCAML_VERSION=4.11.0+trunk OCAML_BETA=enable
@@ -55,7 +57,7 @@ before_install:
   - bash -ex .travis-ocaml.sh  
 
   # INSTALL DEPS
-  - opam install ocamlfind ocamlbuild libdash num extunix
+  - opam install -y ocamlfind ocamlbuild libdash num extunix
 
   # INSTALL lem
   - (cd lem/ocaml-lib; make install_dependencies)
