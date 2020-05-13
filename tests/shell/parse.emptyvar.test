@@ -1,0 +1,4 @@
+err=$($TEST_SHELL -c ': ${}' 2>&1 >/dev/null)
+[ "$err" ]
+
+
