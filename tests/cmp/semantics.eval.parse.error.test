@@ -1,0 +1,3 @@
+command eval ': ${}'
+ec=$?
+echo \$?=$ec
