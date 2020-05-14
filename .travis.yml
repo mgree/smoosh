@@ -80,8 +80,8 @@ script:
   - (cd web; bundle install)
   - sh web/src/mk_config.sh $(pwd) >web/src/config.yml
   - cat web/src/config.yml
-  - mkdir $HOME/web/submissions
+  - mkdir web/submissions
   - pwd
-  - $HOME/web/run.sh &
+  - web/run.sh &
   - sleep 5
   - curl --fail --data-ascii @web/test.post http://localhost:2080/shtepper
