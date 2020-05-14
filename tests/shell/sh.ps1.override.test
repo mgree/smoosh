@@ -1,3 +1,4 @@
+unset PS1
 $TEST_SHELL -i <<EOF
 echo hi
 echo bye
