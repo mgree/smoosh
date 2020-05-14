@@ -6,10 +6,43 @@ Smoosh is written in a mix of [Lem](https://www.cl.cam.ac.uk/~pes20/lem/) and OC
 
 # Installation
 
-There are two ways to work with Smoosh: virtually (in a Vagrant VM or in a Docker
-container) or natively. Because Smoosh depends on many parts and
-specific versions of some libraries, it is much easier to install via
-a VM or Docker.
+There are two ways to work with Smoosh: virtually (in a Vagrant VM or
+in a Docker container) or natively. Because Smoosh depends on many
+parts and specific versions of some libraries, it may be easier to
+install via a VM or Docker.
+
+## Building Smoosh natively
+
+To install Smoosh directly on your computer, you will need to manually
+configure your system with the dependencies listed in
+`.travis.yml`. In particular:
+
+  - A C toolchain
+  - Autoconf, autotools, libtool, pkg-config, libffi, and libgmp (on macOS, this may be called `glibtoolize`, e.g., run `brew install libtool`)
+  - OPAM (well sourced, i.e., `eval $(opam env)`)
+  - Ruby and Ruby bundler (for the web server)
+
+Once you have those dependencies, you should be able to crib from `.travis.yml`:
+
+```ShellSession
+$ git clone --recurse-submodules https://github.com/mgree/smoosh.git
+Cloning into 'smoosh'...
+... [lots of fetching] ...
+Submodule path 'lem': checked out 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+Submodule path 'libdash': checked out 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'
+Submodule path 'modernish': checked out 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
+$ cd smoosh
+$ opam install -y ocamlfind ocamlbuild num zarith extunix
+$ (cd libdash; opam pin -y add .)
+$ make -C lem && make -C lem install
+$ export LEMLIB=$(pwd)/lem/library
+$ export PATH="$(pwd)/lem/bin:$PATH"
+$ make -C src all all.byte
+$ export PATH="$(pwd)/src:$PATH"
+```
+
+Thanks to [@idkjs](https://github.com/idkjs) for documenting a [macOS build](https://github.com/idkjs/smoosh-macOS).
+
 
 ## Building Smoosh in a Vagrant VM
 
@@ -98,56 +131,6 @@ Listening on 0.0.0.0:2080, CTRL+C to stop
 ```
 
 You can then navigate to [http://localhost/](http://localhost/) in your web browser of choice. The Shtepper should work in any web browser, but has only undergone extensive testing in Firefox.
-
-## Building Smoosh locally (requires manual installation of dependencies)
-
-To install Smoosh locally, you will need to manually configure your
-system with the dependencies listed in the `Dockerfile`. In particular:
-
-  - A C toolchain
-  - Autoconf/autotools, libtool, pkg-config, libffi, and libgmp (on macOS, this may be called `glibtoolize`, e.g., run `brew install libtool)
-  - OPAM
-
-On Linux, you can more or less crib from the [`Dockerfile`](https://github.com/mgree/smoosh/blob/master/Dockerfile). Here's a sample Linux session:
-
-```ShellSession
-$ sudo apt-get install -y autoconf autotools-dev libtool pkg-config libffi-dev libgmp-dev
-$ sudo apt-get install -y opam
-$ opam init
-$ opam switch 4.07.0
-$ eval `opam config env`
-$ opam install ocamlfind ocamlbuild
-$ opam pin add ctypes 0.11.5
-$ opam install ctypes-foreign num extunix
-$ git clone --recurse-submodules https://github.com/mgree/smoosh.git
-$ cd smoosh
-$ (cd lem/ocaml-lib && make install_dependencies)
-$ (cd lem && make && make install)
-$ export LEMLIB=$(pwd)/lem/library
-$ (cd libdash && opam pin add .)
-$ make -C src all all.byte
-```
-
-There are now three executables in `smoosh/src`: the Smoosh shell binary, `smoosh`; the Shtepper binary, `shtepper`; and a unit test runner, `runtest`.
-
-Thanks to [@idkjs](https://github.com/idkjs) for documenting a [macOS build](https://github.com/idkjs/smoosh-macOS). Here's a sample macOS session:
-
-```ShellSession
-$ brew install autoconf libtool pkg-config libffi opam
-$ opam init
-$ opam switch 4.07.0
-$ eval `opam config env`
-$ opam install ocamlfind ocamlbuild
-$ opam pin add ctypes 0.11.5
-$ opam install ctypes-foreign num extunix
-$ git clone --recurse-submodules https://github.com/mgree/smoosh.git
-$ cd smoosh
-$ (cd lem/ocaml-lib && make install_dependencies && make && make install)
-$ (cd lem && make && make install)
-$ export LEMLIB=$(pwd)/lem/library
-$ (cd libdash && opam pin add .)
-$ make -C src all all.byte
-```
 
 # Running tests
 
