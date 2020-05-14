@@ -70,7 +70,7 @@ install:
 script:
   # TEST SMOOSH
   - make -C src/ test
-  - TEST_DEBUG=1 make -C tests/ test
+  - TEST_DEBUG=1 TEST_TIMEOUT=15 make -C tests/ test # higher timeout for CI (default is 9s)
 
   # BUILD AND TEST WEB SERVER
   - (cd web; bundle install)

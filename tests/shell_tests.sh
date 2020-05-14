@@ -132,7 +132,7 @@ do
     # actually run the test
     TMP=$(mktemp -d)
     cd $TMP
-    ${TEST_UTIL}/timeout -l ${got_timeout} \
+    ${TEST_UTIL}/timeout -t ${TEST_TIMEOUT-5} -l ${got_timeout} \
       ${TEST_SHELL} ${TEST_SHELL_FLAGS} $BASE/${test_case} >${got_out} 2>${got_err}
     got_ec="$?"
     cd $BASE

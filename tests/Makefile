@@ -11,7 +11,7 @@ shell : $(TEST_ENV)
 	@echo == Running shell tests ===============================================
 	@./shell_tests.sh
 
-$(shell pwd)/default.env :
+default.env :
 	@echo == Generating test environment =======================================
 	@echo TEST_UTIL=$$(cd util; pwd) >$@
 	@echo TEST_SHELL=$(TEST_SHELL) >>$@
