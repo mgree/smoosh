@@ -1,4 +1,4 @@
-TEST_ENV ?= default.env
+TEST_ENV ?= $(shell pwd)/default.env
 TEST_SHELL ?= smoosh
 
 export TEST_ENV TEST_LOGDIR TEST_UTIL TEST_SHELL TEST_SHELL_FLAGS
@@ -11,7 +11,7 @@ shell : $(TEST_ENV)
 	@echo == Running shell tests ===============================================
 	@./shell_tests.sh
 
-default.env :
+$(shell pwd)/default.env :
 	@echo == Generating test environment =======================================
 	@echo TEST_UTIL=$$(cd util; pwd) >$@
 	@echo TEST_SHELL=$(TEST_SHELL) >>$@
