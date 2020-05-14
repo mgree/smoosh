@@ -63,6 +63,7 @@ before_install:
   - opam exec -- make -C lem
   - opam exec -- make -C lem install
   - export LEMLIB=$(pwd)/lem/library
+  - export PATH="$(pwd)/lem/bin:$PATH"
 
 install:
   # BUILD SMOOSH
