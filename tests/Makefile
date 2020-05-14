@@ -1,4 +1,4 @@
-TEST_ENV ?= $(shell pwd)/default.env
+TEST_ENV ?= default.env
 TEST_SHELL ?= smoosh
 
 export TEST_ENV TEST_LOGDIR TEST_UTIL TEST_SHELL TEST_SHELL_FLAGS
