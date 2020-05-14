@@ -67,8 +67,7 @@ before_install:
 
 install:
   # BUILD SMOOSH
-  - opam exec -- make -C src bump version.lem  
-  - opam exec -- make -C src -j2 all all.byte
+  - opam exec -- make -C src all all.byte
   
 script:
   # TEST SMOOSH
