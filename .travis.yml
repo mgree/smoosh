@@ -78,7 +78,7 @@ script:
 
   # BUILD AND TEST WEB SERVER
   - (cd web; bundle install)
-  - sh web/src/mk_config.sh >web/src/config.yml
+  - sh web/src/mk_config.sh $(pwd) >web/src/config.yml
   - cat web/src/config.yml
   - mkdir $HOME/web/submissions
   - pwd
