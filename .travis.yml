@@ -79,7 +79,9 @@ script:
   # BUILD AND TEST WEB SERVER
   - (cd web; bundle install)
   - sh web/src/mk_config.sh >web/src/config.yml
-  - mkdir web/submissions
-  - (cd web; bundle exec rackup -o 0.0.0.0 -p 2080 &)
+  - cat web/src/config.yml
+  - mkdir $HOME/web/submissions
+  - pwd
+  - $HOME/web/run.sh &
   - sleep 5
   - curl --fail --data-ascii @web/test.post http://localhost:2080/shtepper
