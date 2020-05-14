@@ -2,6 +2,10 @@ dist: xenial
 
 language: generic
 
+env:
+  global:
+    - MAKEFLAGS="-j 2"    
+
 matrix:
   include:
   - os: osx
