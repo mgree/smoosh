@@ -1,0 +1,2 @@
+# Ensure that the exit trap is ran with the redirections still active.
+(trap 'echo foo' EXIT) >/dev/null

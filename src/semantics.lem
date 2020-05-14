@@ -357,20 +357,24 @@ let rec expand_control s0 split q k =
     | Backtick c ->
        (* create a pipe *)
        let (s1, fd_read, fd_write) = pipe s0 in
-       let cmd = 
-         (* set up redirects [skipping expansion] *)
-         (with_redirs c [ERDup ToFD CloseOrig STDOUT (Just fd_write);
-                         ERDup ToFD CloseOrig fd_read Nothing])
+       let redirs = [ERDup ToFD CloseOrig STDOUT (Just fd_write);
+                     ERDup ToFD CloseOrig fd_read Nothing]
        in
-       let (s2, pid) = 
-         fork_and_subshell s1 cmd 
-           FG Nothing (* no pgid *) false (* no job control *) 
-       in
-       let s3 = close_fd s2 fd_write in
-       Right (ESCommand "initializing subshell", 
-              s3,
-              [], 
-              [K (LBacktick c pid fd_read)])
+       match do_redirs s1 redirs with
+       | (s2, Left _) ->
+          Left (ESCommand "failed to set up subshell", s2, [])
+       | (s2, Right saved_fds) ->
+          let (s3, pid) =
+            fork_and_subshell s2 c
+              FG Nothing (* no pgid *) false (* no job control *)
+          in
+          let s4 = restore_fds s3 saved_fds in
+          let s5 = close_fd s4 fd_write in
+          Right (ESCommand "initializing subshell",
+                 s5,
+                 [],
+                 [K (LBacktick c pid fd_read)])
+       end
     | LBacktick corig pid fd_read ->
         match read_all_fd step_eval s0 fd_read with
         | (s1, Left step) ->
@@ -998,18 +1002,21 @@ and step_eval s0 checked stmt =
      end
  
   (* SUBSHELL *****************************************************************)
-  | Subshell stmt' ((_, Nothing, []) as redir_state) ->
-     let base_c = Redir stmt' redir_state in
-     let checked_c = if checked_exit checked then CheckedExit base_c else base_c in
-     let (s1,pid) = 
-       fork_and_subshell s0 checked_c
-         FG Nothing (* no pgid *) true (* job control possible? *)
-     in
-     check_traps
-       (XSSubshell ("started subshell with pid " ^ stringFromNat pid), 
-        s1, 
-        Wait pid checked Nothing WaitInternal)
-
+  | Subshell stmt' (ers, Nothing, []) ->
+     let checked_c = if checked_exit checked then CheckedExit stmt' else stmt' in
+     match do_redirs s0 ers with
+     | (s1, Left msg) ->
+        (XSSubshell "error in redirection", fail_with msg s1, Done)
+     | (s1, Right saved_fds) ->
+        let (s2,pid) =
+          fork_and_subshell s1 checked_c
+            FG Nothing (* no pgid *) true (* job control possible? *)
+        in
+        check_traps
+          (XSSubshell ("started subshell with pid " ^ stringFromNat pid),
+           restore_fds s2 saved_fds,
+           Wait pid checked Nothing WaitInternal)
+     end
   | Subshell stmt' redir_state ->
      match step_redir_state s0 redir_state with
      | (s1, msg, Nothing) ->

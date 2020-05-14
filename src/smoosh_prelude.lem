@@ -1804,7 +1804,7 @@ and string_of_stmt c =
   | Background cmd redir_state -> 
      background (spaced (string_of_stmt cmd) (string_of_redir_state redir_state))
   | Subshell cmd redir_state ->
-     parens (spaced (string_of_stmt cmd) (string_of_redir_state redir_state))
+     spaced (parens (string_of_stmt cmd)) (string_of_redir_state redir_state)
   | And cmd1 cmd2 ->
      string_of_stmt cmd1 ^ " && " ^ string_of_stmt cmd2
   | Or cmd1 cmd2 ->

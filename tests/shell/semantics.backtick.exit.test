@@ -1,0 +1,2 @@
+foo=$(trap 'echo bar' EXIT)
+echo $foo >&2
