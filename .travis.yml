@@ -60,14 +60,13 @@ before_install:
   - opam install -y ocamlfind ocamlbuild libdash num zarith extunix
 
   # INSTALL lem
-  - make -C lem/ocaml-lib/dependencies
-  - sudo make -C lem/ocaml-lib/dependencies install
   - opam exec -- make -C lem
-  - sudo make -C lem install
+  - opam exec -- make -C lem install
+  - export LEMLIB=$(pwd)/lem/library
 
 install:
   # BUILD SMOOSH
-  - make -C src bump version.lem  
+  - opam exec -- make -C src bump version.lem  
   - opam exec -- make -C src all all.byte
   
 script:
