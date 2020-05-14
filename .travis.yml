@@ -68,6 +68,7 @@ before_install:
 install:
   # BUILD SMOOSH
   - opam exec -- make -C src all all.byte
+  - export PATH="$(pwd)/src:$PATH"
   
 script:
   # TEST SMOOSH
