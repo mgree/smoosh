@@ -58,7 +58,7 @@ before_install:
 
   # INSTALL DEPS
   - opam install -y ocamlfind ocamlbuild num zarith extunix
-  - (cd libdash; opam pin add .)
+  - (cd libdash; opam pin -y add .)
 
   # INSTALL lem
   - opam exec -- make -C lem
