@@ -1,5 +1,7 @@
 ### Automation
 
+- fixup builtin.kill.jobs.test and other timing dependent tasks to be a little slower (on travis at least)
+
 - use travis to automate all testing, collect results nightly, auto-deploy
   + shells: smoosh bash dash yash zsh
     still need to install: osh? fish CoLiS ksh?
