@@ -2,10 +2,6 @@ dist: xenial
 
 language: generic
 
-env:
-  global:
-    - MAKEFLAGS="-j 2"    
-
 matrix:
   include:
   - os: osx
@@ -72,7 +68,7 @@ before_install:
 install:
   # BUILD SMOOSH
   - opam exec -- make -C src bump version.lem  
-  - opam exec -- make -C src all all.byte
+  - opam exec -- make -C src -j2 all all.byte
   
 script:
   # TEST SMOOSH
