@@ -57,7 +57,7 @@ before_install:
   - bash -ex .travis-ocaml.sh  
 
   # INSTALL DEPS
-  - opam install -y ocamlfind ocamlbuild libdash num extunix
+  - opam install -y ocamlfind ocamlbuild libdash num zarith extunix
 
   # INSTALL lem
   - make -C lem/ocaml-lib/dependencies
