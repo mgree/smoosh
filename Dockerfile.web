@@ -17,7 +17,7 @@ VOLUME web/submissions
 EXPOSE 2080/tcp
 #EXPOSE 2443/tcp
 
-HEALTHCHECK CMD curl --fail --data-ascii @web/test.post http://localhost:2080/stepper
+HEALTHCHECK CMD curl --fail --data-ascii @web/test.post http://localhost:2080/shtepper
 
 #ENTRYPOINT [ "opam", "config", "exec", "--" ]
 CMD /home/opam/web/run.sh
