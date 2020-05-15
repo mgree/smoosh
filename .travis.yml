@@ -54,9 +54,11 @@ before_install:
 
   # INSTALL DEPS
   - opam install -y ocamlfind ocamlbuild num zarith extunix
+
+  # INSTALL DASH
   - (cd libdash; opam pin -y add .)
 
-  # INSTALL lem
+  # INSTALL LEM
   - (cd lem; opam pin -y add .)
   - export LEMLIB=$(opam var share)/lem/library
 
