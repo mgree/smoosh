@@ -54,13 +54,13 @@ before_install:
 
   # INSTALL DEPS
   - opam install -y ocamlfind ocamlbuild num zarith extunix
+
+  # INSTALL DASH
   - (cd libdash; opam pin -y add .)
 
-  # INSTALL lem
-  - opam exec -- make -C lem
-  - opam exec -- make -C lem install
-  - export LEMLIB=$(pwd)/lem/library
-  - export PATH="$(pwd)/lem/bin:$PATH"
+  # INSTALL LEM
+  - (cd lem; opam pin -y add .)
+  - export LEMLIB=$(opam var share)/lem/library
 
 install:
   # BUILD SMOOSH
