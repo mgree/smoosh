@@ -60,7 +60,6 @@ before_install:
 
   # INSTALL LEM
   - (cd lem; opam pin -y add .)
-  - export LEMLIB=$(opam var share)/lem/library
 
 install:
   # BUILD SMOOSH
