@@ -71,6 +71,9 @@ script:
   - make -C src/ test
   - TEST_DEBUG=1 TEST_TIMEOUT=15 make -C tests/ test # higher timeout for CI (default is 9s)
 
+  # RUN MODERNISH TESTS
+  - yes n | modernish/install.sh -s smoosh
+  
   # BUILD AND TEST WEB SERVER
   - (cd web; bundle install)
   - sh web/src/mk_config.sh $(pwd) >web/src/config.yml
