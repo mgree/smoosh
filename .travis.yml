@@ -73,6 +73,7 @@ script:
 
   # RUN MODERNISH TESTS (WHICH WILL HAVE SOME FAILURES WITH DASH'S PARSER)
   - yes n | modernish/install.sh -s smoosh || true
+  - if ! { cat README.md | command wc -m >/dev/null ; }; then echo $?; fi
   
   # BUILD AND TEST WEB SERVER
   - (cd web; bundle install)
