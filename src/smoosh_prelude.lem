@@ -1437,7 +1437,8 @@ let rec symbolic_string_of_intermediate_fields ifs =
 val fields_of_expanded_words : expanded_words -> fields
 let fields_of_expanded_words w = [symbolic_string_of_expanded_words false w]
 
-let quoted_chars = toCharList "'\\"
+let quoted_chars = toCharList "|&;<>()$`\\\"'*?[#˜=% \t\n"
+let escaped_chars = toCharList "$`\"\\\n"
 
 val quote_cl : list char -> list char * bool
 let rec quote_cl cs =
@@ -1445,16 +1446,16 @@ let rec quote_cl cs =
   | [] -> ([], false)
   | c::cs -> 
      let (cs', needs_quotes) = quote_cl cs in
-     if elem c quoted_chars
+     if elem c escaped_chars
      then (#'\\'::c::cs', true)
-     else (c::cs', needs_quotes || is_whitespace c)
+     else (c::cs', needs_quotes || elem c quoted_chars)
   end
 
 val quote : string -> string
 let quote s = 
   let (cs, needs_quotes) = quote_cl (toCharList s) in
   let s' = toString cs in
-  if needs_quotes then "'" ^ s' ^ "'" else s'
+  if needs_quotes then "\"" ^ s' ^ "\"" else s'
                                     
 (* Number type helpers *)
 
