@@ -71,6 +71,11 @@ script:
   - make -C src/ test
   - TEST_DEBUG=1 TEST_TIMEOUT=15 make -C tests/ test # higher timeout for CI (default is 9s)
 
+  # RUN MODERNISH TESTS (WHICH WILL HAVE SOME FAILURES WITH DASH'S PARSER)
+  - yes n | modernish/install.sh -s smoosh 2>&1 | tee modernish.log || true
+  - test "$(grep BUG modernish.log)" = '   LOCALVARS TRAPPRSUBSH BUG_MULTIBYTE' || echo "Expected BUG_MULTIBYTE (and no others)"
+  - test "$(grep FAIL modernish.log | cut -c3,4,5)" = '002' || echo 'Expected ASCII char failure'
+  
   # BUILD AND TEST WEB SERVER
   - (cd web; bundle install)
   - sh web/src/mk_config.sh $(pwd) >web/src/config.yml
