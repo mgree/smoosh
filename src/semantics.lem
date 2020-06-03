@@ -356,24 +356,28 @@ let rec expand_control s0 split q k =
        end
     | Backtick c ->
        (* create a pipe *)
-       let (s1, fd_read, fd_write) = pipe s0 in
-       let redirs = [ERDup ToFD CloseOrig STDOUT (Just fd_write);
-                     ERDup ToFD CloseOrig fd_read Nothing]
-       in
-       match do_redirs s1 redirs with
-       | (s2, Left _) ->
-          Left (ESCommand "failed to set up subshell", s2, [])
-       | (s2, Right saved_fds) ->
-          let (s3, pid) =
-            fork_and_subshell s2 c
-              FG Nothing (* no pgid *) false (* no job control *)
-          in
-          let s4 = restore_fds s3 saved_fds in
-          let s5 = close_fd s4 fd_write in
-          Right (ESCommand "initializing subshell",
-                 s5,
-                 [],
-                 [K (LBacktick c pid fd_read)])
+       match pipe s0 with 
+       | Left err -> 
+          Left (ESCommand ("failed to set up pipe: " ^ err), s0, [])
+       | Right (s1, fd_read, fd_write) ->
+         let redirs = [ERDup ToFD CloseOrig STDOUT (Just fd_write);
+                       ERDup ToFD CloseOrig fd_read Nothing]
+         in
+         match do_redirs s1 redirs with
+         | (s2, Left _) ->
+            Left (ESCommand "failed to set up subshell", s2, [])
+         | (s2, Right saved_fds) ->
+            let (s3, pid) =
+              fork_and_subshell s2 c
+                FG Nothing (* no pgid *) false (* no job control *)
+            in
+            let s4 = restore_fds s3 saved_fds in
+            let s5 = close_fd s4 fd_write in
+            Right (ESCommand "initializing subshell",
+                   s5,
+                   [],
+                   [K (LBacktick c pid fd_read)])
+         end
        end
     | LBacktick corig pid fd_read ->
         match read_all_fd step_eval s0 fd_read with
@@ -911,19 +915,28 @@ and step_eval s0 checked stmt =
 
   (* PIPE *********************************************************************)
   | Pipe bg_mode stmts ->
-     let (s1, pipeline, last_pid) = run_pipe s0 stmts bg_mode in
-     let (s2, c) =
-       let (s2, _job) = add_job s1 pipeline last_pid (Pipe bg_mode stmts) bg_mode JobRunning in
-       if is_bg bg_mode
-       then (set_last_pid last_pid s2, Done)
-       else 
-         (* If the pipeline is not in the background (see Asynchronous
-            Lists), the shell shall wait for the last command
-            specified in the pipeline to complete, and may also wait
-            for all commands to complete. *)
-         (s2, Wait last_pid checked Nothing WaitInternal) 
-     in
-     check_traps (XSPipe "started pipe", s2, c)
+     match run_pipe s0 stmts bg_mode with
+     | Left err ->
+        check_traps
+          (XSPipe "couldn't start pipe", 
+           fail_with ("couldn't create pipeline: " ^ err) s0, 
+           if not (checked_exit checked) && Set.member Sh_errexit s0.sh.opts 
+           then Exit 
+           else Done)
+     | Right (s1, pipeline, last_pid) ->
+       let (s2, c) =
+         let (s2, _job) = add_job s1 pipeline last_pid (Pipe bg_mode stmts) bg_mode JobRunning in
+         if is_bg bg_mode
+         then (set_last_pid last_pid s2, Done)
+         else 
+           (* If the pipeline is not in the background (see Asynchronous
+              Lists), the shell shall wait for the last command
+              specified in the pipeline to complete, and may also wait
+              for all commands to complete. *)
+           (s2, Wait last_pid checked Nothing WaitInternal) 
+       in
+       check_traps (XSPipe "started pipe", s2, c)
+     end
 
   (* REDIR ********************************************************************)
   | Redir stmt' (ers, Nothing, []) ->

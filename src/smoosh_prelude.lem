@@ -1406,11 +1406,15 @@ let rec symbolic_string_of_expanded_words for_pattern w =
   match w with
   | [] -> symbolic_string_of_string ""
   | UsrF::ws -> symbolic_string_of_string " " ++ symbolic_string_of_expanded_words for_pattern ws
-  | ExpS s::ws -> symbolic_string_of_string s ++ symbolic_string_of_expanded_words for_pattern ws
+  | ExpS s::ws ->
+     let ss = symbolic_string_of_string s in
+     (if for_pattern
+      then concatMap (escape_sc [#'\"']) ss
+      else ss) ++ symbolic_string_of_expanded_words for_pattern ws
   | DQuo ss::ws -> 
     (* we don't include the quotes, since they'll be ultimately erased anyway! *)
      (if for_pattern 
-      then [C #'\"'] ++ ss ++ [C #'\"']
+      then [C #'\"'] ++ escape_quotes ss ++ [C #'\"']
       else ss) ++ symbolic_string_of_expanded_words for_pattern ws
   | At fs::ws -> 
      (* we collapse the result of $@ expansion, too. special cased in expand_control *)

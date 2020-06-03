@@ -145,7 +145,7 @@ declare ocaml target_rep function real_read_all_fd = `System.real_read_all_fd`
 val real_read_line_fd : fd -> bool -> either string (string * bool)
 declare ocaml target_rep function real_read_line_fd = `System.real_read_line_fd`
 
-val real_pipe : unit -> fd * fd
+val real_pipe : unit -> either string (fd * fd)
 declare ocaml target_rep function real_pipe = `System.real_pipe`
 
 type open_flags
@@ -331,8 +331,10 @@ instance (OS unit)
     os
 
   let os_pipe os =
-    let (fd_read, fd_write) = real_pipe () in
-    (os, fd_read, fd_write)
+    match real_pipe () with
+    | Left err -> Left err
+    | Right (fd_read, fd_write) -> Right (os, fd_read, fd_write)
+    end
 
   let os_exit os =
     (* turn off SIGINT handling if it's the interactive 'continue repl' handler *)
