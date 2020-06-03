@@ -73,8 +73,8 @@ script:
 
   # RUN MODERNISH TESTS (WHICH WILL HAVE SOME FAILURES WITH DASH'S PARSER)
   - yes n | modernish/install.sh -s smoosh 2>&1 | tee modernish.log || true
-  - [ "$(grep BUG modernish.log)" = "   LOCALVARS TRAPPRSUBSH BUG_MULTIBYTE" ] || echo "Expected BUG_MULTIBYTE (and no others)"
-  - [ "$(grep FAIL modernish.log)" = "  002: ASCII chars and control char constants   - FAIL" ] || echo "Expected ASCII char failure"
+  - test "$(grep BUG modernish.log)" = '   LOCALVARS TRAPPRSUBSH BUG_MULTIBYTE' || echo "Expected BUG_MULTIBYTE (and no others)"
+  - test "$(grep FAIL modernish.log | cut -c3,4,5)" = '002' || echo 'Expected ASCII char failure'
   
   # BUILD AND TEST WEB SERVER
   - (cd web; bundle install)
