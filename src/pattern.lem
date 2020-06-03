@@ -266,6 +266,7 @@ let rec parse_quoted_pattern (pat:list char)
   match pat with
   | [] -> Left "unterminated quote"
   | #'\"'::pat' -> Right (pat', [])
+  | #'\\'::c::pat' -> recur pat' [Lit c]
   | c::pat' -> recur pat' [Lit c]
   end  
 
