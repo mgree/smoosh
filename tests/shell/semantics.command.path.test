@@ -1,0 +1,3 @@
+OLDPATH="$PATH"
+PATH=""
+PATH="$OLDPATH" cat </dev/null
