@@ -1,3 +1,14 @@
+c="echo hi"
+for n in $(seq 3 10)
+do
+        c="{ $c; echo hi; } >file_$n"
+done
+
+eval $c 2>err
+[ -z err ]
+
+rm file_* err
+
 MAX=$(ulimit >/dev/null 2>&1 && ulimit -n 2>/dev/null || echo 256)
 
 c="echo hi"
