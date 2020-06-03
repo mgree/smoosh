@@ -2783,11 +2783,14 @@ let run_command s0 opts checked prog_name argv env =
                    Right (s3, stmt, restore)
                 end
              | Nothing ->
-                match check_execve Nothing (* no prefix *) s1 prog with
-                | (s2, Nothing) -> 
+                let ts0 = push_locals s1 env in
+                match check_execve Nothing (* no prefix *) ts0 prog with
+                | (ts1, Nothing) ->
+                   let (s2, _) = pop_locals ts1 in
                    (* failed... and emitted an error message and set the ec *)
                    Right (s2, Done, true)
-                | (s2, Just executable) ->
+                | (ts1, Just executable) ->
+                   let (s2, _) = pop_locals ts1 in
                    let cmd = symbolic_string_of_string executable in
                    let exported = exported_set_vars s2 in
                    (* use env to override exports---impl as Pmap.(union) *)
