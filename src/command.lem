@@ -399,7 +399,7 @@ let builtin_exit s0 argv _env =
   | [] -> Right (s0, Exit, true) (* default to exit code of last command *)
   | [s] -> match readUnsignedInteger 10 (trim (char_list_of_symbolic_string s)) with
            | Right n -> 
-              if n < 0 || n > 255
+              if n < (integerFromNat 0) || n > (integerFromNat 255)
               then Left (s0, write n ^ ": illegal number")
               else Right (exit_with (toNat n) s0, Exit, true)
            | Left _ -> Left (s0,string_of_symbolic_string s ^ ": numeric argument required")
@@ -1792,14 +1792,14 @@ let sprintf_format_numeric spec mode n =
   | Decimal true -> 
      (* TODO 2018-10-06 UNSPEC spec.alternative *)
      let sign = 
-       if n < 0 
+       if n < fromNat 0 
        then "-" 
        else match spec.sign with
             | SignNone -> ""
             | SignSpace -> " "
             | SignAlways -> "+"
             end in
-     let abs_n = if n < 0 then ~n else n in  
+     let abs_n = if n < fromNat 0 then ~n else n in  
      printf_pad_number spec sign (unbounded_write_decimal abs_n)
   | Decimal false -> 
      printf_pad_number spec "" (unbounded_write_decimal (unbounded_unsigned64 n))
@@ -2487,9 +2487,9 @@ let fc_operand ss_arg =
   | Just arg -> 
      match readSignedInteger 10 (toCharList arg) with
      | Right n -> 
-        if n < 0 
+        if n < fromNat 0 
         then Right (FC_Previous (toNat (~n)))
-        else if n > 0
+        else if n > fromNat 0
         then Right (FC_CmdNumber (toNat n))
         else (* n == 0 *) Left ("invalid operand '" ^ arg ^ "'")
      | Left _ -> Right (FC_Matching arg)
@@ -2783,14 +2783,11 @@ let run_command s0 opts checked prog_name argv env =
                    Right (s3, stmt, restore)
                 end
              | Nothing ->
-                let ts0 = push_locals s1 env in
-                match check_execve Nothing (* no prefix *) ts0 prog with
-                | (ts1, Nothing) ->
-                   let (s2, _) = pop_locals ts1 in
+                match check_execve Nothing (* no prefix *) s1 prog with
+                | (s2, Nothing) -> 
                    (* failed... and emitted an error message and set the ec *)
                    Right (s2, Done, true)
-                | (ts1, Just executable) ->
-                   let (s2, _) = pop_locals ts1 in
+                | (s2, Just executable) ->
                    let cmd = symbolic_string_of_string executable in
                    let exported = exported_set_vars s2 in
                    (* use env to override exports---impl as Pmap.(union) *)

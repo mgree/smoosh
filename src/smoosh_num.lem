@@ -106,23 +106,23 @@ let rec readConstant dec hex oct chars =
        end
   else res
 
-let int64Max = ((int64FromNat 2) ** 63) - 1
+let int64Max = ((int64FromNat 2) ** 63) - (int64FromNat 1)
 let int64Min = ~((int64FromNat 2) ** 63)
 
-let int32Max = ((int32FromNat 2) ** 31) - 1
+let int32Max = ((int32FromNat 2) ** 31) - (int32FromNat 1)
 let int32Min = ~((int32FromNat 2) ** 31)
 
 val unbounded_unsigned : nat (* bits *) -> integer -> integer
 let unbounded_unsigned bits unbounded_n = 
-  let signed_bits = bits - 1 in
-  let upper =  (integerFromNat 2 ** signed_bits) - 1 in
+  let signed_bits = (bits - 1) in
+  let upper =  (integerFromNat 2 ** signed_bits) - integerFromNat 1 in
   let lower = ~(integerFromNat 2 ** signed_bits)     in
   (* first, bound it *)
   let n = if unbounded_n < lower then lower 
           else if unbounded_n > upper then upper
           else unbounded_n in
   (* then set up the two's complement for negatives *)
-  if n < 0
+  if n < integerFromNat 0
   then (integerFromNat 2 ** bits) + n
   else n
 
@@ -147,7 +147,7 @@ val readUnsignedInteger : nat -> list char -> either string integer
 let readUnsignedInteger base chars =
   match chars with
   | [] -> Left "empty string is not numeric"
-  | _ -> readInteger_loop base 0 chars
+  | _ -> readInteger_loop base (integerFromNat 0) chars
   end
 
 val readSignedInteger : nat -> list char -> either string integer
@@ -206,7 +206,7 @@ let rec readInt64_loop base acc chars =
        if num > base - 1 || num < 0
        then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
        else let acc1 = ((int64FromNat base) * acc) + (int64FromNat num) in
-            if acc1 < 0
+            if acc1 < (int64FromNat 0)
             then Right int64Max
             else readInt64_loop base acc1 cs
      end
@@ -230,7 +230,7 @@ let rec readInt32_loop base acc chars =
        if num > base - 1 || num < 0
        then Left ((toString [c]) ^ " is not a valid base " ^ show base ^ " digit")
        else let acc1 = ((int32FromNat base) * acc) + (int32FromNat num) in
-            if acc1 < 0
+            if acc1 < (int32FromNat 0)
             then Right int32Max
             else readInt32_loop base acc1 cs
      end
