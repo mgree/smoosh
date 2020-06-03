@@ -1,0 +1,8 @@
+c="echo works"
+for n in $(seq 1 10)
+do
+        c="$c | { read x; echo \$x; }"
+done
+
+eval $c 2>err
+[ -e err ] && ! [ -s err ] || exit 2

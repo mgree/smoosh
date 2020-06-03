@@ -534,9 +534,10 @@ let rec real_dup2 (orig_fd:int) (tgt_fd:int) : string option =
   with Unix.Unix_error(EINTR,_,_) -> real_dup2 orig_fd tgt_fd
      | Unix.Unix_error(e,_,_) -> Some (Unix.error_message e  ^ ": " ^ string_of_int orig_fd)
 
-let real_pipe () : int * int =
-  let (fd_read,fd_write) = Unix.pipe () in
-  (renumber ~cloexec:false fd_read, renumber ~cloexec:false fd_write)
+let real_pipe () : (string, int * int) either =
+  try let (fd_read,fd_write) = Unix.pipe () in
+      Right (renumber ~cloexec:false fd_read, renumber ~cloexec:false fd_write)
+  with Unix.Unix_error(Unix.EMFILE,_,_) -> Left "EMFILE"
 
 let real_openhere (s : string) : (string,int) either =
   let buff = Bytes.of_string s in

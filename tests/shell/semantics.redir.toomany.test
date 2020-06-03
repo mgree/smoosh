@@ -1,0 +1,25 @@
+c="echo hi"
+for n in $(seq 3 10)
+do
+        c="{ $c; echo hi; } >file_$n"
+done
+
+eval $c 2>err
+[ -e err ] && ! [ -s err ] || exit 2
+
+rm file_* err
+
+# FOLLOWING TEST ONLY WORKING ON MACOS
+uname -a | grep Darwin >/dev/null || exit 0
+
+MAX=$(ulimit >/dev/null 2>&1 && ulimit -n 2>/dev/null || echo 256)
+
+c="echo hi"
+for n in $(seq 3 $MAX)
+do
+        c="{ $c; echo hi; } >file_$n"
+done
+
+eval $c 2>err
+[ -s err ] || exit 3
+rm file_*
