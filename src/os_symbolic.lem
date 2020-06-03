@@ -765,7 +765,7 @@ instance (OS symbolic)
     (* get an FD number for writing *)
     let fd_write = symbolic_fresh_fd fds' in
     let fds'' = Map.insert fd_write (FIFO fifo_num) fds' in
-    (<| os0 with symbolic = <| sym1 with sh_fds = fds'' |> |>, fd_read, fd_write)
+    Right (<| os0 with symbolic = <| sym1 with sh_fds = fds'' |> |>, fd_read, fd_write)
 
   let os_open_file_for_redir os0 _ty file = 
     (* TODO 2019-04-11 actually look at fs *)

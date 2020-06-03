@@ -838,7 +838,7 @@ class ( OS 'a )
         os_state 'a * read_result string
   val os_close_fd : os_state 'a -> fd -> os_state 'a
 
-  val os_pipe : os_state 'a -> os_state 'a * fd * fd
+  val os_pipe : os_state 'a -> either string (os_state 'a * fd * fd)
 
   val os_open_file_for_redir 
       : os_state 'a -> redir_type -> symbolic_string -> 
@@ -1313,10 +1313,10 @@ val fork_pipe_subshell : forall 'a. OS 'a =>
 let fork_pipe_subshell s0 stmt bg pgid last pipeline =
   let (s1, pid) = fork_and_subshell s0 stmt bg pgid last in
 (*  let s2 =
-    if last && is_fg bg
-    then fst (tc_setfg s1 pid)
-    else s1
-  in *)
+      if last && is_fg bg  
+      then fst (tc_setfg s1 pid)
+      else s1
+    in *)
   (s1, pipeline, pid)
 
 val run_pipe_loop : forall 'a. OS 'a =>
@@ -1326,13 +1326,12 @@ val run_pipe_loop : forall 'a. OS 'a =>
                  bg_mode -> (* bg? [for tty] *)
                  maybe pid -> (* pipeline pgrp *)
                  pipeline_info ->
-                 os_state 'a * pipeline_info * pid
+                 either string (os_state 'a * pipeline_info * pid)
 let rec run_pipe_loop s0 stmts fd_prev bg pgid pipeline =
   match stmts with
-  | [] -> fork_pipe_subshell s0 Done bg pgid true pipeline (* just run a trivial statement *)
+  | [] -> Right (fork_pipe_subshell s0 Done bg pgid true pipeline) (* just run a trivial statement *)
   | [stmt] -> (* last one *)
-     let (s1, pipeline', last_pid) = 
-       fork_pipe_subshell 
+     let (s1, pipeline', last_pid) = fork_pipe_subshell 
          s0 
          (with_redirs 
             (try_avoid_fork stmt)
@@ -1343,52 +1342,58 @@ let rec run_pipe_loop s0 stmts fd_prev bg pgid pipeline =
          pipeline
      in
      let s2 = close_fd s1 fd_prev in
-     (s2, reverse ((last_pid,stmt)::pipeline'), last_pid)
+     Right (s2, reverse ((last_pid,stmt)::pipeline'), last_pid)
   | stmt::stmts' ->
-     let (s1, fd_next, fd_write) = pipe s0 in
-     let (s2, pipeline', pid) =
-       fork_pipe_subshell 
-         s1
-         (with_redirs 
-            (close_fd_and_then fd_next stmt) 
-            [ERDup ToFD CloseOrig STDIN (Just fd_prev)
-            ;ERDup ToFD CloseOrig STDOUT (Just fd_write)])
-         bg
-         pgid
-         false (* not last job *)
-         pipeline
-     in
-     let s3 = close_fd s2 fd_prev in
-     let s4 = close_fd s3 fd_write in
-     run_pipe_loop s4 stmts' fd_next bg pgid ((pid,stmt)::pipeline')
+     match pipe s0 with
+     | Left err -> Left err
+     | Right (s1, fd_next, fd_write) ->
+       let (s2, pipeline', pid) =
+         fork_pipe_subshell 
+           s1
+           (with_redirs 
+              (close_fd_and_then fd_next stmt) 
+              [ERDup ToFD CloseOrig STDIN (Just fd_prev)
+              ;ERDup ToFD CloseOrig STDOUT (Just fd_write)])
+           bg
+           pgid
+           false (* not last job *)
+           pipeline
+       in
+       let s3 = close_fd s2 fd_prev in
+       let s4 = close_fd s3 fd_write in
+       run_pipe_loop s4 stmts' fd_next bg pgid ((pid,stmt)::pipeline')
+     end
   end
 
 val run_pipe : forall 'a. OS 'a =>
                  os_state 'a ->
                  list stmt ->
                  bg_mode -> (* bg? [for tty] *)
-                 os_state 'a * pipeline_info * pid
+                 either string (os_state 'a * pipeline_info * pid)
 let run_pipe s0 stmts bg =
   match stmts with
-  | [] -> fork_pipe_subshell s0 Done bg Nothing true []     (* just run a trivial statement *)
-  | [stmt] -> fork_pipe_subshell s0 stmt bg Nothing true [] (* trivial pipe *)
-  | stmt::stmts' ->                                         (* real pipe! *)
+  | [] -> Right (fork_pipe_subshell s0 Done bg Nothing true [])     (* just run a trivial statement *)
+  | [stmt] -> Right (fork_pipe_subshell s0 stmt bg Nothing true []) (* trivial pipe *)
+  | stmt::stmts' ->                                                 (* real pipe! *)
      (* set up first process *)
-     let (s1, fd_next, fd_write) = pipe s0 in
-     let (s2, pipeline, pid) =
-       fork_pipe_subshell
-         s1
-         (with_redirs 
-            (close_fd_and_then fd_next stmt)
-            [ERDup ToFD CloseOrig STDOUT (Just fd_write)]) 
-         bg
-         Nothing
-         false (* not last job *)
-         []
-     in
-     let s3 = close_fd s2 fd_write in
-     (* hand off to the loop *)
-     run_pipe_loop s3 stmts' fd_next bg (Just pid) ((pid,stmt)::pipeline)
+     match pipe s0 with
+     | Left err -> Left err
+     | Right (s1, fd_next, fd_write) ->
+       let (s2, pipeline, pid) =
+         fork_pipe_subshell
+           s1
+           (with_redirs 
+              (close_fd_and_then fd_next stmt)
+              [ERDup ToFD CloseOrig STDOUT (Just fd_write)]) 
+           bg
+           Nothing
+           false (* not last job *)
+           []
+       in
+       let s3 = close_fd s2 fd_write in
+       (* hand off to the loop *)
+       run_pipe_loop s3 stmts' fd_next bg (Just pid) ((pid,stmt)::pipeline)
+    end
   end
 
 (* Parameters and the environment *************************************)

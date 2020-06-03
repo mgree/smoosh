@@ -50,6 +50,7 @@ loc :  $(SRCFILES)
 
 bump :
 	if [ -f version.lem ] && [ -d ../.git ] ; then rm version.lem; fi
+	$(MAKE) version.lem version.ml
 
 rebuild : bump
 	-rm shtepper smoosh runtest smoosh.byte
