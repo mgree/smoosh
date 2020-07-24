@@ -28,6 +28,9 @@
 
 - check bg/fg behavior
   id:20190807084015.GA402@lt2.masqnet
+  
+- absurd job control issues
+  id:7594905a-e267-05c6-6ce7-fa7174cff3e7@inlv.org
 
 - add other utilities to testing
 ```
