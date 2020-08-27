@@ -23,6 +23,7 @@ let match_path_tests : (string * symbolic os_state * string * (string list)) lis
     ("/c*/../c in /a /b /c", os_complicated_fs, "/c*/../c", ["/c/../c"]);
 
     ("/a/use*", os_complicated_fs, "/a/use*", ["/a/use"; "/a/useful"; "/a/user"]);
+    ("/a//use*", os_complicated_fs, "/a//use*", ["/a//use"; "/a//useful"; "/a//user"]);
     ("/a/use*/", os_complicated_fs, "/a/use*/", ["/a/use/"; "/a/user/"]);
     ("/a/user/*", os_complicated_fs, "/a/user/*", ["/a/user/x"; "/a/user/y"]);
     ("/a/use*/*", os_complicated_fs, "/a/use*/*", ["/a/use/x"; "/a/user/x"; "/a/user/y"]);
