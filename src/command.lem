@@ -1577,7 +1577,7 @@ let builtin_read s0 argv env =
         let trimmed = trimr_one_newline line in
         let w = [ExpS trimmed] in
         let ifs = field_splitting s1 w in
-        let f = finalize_fields (combine_fields ifs) in
+        let f = finalize_fields (combine_fields ifs) (Just (length vars)) in
         let ec = if read_eof hit_eof then 1 else 0 in
         read_assign_vars (exit_with ec s1) vars f
      end

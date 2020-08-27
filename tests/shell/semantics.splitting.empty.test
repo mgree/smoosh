@@ -1,0 +1,33 @@
+arg_len() {
+    echo "$#"
+}
+
+echo Default:
+# Default IFS
+IFS=' 	
+'
+
+arg_len $(echo) $(echo) $(echo) $(echo)
+arg_len $(echo " ") $(echo " ") $(echo " ") $(echo " ")
+arg_len "$(echo)" "$(echo)" "$(echo)" "$(echo)"
+arg_len "$(echo " ")" "$(echo " ")" "$(echo " ")" "$(echo " ")"
+
+echo Colon:
+# Set IFS.
+IFS=":"
+
+arg_len $(echo) $(echo) $(echo) $(echo)
+arg_len $(echo " ") $(echo " ") $(echo " ") $(echo " ")
+arg_len "$(echo)" "$(echo)" "$(echo)" "$(echo)"
+arg_len "$(echo " ")" "$(echo " ")" "$(echo " ")" "$(echo " ")"
+
+echo Unset:
+# Unset IFS is the same as the default.
+unset IFS
+
+arg_len $(echo) $(echo) $(echo) $(echo)
+arg_len $(echo " ") $(echo " ") $(echo " ") $(echo " ")
+arg_len "$(echo)" "$(echo)" "$(echo)" "$(echo)"
+arg_len "$(echo " ")" "$(echo " ")" "$(echo " ")" "$(echo " ")"
+
+$(echo) echo OK
