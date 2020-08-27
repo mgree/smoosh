@@ -31,6 +31,10 @@
   
 - absurd job control issues
   id:7594905a-e267-05c6-6ce7-fa7174cff3e7@inlv.org
+  
+- fix bracket/slash
+  "characters in the pattern shall be identified before bracket expressions; thus, a / cannot be included in a pattern bracket expression used for filename expansion"
+  S 2.13.3
 
 - add other utilities to testing
 ```
