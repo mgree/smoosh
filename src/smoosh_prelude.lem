@@ -979,6 +979,9 @@ and redir_state = list expanded_redir * maybe expanding_redir * list redir
 (* Expansion **********************************************************)
 (**********************************************************************)
 
+(* this is the result of word expansion, which takes words to expanded_words
+   these have not yet undergone splitting or globbing
+*)
 and expanded_word =
    UsrF
  | ExpS of string
@@ -989,7 +992,22 @@ and expanded_word =
 
 and expanded_words = list expanded_word
 
-(* final expansion output *)
+(* this is the result of field splitting, which takes words to intermediate fields
+
+   a value of type intermediate_fields may or may not be globbed yet, i.e., pathname expansion takes intermediate fields to intermediate fields
+   
+   quote removal takes intermediate fields to fields
+*)
+and tmp_field =
+    WFS
+  | FS
+  | Field of symbolic_string
+  | QField of symbolic_string
+
+and intermediate_fields = list tmp_field
+
+(* final, fully expanded output: essentially, a list of strings (but possibly symbolic in part)
+*)
 and sym =
     SymArith of fields (* symbolic result of arithmetic evaluation *) (* TODO is fields necessary? *)
   | SymCommand of stmt (* symbolic result of evaluating a command *)
@@ -1000,14 +1018,6 @@ and symbolic_char =
 and symbolic_string = list symbolic_char
 
 and fields = list (symbolic_string)
-
-and tmp_field =
-    WFS
-  | FS
-  | Field of symbolic_string
-  | QField of symbolic_string
-
-and intermediate_fields = list tmp_field
 
 and expansion_state = 
     (* the constructor name indicates the *next* step to perform *)
