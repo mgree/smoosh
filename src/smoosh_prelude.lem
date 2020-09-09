@@ -904,6 +904,7 @@ and control =
   | LBacktickWait of stmt (* original stmt *) * pid * string (* result of command *)
   | Arith of expanded_words (* runtime technicality *) * words
   | Quote of expanded_words (* runtime technicality *) * words
+  | Escape of char
 
 and entry =
     S of string
@@ -1037,6 +1038,7 @@ and expansion_step =
   | ESSplit of string
   | ESPath of string
   | ESQuote of string
+  | ESEscape of string
   | ESStep of string
   | ESNested of expansion_step * expansion_step
   | ESEval of expansion_step * evaluation_step
@@ -1703,6 +1705,7 @@ let rec ran_command_substitution estep =
   | ESSplit _s -> false
   | ESPath _s -> false
   | ESQuote _s -> false
+  | ESEscape _s -> false
   | ESStep _s -> false
   | ESNested estep_outer estep_inner ->
      ran_command_substitution estep_outer || 
@@ -2034,6 +2037,7 @@ and string_of_control code =
   | LBacktickWait c _pid _s -> "$( " ^ string_of_stmt c ^ " )"
   | Arith ew w -> "$(( " ^ string_of_expanded_words ew ^ string_of_words w ^ " ))"
   | Quote ew w -> "\"" ^ string_of_expanded_words ew ^ string_of_words w ^ "\""
+  | Escape c -> (toString [#'\\'; c])
   end
 
 and string_of_format fmt = 
@@ -2083,6 +2087,7 @@ and string_of_expansion_step estep =
   | ESSplit s -> spaced "Split" s
   | ESPath s -> spaced "Path" s
   | ESQuote s -> spaced "Quote" s
+  | ESEscape s -> spaced "Escape" s
   | ESStep s -> spaced "Step" s
   | ESNested estep_outer estep_inner ->
      parens (string_of_expansion_step estep_outer) ^ " " ^

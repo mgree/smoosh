@@ -463,6 +463,7 @@ let rec expand_control s0 split q k =
           Right (step, s1, [], [K (Quote (f ++ f1) w1)])
        | Left err -> Left err
        end
+   | Escape c -> Right (ESEscape "", s0, [DQuo [C c]], [])
   end
 
 and expand_words s0 split q sm (f,w) =
