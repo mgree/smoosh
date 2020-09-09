@@ -7,12 +7,16 @@ env:
   - OCAML_VERSION=4.09
   - OCAML_VERSION=4.10
   - OCAML_VERSION=4.11
-  - OCAML_VERSION=4.11 INSTALL_LOCAL=1
 
 os:
   - freebsd
   - linux
   - osx
+
+jobs:
+  include:
+  - os: linux
+    env: OCAML_VERSION=4.11 INSTALL_LOCAL=1
 
 cache:
   directories:
