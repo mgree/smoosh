@@ -2,7 +2,6 @@ dist: xenial
 
 language: generic
 
-matrix:
 env:
   - OCAML_VERSION=4.09
   - OCAML_VERSION=4.10
