@@ -34,3 +34,9 @@ let parse_next s0 interactive =
 val parse_cleanup : maybe dash_string -> maybe stackmark -> shell_level -> unit
 let parse_cleanup mss smark shell_level =
   if is_toplevel shell_level then () else parse_done mss smark
+
+val parse_string_morbig_internal : string -> stmt
+declare ocaml target_rep function parse_string_morbig_internal = `Morbig_shim.parse_string_morbig`
+
+val parse_string_morbig : string -> stmt
+let parse_string_morbig s0 = parse_string_morbig_internal s0

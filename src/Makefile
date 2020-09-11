@@ -1,7 +1,7 @@
-OCAMLOPTS=-g -w -a+3+8+10+14+21+24+29+31+46+47+48 -package str,libdash,lem_num,extunix -linkpkg
+OCAMLOPTS=-g -w -a+3+8+10+14+21+24+29+31+46+47+48 -package str,libdash,lem_num,extunix,morbig,morsmall -linkpkg
 
 SRCFILES=version.lem smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem \
-	 shim.ml os.lem os_symbolic.lem system.ml os_system.lem smoosh.lem arith.lem \
+	 shim.ml morbig_shim.ml os.lem os_symbolic.lem system.ml os_system.lem smoosh.lem arith.lem \
 	 pattern.lem path.lem fields.lem test.lem command.lem semantics.lem
 MLFILES=$(SRCFILES:.lem=.ml)
 LEMFILES=$(filter %.lem,$(SRCFILES))
@@ -9,7 +9,7 @@ TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_eval
 
 .PHONY : all all.byte install test loc bump rebuild clean veryclean
 
-all : bump shtepper smoosh runtest
+all : bump shtepper smoosh runtest morbig_driver
 
 all.byte : smoosh.byte
 
@@ -19,6 +19,12 @@ install : shtepper smoosh
 
 test : runtest
 	./runtest
+
+morbig_driver : $(MLFILES) $(TESTFILES) morbig_driver.ml
+	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
+
+morbig_test : $(MLFILES) $(TESTFILES) test_morbig.ml
+	ocamlfind ocamlopt -package ppx_deriving.std $(OCAMLOPTS) $^ -o $@
 
 shtepper : $(MLFILES) shtepper.ml
 	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
