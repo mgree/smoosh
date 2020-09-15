@@ -32,3 +32,5 @@ test.ml
 *.byte
 version.lem
 version.ml
+morbig_driver
+morbig_test

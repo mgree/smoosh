@@ -9,3 +9,4 @@ posix
 ocamlprof.dump
 \#*
 .vagrant/
+.merlin
