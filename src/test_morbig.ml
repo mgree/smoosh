@@ -47,7 +47,19 @@ let dash_parsed_str cmd =
 let test_programs =
   let test_strs = 
   (List.map (fun (s, _, _) -> s) Test_evaluation.exit_code_tests) @
-  ["true | true | true"]
+    [ "true | true | true"
+    (* TODO MMG 2020-09-11 this catches the wonky field insertion *)
+    ; "this' is one 'word but\"\tthis is another\"word" (* ==> [S "this is one word"; F; S "but"; K (Quote "\tthis is another"); S "word"] *)
+
+    (* uh oh... morbig doesn't track arithmetic expressions! *)      
+    ; ": $((x += 1))"
+    (* nor does it track the `:` flag in parameter formats *)
+    ; ": ${x=hi} ${x:=bye}"
+     
+    (* TODO MMG 2020-09-11 redir/simple command woes *)
+    ; ": 2>&1" (* ==> Command with redirs built in *)
+    ; "{ echo hello; echo world; } >/dev/null" (* Seq inside of Redir *)      
+    ]
   in
   List.map
     (fun s -> (s, List.hd @@ dash_parsed_str s))
