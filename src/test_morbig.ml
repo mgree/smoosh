@@ -58,6 +58,10 @@ let test_programs =
      
     (* TODO MMG 2020-09-11 redir/simple command woes *)
     ; ": 2>&1" (* ==> Command with redirs built in *)
+    ; "ls 2>&1 > dirlist"
+    ; "ls > dirlist 2>&1"
+    ; "ls > dirlist"
+    ; ": 2<&1"
     ; "{ echo hello; echo world; } >/dev/null" (* Seq inside of Redir *)      
     ]
   in

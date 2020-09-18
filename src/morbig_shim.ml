@@ -58,10 +58,10 @@ and morsmall_attribute_to_smoosh_format (attr : Morsmall.AST.attribute) =
   match attr with
   | Morsmall.AST.NoAttribute -> Normal
   | Morsmall.AST.ParameterLength _ -> Normal
-  | Morsmall.AST.UseDefaultValues _ -> Normal
-  | Morsmall.AST.AssignDefaultValues _ -> Normal
-  | Morsmall.AST.IndicateErrorifNullorUnset _ -> Normal
-  | Morsmall.AST.UseAlternativeValue _ -> Normal
+  | Morsmall.AST.UseDefaultValues word -> Default (morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.AssignDefaultValues word -> Assign (morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.IndicateErrorifNullorUnset word -> Error (morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.UseAlternativeValue word -> Alt (morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.RemoveSmallestSuffixPattern _ -> Normal
   | Morsmall.AST.RemoveLargestSuffixPattern _ -> Normal
   | Morsmall.AST.RemoveSmallestPrefixPattern _ -> Normal
@@ -177,15 +177,32 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
      specified as the name of a simple command. *)
   | Morsmall.AST.Function (name, body) -> Defun (name, parse_command body)
   | Morsmall.AST.Redirection (c, desc, kind, w) -> 
-      let redir_state = ([], None, []) in
+  (* TODO, is this correct? *)
+    let redir_words = morsmall_wordval_to_smoosh_entries w in
+      let redirs = 
+      (match kind with
+      | Morsmall.AST.Output -> [RFile (To, desc, redir_words)]
+      | Morsmall.AST.OutputDuplicate -> [RDup (ToFD, desc, redir_words)]
+      | Morsmall.AST.OutputAppend -> [RFile (Append, desc, redir_words)]
+      | Morsmall.AST.OutputClobber -> [RFile (Clobber, desc, redir_words)]
+      | Morsmall.AST.Input -> [RFile (From, desc, redir_words)]
+      | Morsmall.AST.InputDuplicate -> [RDup (FromFD, desc, redir_words)]
+      | Morsmall.AST.InputOutput -> [RFile (FromTo, desc, redir_words)]) 
+      in
+      let redir_state = ([], None, redirs) in 
       Redir (parse_command c, redir_state)
-  | Morsmall.AST.HereDocument (_, _, _) -> Done
+  | Morsmall.AST.HereDocument (cmd, desc, w) -> 
+    let redir_words = morsmall_word_to_smoosh_entries w in
+    let redirs = [RHeredoc (Here, desc, redir_words)] in
+    let redir_state = ([], None, redirs) in
+    Redir (parse_command cmd, redir_state)
 
 let parse_string_morbig (cmd : string) : Smoosh_prelude.stmt =
   let ast =
     Morsmall.CST_to_AST.program__to__program
     @@ Morbig.parse_string "parse_string_morbig" cmd
   in
-  (* print_endline @@ Morsmall.AST.show_program ast; *)
+  print_endline @@ Morsmall.AST.show_program ast;
+  print_endline "------------------------------";
   parse_program ast
   
