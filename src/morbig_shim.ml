@@ -57,7 +57,7 @@ and morsmall_wordvals_to_smoosh_entries (words : Morsmall.AST.word list) :
 and morsmall_attribute_to_smoosh_format (attr : Morsmall.AST.attribute) =
   match attr with
   | Morsmall.AST.NoAttribute -> Normal
-  | Morsmall.AST.ParameterLength _ -> Normal
+  | Morsmall.AST.ParameterLength _w -> Length
   | Morsmall.AST.UseDefaultValues word -> Default (morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.AssignDefaultValues word -> Assign (morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.IndicateErrorifNullorUnset word -> Error (morsmall_wordval_to_smoosh_entries word)
@@ -196,6 +196,15 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
     let redirs = [RHeredoc (Here, desc, redir_words)] in
     let redir_state = ([], None, redirs) in
     Redir (parse_command cmd, redir_state)
+
+(*
+let rec collect_redirs ({ value; position } : Morsmall.AST.command') : (MorSmall.AST.command' * _ list) =
+  match value with
+  | Morsmall.AST.Redirection (c, desc, kind, w) ->
+     let (c', rest) = collect_redirs c in
+     (c', rest ++ [(desc, kind, w)])
+  | _ -> ({ value; position}, [])
+ *)
 
 let parse_string_morbig (cmd : string) : Smoosh_prelude.stmt =
   let ast =

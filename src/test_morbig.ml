@@ -62,7 +62,12 @@ let test_programs =
     ; "ls > dirlist 2>&1"
     ; "ls > dirlist"
     ; ": 2<&1"
-    ; "{ echo hello; echo world; } >/dev/null" (* Seq inside of Redir *)      
+    ; "{ echo hello; echo world; } >/dev/null" (* Seq inside of Redir *)
+
+    (* bug in morbig's parsing of length formats *)
+    ; "${#x}"
+
+    ; "${x-*}"
     ]
   in
   List.map
