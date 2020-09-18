@@ -3,6 +3,12 @@ open Smoosh_prelude
 
 exception ParseException of string
 
+let rec intercalate sep l =
+  match l with
+  | [] -> []
+  | [elt] -> elt
+  | elt::l -> elt @ [sep] @ intercalate sep l
+
 let rec parse_program (program : Morsmall.AST.program) : Smoosh_prelude.stmt =
   match program with
   | [] -> failwith "No program"
@@ -23,8 +29,8 @@ and morsmall_word_to_smoosh_entries ({ value; position } : Morsmall.AST.word') :
 and morsmall_words_to_smoosh_entries (words : Morsmall.AST.word' list) :
     Smoosh_prelude.entry list =
   let entries_lists = List.map morsmall_word_to_smoosh_entries words in
-  let entries = List.flatten entries_lists in
-  separate_strings entries
+  let entries = intercalate Smoosh_prelude.F entries_lists in
+  entries
 
 (* and morsmall_wordvals_to_smoosh_entry (words : Morsmall.AST.word list) :
     Smoosh_prelude.entry =
@@ -50,8 +56,8 @@ and morsmall_wordvals_to_smoosh_words_list (words : Morsmall.AST.word list) :
 and morsmall_wordvals_to_smoosh_entries (words : Morsmall.AST.word list) :
     Smoosh_prelude.entry list =
   let entries_lists = List.map morsmall_wordval_to_smoosh_entries words in
-  let entries = List.flatten entries_lists in
-  separate_strings entries
+  let entries = intercalate Smoosh_prelude.F entries_lists in (* insert separating Fs HERE *)
+  entries
 
 (* TODO : Find mapping to smoosh_formats *)
 and morsmall_attribute_to_smoosh_format (attr : Morsmall.AST.attribute) =
@@ -68,10 +74,6 @@ and morsmall_attribute_to_smoosh_format (attr : Morsmall.AST.attribute) =
   | Morsmall.AST.RemoveLargestPrefixPattern _ -> Normal
 
 and morsmall_wordval_to_smoosh_entries (w : Morsmall.AST.word) :
-    Smoosh_prelude.entry list =
-separate_strings @@ morsmall_wordval_to_smoosh_entries_no_sep w
-
-and morsmall_wordval_to_smoosh_entries_no_sep (w : Morsmall.AST.word) :
     Smoosh_prelude.entry list =
   let wc_to_substr (wc : Morsmall.AST.word_component) : Smoosh_prelude.entry =
     match wc with
@@ -205,7 +207,6 @@ let rec collect_redirs ({ value; position } : Morsmall.AST.command') : (MorSmall
      (c', rest ++ [(desc, kind, w)])
   | _ -> ({ value; position}, [])
  *)
-
 let parse_string_morbig (cmd : string) : Smoosh_prelude.stmt =
   let ast =
     Morsmall.CST_to_AST.program__to__program
