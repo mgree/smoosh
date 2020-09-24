@@ -42,7 +42,7 @@ and morsmall_words_to_smoosh_entries (words : Morsmall.AST.word' list) :
 (* CASE ITEMS *)
 and morsmall_wordvals_to_smoosh_words_list (words : Morsmall.AST.word list) :
     Smoosh_prelude.words list =
-  let entries_lists = List.map morsmall_wordval_to_smoosh_entries_no_sep words in
+  let entries_lists = List.map morsmall_wordval_to_smoosh_entries words in
   let rec flatten_strings entry_list = 
     match entry_list with
     S s1 :: S s2 :: r -> flatten_strings @@ S (s1 ^ s2) :: r
@@ -98,6 +98,11 @@ and separate_strings str_list =
   | _ :: r -> (List.hd str_list) :: separate_strings r
   | [] -> []
 
+and morsmall_to_smoosh_assignment
+          ({ value; position } : Morsmall.AST.assignment') =
+        let aName, aWord = value in
+        (aName, morsmall_wordval_to_smoosh_entries aWord)
+
 and parse_command ({ value; position } : Morsmall.AST.command') :
     Smoosh_prelude.stmt =
   match value with
@@ -108,11 +113,6 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
           should_fork = false;
           force_simple_command = false;
         }
-      in
-      let morsmall_to_smoosh_assignment
-          ({ value; position } : Morsmall.AST.assignment') =
-        let aName, aWord = value in
-        (aName, morsmall_wordval_to_smoosh_entries aWord)
       in
       let assignments = List.map morsmall_to_smoosh_assignment assignmentList in
       let args = morsmall_words_to_smoosh_entries words in
@@ -178,35 +178,51 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
      and with body body: command. The body shall be executed whenever name is
      specified as the name of a simple command. *)
   | Morsmall.AST.Function (name, body) -> Defun (name, parse_command body)
+  (* Redirection is somewhat complicated.
+  We want to make sure that the redirection (even when nested) of a simple
+  command shows up as a "Command" in Smooosh's internal AST, but the redirection
+  of anything else shows up as a "Redir" *)
   | Morsmall.AST.Redirection (c, desc, kind, w) -> 
-  (* TODO, is this correct? *)
-    let redir_words = morsmall_wordval_to_smoosh_entries w in
-      let redirs = 
-      (match kind with
-      | Morsmall.AST.Output -> [RFile (To, desc, redir_words)]
-      | Morsmall.AST.OutputDuplicate -> [RDup (ToFD, desc, redir_words)]
-      | Morsmall.AST.OutputAppend -> [RFile (Append, desc, redir_words)]
-      | Morsmall.AST.OutputClobber -> [RFile (Clobber, desc, redir_words)]
-      | Morsmall.AST.Input -> [RFile (From, desc, redir_words)]
-      | Morsmall.AST.InputDuplicate -> [RDup (FromFD, desc, redir_words)]
-      | Morsmall.AST.InputOutput -> [RFile (FromTo, desc, redir_words)]) 
-      in
-      let redir_state = ([], None, redirs) in 
-      Redir (parse_command c, redir_state)
+    let (c', redirs) = collect_redirs ({value; position}: Morsmall.AST.command') in 
+    let ({value ; position} : Morsmall.AST.command') = c' in
+    (match value with
+      | Morsmall.AST.Simple (assignments, words) -> 
+        let command_opts =
+          {
+            ran_cmd_subst = false;
+            should_fork = false;
+            force_simple_command = false;
+          }
+        in
+        let assignments = List.map morsmall_to_smoosh_assignment assignments in
+        let args = morsmall_words_to_smoosh_entries words in
+      Command (assignments, args, redirs, command_opts)
+      | _ -> Redir (parse_command c', ([], None, redirs)))
   | Morsmall.AST.HereDocument (cmd, desc, w) -> 
     let redir_words = morsmall_word_to_smoosh_entries w in
     let redirs = [RHeredoc (Here, desc, redir_words)] in
     let redir_state = ([], None, redirs) in
     Redir (parse_command cmd, redir_state)
 
-(*
-let rec collect_redirs ({ value; position } : Morsmall.AST.command') : (MorSmall.AST.command' * _ list) =
+and morsmall_to_smoosh_redir desc kind w =
+    let redir_words = morsmall_wordval_to_smoosh_entries w in
+    (match kind with
+    | Morsmall.AST.Output -> RFile (To, desc, redir_words)
+    | Morsmall.AST.OutputDuplicate -> RDup (ToFD, desc, redir_words)
+    | Morsmall.AST.OutputAppend -> RFile (Append, desc, redir_words)
+    | Morsmall.AST.OutputClobber -> RFile (Clobber, desc, redir_words)
+    | Morsmall.AST.Input -> RFile (From, desc, redir_words)
+    | Morsmall.AST.InputDuplicate -> RDup (FromFD, desc, redir_words)
+    | Morsmall.AST.InputOutput -> RFile (FromTo, desc, redir_words))
+
+and collect_redirs ({ value; position } : Morsmall.AST.command') 
+  : Morsmall.AST.command' * redir list =
   match value with
   | Morsmall.AST.Redirection (c, desc, kind, w) ->
      let (c', rest) = collect_redirs c in
-     (c', rest ++ [(desc, kind, w)])
+     (c', morsmall_to_smoosh_redir desc kind w :: rest)
   | _ -> ({ value; position}, [])
- *)
+ 
 let parse_string_morbig (cmd : string) : Smoosh_prelude.stmt =
   let ast =
     Morsmall.CST_to_AST.program__to__program
