@@ -59,7 +59,6 @@ and morsmall_wordvals_to_smoosh_entries (words : Morsmall.AST.word list) :
   let entries = intercalate Smoosh_prelude.F entries_lists in (* insert separating Fs HERE *)
   entries
 
-(* TODO : Find mapping to smoosh_formats *)
 and morsmall_attribute_to_smoosh_format (attr : Morsmall.AST.attribute) =
   match attr with
   | Morsmall.AST.NoAttribute -> Normal
@@ -68,10 +67,10 @@ and morsmall_attribute_to_smoosh_format (attr : Morsmall.AST.attribute) =
   | Morsmall.AST.AssignDefaultValues word -> Assign (morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.IndicateErrorifNullorUnset word -> Error (morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.UseAlternativeValue word -> Alt (morsmall_wordval_to_smoosh_entries word)
-  | Morsmall.AST.RemoveSmallestSuffixPattern _ -> Normal
-  | Morsmall.AST.RemoveLargestSuffixPattern _ -> Normal
-  | Morsmall.AST.RemoveSmallestPrefixPattern _ -> Normal
-  | Morsmall.AST.RemoveLargestPrefixPattern _ -> Normal
+  | Morsmall.AST.RemoveSmallestSuffixPattern word -> Substring (Suffix, Shortest, morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.RemoveLargestSuffixPattern word -> Substring (Suffix, Longest, morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.RemoveSmallestPrefixPattern word -> Substring (Prefix, Shortest, morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.RemoveLargestPrefixPattern word -> Substring (Prefix, Longest, morsmall_wordval_to_smoosh_entries word)
 
 and morsmall_wordval_to_smoosh_entries (w : Morsmall.AST.word) :
     Smoosh_prelude.entry list =
