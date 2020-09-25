@@ -54,7 +54,7 @@ before_install:
   - bash -ex .travis-ocaml.sh  
 
   # INSTALL DEPS
-  - opam install -y ocamlfind ocamlbuild num zarith extunix
+  - opam install -y ocamlfind ocamlbuild num zarith extunix morbig morsmall
 
   # INSTALL DASH
   - (cd libdash; opam pin -y add .)
