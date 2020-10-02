@@ -20,9 +20,6 @@ install : shtepper smoosh
 test : runtest
 	./runtest
 
-morbig_driver : $(MLFILES) $(TESTFILES) morbig_driver.ml
-	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
-
 morbig_test : $(MLFILES) $(TESTFILES) test_morbig.ml
 	ocamlfind ocamlopt -package ppx_deriving.std $(OCAMLOPTS) $^ -o $@
 
