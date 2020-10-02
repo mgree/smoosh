@@ -9,7 +9,7 @@ TESTFILES=test_prelude.ml test_arith.ml test_path.ml test_expansion.ml test_eval
 
 .PHONY : all all.byte install test loc bump rebuild clean veryclean
 
-all : bump shtepper smoosh runtest morbig_driver
+all : bump shtepper smoosh runtest 
 
 all.byte : smoosh.byte
 
