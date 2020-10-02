@@ -2,19 +2,20 @@ dist: xenial
 
 language: generic
 
-matrix:
+env:
+  - OCAML_VERSION=4.09
+  - OCAML_VERSION=4.10
+  - OCAML_VERSION=4.11
+
+os:
+  - freebsd
+  - linux
+  - osx
+
+jobs:
   include:
-  - os: osx
-    osx_image: xcode11.3
-    env: OCAML_VERSION=4.09
-  - os: freebsd
-    env: OCAML_VERSION=4.09
   - os: linux
-    env: OCAML_VERSION=4.09
-  - os: linux
-    env: OCAML_VERSION=4.09 INSTALL_LOCAL=1
-  - os: linux
-    env: OCAML_VERSION=4.11.0+trunk OCAML_BETA=enable
+    env: OCAML_VERSION=4.11 INSTALL_LOCAL=1
 
 cache:
   directories:
@@ -53,7 +54,7 @@ before_install:
   - bash -ex .travis-ocaml.sh  
 
   # INSTALL DEPS
-  - opam install -y ocamlfind ocamlbuild num zarith extunix
+  - opam install -y ocamlfind ocamlbuild num zarith extunix morbig morsmall
 
   # INSTALL DASH
   - (cd libdash; opam pin -y add .)
