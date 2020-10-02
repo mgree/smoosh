@@ -53,6 +53,7 @@ let test_programs =
 
     (* uh oh... morbig doesn't track arithmetic expressions! *)      
     ; ": $((x += 1))"
+    ; "echo  $((1 * $((2*3)) ))"
     (* nor does it track the `:` flag in parameter formats *)
     ; ": ${x=hi} ${x:=bye}"
      
