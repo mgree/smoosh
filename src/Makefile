@@ -21,7 +21,7 @@ test : runtest
 	./runtest
 
 morbig_test : $(MLFILES) $(TESTFILES) test_morbig.ml
-	ocamlfind ocamlopt -package ppx_deriving.std $(OCAMLOPTS) $^ -o $@
+	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
 
 shtepper : $(MLFILES) shtepper.ml
 	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
