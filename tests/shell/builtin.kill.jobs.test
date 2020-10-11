@@ -8,7 +8,7 @@ wait
 stop=$(date "+%s")
 elapsed=$((stop - start))
 echo $stop - $start = $elapsed
-[ $((elapsed)) -lt 2 ] || exit 1
+[ $((elapsed)) -lt 3 ] || exit 1
 
 echo setting -m
 set -m
@@ -24,4 +24,4 @@ wait
 stop=$(date "+%s")
 elapsed=$((stop - start))
 echo $stop - $start = $elapsed
-[ $((elapsed)) -lt 2 ] || exit 2
+[ $((elapsed)) -lt 3 ] || exit 2
