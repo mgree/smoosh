@@ -48,12 +48,7 @@ RUN opam install extunix
 WORKDIR /home/opam
 
 # set up lem
-ADD --chown=opam:opam lem lem
-RUN cd lem/ocaml-lib; opam config exec -- make install_dependencies
-RUN cd lem; opam config exec -- make
-RUN cd lem; opam config exec -- make install
-ENV PATH="/home/opam/lem/bin:${PATH}"
-ENV LEMLIB="/home/opam/lem/library"
+RUN opam install lem
 
 # copy in repo files for libdash to the WORKDIR (should be /home/opam)
 # we do this as late as possible so we don't have to redo the slow stuff above
