@@ -28,15 +28,11 @@ Once you have those dependencies, you should be able to crib from `.travis.yml`:
 $ git clone --recurse-submodules https://github.com/mgree/smoosh.git
 Cloning into 'smoosh'...
 ... [lots of fetching] ...
-Submodule path 'lem': checked out 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 Submodule path 'libdash': checked out 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'
 Submodule path 'modernish': checked out 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
 $ cd smoosh
-$ opam install -y ocamlfind ocamlbuild num zarith extunix
+$ opam install -y ocamlfind ocamlbuild num zarith extunix lem
 $ (cd libdash; opam pin -y add .)
-$ make -C lem && make -C lem install
-$ export LEMLIB=$(pwd)/lem/library
-$ export PATH="$(pwd)/lem/bin:$PATH"
 $ make -C src all all.byte
 $ export PATH="$(pwd)/src:$PATH"
 ```
@@ -78,7 +74,6 @@ To build via Docker, you merely need to fetch the Smoosh repo and its submodules
 $ git clone --recurse-submodules https://github.com/mgree/smoosh.git
 Cloning into 'smoosh'...
 ... [lots of fetching] ...
-Submodule path 'lem': checked out 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 Submodule path 'libdash': checked out 'yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy'
 Submodule path 'modernish': checked out 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
 $ cd smoosh
