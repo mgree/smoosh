@@ -876,7 +876,16 @@ declare ocaml target_rep type stackmark = `Ctypes.structure` `Dash.stackmark`
 
 type dash_string
 declare ocaml target_rep type dash_string = `Ctypes.ptr` char
-        
+
+type morbig_string
+declare ocaml target_rep type morbig_string = string
+
+type parser_string = 
+  DashString of maybe dash_string
+  | MorbigString of maybe morbig_string
+
+type parse_context = parser_string * maybe stackmark 
+
 type format =
     Normal
   | Default of words
@@ -1061,9 +1070,6 @@ and parse_result =
   | ParseError of string
   | ParseNull
   | ParseStmt of stmt
-
-and parse_context =
-  maybe dash_string * maybe stackmark
 
 (**********************************************************************)
 (* SHELL STATE ********************************************************)

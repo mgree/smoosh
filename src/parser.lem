@@ -1,0 +1,5 @@
+(* Define the parser interface *)
+
+type parser_type = 
+    ParserMorbig
+  | ParserDash

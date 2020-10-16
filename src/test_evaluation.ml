@@ -9,7 +9,7 @@ open Printf
 (***********************************************************************)
    
 let run_cmd_for_exit_code (cmd : string) (os0 : symbolic os_state) : int =
-  let c = Shim.parse_string cmd in
+  let c = Morbig_shim.parse_string cmd in
   let os1 = Semantics.symbolic_full_evaluation os0 c in
   if out_of_fuel os1
   then -1
@@ -158,7 +158,7 @@ let exit_code_tests : (string * symbolic os_state * int) list =
 (***********************************************************************)
 
 let run_cmd_for_stdout (cmd : string) (os0 : symbolic os_state) : string =
-  let c = Shim.parse_string cmd in
+  let c = Morbig_shim.parse_string cmd in
   let os1 = Semantics.symbolic_full_evaluation os0 c in
   if out_of_fuel os1
   then "!!! OUT OF FUEL"

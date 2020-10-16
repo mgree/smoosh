@@ -1,4 +1,5 @@
 open Shim
+open Morbig_shim
 open Smoosh
 open Os_symbolic
 open Semantics
@@ -107,7 +108,7 @@ let show_trace trace =
 let main () =
   Dash.initialize ();
   parse_args ();
-  let sstr = Shim.parse_init !parse_source in
+  let sstr = Morbig_shim.parse_init !parse_source in
   let (trace,_final_os_state) = 
     run_trace_evaluation !initial_os_state (EvalLoop (1, (sstr, None), !parse_source, Noninteractive, Toplevel))
   in

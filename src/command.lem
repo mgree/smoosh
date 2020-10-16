@@ -620,7 +620,7 @@ let builtin_eval s0 argv _env =
        avoids QRK_EVALNOOPT in modernish *)
     let argv' = strip_double_dash argv in
     let src = ParseString ParseEval (string_of_fields argv') in
-    let sstr = parse_init src in
+    let sstr = parse_init s0.parser src in
     Right (s0, 
            EvalLoop 1 (sstr, Just (stack_init ())) src 
              Noninteractive Subsidiary, 
@@ -656,7 +656,7 @@ let builtin_source argv0 s0 argv _env =
           Left (s0, file ^ ": " ^ msg)
         | Right path ->
           let src = ParseFile path PushFile in
-          let sstr = parse_init src in
+          let sstr = parse_init s0.parser src in
           Right (s0, 
                  EvalLoop 1 (sstr, Nothing) src Noninteractive Subsidiary, 
                  true)

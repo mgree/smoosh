@@ -134,6 +134,7 @@ let os_empty : os_state symbolic =
      sh = default_shell_state;
      log = [];
      fuel = Just 500;
+     parser = ParserDash;
   |>
 
 (**********************************************************************)

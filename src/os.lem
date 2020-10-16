@@ -1,5 +1,6 @@
 open import Smoosh_prelude
 include import Signal_platform
+include import Parser
 import Debug
 
 (* This file defines the interface to the OS that the shell uses.
@@ -54,6 +55,7 @@ type os_state 'a = <|
    sh: shell_state;
    log: list log_entry;
    fuel: maybe nat;
+   parser: Parser.parser_type;
  |> 
 
 (* Parameter helpers **************************************************)

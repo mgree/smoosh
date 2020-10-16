@@ -1,6 +1,6 @@
 OCAMLOPTS=-g -w -a+3+8+10+14+21+24+29+31+46+47+48 -package str,libdash,lem_num,extunix,morbig,morsmall -linkpkg
 
-SRCFILES=version.lem smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem \
+SRCFILES=parser.lem version.lem smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem \
 	 shim.ml morbig_shim.ml os.lem os_symbolic.lem system.ml os_system.lem smoosh.lem arith.lem \
 	 pattern.lem path.lem fields.lem test.lem command.lem semantics.lem
 MLFILES=$(SRCFILES:.lem=.ml)

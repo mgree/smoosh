@@ -69,6 +69,7 @@ let test_programs =
     ; "${#x}"
 
     ; "${x-*}"
+    ; "(trap 'echo bye' SIGTERM ; echo hi) & wait"
     ]
   in
   List.map

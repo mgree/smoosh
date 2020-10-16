@@ -415,7 +415,7 @@ let parse_string cmd =
   let sstr = parse_init src in
   let stackmark = Dash.init_stack () in
   Semi
-    (EvalLoop (1, (sstr, Some stackmark), src,
+    (EvalLoop (1, (DashString sstr, Some stackmark), src,
                Noninteractive, Subsidiary (* not top level, will call parse_done *)),
      Exit)
 

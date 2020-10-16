@@ -1,5 +1,6 @@
 open import Smoosh_prelude
 open import Os
+open import Parser
 
 (**********************************************************************)
 (* REAL OS STATE INSTANCE *********************************************)
@@ -226,18 +227,28 @@ let real_renumber_fd (close : bool) (new_fd : fd) (wanted_fd : fd) =
            saved
       end
 
+val morbig_setvar : string -> symbolic_string -> unit
+declare ocaml target_rep function morbig_setvar = `Morbig_shim.morbig_setvar`
+
 val dash_setvar : string -> symbolic_string -> unit
 declare ocaml target_rep function dash_setvar = `Shim.dash_setvar`
+
+val setvar : parser_type -> string -> symbolic_string -> unit
+let setvar pt s ss =
+  match pt with
+    ParserMorbig -> morbig_setvar s ss
+    | ParserDash -> dash_setvar s ss
+  end
 
 instance (OS unit)
   let os_tick os = os
  
   let os_set_ps1 os new_ps1 = 
-    let _ = dash_setvar "PS1" new_ps1 in
+    let _ = setvar os.parser "PS1" new_ps1 in
     os
 
   let os_set_ps2 os new_ps2 = 
-    let _ = dash_setvar "PS2" new_ps2 in
+    let _ = setvar os.parser "PS2" new_ps2 in
     os
 
   let os_getpwnam _os nam = real_getpwnam nam

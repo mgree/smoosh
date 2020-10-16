@@ -64,9 +64,18 @@ and morsmall_attribute_to_smoosh_format (attr : Morsmall.AST.attribute) =
   | Morsmall.AST.NoAttribute -> Normal
   | Morsmall.AST.ParameterLength -> Length
   | Morsmall.AST.UseDefaultValues (word, ifNull) -> Default (morsmall_wordval_to_smoosh_entries word)
-  | Morsmall.AST.AssignDefaultValues (word, ifNull) -> Assign (morsmall_wordval_to_smoosh_entries word)
-  | Morsmall.AST.IndicateErrorifNullorUnset (word, ifNull) -> Error (morsmall_wordval_to_smoosh_entries word)
-  | Morsmall.AST.UseAlternativeValue (word, ifNull) -> Alt (morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.AssignDefaultValues (word, ifNull) -> 
+    (match ifNull with
+      | true -> NAssign (morsmall_wordval_to_smoosh_entries word)
+      | false -> Assign (morsmall_wordval_to_smoosh_entries word))
+  | Morsmall.AST.IndicateErrorifNullorUnset (word, ifNull) -> 
+      (match ifNull with
+      | true -> NError (morsmall_wordval_to_smoosh_entries word)
+      | false -> Error (morsmall_wordval_to_smoosh_entries word))
+  | Morsmall.AST.UseAlternativeValue (word, ifNull) -> 
+      (match ifNull with
+      | true -> NAlt (morsmall_wordval_to_smoosh_entries word)
+      | false -> Alt (morsmall_wordval_to_smoosh_entries word))
   | Morsmall.AST.RemoveSmallestSuffixPattern word -> Substring (Suffix, Shortest, morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.RemoveLargestSuffixPattern word -> Substring (Suffix, Longest, morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.RemoveSmallestPrefixPattern word -> Substring (Prefix, Shortest, morsmall_wordval_to_smoosh_entries word)
@@ -228,19 +237,21 @@ let parse_string_morbig (cmd : string) : Smoosh_prelude.stmt =
   try
     let ast =
       Morsmall.CST_to_AST.program__to__program
-      @@ Morbig.parse_string "parse_string_morbig" cmd
+      @@ Morbig.parse_string ("======" ^ cmd ^ "=====") cmd
     in
     (* print_endline @@ Morsmall.AST.show_program ast;
     print_endline "------------------------------"; *)
     parse_program ast
-  with _ -> 
-    let command_opts =
+  with e -> 
+    print_endline (Morbig.Errors.string_of_error e);
+    Done
+    (* let command_opts =
     {
       ran_cmd_subst = false;
       should_fork = false;
       force_simple_command = false;
     }
-    in Command ([], [S "echo" ; F ; S "Error parsing program"], [], command_opts)
+    in Command ([], [S "echo" ; F ; S "Error parsing program"], [], command_opts) *)
   
 let parse_next i : parse_result = ParseDone
 

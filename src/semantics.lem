@@ -62,7 +62,7 @@ let rec internal_check_traps step s0 c =
      | Just ss_handler ->
         let (s2,_,s_handler) = concretize s1 ss_handler in
         let src = ParseString ParseTrap s_handler in
-        let sstr = parse_init src in
+        let sstr = parse_init s0.parser src in
         let c_handler =                    
           EvalLoop 1 (sstr, Just (stack_init ())) src 
             Noninteractive Subsidiary
