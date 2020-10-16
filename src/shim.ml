@@ -358,7 +358,7 @@ and to_args (n : node union ptr) : words list =
  * ??? 2018-11-14 interrupts during parsing? hopefully handled after any forking?
  *
  *)
-(*
+
 let bad_file file msg =
   let prog = Filename.basename Sys.executable_name in
   Printf.eprintf "%s: file '%s' %s\n%!" prog file msg;
@@ -424,7 +424,7 @@ let dash_setvar x v =
   (* don't copy over special variables *)
   | Some s when not (is_special_param x) -> Dash.setvar x s 
   | _ -> ()
-*)
+
 (************************************************************************)
 (* JSON rendering *******************************************************)
 (************************************************************************)
