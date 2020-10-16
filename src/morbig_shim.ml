@@ -62,11 +62,11 @@ and morsmall_wordvals_to_smoosh_entries (words : Morsmall.AST.word list) :
 and morsmall_attribute_to_smoosh_format (attr : Morsmall.AST.attribute) =
   match attr with
   | Morsmall.AST.NoAttribute -> Normal
-  | Morsmall.AST.ParameterLength _w -> Length
-  | Morsmall.AST.UseDefaultValues word -> Default (morsmall_wordval_to_smoosh_entries word)
-  | Morsmall.AST.AssignDefaultValues word -> Assign (morsmall_wordval_to_smoosh_entries word)
-  | Morsmall.AST.IndicateErrorifNullorUnset word -> Error (morsmall_wordval_to_smoosh_entries word)
-  | Morsmall.AST.UseAlternativeValue word -> Alt (morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.ParameterLength -> Length
+  | Morsmall.AST.UseDefaultValues (word, ifNull) -> Default (morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.AssignDefaultValues (word, ifNull) -> Assign (morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.IndicateErrorifNullorUnset (word, ifNull) -> Error (morsmall_wordval_to_smoosh_entries word)
+  | Morsmall.AST.UseAlternativeValue (word, ifNull) -> Alt (morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.RemoveSmallestSuffixPattern word -> Substring (Suffix, Shortest, morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.RemoveLargestSuffixPattern word -> Substring (Suffix, Longest, morsmall_wordval_to_smoosh_entries word)
   | Morsmall.AST.RemoveSmallestPrefixPattern word -> Substring (Prefix, Shortest, morsmall_wordval_to_smoosh_entries word)
@@ -76,14 +76,16 @@ and morsmall_wordval_to_smoosh_entries (w : Morsmall.AST.word) :
     Smoosh_prelude.entry list =
   let wc_to_substr (wc : Morsmall.AST.word_component) : Smoosh_prelude.entry =
     match wc with
-    | Morsmall.AST.Literal s -> if s = "$((0-5))" then print_endline "literal"; S s
-    | Morsmall.AST.DoubleQuoted w -> K (Quote ([], morsmall_wordval_to_smoosh_entries w))
-    | Morsmall.AST.Variable (name, attribute) ->
+    | Morsmall.AST.WLiteral s -> if s = "$((0-5))" then print_endline "literal"; S s
+    | Morsmall.AST.WDoubleQuoted w -> K (Quote ([], morsmall_wordval_to_smoosh_entries w))
+    | Morsmall.AST.WVariable (name, attribute) ->
         K (Param (name, morsmall_attribute_to_smoosh_format attribute))
-    | Morsmall.AST.Subshell p -> K (Backtick (parse_program p))
-    | Morsmall.AST.GlobAll -> S "*"
-    | Morsmall.AST.GlobAny -> S "."
-    | Morsmall.AST.BracketExpression exp -> S "<BracketExpression>"
+    | Morsmall.AST.WSubshell p -> K (Backtick (parse_program p))
+    | Morsmall.AST.WGlobAll -> S "*"
+    | Morsmall.AST.WGlobAny -> S "."
+    | Morsmall.AST.WBracketExpression exp -> S "<BracketExpression>"
+    | Morsmall.AST.WTildePrefix w -> K (Tilde w)
+    | Morsmall.AST.WArith w -> K (Arith ([], morsmall_wordval_to_smoosh_entries w))
   in
   List.map wc_to_substr w
 
@@ -138,7 +140,7 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
       match listOpt with
       | None -> failwith "Empty list in for?"
       | Some l ->
-          For (x, morsmall_wordvals_to_smoosh_entries l, parse_command c)
+          For (x, morsmall_words_to_smoosh_entries l, parse_command c)
       )
   | Morsmall.AST.Case (var, cases) ->
       let morsmall_to_smoosh_case_item ({ value; _ } : Morsmall.AST.case_item')
@@ -153,7 +155,7 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
         in
         (smoosh_wl, smoosh_cmd)
       in
-      let smoosh_words = morsmall_wordval_to_smoosh_entries var in
+      let smoosh_words = morsmall_word_to_smoosh_entries var in
       let smoosh_case_items = List.map morsmall_to_smoosh_case_item cases in
       Case (smoosh_words, smoosh_case_items)
   (* execute c1 and use its exit status to determine whether to execute c2 or c3.
@@ -204,7 +206,7 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
     Redir (parse_command cmd, redir_state)
 
 and morsmall_to_smoosh_redir desc kind w =
-    let redir_words = morsmall_wordval_to_smoosh_entries w in
+    let redir_words = morsmall_word_to_smoosh_entries w in
     (match kind with
     | Morsmall.AST.Output -> RFile (To, desc, redir_words)
     | Morsmall.AST.OutputDuplicate -> RDup (ToFD, desc, redir_words)
@@ -223,11 +225,47 @@ and collect_redirs ({ value; position } : Morsmall.AST.command')
   | _ -> ({ value; position}, [])
  
 let parse_string_morbig (cmd : string) : Smoosh_prelude.stmt =
-  let ast =
-    Morsmall.CST_to_AST.program__to__program
-    @@ Morbig.parse_string "parse_string_morbig" cmd
-  in
-  print_endline @@ Morsmall.AST.show_program ast;
-  print_endline "------------------------------";
-  parse_program ast
+  try
+    let ast =
+      Morsmall.CST_to_AST.program__to__program
+      @@ Morbig.parse_string "parse_string_morbig" cmd
+    in
+    (* print_endline @@ Morsmall.AST.show_program ast;
+    print_endline "------------------------------"; *)
+    parse_program ast
+  with _ -> 
+    let command_opts =
+    {
+      ran_cmd_subst = false;
+      should_fork = false;
+      force_simple_command = false;
+    }
+    in Command ([], [S "echo" ; F ; S "Error parsing program"], [], command_opts)
   
+let parse_next i : parse_result = ParseDone
+
+let parse_init src = None
+  (* match src with
+  | ParseSTDIN -> None
+  | ParseString (mode, cmd) ->
+     let ss = Dash.alloc_stack_string cmd in
+     Dash.setinputstring ss;
+     Some ss
+  | ParseFile (file, push) -> 
+     if not (Sys.file_exists file)
+     then bad_file file "not found"
+     else try 
+         Unix.access file [Unix.F_OK; Unix.R_OK];
+         Dash.setinputfile ~push:(should_push_file push) file; 
+         None
+       with Unix.Unix_error(_,_,_) -> bad_file file "unreadable" *)
+
+let parse_done m_ss m_smark = ()
+
+let parse_string = parse_string_morbig
+
+let morbig_setvar x v = ()
+  (* match try_concrete v with
+  (* don't copy over special variables *)
+  | Some s when not (is_special_param x) -> Dash.setvar x s 
+  | _ -> () *)
