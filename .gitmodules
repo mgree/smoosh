@@ -10,3 +10,9 @@
 [submodule "oil"]
 	path = oil
 	url = https://github.com/oilshell/oil
+[submodule "morbig"]
+	path = morbig
+	url = https://github.com/Ishaangandhi/morbig
+[submodule "morsmall"]
+	path = morsmall
+	url = https://github.com/Ishaangandhi/morsmall
