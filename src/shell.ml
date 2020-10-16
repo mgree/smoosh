@@ -260,7 +260,7 @@ let main () =
     then real_set_sh_opt s2 Sh_monitor
     else s2
   in
-  let sstr = Shim.parse_init !parse_source in
+  let sstr = Morbig_shim.parse_init !parse_source in
   cmdloop s3 sstr
 ;;
 
