@@ -15,6 +15,12 @@ let rec parse_program (program : Morsmall.AST.program) : Smoosh_prelude.stmt =
   | _ :: _ :: _ -> failwith "Can only handle single program"
   | [ cmd ] -> parse_command cmd
 
+and flatten_strings entry_list = 
+  match entry_list with
+  S s1 :: S s2 :: r -> flatten_strings @@ S (s1 ^ s2) :: r
+  | _ :: r -> (List.hd entry_list) :: flatten_strings r
+  | _ -> entry_list
+
 and morsmall_word_to_smoosh_entry ({ value; position } : Morsmall.AST.word') :
     Smoosh_prelude.entry =
   let entries = morsmall_wordval_to_smoosh_entries value in
@@ -24,7 +30,7 @@ and morsmall_word_to_smoosh_entry ({ value; position } : Morsmall.AST.word') :
 and morsmall_word_to_smoosh_entries ({ value; position } : Morsmall.AST.word') :
     Smoosh_prelude.entry list =
   let entries = morsmall_wordval_to_smoosh_entries value in
-  entries
+  flatten_strings entries
 
 and morsmall_words_to_smoosh_entries (words : Morsmall.AST.word' list) :
     Smoosh_prelude.entry list =
@@ -32,31 +38,17 @@ and morsmall_words_to_smoosh_entries (words : Morsmall.AST.word' list) :
   let entries = intercalate Smoosh_prelude.F entries_lists in
   entries
 
-(* and morsmall_wordvals_to_smoosh_entry (words : Morsmall.AST.word list) :
-    Smoosh_prelude.entry =
-  let entries_lists = List.map morsmall_word_to_smoosh_entries words in
-  let entries = List.flatten entries_lists in
-  assert (List.length entries = 1);
-  List.hd entries *)
-
 (* CASE ITEMS *)
 and morsmall_wordvals_to_smoosh_words_list (words : Morsmall.AST.word list) :
     Smoosh_prelude.words list =
   let entries_lists = List.map morsmall_wordval_to_smoosh_entries words in
-  let rec flatten_strings entry_list = 
-    match entry_list with
-    S s1 :: S s2 :: r -> flatten_strings @@ S (s1 ^ s2) :: r
-    | _ :: r -> (List.hd entry_list) :: flatten_strings r
-    | _ -> entry_list
-  in
-  (* let entries = List.flatten entries_lists in *)
   List.map flatten_strings entries_lists
 
 
 and morsmall_wordvals_to_smoosh_entries (words : Morsmall.AST.word list) :
     Smoosh_prelude.entry list =
   let entries_lists = List.map morsmall_wordval_to_smoosh_entries words in
-  let entries = intercalate Smoosh_prelude.F entries_lists in (* insert separating Fs HERE *)
+  let entries = intercalate Smoosh_prelude.F entries_lists in
   entries
 
 and morsmall_attribute_to_smoosh_format (attr : Morsmall.AST.attribute) =
@@ -85,7 +77,7 @@ and morsmall_wordval_to_smoosh_entries (w : Morsmall.AST.word) :
     Smoosh_prelude.entry list =
   let wc_to_substr (wc : Morsmall.AST.word_component) : Smoosh_prelude.entry =
     match wc with
-    | Morsmall.AST.WLiteral s -> if s = "$((0-5))" then print_endline "literal"; S s
+    | Morsmall.AST.WLiteral s -> S Str.(global_replace (Str.regexp "\\\\\\(.\\)") "\\1" s)
     | Morsmall.AST.WDoubleQuoted w -> K (Quote ([], morsmall_wordval_to_smoosh_entries w))
     | Morsmall.AST.WVariable (name, attribute) ->
         K (Param (name, morsmall_attribute_to_smoosh_format attribute))
@@ -97,16 +89,6 @@ and morsmall_wordval_to_smoosh_entries (w : Morsmall.AST.word) :
     | Morsmall.AST.WArith w -> K (Arith ([], morsmall_wordval_to_smoosh_entries w))
   in
   List.map wc_to_substr w
-
-(* If 2 S's in a row, insert F between them? *)
-and separate_strings str_list =
-  match str_list with
-  | S s1 :: S s2 :: r -> S s1 :: F :: separate_strings (S s2 :: r)
-  | S s :: K c :: r -> S s :: F :: separate_strings (K c :: r)
-  | K c :: S s :: r -> K c :: F :: separate_strings (S s :: r)
-  | K c1 :: K c2 :: r -> K c1 :: F :: separate_strings (K c2 :: r)
-  | _ :: r -> (List.hd str_list) :: separate_strings r
-  | [] -> []
 
 and morsmall_to_smoosh_assignment
           ({ value; position } : Morsmall.AST.assignment') =

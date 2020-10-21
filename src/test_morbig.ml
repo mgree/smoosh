@@ -70,6 +70,9 @@ let test_programs =
 
     ; "${x-*}"
     ; "(trap 'echo bye' SIGTERM ; echo hi) & wait"
+    ; "x=${y:=1} ; echo $((x+=`echo 2`))"
+    ; "test a < b; test a \\< b"
+    ; "echo \\"
     ]
   in
   List.map
