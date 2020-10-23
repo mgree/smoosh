@@ -63,7 +63,7 @@ let usage_msg =
   prog ^ " -s" ^ flags ^ "[argument...]\n" ^
   prog ^ " --version\n\n" ^
   "flags:\n\t-[flag] enables, +[flag] disables\n\n" ^
-  concat "" (List.map (fun (flag, descr) -> Printf.sprintf "\t%s\t%s\n" flag descr) (flag_descriptions prog))
+  String.concat "" (List.map (fun (flag, descr) -> Printf.sprintf "\t%s\t%s\n" flag descr) (flag_descriptions prog))
 
 let show_usage () =
   prerr_string usage_msg;
