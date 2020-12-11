@@ -238,7 +238,8 @@ let main () =
                      }; 
              Os.log = []; 
              Os.fuel = None; (* unbounded *)
-             Os.symbolic = (); } in
+             Os.symbolic = (); 
+             Os.parser = ParserMorbig} in
   let s1 = initialize_env s0 in
   let s2 =
     if is_interactive s1 
@@ -261,7 +262,7 @@ let main () =
     else s2
   in
   let sstr = Morbig_shim.parse_init !parse_source in
-  cmdloop s3 sstr
+  cmdloop s3 (MorbigString sstr)
 ;;
 
 main ()
