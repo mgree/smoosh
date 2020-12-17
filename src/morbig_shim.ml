@@ -106,15 +106,15 @@ and morsmall_to_smoosh_assignment
 
 and parse_command ({ value; position } : Morsmall.AST.command') :
     Smoosh_prelude.stmt =
+  let command_opts =
+    {
+      ran_cmd_subst = false;
+      should_fork = false;
+      force_simple_command = false;
+    }
+  in
   match value with
   | Morsmall.AST.Simple (assignmentList, words) ->
-      let command_opts =
-        {
-          ran_cmd_subst = false;
-          should_fork = false;
-          force_simple_command = false;
-        }
-      in
       let assignments = List.map morsmall_to_smoosh_assignment assignmentList in
       let args = morsmall_words_to_smoosh_entries false words in
       Command (assignments, args, [], command_opts)
@@ -169,7 +169,9 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
      In fact, c3 is not mandatory and is thus an option. *)
   | Morsmall.AST.If (c1, c2, c3) ->
       let else_stmt =
-        match c3 with None -> Done | Some c3val -> parse_command c3val
+        match c3 with 
+          None -> Command ([], [], [], command_opts) 
+        | Some c3val -> parse_command c3val
       in
       If (parse_command c1, parse_command c2, else_stmt)
   (* The while Loop. While (c1, c2) shall continuously execute c2 as long as c1
@@ -195,13 +197,6 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
     let ({value ; position} : Morsmall.AST.command') = c' in
     (match value with
       | Morsmall.AST.Simple (assignments, words) -> 
-        let command_opts =
-          {
-            ran_cmd_subst = false;
-            should_fork = false;
-            force_simple_command = false;
-          }
-        in
         let assignments = List.map morsmall_to_smoosh_assignment assignments in
         let args = morsmall_words_to_smoosh_entries false words in
       Command (assignments, args, redirs, command_opts)

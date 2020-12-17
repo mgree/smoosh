@@ -48,6 +48,7 @@ let test_programs =
     ; "printf %b \"hello\\n\""
     ; "x=hello\\*there ; echo ${x#*\\*}"
     ; "ls \n ls"
+    ; "if [ 1 ]; then echo 1; fi"
     ]
   in
   let read_whole_file filename =
