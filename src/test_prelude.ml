@@ -64,7 +64,7 @@ let os_ifs_comma : symbolic os_state = add_literal_env_string "IFS" "," os_empty
 (* OCAML UTILITY FUNCTIONS *********************************************)
 (***********************************************************************)
 
-let show_list set = "[" ^ concat "," set ^ "]"
+let show_list set = "[" ^ String.concat "," set ^ "]"
 
 (***********************************************************************)
 (* FILESYSTEM SCAFFOLDING **********************************************)

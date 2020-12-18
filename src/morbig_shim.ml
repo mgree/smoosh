@@ -252,9 +252,9 @@ module Vars = Map.Make(String)
 
 let morbig_vars = ref Vars.empty
 
-let on_ps1 () = Printf.eprintf "%s" @@ Vars.find "PS1" !morbig_vars
+let on_ps1 () = Printf.eprintf "%s%!" @@ Vars.find "PS1" !morbig_vars
 
-let on_ps2 () = Printf.eprintf "%s" @@ Vars.find "PS2" !morbig_vars
+let on_ps2 () = Printf.eprintf "%s%!" @@ Vars.find "PS2" !morbig_vars
 
 let lexer_state : Lexing.lexbuf option ref = ref None
 
@@ -273,8 +273,6 @@ let parse_next i : parse_result =
   | Some src -> (
       match src with
       | ParseSTDIN -> (
-          if i = Noninteractive then
-            failwith "Can not parse from STDIN non-interactively";
           match !lexer_state with
           | None -> failwith "No lexbuf to parse from"
           | Some buf -> (
