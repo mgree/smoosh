@@ -63,11 +63,11 @@ let usage_msg =
   prog ^ " -s" ^ flags ^ "[argument...]\n" ^
   prog ^ " --version\n\n" ^
   "flags:\n\t-[flag] enables, +[flag] disables\n\n" ^
-  concat "" (List.map (fun (flag, descr) -> Printf.sprintf "\t%s\t%s\n" flag descr) (flag_descriptions prog))
+  String.concat "" (List.map (fun (flag, descr) -> Printf.sprintf "\t%s\t%s\n" flag descr) (flag_descriptions prog))
 
 let show_usage () =
   prerr_string usage_msg;
-  Pervasives.exit 2
+  Stdlib.exit 2
   
 let bad_arg msg =
   Printf.eprintf "bad argument: %s\n" msg;
@@ -76,7 +76,7 @@ let bad_arg msg =
 let bad_file file msg =
   let prog = Filename.basename Sys.executable_name in
   Printf.eprintf "%s: file '%s' %s\n%!" file msg;
-  Pervasives.exit 3
+  Stdlib.exit 3
   
 let rec parse_arg_loop args =
   match args with
@@ -123,7 +123,7 @@ let rec parse_arg_loop args =
      | ['-'; '-'; 'v'; 'e'; 'r'; 's'; 'i'; 'o'; 'n'] -> 
         begin 
           Printf.printf "%s%!" Version.smoosh_info;
-          Pervasives.exit 0
+          Stdlib.exit 0
         end
      | ['-'; 'o'] -> parse_longopt add_opt
      | ['+'; 'o'] -> parse_longopt del_opt
