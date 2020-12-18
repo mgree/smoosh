@@ -263,10 +263,19 @@ let input_source = ref None
 
 let parse_next i : parse_result = 
   let res = match i with
-  | Interactive -> 
-  (* Call interactive mode api *)
-    (* Morbig.parse_string_interactive *)
-    failwith "interactive"
+  | Interactive -> (
+    (* Call interactive mode API *)
+    match !lexer_state with
+      None -> failwith "No lexbuf to parse from"
+    | Some buf ->
+      try
+        let next_lexbuf, next_parser_state, next_cst =
+        Morbig.parse_string_interactive on_ps2 buf !parser_state in
+        parser_state := Some next_parser_state;
+        lexer_state := Some next_lexbuf;
+        ParseStmt (morbig_cst_to_smoosh_ast next_cst.value)
+      with End_of_file -> ParseDone
+    )
   | Noninteractive ->
     (* Just parse from input_source with the normal Morbig API *)
     match !input_source with
@@ -274,8 +283,6 @@ let parse_next i : parse_result =
       match !unparsed_commands with
       | [] -> ParseDone
       | cmd :: rest ->
-        (* Printf.printf "parsing from rest %d\n" (List.length rest);
-        Morsmall.pp_print_debug Format.std_formatter [cmd]; *)
         ParseStmt (parse_program true !unparsed_commands)
     )
     | Some src ->
@@ -299,7 +306,9 @@ let parse_init src =
 input_source := Some src;
 unparsed_commands := [];
 match src with
-| ParseSTDIN -> None
+| ParseSTDIN -> 
+    lexer_state := Some (Morbig__ExtPervasives.lexing_make_interactive "STDIN");
+    None
 | ParseString (mode, cmd) ->
     Some cmd
 | ParseFile (file, push) -> 
@@ -311,21 +320,6 @@ match src with
         (* Dash.setinputfile ~push:(should_push_file push) file;  *)
         None
       with Unix.Unix_error(_,_,_) -> bad_file file "unreadable"
-
-  (* match src with
-  | ParseSTDIN -> None
-  | ParseString (mode, cmd) ->
-     let ss = Dash.alloc_stack_string cmd in
-     Dash.setinputstring ss;
-     Some ss
-  | ParseFile (file, push) -> 
-     if not (Sys.file_exists file)
-     then bad_file file "not found"
-     else try 
-         Unix.access file [Unix.F_OK; Unix.R_OK];
-         Dash.setinputfile ~push:(should_push_file push) file; 
-         None
-       with Unix.Unix_error(_,_,_) -> bad_file file "unreadable" *)
 
 let parse_done m_ss m_smark = ()
 
