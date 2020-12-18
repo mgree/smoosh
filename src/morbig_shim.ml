@@ -192,20 +192,16 @@ and parse_command ({ value; position } : Morsmall.AST.command') :
   We want to make sure that the redirection (even when nested) of a simple
   command shows up as a "Command" in Smooosh's internal AST, but the redirection
   of anything else shows up as a "Redir" *)
-  | Morsmall.AST.Redirection (c, desc, kind, w) -> 
+  | Morsmall.AST.Redirection (c, desc, _, w) 
+  | Morsmall.AST.HereDocument (c, desc, w) -> 
     let (c', redirs) = collect_redirs ({value; position}: Morsmall.AST.command') in 
     let ({value ; position} : Morsmall.AST.command') = c' in
     (match value with
       | Morsmall.AST.Simple (assignments, words) -> 
         let assignments = List.map morsmall_to_smoosh_assignment assignments in
         let args = morsmall_words_to_smoosh_entries false words in
-      Command (assignments, args, redirs, command_opts)
+        Command (assignments, args, redirs, command_opts)
       | _ -> Redir (parse_command c', ([], None, redirs)))
-  | Morsmall.AST.HereDocument (cmd, desc, w) -> 
-    let redir_words = morsmall_word_to_smoosh_entries false w in
-    let redirs = [RHeredoc (Here, desc, redir_words)] in
-    let redir_state = ([], None, redirs) in
-    Redir (parse_command cmd, redir_state)
 
 and morsmall_to_smoosh_redir desc kind w =
     let redir_words = morsmall_word_to_smoosh_entries false w in
@@ -224,7 +220,11 @@ and collect_redirs ({ value; position } : Morsmall.AST.command')
   | Morsmall.AST.Redirection (c, desc, kind, w) ->
      let (c', rest) = collect_redirs c in
      (c', morsmall_to_smoosh_redir desc kind w :: rest)
-  | _ -> ({ value; position}, [])
+  | Morsmall.AST.HereDocument (c, desc, w) -> 
+    let (c', rest) = collect_redirs c in
+    (c', RHeredoc (XHere, desc, morsmall_word_to_smoosh_entries false w) :: rest)
+  | _ -> 
+    ({ value; position}, [])
 
 let morbig_cst_to_smoosh_ast cst =
   let ast = Morsmall.CST_to_AST.program__to__program cst in
