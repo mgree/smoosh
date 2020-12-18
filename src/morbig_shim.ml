@@ -85,6 +85,7 @@ and morsmall_wordval_to_smoosh_entries (is_quoted : bool) (w : Morsmall.AST.word
   let wc_to_substr (wc : Morsmall.AST.word_component) : Smoosh_prelude.entry =
     match wc with
     | Morsmall.AST.WLiteral s -> 
+      (* ??? TODO MMG 2020-12-18 should we use Escape when we merge w/master? *)
       let literal = if is_quoted then s else Str.(global_replace (Str.regexp "\\\\\\(.\\)") "\\1" s) in
       S literal
     | Morsmall.AST.WDoubleQuoted w -> K (Quote ([], morsmall_wordval_to_smoosh_entries true w))
