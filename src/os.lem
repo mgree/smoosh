@@ -680,14 +680,22 @@ declare ocaml target_rep function dash_setalias = `Dash.setalias`
 val dash_unalias : string -> unit
 declare ocaml target_rep function dash_unalias = `Dash.unalias`
 
+val morbig_setalias : string -> string -> unit
+declare ocaml target_rep function morbig_setalias = `Morbig_shim.setalias`
+
+val morbig_unalias : string -> unit
+declare ocaml target_rep function morbig_unalias = `Morbig_shim.unalias`
+
 val set_alias : forall 'a. os_state 'a -> string -> string -> os_state 'a
 let set_alias os name mapping =
   let _ = dash_setalias name mapping in
+  let _ = morbig_setalias name mapping in
   <| os with sh = <| os.sh with aliases = Map.insert name mapping os.sh.aliases |> |>
 
 val free_alias : forall 'a. os_state 'a -> string -> os_state 'a
 let free_alias os name =
   let _ = dash_unalias name in
+  let _ = morbig_unalias name in
   <| os with sh = <| os.sh with aliases = Map.delete name os.sh.aliases |> |>
 
 (**********************************************************************)

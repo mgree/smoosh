@@ -261,41 +261,38 @@ let parser_state : Engine.state option ref = ref None
 
 let input_source = ref None
 
-let parse_next i : parse_result = 
-  let res = match i with
-  | Interactive -> (
-    (* Call interactive mode API *)
-    match !lexer_state with
-      None -> failwith "No lexbuf to parse from"
-    | Some buf ->
-      try
-        let next_lexbuf, next_parser_state, next_cst =
-        Morbig.parse_string_interactive on_ps2 buf !parser_state in
-        parser_state := Some next_parser_state;
-        lexer_state := Some next_lexbuf;
-        ParseStmt (morbig_cst_to_smoosh_ast next_cst.value)
-      with End_of_file -> ParseDone
-    )
-  | Noninteractive ->
-    (* Just parse from input_source with the normal Morbig API *)
-    match !input_source with
-    | None -> (
+let parse_next i : parse_result =
+  (match i with Interactive -> on_ps1 () | Noninteractive -> ());
+
+  match !input_source with
+  | None -> (
       match !unparsed_commands with
       | [] -> ParseDone
-      | cmd :: rest ->
-        ParseStmt (parse_program true !unparsed_commands)
-    )
-    | Some src ->
-      input_source := None;
+      | cmd :: rest -> ParseStmt (parse_program true !unparsed_commands) )
+  | Some src -> (
       match src with
-      | ParseSTDIN -> failwith "Can not parse from STDIN non-interactively"
-      | ParseString (mode, cmd) -> 
+      | ParseSTDIN -> (
+          if i = Noninteractive then
+            failwith "Can not parse from STDIN non-interactively";
+          match !lexer_state with
+          | None -> failwith "No lexbuf to parse from"
+          | Some buf -> (
+              try
+                let next_lexbuf, next_parser_state, next_cst =
+                  Morbig.parse_string_interactive on_ps2 buf !parser_state
+                in
+                parser_state := Some next_parser_state;
+                lexer_state := Some next_lexbuf;
+                ParseStmt (morbig_cst_to_smoosh_ast next_cst.value)
+              with End_of_file -> ParseDone ) )
+      | ParseString (mode, cmd) ->
+          input_source := None;
           let stmt = parse_string_morbig cmd in
           ParseStmt stmt
-      | ParseFile (file, push) -> 
+      | ParseFile (file, push) ->
+          input_source := None;
           let stmt = parse_file_morbig file in
-          ParseStmt stmt
-  in res
+          ParseStmt stmt )
 
 let bad_file file msg =
   let prog = Filename.basename Sys.executable_name in
@@ -324,6 +321,22 @@ match src with
 let parse_done m_ss m_smark = ()
 
 let parse_string = parse_string_morbig
+
+(* Alias k to v in the parser_state *)
+let setalias k v =
+  match !parser_state with
+    None -> ()
+  | Some state -> 
+    let new_aliases = Morbig.Aliases.bind_aliases [(k, v)] state.aliases in
+    parser_state := Some { state with aliases = new_aliases }
+
+(* Remove any alias for k in the parser_state *)
+let unalias  k =
+  match !parser_state with
+    None -> ()
+  | Some state -> 
+    let new_aliases = Morbig.Aliases.unbind_aliases [k] state.aliases in
+    parser_state := Some { state with aliases = new_aliases }
 
 let morbig_setvar x v =
   match try_concrete v with
