@@ -92,7 +92,7 @@ and morsmall_wordval_to_smoosh_entries (is_quoted : bool) (w : Morsmall.AST.word
         K (Param (name, morsmall_attribute_to_smoosh_format is_quoted attribute))
     | Morsmall.AST.WSubshell p -> K (Backtick (parse_program false p))
     | Morsmall.AST.WGlobAll -> S "*"
-    | Morsmall.AST.WGlobAny -> S "."
+    | Morsmall.AST.WGlobAny -> S "?"
     | Morsmall.AST.WBracketExpression exp -> S "<BracketExpression>"
     | Morsmall.AST.WTildePrefix w -> K (Tilde w)
     | Morsmall.AST.WArith w -> K (Arith ([], morsmall_wordval_to_smoosh_entries is_quoted w))
