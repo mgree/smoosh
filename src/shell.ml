@@ -219,7 +219,9 @@ let cmdloop s0 sstr =
 
 (* TODO lots of special casing at http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sh.html *)
 let main () =
-  Dash.initialize ();
+  let use_dash = false in
+  if use_dash then
+    Dash.initialize ();
   setup_handlers ();
   parse_args ();
   (* TODO 2018-08-14 need to look at ENV, etc. [UP: optional]
@@ -239,7 +241,7 @@ let main () =
              Os.log = []; 
              Os.fuel = None; (* unbounded *)
              Os.symbolic = (); 
-             Os.parser = ParserMorbig} in
+             Os.parser = if use_dash then ParserDash else ParserMorbig} in
   let s1 = initialize_env s0 in
   let s2 =
     if is_interactive s1 
@@ -261,8 +263,9 @@ let main () =
     then real_set_sh_opt s2 Sh_monitor
     else s2
   in
-  let sstr = Morbig_shim.parse_init !parse_source in
-  cmdloop s3 (MorbigString sstr)
+  cmdloop s3 (if use_dash then 
+  DashString (Shim.parse_init !parse_source)
+  else MorbigString (Morbig_shim.parse_init !parse_source))
 ;;
 
 main ()
