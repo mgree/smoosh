@@ -272,8 +272,6 @@ let parse_next i : parse_result =
   | Some src -> (
       match src with
       | ParseSTDIN -> (
-          if i = Noninteractive then
-            failwith "Can not parse from STDIN non-interactively";
           match !lexer_state with
           | None -> failwith "No lexbuf to parse from"
           | Some buf -> (
