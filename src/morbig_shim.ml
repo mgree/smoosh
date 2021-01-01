@@ -251,9 +251,9 @@ module Vars = Map.Make(String)
 
 let morbig_vars = ref Vars.empty
 
-let on_ps1 () = Printf.eprintf "%s" @@ Vars.find "PS1" !morbig_vars
+let on_ps1 () = Printf.eprintf "%s%!" @@ Vars.find "PS1" !morbig_vars
 
-let on_ps2 () = Printf.eprintf "%s" @@ Vars.find "PS2" !morbig_vars
+let on_ps2 () = Printf.eprintf "%s%!" @@ Vars.find "PS2" !morbig_vars
 
 let lexer_state : Lexing.lexbuf option ref = ref None
 
