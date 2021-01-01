@@ -13,7 +13,7 @@ let rec intercalate sep l =
 
 let rec parse_program should_save_unparsed (program : Morsmall.AST.program) : Smoosh_prelude.stmt =
   match program with
-  | [] -> failwith "No program"
+  | [] -> Command ([], [], [], command_opts)
   (* You need to keep calling parse_next to parse `rest` *)
   | cmd :: rest -> if should_save_unparsed then unparsed_commands := rest; 
   (* Printf.printf "Parsing program with %d commands\n" (1 + List.length rest); *)
@@ -104,15 +104,15 @@ and morsmall_to_smoosh_assignment
         let aName, aWord = value in
         (aName, morsmall_wordval_to_smoosh_entries false aWord)
 
+and command_opts =
+  {
+    ran_cmd_subst = false;
+    should_fork = false;
+    force_simple_command = false;
+  }
+
 and parse_command ({ value; position } : Morsmall.AST.command') :
     Smoosh_prelude.stmt =
-  let command_opts =
-    {
-      ran_cmd_subst = false;
-      should_fork = false;
-      force_simple_command = false;
-    }
-  in
   match value with
   | Morsmall.AST.Simple (assignmentList, words) ->
       let assignments = List.map morsmall_to_smoosh_assignment assignmentList in
