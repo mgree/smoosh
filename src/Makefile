@@ -20,6 +20,9 @@ install : shtepper smoosh
 test : runtest
 	./runtest
 
+throwaway_driver : $(MLFILES) throwaway_driver.ml
+	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
+
 morbig_test : $(MLFILES) $(TESTFILES) test_morbig.ml
 	ocamlfind ocamlopt $(OCAMLOPTS) $^ -o $@
 
