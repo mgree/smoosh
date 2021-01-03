@@ -193,3 +193,41 @@ yields
 ```
     is also not _really_ a bug
 
+### Morbig
+
+* Parsing in interactive mode with Morbig results in Smoosh exiting. You can see
+  an error being raised if you use Morbig in a forked process in throwaway_driver.ml
+
+* Integrating Morbig-Shim into the Smoosh shtepper (not just shell.ml)
+
+* Making a cleaner abstraction for which parser is being used. Right now it is a
+  part of os_state, but really you should not be able to change the parser being
+  used while using the shell, because each parser maintains state and changing
+  parsers will break invariants.
+
+* Heredoc quoting. Right now, Morsmall doesn't have that information in the AST,
+  so we just default to XHere (unquoted.)
+
+* Bracket expressions. These are represented in the Morsmall AST, but really
+  shouldn'be.
+
+* A variety of bugs exist in the test_morbig executable.
+
+* A variety of bugs exist when running all shell tests. `cd tests; rm
+  default.env; TEST_DEBUG=1 make` does not succeed.
+  119/171 currently pass, and many, but not most, of the remaining failing tests
+  relate to quotes, redirs, heredocs, and pipes.
+
+* The mechanism for parsing calling parse_next wherein previous parsed
+  statements are stored in the `unparsed_commands` list is dubious. This might
+  be the source of many bugs.
+
+* The Morsmall.AST.WLiteral case of the morsmall_wordval_to_smoosh_entries
+  function has a regular expression that takes care of a lot of cases, but might
+  not be entirely correct. 
+
+* Within the Morsmall repository, I changed the cst_to_ast function to make
+  single quoted words in the cst double quoted words, instead of just regular
+  words. It would be better to create new value of single quoted words in the
+  AST, which for some reason, does not exist. 
+  
