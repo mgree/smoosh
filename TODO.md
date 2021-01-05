@@ -206,10 +206,10 @@ yields
   parsers will break invariants.
 
 * Heredoc quoting. Right now, Morsmall doesn't have that information in the AST,
-  so we just default to XHere (unquoted.)
+  so we just default to XHere (unquoted).
 
 * Bracket expressions. These are represented in the Morsmall AST, but really
-  shouldn'be.
+  shouldn't be.
 
 * A variety of bugs exist in the test_morbig executable.
 
@@ -229,5 +229,5 @@ yields
 * Within the Morsmall repository, I changed the cst_to_ast function to make
   single quoted words in the cst double quoted words, instead of just regular
   words. It would be better to create new value of single quoted words in the
-  AST, which for some reason, does not exist. 
+  AST, which for some reason, does not exist. [MMG: this isn't quite the right behavior: need to introduce escapes, instead]
   
