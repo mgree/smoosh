@@ -1,4 +1,4 @@
-OCAMLOPTS=-g -w -a+3+8+10+14+21+24+29+31+46+47+48 -package str,libdash,lem_num,extunix -linkpkg
+OCAMLOPTS=-g -w -a+3+8+10+14+21+24+29+31+46+47+48 -thread -package threads,str,libdash,lem_num,extunix -linkpkg
 
 SRCFILES=version.lem smoosh_num.lem signal.lem smoosh_prelude.lem signal_platform.lem \
 	 shim.ml os.lem os_symbolic.lem system.ml os_system.lem smoosh.lem arith.lem \
