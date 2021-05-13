@@ -897,12 +897,18 @@ and step_eval s0 checked stmt =
      (* load exported variables, perform assignments *)
      let env = Map.fromList assigns in
      match run_command s1 opts checked prog args env with
-     | Right (s2, stmt', restore) -> 
-        (XSSimple ("ran " ^ string_of_symbolic_string prog), 
+     | Right (s2, Done, restore) ->
+        (XSSimple ("done running " ^ string_of_symbolic_string prog), 
          s2, 
          if catching_errors && s2.sh.exit_code <> 0
          then Exit
          else if restore 
+         then pushredir Done saved_fds 
+         else Done)
+     | Right (s2, stmt', restore) -> 
+        (XSSimple ("running " ^ string_of_symbolic_string prog), 
+         s2, 
+         if restore 
          then pushredir stmt' saved_fds 
          else stmt')
      | Left (s2,msg) -> 
