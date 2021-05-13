@@ -13,7 +13,9 @@ jobs:
           - macos-latest
           - ubuntu-latest
         ocaml-version:
+          - 4.10.0
           - 4.11.0
+          - 4.12.0
 
     runs-on: ${{ matrix.os }}
 
@@ -29,7 +31,7 @@ jobs:
       - name: Install libdash
         run: |
           opam pin add libdash ./libdash --no-action
-          opem depext libdash --yes --with-test
+          opam depext libdash --yes --with-test
           opam install ./libdash
         
       - name: Build smoosh, run unit tests
