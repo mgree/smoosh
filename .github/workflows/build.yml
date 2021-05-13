@@ -43,7 +43,9 @@ jobs:
           make -C src/ test
           
       - name: Run smoosh integration tests
-        run: PATH="$(pwd)/src:$PATH" TEST_DEBUG=1 TEST_TIMEOUT=15 make -C tests/ test
+        run: |
+          ulimit -n
+          PATH="$(pwd)/src:$PATH" TEST_DEBUG=1 TEST_TIMEOUT=15 make -C tests/ test
 
           
         
