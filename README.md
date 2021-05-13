@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/mgree/smoosh.svg?branch=master)](https://travis-ci.com/mgree/smoosh)
+[![Main workflow](https://github.com/mgree/smoosh/actions/workflows/build.yml/badge.svg)](https://github.com/mgree/smoosh/actions/workflows/build.yml)
 
 Smoosh (the Symbolic, Mechanized, Observable, Operational SHell) is a formalization of the [POSIX shell standard](http://pubs.opengroup.org/onlinepubs/9699919799/utilities/contents.html); Smoosh is one part of [Michael Greenberg's](http://www.cs.pomona.edu/~michael/) broader [project on the POSIX shell](http://shell.cs.pomona.edu).
 
