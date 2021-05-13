@@ -1,0 +1,6 @@
+set -e
+putsn() { echo "$@"; }
+false && true
+putsn "It should be executed"
+false && true
+/bin/echo hello
