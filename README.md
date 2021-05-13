@@ -15,7 +15,7 @@ install via a VM or Docker.
 
 To install Smoosh directly on your computer, you will need to manually
 configure your system with the dependencies listed in
-`.travis.yml`. In particular:
+`.github/workflows/build.yml`. In particular:
 
   - A C toolchain
   - Autoconf, autotools, libtool, pkg-config, libffi, and libgmp (on macOS, this may be called `glibtoolize`, e.g., run `brew install libtool`)
