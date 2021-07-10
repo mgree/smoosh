@@ -1,0 +1,12 @@
+# Dirk Fieldhouse <fieldhouse@gmx.net> (2020-03-11) (junk list)
+# Subject: Re: XCU: 'return' from subshell
+# To: Austin Group <austin-group-l@opengroup.org>
+# Cc: chet.ramey@case.edu, Robert Elz <kre@munnari.OZ.AU>
+# Date: Wed, 11 Mar 2020 14:49:31 +0000
+
+f1() {
+   ( echo foo; return )
+   echo bar
+}
+
+f1
