@@ -1,0 +1,8 @@
+# Robert Elz <kre@munnari.OZ.AU> (2020-03-16) (inbox list unread)
+# Subject: Re: XCU: 'exit' trap condition [was:Re: XCU: 'return' from subshell]
+# To: Joerg Schilling <Joerg.Schilling@fokus.fraunhofer.de>
+# Cc: fieldhouse@gmx.net, austin-group-l@opengroup.org
+# Date: Mon, 16 Mar 2020 22:15:10 +0700
+
+f() ( trap "echo FOO" EXIT; return 5; echo BAR )
+f
