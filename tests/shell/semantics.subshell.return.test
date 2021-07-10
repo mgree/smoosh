@@ -1,0 +1,7 @@
+# Stephane Chazelas <stephane@chazelas.org> (2020-03-11) (list)
+# Subject: Re: XCU: 'return' from subshell
+# To: Robert Elz <kre@munnari.OZ.AU>
+# Cc: Dirk Fieldhouse <fieldhouse@gmx.net>, Austin Group <austin-group-l@opengroup.org>
+# Date: Wed, 11 Mar 2020 06:37:41 +0000
+
+f() { (return 42; echo x); echo "$?"; }; f
