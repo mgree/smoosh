@@ -1,0 +1,8 @@
+# id:20201221162442.GA26001@stack.nl
+# Jilles Tjoelker <jilles@stack.nl> (2020-12-21) (list)
+# Subject: Re: dash 0.5.11.2, busybox sh 1.32.0, FreeBSD 12.2 sh: spring TTOU but should not i think
+# To: Harald van Dijk <harald@gigawatt.nl>
+# Cc: Steffen Nurpmeso <steffen@sdaoden.eu>, DASH shell mailing list <dash@vger.kernel.org>, Denys Vlasenko <vda.linux@googlemail.com>
+# Date: Mon, 21 Dec 2020 17:24:42 +0100
+
+$TEST_SHELL -c  "( $TEST_SHELL -c 'trap echo\ TTOU TTOU; set -m; echo all good' )"
