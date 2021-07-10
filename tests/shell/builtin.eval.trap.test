@@ -1,0 +1,7 @@
+# Harald van Dijk <harald@gigawatt.nl> (2020-01-06) (inbox list)
+# Subject: EXIT trap handling in subshells broken
+# To: DASH shell mailing list <dash@vger.kernel.org>
+# Date: Mon, 06 Jan 2020 21:57:20 +0000
+
+eval '(trap "echo bug" EXIT)' >/dev/null
+echo ok
