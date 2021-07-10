@@ -45,6 +45,7 @@ jobs:
       - name: Run smoosh integration tests
         run: |
           ulimit -n
+          for fd in seq 3 20; do eval "exec $fd>&-"; done
           PATH="$(pwd)/src:$PATH" TEST_DEBUG=1 TEST_TIMEOUT=15 make -C tests/ test
 
           

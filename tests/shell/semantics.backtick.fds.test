@@ -1,5 +1,4 @@
-# dropped to 10 because gh actions is leaving 11 and 14 open?!
 set -e
-subshfds=$($TEST_UTIL/fds 0 10)
-$TEST_UTIL/fds 0 10
+subshfds=$($TEST_UTIL/fds 0 20)
+$TEST_UTIL/fds 0 20
 echo $subshfds
