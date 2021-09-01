@@ -34,10 +34,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          opam install -y ocamlfind ocamlbuild num zarith extunix lem opam-depext
+          opam install -y ocamlfind ocamlbuild num zarith extunix lem
           opam pin add libdash ./libdash --no-action
-          opam depext libdash --yes --with-test
-          opam install ./libdash
+          opam install --confirm-level=unsafe-yes ./libdash
         
       - name: Build smoosh, run unit tests
         run: |
