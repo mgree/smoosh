@@ -1,0 +1,9 @@
+# id:CAH7i3LpFk0TfxwpQny3ma6HzMptSQVsysQ5nFzfXETR7YEQqiQ@mail.gmail.com
+# Oğuz via austin-group-l at The Open Group <austin-group-l@opengroup.org> (Today 09:38) (inbox list)
+# Subject: $? in a simple command with no command name
+# To: austin-group-l <austin-group-l@opengroup.org>
+# Date: Wed, 01 Sep 2021 16:38:00 +0300
+
+true
+a=$? b=`exit 1` b=$? >`echo /dev/null; exit 2`
+echo $? $a $b
