@@ -1,8 +1,10 @@
 name: Main workflow
 
 on:
-  - pull_request
-  - push
+  pull_request:
+  push:
+  schedule:
+    - cron: '5 10 * * 3'
 
 jobs:
   build:
@@ -34,8 +36,7 @@ jobs:
         run: |
           opam install -y ocamlfind ocamlbuild num zarith extunix lem
           opam pin add libdash ./libdash --no-action
-          opam depext libdash --yes --with-test
-          opam install ./libdash
+          OPAMYES=yes OPAMDEPEXTYES=1 OPAMCONFIRMLEVEL=unsafe-yes opam install -y ./libdash
         
       - name: Build smoosh, run unit tests
         run: |
