@@ -36,6 +36,7 @@ jobs:
         run: |
           opam install -y ocamlfind ocamlbuild num zarith 'extunix<0.4' lem
           opam pin add libdash ./libdash --no-action
+          opam depext libdash
           OPAMYES=yes OPAMDEPEXTYES=1 OPAMCONFIRMLEVEL=unsafe-yes opam install -y ./libdash
         
       - name: Build smoosh, run unit tests
