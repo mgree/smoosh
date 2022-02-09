@@ -1,7 +1,7 @@
 open Either
 
 (* use the ExtUnix sub-library where calls that compile are implemented *)
-module ExtUnix = ExtUnix.Specific
+module U = ExtUnix.Specific
 
 let implode = Dash.implode
 let explode = Dash.explode
@@ -130,7 +130,7 @@ let set_initialpgrp () =
   match !ttyfd with
   | None -> initialpgrp := -1
   | Some fd ->
-     try initialpgrp := ExtUnix.tcgetpgrp fd
+     try initialpgrp := U.tcgetpgrp fd
      with Unix.Unix_error(_,_,_) ->
            begin
              ttyfd := None;
@@ -138,18 +138,18 @@ let set_initialpgrp () =
            end
 
 let rec real_close (fd:int) : unit =
-  try Unix.close (ExtUnix.file_descr_of_int fd)
+  try Unix.close (U.file_descr_of_int fd)
   with Unix.Unix_error(Unix.EINTR,_,_) -> real_close fd
      | Unix.Unix_error(_,_,_) -> ()
 
 let renumber ?cloexec:(ce=true) fd =
-  let orig = ExtUnix.int_of_file_descr fd in
+  let orig = U.int_of_file_descr fd in
   let newfd = Dash.freshfd_ge10 orig in
   if newfd >= 0
   then begin
       real_close orig;
       if not ce
-      then Unix.clear_close_on_exec (ExtUnix.file_descr_of_int newfd);
+      then Unix.clear_close_on_exec (U.file_descr_of_int newfd);
       newfd      
     end
   else failwith "out of file descriptors"
@@ -171,7 +171,7 @@ let open_ttyfd () =
           let mfd = xopenfile "/dev/tty" [Unix.O_RDWR] 0o666 in
           match mfd with
           | Left err -> failwith err
-          | Right fd -> Some (ExtUnix.file_descr_of_int fd)
+          | Right fd -> Some (U.file_descr_of_int fd)
         with _ -> begin
             try if Unix.isatty Unix.stdin
                 then Some Unix.stdin
@@ -190,16 +190,16 @@ let close_ttyfd () =
   | Some fd -> 
      begin 
        ttyfd := None;
-       real_close (ExtUnix.int_of_file_descr fd)
+       real_close (U.int_of_file_descr fd)
      end
 
-let real_getpgrp () = ExtUnix.getpgid 0
+let real_getpgrp () = U.getpgid 0
 
 let xtcsetpgrp pgid : bool =
   match !ttyfd with
   | None -> false
   | Some fd ->
-     try ExtUnix.tcsetpgrp fd pgid; true
+     try U.tcsetpgrp fd pgid; true
      with Unix.Unix_error(e,_,_) ->
        (* disabling warning because we're overdoing this *)
        Printf.eprintf "Cannot set tty process group to %d in %d (%s)\n" pgid (Unix.getpid ()) (Unix.error_message e); 
@@ -207,7 +207,7 @@ let xtcsetpgrp pgid : bool =
 
 let xsetpgid pid pgrp =
   if pgrp >= 0
-  then try ExtUnix.setpgid pid pgrp
+  then try U.setpgid pid pgrp
        with Unix.Unix_error(Unix.EINVAL,_,_) -> ()
           | Unix.Unix_error(Unix.EPERM,_,_) -> () (* must not be a tty... *)
           
@@ -224,7 +224,7 @@ let real_enable_jobcontrol rootpid =
   | Some tty ->
      let pgrp = real_getpgrp () in
      let rec foreground () =
-       try let fg_pgrp = ExtUnix.tcgetpgrp tty in
+       try let fg_pgrp = U.tcgetpgrp tty in
            if fg_pgrp = pgrp
            then () (* okay, we're in the foreground *)
            else if fg_pgrp = -1
@@ -272,7 +272,7 @@ let real_fork_and_eval
        | None -> pid
        | Some pgid -> pgid
   in
-  (* TODO 2018-10-01 use vfork? it's not even in ExtUnix :( *)
+  (* TODO 2018-10-01 use vfork? it's not even in U :( *)
   sigblockall ();
   match Unix.fork () with
   | 0 -> 
@@ -429,7 +429,7 @@ let real_chdir (path : string) : string option =
       else Some ("no such directory " ^ path)
   with Unix.Unix_error(e,_,_) -> Some (Unix.error_message e)
 
-let real_is_tty (fd : int) = Unix.isatty (ExtUnix.file_descr_of_int fd)
+let real_is_tty (fd : int) = Unix.isatty (U.file_descr_of_int fd)
 
 type open_flags = Unix.open_flag list
 
@@ -464,11 +464,11 @@ let rec xwrite (fd:Unix.file_descr) (buff : Bytes.t) : bool =
 
 let real_write_fd (fd:int) (s:string) : bool =
   let buff = Bytes.of_string s in
-  xwrite (ExtUnix.file_descr_of_int fd) buff
+  xwrite (U.file_descr_of_int fd) buff
 
 let real_read_all_fd (fd:int) : string option =
   let rec drain buff ofs =
-    let read = xread (ExtUnix.file_descr_of_int fd) buff ofs in
+    let read = xread (U.file_descr_of_int fd) buff ofs in
     if read = 0
     then Some (Bytes.sub_string buff 0 ofs)
     else if read > 0
@@ -490,7 +490,7 @@ let real_read_all_fd (fd:int) : string option =
 let real_read_char_fd (fd:int) : (string,char option) either =
   let buff = Bytes.make 1 (Char.chr 0) in
   try 
-    match xread (ExtUnix.file_descr_of_int fd) buff 0 with
+    match xread (U.file_descr_of_int fd) buff 0 with
     | 0 -> Right None
     | 1 -> Right (Some (Bytes.get buff 0))
     | _ -> Left ("couldn't read " ^ string_of_int fd)
@@ -530,7 +530,7 @@ let rec real_savefd (fd:int) : (string,int) either =
      | Unix.Unix_error(e,_,_) -> Left (Unix.error_message e ^ ": " ^ string_of_int fd)
 
 let rec real_dup2 (orig_fd:int) (tgt_fd:int) : string option =
-  try Unix.dup2 (ExtUnix.file_descr_of_int orig_fd) (ExtUnix.file_descr_of_int tgt_fd); None
+  try Unix.dup2 (U.file_descr_of_int orig_fd) (U.file_descr_of_int tgt_fd); None
   with Unix.Unix_error(EINTR,_,_) -> real_dup2 orig_fd tgt_fd
      | Unix.Unix_error(e,_,_) -> Some (Unix.error_message e  ^ ": " ^ string_of_int orig_fd)
 
@@ -549,7 +549,7 @@ let real_openhere (s : string) : (string,int) either =
     then 
       (* just write it, the pipe can hold it *)
       begin
-        ignore (xwrite (ExtUnix.file_descr_of_int fd_write) buff);
+        ignore (xwrite (U.file_descr_of_int fd_write) buff);
         real_close fd_write;
         Right fd_read
       end       
@@ -566,7 +566,7 @@ let real_openhere (s : string) : (string,int) either =
            Sys.set_signal Sys.sigtstp Sys.Signal_ignore;
            (* SIGPIPE gets default handler... maybe we didn't need the whole heredoc? *)
            Sys.set_signal Sys.sigpipe Sys.Signal_default;
-           ignore (xwrite (ExtUnix.file_descr_of_int fd_write) buff);
+           ignore (xwrite (U.file_descr_of_int fd_write) buff);
            exit 0
          end
       | _pid -> 
@@ -590,7 +590,7 @@ let real_handle_signal signal action =
     Sys.set_signal signal handler
 
 let rec real_signal_pid signal pid as_pg =
-  try Unix.kill (if as_pg then ExtUnix.getpgid pid else pid) signal; true
+  try Unix.kill (if as_pg then U.getpgid pid else pid) signal; true
   with
     Unix.Unix_error(EINTR,_,_) -> real_signal_pid signal pid as_pg (* shouldn't be possible, per `man 2 kill` *)
   | Unix.Unix_error(_e,_,_) -> false
