@@ -1,7 +1,7 @@
 open Either
 
 (* use the ExtUnix sub-library where calls that compile are implemented *)
-module ExtUnix = ExtUnixSpecific
+module ExtUnix = ExtUnix.Specific
 
 let implode = Dash.implode
 let explode = Dash.explode
