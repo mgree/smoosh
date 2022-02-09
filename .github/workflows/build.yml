@@ -34,7 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          opam install -y ocamlfind ocamlbuild num zarith extunix lem
+          opam install -y ocamlfind ocamlbuild num zarith 'extunix<0.4' lem
           opam pin add libdash ./libdash --no-action
           OPAMYES=yes OPAMDEPEXTYES=1 OPAMCONFIRMLEVEL=unsafe-yes opam install -y ./libdash
         

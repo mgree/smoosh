@@ -36,12 +36,14 @@ do
 done
 WIDTH=$((WIDTH+6))
 
+export SH
+export SH_FLAGS
 for SH in $SHELLS
 do
-    flags=$(flags $SH)
+    SH_FLAGS=$(flags $SH)
     if [ "$?" -eq 0 ] # got flags
     then
-        $SH $flags -c "$CMD" >$SH-posix.out 2>$SH-posix.err
+        $SH $SH_FLAGS -c "$CMD" >$SH-posix.out 2>$SH-posix.err
         echo $? >$SH-posix.ec
         printf "%${WIDTH}s: OUT [%s] ERR [%s] EC [%d]\n" "$SH-posix" "$(cat $SH-posix.out)" "$(cat $SH-posix.err)" "$(cat $SH-posix.ec)"
     fi
