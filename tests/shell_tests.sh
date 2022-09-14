@@ -204,6 +204,19 @@ printf "${TEST_SCRIPT}: %d/%d tests passed\n" ${passed} ${count}
 if [ "${failed_tests}" ]
 then
     printf "${TEST_SCRIPT} failing tests: ${failed_tests}\n"
+    for t in ${failed_tests}
+    do
+        if [ -s ${TEST_LOGDIR}/${t}.out ]
+        then
+            echo "$t STDOUT"
+            cat ${TEST_LOGDIR}/${t}.out
+        fi
+        if [ -s ${TEST_LOGDIR}/${t}.err ]
+        then
+            echo "$t STDERR"
+            cat ${TEST_LOGDIR}/${t}.err
+        fi          
+    done
 fi
 
 # set exit code
