@@ -13,4 +13,6 @@ minutes=$(echo $timing | sed 's/\([0-9]*\)m\([0-9]*\).\([0-9]*\)s.*/\1/')
 seconds=$(echo $timing | sed 's/\([0-9]*\)m\([0-9]*\).\([0-9]*\)s.*/\2/')
 fractional=$(echo $timing | sed 's/\([0-9]*\)m\([0-9]*\).\([0-9]*\)s.*/\3/')
 
-[ "$minutes" -eq 0 ] && [ "$seconds" -eq 0 ] && [ 1"$fractional" -lt 1001000 ]
+echo $fractional >&2
+
+[ "$minutes" -eq 0 ] && [ "$seconds" -eq 0 ] && [ 1"$fractional" -lt 1001500 ]
