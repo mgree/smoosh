@@ -602,6 +602,7 @@ function renderStmt(info, elt, stmt) {
         renderStmt(info, c3, cElse);
       } else {
         // plain else clause, provide our own fi
+        c3.append(';'  + fieldSep + 'else' + fieldSep);
         renderStmt(info, c3, cElse);
         elt.append(';' + fieldSep + 'fi');
       }
