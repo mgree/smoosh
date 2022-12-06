@@ -1,0 +1,5 @@
+# from id:20220818114412.zeqv5auujpuvfskk@tarta.nabijaczleweli.xyz
+set -e
+while :; do :; done < /ENOENT; echo uhoh
+for _ in :; do :; done < /ENOENT; echo uhoh
+if :; then :; fi < /ENOENT; echo uhoh

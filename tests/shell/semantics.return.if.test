@@ -1,0 +1,12 @@
+# id:ce0c3ef7-66a9-08de-546f-d8ef8263b6da@gigawatt.nl
+# from Harald van Dijk
+
+f() {
+  if ! return 5
+  then echo fail then; exit
+  else echo fail else; exit
+  fi
+}
+f
+ec=$?
+[ "$ec" -eq 5 ] || echo fail ec: $ec
