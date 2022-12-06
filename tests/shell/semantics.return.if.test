@@ -8,5 +8,13 @@ f() {
   fi
 }
 f
-ec=$?
-[ "$ec" -eq 5 ] || echo fail ec: $ec
+echo $?
+
+g() {
+  if return 6
+  then echo fail then2; exit
+  else echo fail else2; exit
+  fi     
+}
+g
+echo $?

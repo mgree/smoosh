@@ -1,0 +1,7 @@
+f() {
+  ! return 5
+  echo fail passthrough
+}
+f
+echo $?
+
