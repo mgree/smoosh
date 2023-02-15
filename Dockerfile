@@ -13,7 +13,7 @@ RUN sudo apt-get update
 RUN sudo apt-get install -y dash=0.5.8-2.4
 RUN sudo apt-get install -y --no-install-recommends bash=4.4-5
 RUN sudo apt-get install -y yash=2.43-1
-RUN sudo apt-get install -y zsh=5.3.1-4+b3 && echo 'emulate sh' >~/.zshrc
+RUN sudo apt-get install -y zsh=5.3.1-4+deb9u5 && echo 'emulate sh' >~/.zshrc
 RUN sudo apt-get install -y ksh=93u+20120801-3.1
 RUN sudo apt-get install -y mksh=54-2+b4
 
